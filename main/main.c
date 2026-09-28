@@ -119,8 +119,8 @@ static EventGroupHandle_t s_wifi_event_group;
 /* Cross-module state. ap_connect tracks whether the upstream STA link
  * is up; connect_count is the live count of AP clients rendered on the
  * Status page and published to the operator-configured MQTT broker. */
-int ap_connect   = 0;
-int connect_count = 0;
+volatile int ap_connect   = 0;
+volatile int connect_count = 0;
 
 /* Forward declarations — definitions land further down in this file. */
 /* Non-static — also called from web_ui.c when DNS-relay state changes,
@@ -464,66 +464,41 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         s_net_retries = 0;   /* successful association — clear the rotation counter */
         ap_connect = 1;
 
-        /* Single radio: the AP must share the STA's channel or the radio
-         * time-shares between the two and throughput collapses 5-10x. The STA
-         * can roam to a different-channel uplink at any time (general-purpose
-         * device), and the AP may also have booted on a now-stale learned
-         * channel. We realign by REBOOTING, not by retuning the AP live:
+        /* Single radio: the softAP always sits on the STA's channel -- the
+         * WiFi driver moves it there itself whenever the STA (re)connects,
+         * AP clients included. Measured 2026-09-16 with a forced roam from a
+         * ch11 to a ch1 uplink: the radio followed at once, the AP client
+         * stayed associated with its address, the only gap was ~5 s of
+         * uplink DHCP, throughput unchanged. The AP *config* channel is only
+         * what the AP boots on before the STA is up, so keep the learned
+         * channel current for the next boot and report what the radio is
+         * really on (see /api/status ap.channel).
          *
-         *   A runtime esp_wifi_set_config(WIFI_IF_AP) DOES change the channel,
-         *   but it tears the AP's NAT/forwarding path — AP clients lose all
-         *   internet while the ESP itself stays online (verified 2026-05-26;
-         *   NAPT/netif state does not survive the async AP restart, and a
-         *   synchronous re-enable races the netif down/up). The boot path is
-         *   the only known-good way to bring the AP up on a given channel
-         *   WITH forwarding cleanly established, so we defer to it.
-         *
-         * A loop guard caps consecutive realign reboots (an uplink that flaps
-         * between channels every boot must not boot-loop) — after the cap we
-         * run degraded (throughput hit) rather than reboot again. The guard
-         * clears on any association where the channels already match. */
+         * Earlier builds rebooted here on any config/STA mismatch
+         * ("ch-realign"): behind an uplink AP that hops channels that was a
+         * reboot per hop -- 27 in six days on one device -- and every reboot
+         * dropped the AP clients and the tunnel for 30-40 s for nothing.
+         * Re-applying the AP config live is not an option either: the esp_netif
+         * restart behind esp_wifi_set_config(WIFI_IF_AP) clears NAPT
+         * (lwIP netif_add zeroes netif->napt) and the ACL/PMTU hooks, so the AP
+         * clients lose the internet until the next reboot (measured the same day). */
         wifi_ap_record_t ap_info;
         if (esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK
             && ap_info.primary >= 1 && ap_info.primary <= 13) {
-            /* Keep the learned channel current so the next boot aligns. */
             int32_t saved = 0;
             (void)nvs_param_get_int("ap_chan_learned", &saved);
             if (saved != (int32_t)ap_info.primary) {
                 (void)nvs_param_set_int("ap_chan_learned", ap_info.primary);
             }
             wifi_config_t ap_cfg;
-            bool mismatch = (esp_wifi_get_config(WIFI_IF_AP, &ap_cfg) == ESP_OK
-                             && ap_cfg.ap.channel != ap_info.primary);
-            if (!mismatch) {
-                /* Aligned — clear the realign loop guard. */
-                int32_t rc = 0;
-                if (nvs_param_get_int("ap_realign_cnt", &rc) == ESP_OK && rc != 0) {
-                    (void)nvs_param_set_int("ap_realign_cnt", 0);
-                }
-            } else if (s_ap_auto_off) {
-                ESP_LOGI(TAG_AP, "STA ch%u != AP ch%u; recovery-only AP will stop without reboot",
-                         (unsigned)ap_info.primary, (unsigned)ap_cfg.ap.channel);
-            } else {
-                int32_t rc = 0;
-                (void)nvs_param_get_int("ap_realign_cnt", &rc);
-                if (rc < 3) {
-                    (void)nvs_param_set_int("ap_realign_cnt", rc + 1);
-                    ESP_LOGW(TAG_AP, "STA ch%u != AP ch%u — realigning via reboot (#%ld, single radio)",
-                             (unsigned)ap_info.primary, (unsigned)ap_cfg.ap.channel, (long)(rc + 1));
-                    /* Persist the cause so the next boot can report WHY it
-                     * rebooted (esp_reset_reason only says "SW"), then flush
-                     * the SD recorder (bounded, best-effort) so the lines
-                     * above survive the restart instead of dying in the queue. */
-                    char why[28];
-                    snprintf(why, sizeof why, "ch-realign %u->%u",
-                             (unsigned)ap_cfg.ap.channel, (unsigned)ap_info.primary);
-                    (void)nvs_param_set_str("reboot_why", why);
-                    (void)sdlog_flush();   /* reboot regardless of the result */
-                    esp_restart();
-                } else {
-                    ESP_LOGW(TAG_AP, "STA ch%u != AP ch%u — gave up realign after %ld reboots, running degraded",
-                             (unsigned)ap_info.primary, (unsigned)ap_cfg.ap.channel, (long)rc);
-                }
+            uint8_t prim = 0; wifi_second_chan_t sec = WIFI_SECOND_CHAN_NONE;
+            esp_wifi_get_channel(&prim, &sec);
+            if (esp_wifi_get_config(WIFI_IF_AP, &ap_cfg) == ESP_OK
+                && ap_cfg.ap.channel != ap_info.primary) {
+                ESP_LOGW(TAG_AP, "STA on ch%u, AP config ch%u: the radio follows the STA (now ch%u), "
+                                 "no reboot; the next boot starts on ch%u",
+                         (unsigned)ap_info.primary, (unsigned)ap_cfg.ap.channel,
+                         (unsigned)prim, (unsigned)ap_info.primary);
             }
         }
         /* Auto-spawn the Tailscale (microlink) connect task once STA has
@@ -892,6 +867,16 @@ void app_main(void)
         }
         free(sum);
         esp_core_dump_image_erase();
+    } else {
+        /* A reset without a new dump must not display an older panic as new.
+         * Historical crashes remain in the local reset-history ring. */
+        nvs_handle_t ch;
+        if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &ch) == ESP_OK) {
+            nvs_erase_key(ch, "last_crash");
+            nvs_erase_key(ch, "last_crash_at");
+            nvs_commit(ch);
+            nvs_close(ch);
+        }
     }
 
     /* Tailscale (microlink) settings — separate NVS keys (ts_*); loader
@@ -1091,7 +1076,7 @@ void app_main(void)
      * next reboot. Reaching the end of app_main means every subsystem came up
      * without an ESP_ERROR_CHECK abort or early panic, and the web server + AP
      * are live — a strong "boot succeeded" signal. We validate EARLY on
-     * purpose: a channel-realign reboot can fire within seconds of the STA
+     * purpose: a tagged reboot can fire within seconds of the STA
      * acquiring an IP, and must not be allowed to roll back a good image. */
     {
         const esp_partition_t *running = esp_ota_get_running_partition();

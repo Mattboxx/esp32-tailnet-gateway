@@ -2257,7 +2257,18 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label" for="ts-routes">Advertised Subnet Routes</label>
+            <label class="form-label" for="ts-ipn-version">Reported client version (optional)</label>
+            <input class="input" type="text" id="ts-ipn-version" maxlength="32" placeholder="Empty = not reported">
+            <span class="form-hint">Compatibility override for the Tailscale admin console. Does not upgrade this firmware or add capabilities.</span>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch">
+              <input type="checkbox" id="ts-adv-ap"><span class="feature-switch-track" aria-hidden="true"></span><span>Advertise the AP subnet</span>
+            </label>
+            <span class="form-hint">Includes the configured AP subnet without changing additional routes. Requires route approval in Tailscale and a device restart.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="ts-routes">Additional advertised subnet routes</label>
             <textarea class="textarea input" id="ts-routes" maxlength="400" placeholder="192.168.4.0/24" style="min-height:5rem; font-family:var(--font-mono); font-size:0.9rem;"></textarea>
             <span class="form-hint">One CIDR per line.</span>
           </div>
@@ -2284,6 +2295,11 @@
             <div class="form-hint mono" id="ts-4via6-status">Disabled</div>
           </div>
 
+          <div class="form-group">
+            <label class="form-label">Routes after restart</label>
+            <pre class="mono" id="ts-effective-routes" style="white-space:pre-wrap; overflow-wrap:anywhere;">—</pre>
+            <span class="form-hint" id="ts-exit-pending"></span>
+          </div>
           <div class="form-group">
             <label class="feature-switch">
               <input type="checkbox" id="ts-snat"><span class="feature-switch-track" aria-hidden="true"></span><span>Source-NAT advertised routes</span>
@@ -2338,7 +2354,7 @@
         </div>
         <div class="card-body">
           <p class="form-hint" style="margin:0 0 0.75rem 0;">
-            <strong>AUTO</strong> keys off the <em>exit node's</em> path: <code class="mono">1420</code> when the exit node has a direct UDP path, <code class="mono">1280</code> when the exit node is DERP-relayed (DERP carries WireGuard over TLS/TCP, so the inner packets need a smaller MTU — an over-large MSS gets dropped/blackholed and collapses throughput). With no exit node, it falls back to any-direct-peer for advertised-subnet traffic.
+            <strong>AUTO</strong> uses <code class="mono">1280</code> on both direct and relayed paths, matching the remote Tailscale tunnel and preventing oversized return packets from stalling downloads. TCP MSS is clamped to <code class="mono">1240</code>. Fixed mode remains available for advanced setups.
             <strong>FIXED</strong> pins a user-supplied value in <code class="mono">576..1500</code>.
             The effective MTU drives the WireGuard netif MTU, the AP-side TCP MSS clamp on every SYN, and the next-hop MTU reported in ICMP frag-needed replies.
           </p>
@@ -2346,13 +2362,13 @@
             <div class="form-group">
               <label class="form-label" for="ts-mtu-mode">Mode</label>
               <select class="select input" id="ts-mtu-mode">
-                <option value="0">Auto (peer-aware)</option>
+                <option value="0">Auto (Tailscale 1280)</option>
                 <option value="1">Fixed</option>
               </select>
             </div>
             <div class="form-group" id="ts-mtu-fixed-wrap">
               <label class="form-label" for="ts-mtu-fixed">Fixed MTU (576..1500)</label>
-              <input class="input mono" type="number" id="ts-mtu-fixed" min="576" max="1500" step="1" placeholder="1420">
+              <input class="input mono" type="number" id="ts-mtu-fixed" min="576" max="1500" step="1" placeholder="1280">
             </div>
           </div>
           <div class="stat-row"><span class="stat-label">Effective MTU</span> <span class="stat-value mono" id="ts-mtu-eff">—</span></div>
@@ -5807,6 +5823,10 @@
           })();
           document.getElementById('ts-hostname').value      = s.hostname     || '';
           document.getElementById('ts-login').value         = s.login_server || '';
+          document.getElementById('ts-ipn-version').value = s.ipn_version || '';
+          document.getElementById('ts-adv-ap').checked = !!s.advertise_ap;
+          document.getElementById('ts-effective-routes').textContent = s.effective_routes_valid === false ? 'Invalid route configuration' : (s.effective_routes || 'None');
+          document.getElementById('ts-exit-pending').textContent = s.exit_node_restart_pending ? 'Saved exit node differs from the running tunnel. Restart to apply.' : '';
           document.getElementById('ts-routes').value        = s.advertise_routes || '';
           document.getElementById('ts-max-peers').value     = s.max_peers   || 16;
           document.getElementById('ts-accept-routes').checked = !!s.accept_routes;
@@ -5969,7 +5989,7 @@
           var mtu = (d && d.mtu) || {};
           var mtuMode = parseInt(mtu.mode || 0, 10);
           document.getElementById('ts-mtu-mode').value  = String(mtuMode);
-          document.getElementById('ts-mtu-fixed').value = mtu.fixed_mtu || 1420;
+          document.getElementById('ts-mtu-fixed').value = mtu.fixed_mtu || 1280;
           document.getElementById('ts-mtu-fixed-wrap').style.display = (mtuMode === 1) ? '' : 'none';
           document.getElementById('ts-mtu-eff').textContent      = (mtu.eff_mtu  || '—') + ' B';
           document.getElementById('ts-mtu-eff-mss').textContent  = (mtu.eff_mss  || '—') + ' B';
@@ -5985,7 +6005,7 @@
     }
 
     /* Dirty-track and wiring. */
-    ['ts_enabled_on', 'ts-auth-key', 'ts-hostname', 'ts-login',
+    ['ts_enabled_on', 'ts-auth-key', 'ts-hostname', 'ts-login', 'ts-ipn-version', 'ts-adv-ap',
      'ts-routes', 'ts-max-peers', 'ts-accept-routes', 'ts-lan-bypass', 'ts-snat', 'ts-advertise-exit', 'ts-exit-node',
      'ts-4via6-enabled', 'ts-4via6-lan', 'ts-4via6-site'
     ].forEach(function (id) {
@@ -6073,7 +6093,7 @@
       var body = {
         mtu: {
           mode:      parseInt(document.getElementById('ts-mtu-mode').value, 10) || 0,
-          fixed_mtu: parseInt(document.getElementById('ts-mtu-fixed').value, 10) || 1420
+          fixed_mtu: parseInt(document.getElementById('ts-mtu-fixed').value, 10) || 1280
         }
       };
       apiFetch('/api/tailscale', {
@@ -6140,6 +6160,8 @@
           enabled:           enabled,
           hostname:          document.getElementById('ts-hostname').value.trim(),
           login_server:      document.getElementById('ts-login').value.trim(),
+          ipn_version:       document.getElementById('ts-ipn-version').value.trim(),
+          advertise_ap:      document.getElementById('ts-adv-ap').checked,
           advertise_routes:  document.getElementById('ts-routes').value,
           max_peers:         parseInt(document.getElementById('ts-max-peers').value, 10) || 16,
           accept_routes:     document.getElementById('ts-accept-routes').checked,

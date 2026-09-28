@@ -67,8 +67,9 @@
 #include "driver/temperature_sensor.h"
 
 /* Globals owned by main.c — link status flags rendered in /api/status. */
-extern int ap_connect;
-extern int connect_count;
+#include "upstream_validation.h"
+extern volatile int ap_connect;
+extern volatile int connect_count;
 extern void wifi_sta_pause_for_scan(void);
 extern void wifi_sta_resume_after_scan(void);
 extern bool wifi_ap_policy_auto_off(void);
@@ -312,7 +313,11 @@ static esp_err_t status_handler(httpd_req_t *req)
     wifi_config_t ap_cfg;
     if (esp_wifi_get_config(WIFI_IF_AP, &ap_cfg) == ESP_OK) {
         cJSON_AddStringToObject(ap, "ssid",    (const char *)ap_cfg.ap.ssid);
-        cJSON_AddNumberToObject(ap, "channel", ap_cfg.ap.channel);
+        uint8_t primary = 0;
+        wifi_second_chan_t secondary = WIFI_SECOND_CHAN_NONE;
+        bool live = esp_wifi_get_channel(&primary, &secondary) == ESP_OK && primary >= 1 && primary <= 14;
+        cJSON_AddNumberToObject(ap, "channel", live ? primary : ap_cfg.ap.channel);
+        cJSON_AddNumberToObject(ap, "cfg_channel", ap_cfg.ap.channel);
     }
     if (esp_wifi_get_mac(WIFI_IF_AP, mac) == ESP_OK) {
         snprintf(mac_str, sizeof mac_str, "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -350,7 +355,7 @@ static esp_err_t status_handler(httpd_req_t *req)
     cJSON_AddBoolToObject  (ts, "connected", ts_connected);
     cJSON_AddBoolToObject  (ts, "advertise_exit_node", tailscale_advertise_exit_node != 0);
     if (tailscale_hostname)         cJSON_AddStringToObject(ts, "hostname",         tailscale_hostname);
-    if (tailscale_advertise_routes) cJSON_AddStringToObject(ts, "advertise_routes", tailscale_advertise_routes);
+    cJSON_AddStringToObject(ts, "advertise_routes", tailscale_active_routes());
     if (tailscale_tunnel_ip) {
         char buf[16];
         ip4_to_str(tailscale_tunnel_ip, buf, sizeof buf);
@@ -1061,8 +1066,9 @@ static esp_err_t network_save_handler(httpd_req_t *req)
         proposed[0] = '\0';
         compute_ap_cidr_from_nvs(new_cidr, sizeof new_cidr);
         bool offer = false;
-        maintain_ap_cidr_in_routes(old_cidr, new_cidr, &offer,
-                                   proposed, sizeof proposed);
+        if (!tailscale_advertise_ap)
+            maintain_ap_cidr_in_routes(old_cidr, new_cidr, &offer,
+                                       proposed, sizeof proposed);
         if (offer) {
             /* Stash proposal for the response — the SPA confirms with
              * the operator and POSTs proposed_routes back to
@@ -1243,6 +1249,11 @@ static esp_err_t network_scan_result_handler(httpd_req_t *req)
         cJSON_AddStringToObject(e, "ssid",    (const char *)s_scan_cache[i].ssid);
         cJSON_AddNumberToObject(e, "rssi",    s_scan_cache[i].rssi);
         cJSON_AddNumberToObject(e, "channel", s_scan_cache[i].primary);
+        char bssid[18];
+        snprintf(bssid, sizeof bssid, "%02x:%02x:%02x:%02x:%02x:%02x",
+                 s_scan_cache[i].bssid[0], s_scan_cache[i].bssid[1], s_scan_cache[i].bssid[2],
+                 s_scan_cache[i].bssid[3], s_scan_cache[i].bssid[4], s_scan_cache[i].bssid[5]);
+        cJSON_AddStringToObject(e, "bssid", bssid);
         cJSON_AddStringToObject(e, "auth",    wifi_authmode_str(s_scan_cache[i].authmode));
         cJSON_AddItemToArray(arr, e);
     }
@@ -2896,6 +2907,15 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     }
     if (tailscale_hostname)         cJSON_AddStringToObject(settings, "hostname",       tailscale_hostname);
     if (tailscale_login_server)     cJSON_AddStringToObject(settings, "login_server",   tailscale_login_server);
+    if (tailscale_ipn_version)      cJSON_AddStringToObject(settings, "ipn_version", tailscale_ipn_version);
+    cJSON_AddBoolToObject(settings, "advertise_ap", tailscale_advertise_ap != 0);
+    {
+        char preview[640];
+        bool valid = tailscale_routes_preview(preview, sizeof preview);
+        cJSON_AddStringToObject(settings, "effective_routes", valid ? preview : "");
+        cJSON_AddBoolToObject(settings, "effective_routes_valid", valid);
+        cJSON_AddStringToObject(settings, "active_routes", tailscale_active_routes());
+    }
     if (tailscale_advertise_routes) cJSON_AddStringToObject(settings, "advertise_routes", tailscale_advertise_routes);
     fourvia6_status_t v6;
     fourvia6_get_status(&v6);
@@ -2915,11 +2935,15 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     cJSON_AddBoolToObject  (settings, "accept_routes",           tailscale_accept_routes != 0);
     cJSON_AddBoolToObject  (settings, "snat_subnet_routes",      tailscale_snat_subnet_routes != 0);
     cJSON_AddBoolToObject  (settings, "advertise_exit_node",     tailscale_advertise_exit_node != 0);
-    if (tailscale_exit_node_ip) {
-        /* tailscale_exit_node_ip is documented as host byte order. */
-        char buf[16];
-        ip4_hbo_to_str(tailscale_exit_node_ip, buf, sizeof buf);
-        cJSON_AddStringToObject(settings, "exit_node_ip", buf);
+    {
+        int32_t saved = 0;
+        (void)nvs_param_get_int("ts_exit_node", &saved);
+        if (saved) {
+            char buf[16];
+            ip4_hbo_to_str((uint32_t)saved, buf, sizeof buf);
+            cJSON_AddStringToObject(settings, "exit_node_ip", buf);
+        }
+        cJSON_AddBoolToObject(settings, "exit_node_restart_pending", (uint32_t)saved != tailscale_exit_node_ip);
     }
     cJSON_AddItemToObject(root, "settings", settings);
 
@@ -3104,6 +3128,14 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
          * time would route received Internet traffic straight back into the
          * tunnel. Reject the ambiguous configuration before any NVS writes. */
         const cJSON *routes = cJSON_GetObjectItem(s, "advertise_routes");
+        const cJSON *ipn = cJSON_GetObjectItem(s, "ipn_version");
+        const cJSON *adv_ap = cJSON_GetObjectItem(s, "advertise_ap");
+        if ((ipn && (!cJSON_IsString(ipn) || !ipn_version_valid(ipn->valuestring)))
+            || (adv_ap && !cJSON_IsBool(adv_ap))) {
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid client version or AP advertisement toggle");
+            return ESP_FAIL;
+        }
         const cJSON *max_peers = cJSON_GetObjectItem(s, "max_peers");
         const cJSON *region = cJSON_GetObjectItem(s, "default_derp_region");
         const cJSON *threshold = cJSON_GetObjectItem(s, "netcheck_threshold_ms");
@@ -3124,7 +3156,9 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
         bool want_advertise_exit = cJSON_IsBool(advertise_exit)
                                    ? cJSON_IsTrue(advertise_exit)
                                    : tailscale_advertise_exit_node != 0;
-        bool want_selected_exit = tailscale_exit_node_ip != 0;
+        int32_t saved_exit = 0;
+        (void)nvs_param_get_int("ts_exit_node", &saved_exit);
+        bool want_selected_exit = saved_exit != 0;
         if (cJSON_IsString(selected_exit)) {
             ip4_addr_t parsed = { 0 };
             if (selected_exit->valuestring[0] == '\0') {
@@ -3151,6 +3185,7 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
         save_str_if_present(s, "auth_key",         "ts_authkey");
         save_str_if_present(s, "hostname",         "ts_hostname");
         save_str_if_present(s, "login_server",     "ts_login");
+        save_str_if_present(s, "ipn_version",      "ts_ipn_ver");
         save_str_if_present(s, "advertise_routes", "ts_routes");
 
         /* tailscale_init only reads these globals at boot, so the
@@ -3180,6 +3215,8 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
         _TS_REFRESH_STR ("auth_key",                tailscale_auth_key);
         _TS_REFRESH_STR ("hostname",                tailscale_hostname);
         _TS_REFRESH_STR ("login_server",            tailscale_login_server);
+        _TS_REFRESH_STR ("ipn_version",             tailscale_ipn_version);
+        _TS_REFRESH_BOOL("advertise_ap",            tailscale_advertise_ap);
         _TS_REFRESH_STR ("advertise_routes",        tailscale_advertise_routes);
         _TS_REFRESH_BOOL("enabled",                 tailscale_enabled);
         _TS_REFRESH_NUM ("max_peers",               tailscale_max_peers);
@@ -3199,6 +3236,7 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
         save_int_if_present(s, "netcheck_threshold_ms", "ts_nc_thr");
 
         const cJSON *bool_keys[][2] = {
+            { cJSON_GetObjectItem(s, "advertise_ap"),      (void *)"ts_adv_ap" },
             { cJSON_GetObjectItem(s, "netcheck_override"), (void *)"ts_nc_ovr"  },
             { cJSON_GetObjectItem(s, "lan_bypass"),        (void *)"ts_lan_bp"  },
             { cJSON_GetObjectItem(s, "accept_routes"),     (void *)"ts_acpt_rt" },
@@ -3225,7 +3263,8 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
             if (exit_node->valuestring[0] == '\0' || ip4addr_aton(exit_node->valuestring, &a)) {
                 uint32_t hbo = lwip_ntohl(a.addr);
                 nvs_save_int("ts_exit_node", (int32_t)hbo);
-                tailscale_exit_node_ip = hbo;
+                /* Persist only: the running tunnel and default route keep
+                 * the same exit node until the next device restart. */
             }
         }
 
@@ -4183,21 +4222,24 @@ static void session_clear_all(void)
  * the index, or -1 if no cookie / no match / matched-but-expired. */
 static int session_find_for_req(httpd_req_t *req)
 {
-    char hdr[160];
-    if (httpd_req_get_hdr_value_str(req, "Cookie", hdr, sizeof hdr) != ESP_OK) return -1;
-    const char *p = strstr(hdr, "ts_session=");
-    if (!p) return -1;
-    p += strlen("ts_session=");
+    size_t length = httpd_req_get_hdr_value_len(req, "Cookie");
+    if (!length || length > 4096) return -1;
+    char *hdr = malloc(length + 1);
+    if (!hdr) return -1;
+    if (httpd_req_get_hdr_value_str(req, "Cookie", hdr, length + 1) != ESP_OK) {
+        free(hdr);
+        return -1;
+    }
     uint64_t now = (uint64_t)esp_timer_get_time();
     for (int i = 0; i < WEB_UI_SESSION_MAX; i++) {
         if (!s_sessions[i].token[0])    continue;
         if (now >= s_sessions[i].expires_us) continue;
-        size_t n = strlen(s_sessions[i].token);
-        if (strncmp(p, s_sessions[i].token, n) == 0
-            && (p[n] == '\0' || p[n] == ';')) {
+        if (session_cookie_matches(hdr, s_sessions[i].token)) {
+            free(hdr);
             return i;
         }
     }
+    free(hdr);
     return -1;
 }
 

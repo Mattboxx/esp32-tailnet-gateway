@@ -222,12 +222,14 @@ static void send_info(const ntfy_integration_config_t *c)
             ts ? "connected" : "disconnected", tailscale_enabled ? "yes" : "no",
             tailscale_advertise_exit_node ? "yes" : "no");
     microlink_t *ml = tailscale_get_microlink();
+    appendf(text, 8192, "Automatic AP advertisement (configured): %s\n",
+            tailscale_advertise_ap ? "yes" : "no");
     int peers = ml ? microlink_get_peer_count(ml) : 0;
     appendf(text, 8192, "Peers (%d):\n", peers);
     if (c->info_include_details) {
         appendf(text, 8192, "Tailscale IP: " IPSTR
-                "\nAdvertised IPv4 routes: %s\nAccept peer routes: %s\nSource NAT: %s\n",
-                IP2STR(&ts_ip), tailscale_advertise_routes ? tailscale_advertise_routes : "",
+                "\nActive advertised routes: %s\nAccept peer routes: %s\nSource NAT: %s\n",
+                IP2STR(&ts_ip), tailscale_active_routes(),
                 tailscale_accept_routes ? "yes" : "no", tailscale_snat_subnet_routes ? "yes" : "no");
         for (int i = 0; i < peers; i++) {
             microlink_peer_info_t p = {0};

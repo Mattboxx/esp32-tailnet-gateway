@@ -1,5 +1,13 @@
 # Custom ESP32-S3 router branch
 
+## Upstream v0.1.27 alignment (1.6 development)
+
+The v0.1.20-v0.1.27 improvements are integrated on top of the Mattboxx 1.5
+features. See [the integration record](docs/UPSTREAM-0.1.27.md). MQTT/HA, ntfy,
+WOL, AP policy, LAN-to-Tailnet forwarding, 4via6, exit-node advertising,
+authentication and privacy removals remain in place. No Ethernet driver or
+automatic external telemetry/update service is introduced by this alignment.
+
 This branch starts from upstream `main` at `v0.1.19` and targets the ESP32-S3
 N16R8 used during development. Hardware validation is revision-specific; the
 current changes and pending tests are in [the review record](docs/REVIEW-1.5.md).

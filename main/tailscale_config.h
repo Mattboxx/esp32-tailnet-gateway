@@ -18,6 +18,8 @@ extern int32_t tailscale_enabled;        // 0=off, 1=on
 extern char* tailscale_auth_key;         // tskey-auth-... (Tailscale) or hskey-auth-... (Headscale) preauth
 extern char* tailscale_hostname;         // Hostname registered on the tailnet
 extern char* tailscale_login_server;     // "" = Tailscale SaaS; otherwise Headscale URL (e.g. "http://192.168.1.42")
+extern char* tailscale_ipn_version;      // Optional reported client version; empty by default
+extern int32_t tailscale_advertise_ap;   // Automatic AP CIDR; opt-in on upgraded installations
 extern char* tailscale_advertise_routes; // Newline-separated CIDRs (e.g. "192.168.4.0/24\n192.168.1.0/24")
 extern int32_t tailscale_advertise_exit_node; // 1 = advertise 0.0.0.0/0 + ::/0 and provide IPv4 Internet egress
 extern int32_t tailscale_max_peers;      // Active WG tunnels (microlink default 16, range 1..64)
@@ -54,12 +56,18 @@ struct microlink_s *tailscale_get_microlink(void);
 void init_sntp_if_needed(void);          // Start SNTP once (idempotent); defined in tailscale_manager.c
 void tailscale_init(void);               // Load NVS settings; call once from app_main
 esp_err_t tailscale_connect(void);
+// Clears an unstarted instance's state only; a published VPN requires restart
+// because routing/automation consumers retain its handle for the boot lifetime.
 void tailscale_disconnect(void);
 bool tailscale_is_connected(void);
 void tailscale_connect_task(void *pvParameters);
 
 // Routing-decision helpers (called from netif hooks)
 void tailscale_set_subnet(uint32_t ip, uint32_t mask);
+// Caller-owned preview, including AP, additional, 4via6 and exit-node routes.
+bool tailscale_routes_preview(char *out, size_t capacity);
+// Immutable routes supplied to the current boot's microlink instance.
+const char *tailscale_active_routes(void);
 bool tailscale_in_subnet(uint32_t ip);
 
 #ifdef __cplusplus

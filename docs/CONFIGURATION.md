@@ -53,7 +53,9 @@ Up to **5** networks, tried in order. Per network:
 | **Auth key** | Tailscale auth key (`tskey-…`). Leave empty to keep current. |
 | **Hostname** | Node name on the tailnet. |
 | **Login server** | Custom control plane (Headscale). Empty = hosted Tailscale. Accepts `host`, `host:port`, `http://host[:port]`, `https://host[:port]` (TLS validates against public CAs only — no self-signed). Requires Headscale ≥ 0.26 (validated on v0.28.0). |
-| **Advertised subnet routes** | One CIDR per line; the AP subnet is offered automatically. |
+| **Reported client version** | Optional control-plane compatibility override (`IPNVersion`), empty by default. Does not upgrade the implementation or its capabilities. Requires restart. |
+| **Advertise the AP subnet** | Compose the configured AP CIDR automatically without changing manual routes. On for fresh installations, opt-in for upgrades from Mattboxx 1.5. Requires restart and Tailscale route approval. |
+| **Additional advertised subnet routes** | One CIDR per line, maximum 400 bytes. Combined and deduplicated with the automatic AP, 4via6 and exit-node routes. The UI shows the saved preview; Status shows the boot's active routes. |
 | **Source-NAT advertised routes** | Off by default. Masquerades traffic forwarded from the tunnel out to the uplink LAN (or out to the internet when this device is an exit node) to the device's own STA IP — the Tailscale default for subnet routers. **On** = the uplink subnet works the moment you advertise it (upstream hosts reply to this device, which un-NATs back into the tunnel). **Off** = the upstream router needs a static route for the tailnet (`100.64.0.0/10 → this device`) instead. Enabling it offers to add your uplink subnet to the advertised routes. ⚠️ Do **not** advertise *and* accept the same subnet — that loops the inbound route back into the tunnel. |
 | **Exit node** | Route AP-client public traffic through this tailnet exit node. Fails closed if unreachable. |
 | **Max peers** | Upper bound on tracked peers. |
@@ -62,8 +64,8 @@ Up to **5** networks, tried in order. Per network:
 
 ### Tunnel MTU
 
-`Auto (peer-aware)` is recommended — it derives the effective MTU/MSS
-from the active path (direct vs DERP, exit vs not). A fixed MTU can be
+`Auto (Tailscale 1280)` uses MTU 1280 and TCP MSS 1240 on both direct and
+relayed paths to avoid oversized return packets. A fixed MTU can be
 forced (576–1500) if a path misbehaves.
 
 ## Firewall

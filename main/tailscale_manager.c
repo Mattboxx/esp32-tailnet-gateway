@@ -8,18 +8,23 @@
  */
 
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "lwip/ip4_addr.h"
 #include <time.h>
 #include <arpa/inet.h>
 #include "esp_log.h"
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/semphr.h"
 #include "microlink.h"
 #include "sdlog.h"
 #include "tailscale_config.h"
 #include "nvs_params.h"
 #include "esp_sntp.h"
 #include "fourvia6.h"
+#include "upstream_validation.h"
 
 /* Local helper: load a string from NVS, defaulting to an empty heap
  * buffer when the key isn't there. Other modules assume non-NULL. */
@@ -35,6 +40,8 @@ int32_t tailscale_enabled = 0;
 char* tailscale_auth_key = NULL;
 char* tailscale_hostname = NULL;
 char* tailscale_login_server = NULL;
+char* tailscale_ipn_version = NULL;
+int32_t tailscale_advertise_ap = 0;
 char* tailscale_advertise_routes = NULL;
 int32_t tailscale_advertise_exit_node = 0;
 int32_t tailscale_max_peers = 16;
@@ -66,6 +73,56 @@ static char *s_active_auth_key;
 static char *s_active_hostname;
 static char *s_active_login_server;
 static char *s_active_advertise_routes;
+static char *s_active_ipn_version;
+static char s_active_routes[640];
+static char s_effective_ipn_version[64];
+static bool s_routes_valid;
+static StaticSemaphore_t s_lifecycle_storage;
+static SemaphoreHandle_t s_lifecycle;
+static portMUX_TYPE s_connect_lock = portMUX_INITIALIZER_UNLOCKED;
+static bool s_connect_in_flight;
+
+/* Read saved settings into caller-owned storage: no mutable static preview
+ * shared between HTTP, MQTT and the connect task. Manual routes are untouched. */
+bool tailscale_routes_preview(char *out, size_t capacity)
+{
+    if (!out || !capacity) return false;
+    out[0] = '\0';
+    int32_t enabled = tailscale_advertise_ap;
+    (void)nvs_param_get_int("ts_adv_ap", &enabled);
+    if (enabled) {
+        char *ip_s = nvs_param_get_str("ap_ip");
+        char *mask_s = nvs_param_get_str("ap_mask");
+        ip4_addr_t ip, mask;
+        bool valid = ip4addr_aton(ip_s && *ip_s ? ip_s : "192.168.4.1", &ip)
+                  && ip4addr_aton(mask_s && *mask_s ? mask_s : "255.255.255.0", &mask);
+        free(ip_s);
+        free(mask_s);
+        if (!valid) return false;
+        uint32_t m = lwip_ntohl(mask.addr), host = lwip_ntohl(ip.addr) & m;
+        if (!m || ((~m) & ((~m) + 1u))) return false;
+        unsigned prefix = 0;
+        for (uint32_t bit = m; bit & 0x80000000u; bit <<= 1) ++prefix;
+        char cidr[32];
+        snprintf(cidr, sizeof cidr, "%u.%u.%u.%u/%u",
+                 (unsigned)(host >> 24), (unsigned)((host >> 16) & 255),
+                 (unsigned)((host >> 8) & 255), (unsigned)(host & 255), prefix);
+        if (!route_list_add(out, capacity, cidr)) return false;
+    }
+    char *manual = nvs_str_or_empty("ts_routes");
+    if (!manual) return false;
+    bool ok = strlen(manual) <= 400 && route_list_add(out, capacity, manual);
+    free(manual);
+    if (!ok) return false;
+    fourvia6_status_t v6;
+    fourvia6_get_status(&v6);
+    if (v6.enabled && !route_list_add(out, capacity, v6.advertised_prefix)) return false;
+    enabled = tailscale_advertise_exit_node;
+    (void)nvs_param_get_int("ts_adv_exit", &enabled);
+    return !enabled || route_list_add(out, capacity, "0.0.0.0/0\n::/0");
+}
+
+const char *tailscale_active_routes(void) { return s_routes_valid ? s_active_routes : ""; }
 
 /* Start SNTP if it has not been started yet.  Called by tailscale_connect_task
  * (before the WireGuard handshake needs real wall-clock time) and by the WiFi
@@ -81,12 +138,20 @@ void init_sntp_if_needed(void)
 void tailscale_init(void)
 {
     int32_t v = 0;
+    s_lifecycle = xSemaphoreCreateMutexStatic(&s_lifecycle_storage);
+    /* Fresh installations follow upstream. Existing installations must opt in
+     * explicitly so an upgrade cannot announce a previously private subnet. */
+    tailscale_advertise_ap = nvs_param_get_int("ts_enabled", &v) == ESP_OK ? 0 : 1;
+    if (nvs_param_get_int("ts_adv_ap", &v) == ESP_OK) tailscale_advertise_ap = v ? 1 : 0;
+    else (void)nvs_param_set_int("ts_adv_ap", tailscale_advertise_ap);
     if (nvs_param_get_int("ts_enabled", &v) == ESP_OK) {
         tailscale_enabled = v;
     }
     tailscale_auth_key         = nvs_str_or_empty("ts_authkey");
     tailscale_hostname         = nvs_str_or_empty("ts_hostname");
     tailscale_login_server     = nvs_str_or_empty("ts_login");
+    tailscale_ipn_version      = nvs_str_or_empty("ts_ipn_ver");
+    s_active_ipn_version       = nvs_str_or_empty("ts_ipn_ver");
     tailscale_advertise_routes = nvs_str_or_empty("ts_routes");
     s_active_auth_key = nvs_str_or_empty("ts_authkey");
     s_active_hostname = nvs_str_or_empty("ts_hostname");
@@ -129,6 +194,7 @@ void tailscale_init(void)
         tailscale_advertise_exit_node = 0;
         (void)nvs_param_set_int("ts_adv_exit", 0);
     }
+    s_routes_valid = tailscale_routes_preview(s_active_routes, sizeof s_active_routes);
     ESP_LOGI(TAG, "Config loaded (enabled=%ld, max_peers=%ld, login_server=%s, exit_node=%lu.%lu.%lu.%lu)",
              (long)tailscale_enabled, (long)tailscale_max_peers,
              (tailscale_login_server && tailscale_login_server[0]) ? tailscale_login_server : "<saas>",
@@ -155,7 +221,7 @@ bool tailscale_in_subnet(uint32_t ip)
     return (ip & tailscale_subnet_mask) == tailscale_subnet_ip;
 }
 
-esp_err_t tailscale_connect(void)
+static esp_err_t tailscale_connect_locked(void)
 {
     if (!tailscale_enabled) {
         ESP_LOGI(TAG, "Tailscale not enabled");
@@ -172,26 +238,17 @@ esp_err_t tailscale_connect(void)
         return ESP_ERR_INVALID_STATE;
     }
 
-    char effective_routes[512];
-    if (strlen(s_active_advertise_routes) > 400) {
+    if (!s_routes_valid || strlen(s_active_advertise_routes) > 400) {
         ESP_LOGE(TAG, "Advertised routes exceed the supported 400-byte limit");
         return ESP_ERR_INVALID_SIZE;
     }
-    fourvia6_effective_routes(s_active_advertise_routes,
-                              effective_routes, sizeof effective_routes);
-    if (tailscale_advertise_exit_node) {
-        /* Stock tailscaled represents --advertise-exit-node as both default
-         * routes. Advertising both also prevents a dual-stack client from
-         * leaking IPv6 outside the selected exit node. The current microlink
-         * data plane forwards IPv4; IPv6 therefore fails closed. */
-        size_t used = strlen(effective_routes);
-        int written = snprintf(effective_routes + used,
-                               sizeof effective_routes - used,
-                               "%s0.0.0.0/0\n::/0", used ? "\n" : "");
-        if (written < 0 || (size_t)written >= sizeof effective_routes - used) {
-            ESP_LOGE(TAG, "Advertised route list is too long to add exit-node routes");
-            return ESP_ERR_INVALID_SIZE;
-        }
+    if (!ipn_version_valid(s_active_ipn_version)) {
+        ESP_LOGE(TAG, "Invalid reported client version");
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (s_active_ipn_version[0]) {
+        snprintf(s_effective_ipn_version, sizeof s_effective_ipn_version, "%s%s",
+                 s_active_ipn_version, strchr(s_active_ipn_version, '-') ? "" : "-t00000000000-g00000000000");
     }
 
     microlink_config_t cfg = {
@@ -208,7 +265,8 @@ esp_err_t tailscale_connect(void)
         .stun_interval_ms = 0,
         .ctrl_watchdog_ms = 0,
         .ctrl_host = s_active_login_server[0] ? s_active_login_server : NULL,
-        .advertise_routes = effective_routes[0] ? effective_routes : NULL,
+        .ipn_version = s_effective_ipn_version[0] ? s_effective_ipn_version : NULL,
+        .advertise_routes = s_active_routes[0] ? s_active_routes : NULL,
         .netcheck_override_enabled = (tailscale_netcheck_override != 0),
         .netcheck_override_threshold_ms = (uint32_t)tailscale_netcheck_threshold_ms,
         .preferred_derp_region = (uint16_t)tailscale_default_derp_region,
@@ -241,17 +299,30 @@ esp_err_t tailscale_connect(void)
     return ESP_OK;
 }
 
+esp_err_t tailscale_connect(void)
+{
+    if (!s_lifecycle) return ESP_ERR_INVALID_STATE;
+    xSemaphoreTake(s_lifecycle, portMAX_DELAY);
+    esp_err_t err = tailscale_connect_locked();
+    xSemaphoreGive(s_lifecycle);
+    return err;
+}
+
 void tailscale_disconnect(void)
 {
+    /* Other fork services retain the published handle. Keep restart-based
+     * teardown until all consumers use a lifetime-safe accessor. */
+    if (!s_lifecycle) return;
+    xSemaphoreTake(s_lifecycle, portMAX_DELAY);
+    if (s_microlink) {
+        xSemaphoreGive(s_lifecycle);
+        ESP_LOGW(TAG, "Use a device restart to disconnect the shared VPN instance safely");
+        return;
+    }
     tailscale_connected = false;
     tailscale_tunnel_ip = 0;
-    if (s_microlink) {
-        sdlog_set_microlink(NULL);   /* detach recorder before freeing the instance */
-        microlink_stop(s_microlink);
-        microlink_destroy(s_microlink);
-        s_microlink = NULL;
-    }
     ESP_LOGI(TAG, "Tailscale stopped");
+    xSemaphoreGive(s_lifecycle);
 }
 
 bool tailscale_is_connected(void)
@@ -271,6 +342,14 @@ bool tailscale_is_connected(void)
 
 void tailscale_connect_task(void *pvParameters)
 {
+    taskENTER_CRITICAL(&s_connect_lock);
+    bool duplicate = s_connect_in_flight;
+    if (!duplicate) s_connect_in_flight = true;
+    taskEXIT_CRITICAL(&s_connect_lock);
+    if (duplicate) {
+        vTaskDelete(NULL);
+        return;
+    }
     init_sntp_if_needed();
 
     /* Microlink's Noise handshake is timestamped; we need real wall-clock
@@ -298,5 +377,8 @@ void tailscale_connect_task(void *pvParameters)
     }
 
     tailscale_connect();
+    taskENTER_CRITICAL(&s_connect_lock);
+    s_connect_in_flight = false;
+    taskEXIT_CRITICAL(&s_connect_lock);
     vTaskDelete(NULL);
 }

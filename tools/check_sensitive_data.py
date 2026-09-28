@@ -86,17 +86,23 @@ def history_findings(repository: pathlib.Path = ROOT) -> tuple[list[tuple[str, s
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--history", action="store_true")
+    parser.add_argument("--repository", type=pathlib.Path, default=ROOT,
+                        help="Git worktree to scan (default: project root)")
     args = parser.parse_args()
+    repository = args.repository.resolve()
+    if not (repository / ".git").exists():
+        parser.error(f"not a Git worktree: {repository}")
     config = yaml.safe_load((ROOT / ".github/sensitive-patterns.yml").read_text(encoding="utf-8"))
     files = [p.decode(errors="strict") for p in
-             git("ls-files", "--cached", "--others", "--exclude-standard", "-z").split(b"\0") if p]
+             git("ls-files", "--cached", "--others", "--exclude-standard", "-z",
+                 repository=repository).split(b"\0") if p]
     findings = []
     artifacts = 0
     for filename in files:
         for pattern in config.get("blocked_files", []):
             if fnmatch.fnmatchcase(filename, pattern):
                 findings.append(("Blocked file", filename))
-        path = ROOT / filename
+        path = repository / filename
         if not path.is_file():
             continue  # submodule or tracked deletion
         data = path.read_bytes()
@@ -120,7 +126,7 @@ def main() -> int:
                     findings.append((rule["name"], f"{filename}:{line_no}"))
     history_count = 0
     if args.history:
-        older, history_count = history_findings()
+        older, history_count = history_findings(repository)
         findings.extend(older)
     for name, location in sorted(set(findings)):
         # Plain text avoids workflow-command injection through a filename.

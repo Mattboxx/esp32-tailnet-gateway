@@ -28,7 +28,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 # PROJECT_VER lands in the esp_app_desc_t struct so the running firmware
 # can report its version via the OTA APIs and the web UI's Status page.
-set(PROJECT_VER "0.1.19-Mattboxx-1.5-dev")
+set(PROJECT_VER "0.1.27-Mattboxx-1.6-dev")
 
 project(esp32_tsr)
 

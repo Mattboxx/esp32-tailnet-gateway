@@ -47,6 +47,12 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
+Development is now aligned with upstream **v0.1.27** as
+`0.1.27-Mattboxx-1.6-dev`, while retaining the Mattboxx features and privacy
+removals. See the [integration record](docs/UPSTREAM-0.1.27.md) for the ported
+fixes, deliberate differences and validation scope. This does not replace
+the published stable release until the candidate is promoted separately.
+
 The stable **[0.1.19-Mattboxx-1.5 release](../../releases/tag/v0.1.19-Mattboxx-1.5)**
 is based on upstream `v0.1.19`. It improves CPU monitoring, MQTT command safety,
 Tailscale configuration lifetime, ntfy command handling and DHCP parsing.

@@ -254,6 +254,10 @@ static void publish_discovery(void)
     discovery_publish_entity("switch", "snat_subnet_routes",
                              "Source-NAT advertised routes", s_state_topic,
                              "{{ value_json.snat_subnet_routes }}", command, NULL, NULL);
+    snprintf(command, sizeof command, "%s/command/advertise_ap", cfg.base_topic);
+    discovery_publish_entity("switch", "advertise_ap",
+                             "Advertise AP subnet (restart)", s_state_topic,
+                             "{{ value_json.advertise_ap }}", command, NULL, NULL);
     snprintf(command, sizeof command, "%s/command/advertise_exit_node", cfg.base_topic);
     discovery_publish_entity("switch", "advertise_exit_node",
                              "Advertise as exit node", s_state_topic,
@@ -370,7 +374,9 @@ static void publish_state(void)
     cJSON_AddNumberToObject(root, "tailscale_peer_count", peer_count);
     cJSON_AddNumberToObject(root, "tailscale_online_peer_count", online_peer_count);
     cJSON_AddStringToObject(root, "advertised_routes",
-                            tailscale_advertise_routes ? tailscale_advertise_routes : "");
+                            tailscale_active_routes());
+    cJSON_AddStringToObject(root, "advertise_ap", tailscale_advertise_ap ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "reported_client_version", tailscale_ipn_version ? tailscale_ipn_version : "");
     cJSON_AddStringToObject(root, "accept_routes",
                             tailscale_accept_routes ? "ON" : "OFF");
     cJSON_AddStringToObject(root, "snat_subnet_routes",
@@ -465,6 +471,7 @@ static void handle_command(const char *topic, const char *payload)
     bool is_switch = !strcmp(command, "ap_always_on")
         || !strcmp(command, "tailscale_enabled") || !strcmp(command, "accept_routes")
         || !strcmp(command, "snat_subnet_routes") || !strcmp(command, "advertise_exit_node")
+        || !strcmp(command, "advertise_ap")
         || !strcmp(command, "exit_node_lan_bypass") || !strcmp(command, "fourvia6_enabled")
         || !strncmp(command, "tailnet_forward/", 16);
     if (is_switch && !control_parse_bool(payload, &enabled)) {
@@ -489,6 +496,9 @@ static void handle_command(const char *topic, const char *payload)
         set_tailscale_flag("ts_acpt_rt", &tailscale_accept_routes, enabled);
     } else if (!strcmp(command, "snat_subnet_routes")) {
         set_tailscale_flag("ts_snat_sr", &tailscale_snat_subnet_routes, enabled);
+    } else if (!strcmp(command, "advertise_ap")) {
+        if (set_tailscale_flag("ts_adv_ap", &tailscale_advertise_ap, enabled))
+            schedule_restart();
     } else if (!strcmp(command, "advertise_exit_node")) {
         if (enabled && tailscale_exit_node_ip != 0) {
             ESP_LOGW(TAG, "Cannot advertise as exit node while another exit node is selected");

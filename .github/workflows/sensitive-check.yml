@@ -19,12 +19,18 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+          submodules: recursive
       - name: Install scanner dependency
         run: python3 -m pip install PyYAML==6.0.2
       - name: Regression tests
         run: |
           gcc -std=c11 -Wall -Wextra -Werror tools/test_control_validation.c -o /tmp/control-tests
           /tmp/control-tests
+          gcc -std=c11 -Wall -Wextra -Werror tools/test_upstream_validation.c -o /tmp/upstream-tests
+          /tmp/upstream-tests
           python3 -m unittest discover -s tools -p 'test_sensitive_scanner.py'
+          python3 -m unittest discover -s tools -p 'test_upstream_integration.py'
       - name: Check sensitive data without logging secret values
-        run: python3 tools/check_sensitive_data.py --history
+        run: |
+          python3 tools/check_sensitive_data.py --history
+          python3 tools/check_sensitive_data.py --repository external/microlink
