@@ -76,6 +76,13 @@ extern bool wifi_ap_policy_auto_off(void);
 extern bool wifi_ap_runtime_enabled(void);
 extern void wifi_ap_policy_set_auto_off(bool auto_off);
 
+/* sdkconfig.defaults does not override an existing generated sdkconfig.
+ * Refuse stale 10-socket builds: HTTP, microlink, DNS and MQTT consume that
+ * table before ntfy or another browser can open a connection. */
+#if CONFIG_LWIP_MAX_SOCKETS < 16
+#error "Set CONFIG_LWIP_MAX_SOCKETS=16 in the active sdkconfig; the gateway requires the full socket budget"
+#endif
+
 static const char *TAG = "web_ui";
 
 /* index.html is generated as a gzipped C source by main/CMakeLists.txt
@@ -3881,6 +3888,10 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
     if (!root) { httpd_resp_send_500(req); return ESP_FAIL; }
 
     /* --- A) Chip + memory ------------------------------------------------ */
+    cJSON *limits = cJSON_CreateObject();
+    cJSON_AddNumberToObject(limits, "sockets", CONFIG_LWIP_MAX_SOCKETS);
+    cJSON_AddNumberToObject(limits, "active_tcp", CONFIG_LWIP_MAX_ACTIVE_TCP);
+    cJSON_AddItemToObject(root, "network_limits", limits);
     {
         cJSON *c = cJSON_CreateObject();
         esp_chip_info_t ci;

@@ -23,5 +23,9 @@ responses missing the boolean enabled field are rejected.
 Validation: seven browser regression scenarios render the actual SPA with
 synthetic APIs, including a real login-form submit with a mocked successful
 authentication transport. ESP32-S3 compilation and static integration checks
-are also run. Board verification remains pending: neither of the previously
-used device addresses was reachable during this session.
+are also run. Initial remote board verification was blocked by HTTP resets.
+Local board validation on October 1 confirmed `dev.1`, five successful refreshes,
+full-page reload, logout/login directly into Automation, and correct enabled
+states for both integrations. MQTT publication was queued successfully and
+the JavaScript console was clean. The ntfy test exposed a separate socket
+allocation failure; see the [hardware validation](HARDWARE-1.6-VALIDATION.md).

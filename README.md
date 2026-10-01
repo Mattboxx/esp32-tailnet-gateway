@@ -48,7 +48,7 @@ the existing AP-side port forwarding.
 ## Why the Mattboxx edition is different
 
 Development is now aligned with upstream **v0.1.27** as
-`0.1.27-Mattboxx-1.6-dev.1`, while retaining the Mattboxx features and privacy
+`0.1.27-Mattboxx-1.6-dev.2`, while retaining the Mattboxx features and privacy
 removals. See the [integration record](docs/UPSTREAM-0.1.27.md) for the ported
 fixes, deliberate differences and validation scope. This does not replace
 the published stable release until the candidate is promoted separately.
@@ -56,6 +56,9 @@ the published stable release until the candidate is promoted separately.
 Revision `dev.1` fixes Automation deep-link loading after login and isolates
 MQTT settings from WOL failures. Unknown or failed loads no longer look like
 disabled integrations; see the [Automation UI fix](docs/AUTOMATION-UI-FIX.md).
+Revision `dev.2` prevents cached SDK configurations from producing a 10-socket
+firmware instead of the required 16-socket budget. Hardware testing of `dev.1`
+confirmed the UI fix and identified ntfy socket exhaustion.
 
 The stable **[0.1.19-Mattboxx-1.5 release](../../releases/tag/v0.1.19-Mattboxx-1.5)**
 is based on upstream `v0.1.19`. It improves CPU monitoring, MQTT command safety,
