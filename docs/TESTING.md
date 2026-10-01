@@ -51,6 +51,13 @@ your normal SSH client to verify/add each test host, or point
 
 ## Running
 
+For the Automation UI regression, install Playwright for Node.js and run
+`node tools/test_automation_ui.cjs` with Chrome installed (or set
+`TEST_BROWSER_CHANNEL=msedge` for Edge). It renders the real SPA against
+synthetic APIs and checks authenticated deep links, independent WOL loading,
+failed/slow requests, retries, unknown versus disabled state, reload recovery
+and duplicate-request suppression. It does not access a running device.
+
 ```bash
 python tools/run_tests.py                      # everything
 python tools/run_tests.py --only spa,network   # subset

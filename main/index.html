@@ -2680,12 +2680,13 @@
       </div>
 
       <!-- ===== MQTT + Home Assistant ===== -->
-      <div class="card feature-card feature-disabled mt-4" id="mqtt-card">
+      <div class="card feature-card mt-4" id="mqtt-card" data-feature-state="unknown">
         <div class="card-header">
           <div class="card-header-left"><span class="card-title">MQTT &amp; Home Assistant</span></div>
           <span class="badge badge-neutral" id="mqtt-badge">—</span>
         </div>
         <div class="card-body">
+          <p class="form-hint" id="mqtt-load-status" role="status">Settings have not loaded yet.</p>
           <div class="form-group feature-master-control">
             <label class="feature-switch">
               <input type="checkbox" id="mqtt-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable MQTT</span>
@@ -2735,12 +2736,13 @@
       </div>
 
       <!-- ===== ntfy alerts and commands ===== -->
-      <div class="card feature-card feature-disabled mt-4" id="ntfy-card">
+      <div class="card feature-card mt-4" id="ntfy-card" data-feature-state="unknown">
         <div class="card-header">
           <div class="card-header-left"><span class="card-title">ntfy alerts &amp; commands</span></div>
-          <span class="badge badge-neutral" id="ntfy-badge">Disabled</span>
+          <span class="badge badge-neutral" id="ntfy-badge">—</span>
         </div>
         <div class="card-body">
+          <p class="form-hint" id="ntfy-load-status" role="status">Settings have not loaded yet.</p>
           <div class="form-group feature-master-control"><label class="feature-switch"><input type="checkbox" id="ntfy-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable ntfy integration</span></label><span class="form-hint">No ntfy traffic is sent while disabled. Prefer a self-hosted server or a private, access-controlled topic.</span></div>
           <div class="grid grid-cols-2">
             <div class="form-group"><label class="form-label" for="ntfy-server">Server URL</label><input class="input mono" id="ntfy-server" value="https://ntfy.sh"></div>
@@ -3173,6 +3175,8 @@
        JAVASCRIPT
        =================================================================== -->
   <script>
+    var s_ui_authenticated = false;
+    var s_automation_loads = {};
     // =====================================================================
     // NAVIGATION — tab switching
     // =====================================================================
@@ -3223,18 +3227,7 @@
         /* Every tab refetches its own state on switch so the operator
          * never lands on stale cached DOM after coming back from an
          * earlier session or after another tab modified shared state. */
-        if (page === 'status'    && typeof fetchStatus   === 'function') fetchStatus();
-        if (page === 'network'   && typeof loadNetwork   === 'function') loadNetwork();
-        if (page === 'tailscale' && typeof loadTailscale === 'function') loadTailscale();
-        if (page === 'firewall'  && typeof loadFirewall  === 'function') loadFirewall();
-        if (page === 'automation') {
-          if (typeof loadWol  === 'function') loadWol();
-          if (typeof loadMqtt === 'function') loadMqtt();
-          if (typeof loadNtfy === 'function') loadNtfy();
-        }
-        if (page === 'system'    && typeof loadSystem    === 'function') loadSystem();
-        if (page === 'tools'     && typeof loadDiag      === 'function') loadDiag();
-        if (page === 'tools'     && typeof loadPrecrashLog === 'function') loadPrecrashLog();
+        if (s_ui_authenticated) loadPageState(page);
         return true;
       }
 
@@ -3843,6 +3836,7 @@
       var setupEl = document.getElementById('authSetup');
       var loginEl = document.getElementById('authLogin');
       var lockBtn = document.getElementById('lockBtn');
+      if (which !== null) s_ui_authenticated = false;
 
       setupEl.style.display = 'none';
       loginEl.style.display = 'none';
@@ -4442,8 +4436,20 @@
     // DASHBOARD LOAD — called after successful auth
     // =====================================================================
     function loadDashboard() {
-      fetchStatus();
+      s_ui_authenticated = true;
+      var active = document.querySelector('.nav-tab.active');
+      loadPageState(active ? active.dataset.page : 'status');
       checkPanicAndWarn();
+    }
+
+    function loadPageState(page) {
+      if (page === 'status') fetchStatus();
+      if (page === 'network') loadNetwork();
+      if (page === 'tailscale') loadTailscale();
+      if (page === 'firewall') loadFirewall();
+      if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); }
+      if (page === 'system') loadSystem();
+      if (page === 'tools') { loadDiag(); loadPrecrashLog(); }
     }
 
     /* Post-login crash check. If the most recent reset_history entry is a
@@ -5172,6 +5178,7 @@
         s_wol_list = (d.devices || []).slice();
         if (typeof d.max === 'number') s_wol_max = d.max;
         renderWol();
+        populateMqttWatchdogTargets(s_wol_list, document.getElementById('mqtt-watchdog-target').value);
         document.getElementById('wol-save').disabled = true;
       }).catch(function () {});
     }
@@ -6712,7 +6719,87 @@
         enabled && (/^(mqtt|ws):\/\//.test(uri)) ? 'flex' : 'none';
     }
 
-    function renderMqttState(d, wolDevices) {
+    /* Bound reads and retry one interrupted connection. Never retry writes. */
+    function readAutomationSettings(url, attempt) {
+      var controller = new AbortController();
+      var timer = setTimeout(function () { controller.abort(); }, 8000);
+      return apiFetch(url, { signal: controller.signal }).then(function (r) {
+        if (!r.ok) {
+          var error = new Error('HTTP ' + r.status);
+          error.status = r.status;
+          throw error;
+        }
+        return r.json();
+      }).finally(function () { clearTimeout(timer); }).catch(function (error) {
+        if (!attempt && error.message !== '401' && (!error.status || error.status >= 500)) {
+          return new Promise(function (resolve) { setTimeout(resolve, 300); })
+            .then(function () { return readAutomationSettings(url, 1); });
+        }
+        throw error;
+      });
+    }
+
+    function setAutomationControls(key, loaded) {
+      document.querySelectorAll('#' + key + '-card input, #' + key + '-card select')
+        .forEach(function (el) { el.disabled = !loaded; });
+      var enabled = loaded && document.getElementById(key + '-enabled').checked;
+      var action = document.getElementById(key === 'mqtt' ? 'mqtt-publish' : 'ntfy-test');
+      action.disabled = !enabled || (key === 'ntfy' && !document.getElementById('ntfy-save').disabled);
+    }
+
+    function loadAutomationFeature(key, render) {
+      var state = s_automation_loads[key] || (s_automation_loads[key] = { loaded: false, pending: null });
+      if (state.pending) return state.pending;
+      var save = document.getElementById(key + '-save');
+      if (save.textContent === 'Saving…') return Promise.resolve();
+      var saveWasDisabled = save.disabled;
+      var card = document.getElementById(key + '-card');
+      var badge = document.getElementById(key + '-badge');
+      var status = document.getElementById(key + '-load-status');
+      card.setAttribute('aria-busy', 'true');
+      if (!state.loaded) { badge.textContent = 'Loading…'; badge.className = 'badge badge-neutral'; }
+      status.textContent = 'Loading settings…';
+      setAutomationControls(key, false);
+      save.disabled = true;
+      state.pending = readAutomationSettings('/api/' + key).then(function (d) {
+        if (!d || typeof d.enabled !== 'boolean') throw new Error('Invalid settings response');
+        render(d);
+        state.loaded = true;
+        status.textContent = '';
+      }).catch(function (error) {
+        badge.textContent = 'Unavailable'; badge.className = 'badge badge-danger';
+        status.textContent = (state.loaded ? 'Showing last loaded settings. ' : 'Settings could not be loaded. ')
+          + 'Use Reload to try again. ' + (error.name === 'AbortError' ? 'Request timed out.' : error.message);
+        save.disabled = state.loaded ? saveWasDisabled : true;
+      }).finally(function () {
+        card.setAttribute('aria-busy', 'false');
+        setAutomationControls(key, state.loaded);
+        state.pending = null;
+      });
+      return state.pending;
+    }
+
+    ['mqtt', 'ntfy'].forEach(function (key) { setAutomationControls(key, false); });
+
+    function populateMqttWatchdogTargets(wolDevices, selectedMac) {
+      var target = document.getElementById('mqtt-watchdog-target');
+      target.innerHTML = '<option value="">— select a saved WOL device —</option>';
+      (wolDevices || []).forEach(function (device) {
+        var option = document.createElement('option');
+        option.value = device.mac || '';
+        option.textContent = (device.name || device.mac || 'device') + ' · ' + (device.mac || '');
+        target.appendChild(option);
+      });
+      if (selectedMac && !Array.from(target.options).some(function (o) { return o.value === selectedMac; })) {
+        var saved = document.createElement('option');
+        saved.value = selectedMac;
+        saved.textContent = 'Saved WOL device · ' + selectedMac;
+        target.appendChild(saved);
+      }
+      target.value = selectedMac || '';
+    }
+
+    function renderMqttState(d) {
       var badge = document.getElementById('mqtt-badge');
       if (!d.enabled) {
         badge.className = 'badge badge-neutral'; badge.textContent = 'Disabled';
@@ -6737,22 +6824,7 @@
       document.getElementById('mqtt-watchdog-enabled').checked = !!d.broker_watchdog_enabled;
       setFeatureDependentState('mqtt-watchdog-settings', !!d.enabled && !!d.broker_watchdog_enabled);
       document.getElementById('mqtt-watchdog-timeout').value = d.broker_watchdog_timeout_seconds || 300;
-      var watchdogTarget = document.getElementById('mqtt-watchdog-target');
-      watchdogTarget.innerHTML = '<option value="">— select a saved WOL device —</option>';
-      (wolDevices || []).forEach(function (device) {
-        var option = document.createElement('option');
-        option.value = device.mac || '';
-        option.textContent = (device.name || device.mac || 'device') + ' · ' + (device.mac || '');
-        watchdogTarget.appendChild(option);
-      });
-      if (d.broker_watchdog_wol_mac
-          && !Array.from(watchdogTarget.options).some(function (o) { return o.value === d.broker_watchdog_wol_mac; })) {
-        var missing = document.createElement('option');
-        missing.value = d.broker_watchdog_wol_mac;
-        missing.textContent = 'Missing saved device · ' + d.broker_watchdog_wol_mac;
-        watchdogTarget.appendChild(missing);
-      }
-      watchdogTarget.value = d.broker_watchdog_wol_mac || '';
+      populateMqttWatchdogTargets(s_wol_list, d.broker_watchdog_wol_mac);
       document.getElementById('mqtt-watchdog-status').textContent = d.broker_watchdog_triggered
         ? 'Triggered for this outage · successful wake count: ' + (d.broker_watchdog_wake_count || 0)
         : (d.enabled && !d.connected
@@ -6766,13 +6838,7 @@
     }
 
     function loadMqtt() {
-      Promise.all([
-        apiFetch('/api/mqtt').then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
-        apiFetch('/api/wol').then(function (r) { return r.ok ? r.json() : { devices: [] }; })
-      ]).then(function (parts) { renderMqttState(parts[0], (parts[1] && parts[1].devices) || []); }).catch(function () {
-        var badge = document.getElementById('mqtt-badge');
-        badge.className = 'badge badge-danger'; badge.textContent = 'Unavailable';
-      });
+      return loadAutomationFeature('mqtt', renderMqttState);
     }
 
     ['mqtt-enabled', 'mqtt-uri', 'mqtt-topic', 'mqtt-user', 'mqtt-password',
@@ -6871,10 +6937,7 @@
     }
 
     function loadNtfy() {
-      apiFetch('/api/ntfy').then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      }).then(function (d) {
+      return loadAutomationFeature('ntfy', function (d) {
         document.getElementById('ntfy-enabled').checked = !!d.enabled;
         document.getElementById('ntfy-server').value = d.server || 'https://ntfy.sh';
         document.getElementById('ntfy-topic').value = d.topic || '';
@@ -6896,8 +6959,6 @@
         document.getElementById('ntfy-status').textContent = 'Commands: info · wol DEVICE_NAME · wol aa:bb:cc:dd:ee:ff · alerts: '
           + (d.alerts_sent || 0) + ' · commands: ' + (d.commands_received || 0) + ' · errors: ' + (d.command_errors || 0);
         document.getElementById('ntfy-save').disabled = true;
-      }).catch(function () {
-        var badge=document.getElementById('ntfy-badge'); badge.textContent='Unavailable'; badge.className='badge badge-danger';
       });
     }
     ['ntfy-enabled','ntfy-server','ntfy-topic','ntfy-token','ntfy-token-clear','ntfy-alerts',
