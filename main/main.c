@@ -51,6 +51,7 @@
 #include "esp_core_dump.h"
 #include "nvs.h"
 #include "dns_relay.h"
+#include "snmp_agent.h"
 #include "wifi_networks.h"
 #include "wol.h"
 #include "mqtt_integration.h"
@@ -1019,6 +1020,10 @@ void app_main(void)
      * drop denied traffic. Must run AFTER esp_wifi_start so the netifs
      * exist and have their default input/linkoutput function pointers. */
     netif_hooks_init();
+
+    /* Install ACL wrappers first; SNMP must chain through them, not bypass
+     * them. The agent remains disabled unless explicitly configured. */
+    snmp_agent_init();
 
     /* STA TTL hop-limit override — 0 = passthrough, else every outgoing
      * IPv4 frame's TTL is rewritten to this value. Operator config from

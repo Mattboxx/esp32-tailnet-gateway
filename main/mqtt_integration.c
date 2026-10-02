@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "runtime_metrics.h"
+#include "snmp_agent.h"
 #include "control_validation.h"
 #include "cJSON.h"
 #include "esp_crt_bundle.h"
@@ -165,6 +166,12 @@ static void publish_discovery(void)
     char command[160];
     discovery_publish_entity("sensor", "cpu_load", "CPU load", s_state_topic,
                              "{{ value_json.cpu_load_pct }}", NULL, NULL, "%");
+    discovery_publish_entity("binary_sensor", "snmp_enabled", "SNMP enabled", s_state_topic,
+                             "{{ value_json.snmp_enabled }}", NULL, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "snmp_running", "SNMP running", s_state_topic,
+                             "{{ value_json.snmp_running }}", NULL, "connectivity", NULL);
+    discovery_publish_entity("sensor", "socket_limit", "Socket limit", s_state_topic,
+                             "{{ value_json.socket_limit }}", NULL, NULL, NULL);
     discovery_publish_entity("sensor", "cpu_core0", "CPU core 0 load", s_state_topic,
                              "{{ value_json.cpu_core0_pct }}", NULL, NULL, "%");
     discovery_publish_entity("sensor", "cpu_core1", "CPU core 1 load", s_state_topic,
@@ -410,6 +417,9 @@ static void publish_state(void)
         cJSON_AddNullToObject(root, "cpu_core1_pct");
     }
     cJSON_AddNumberToObject(root, "minimum_free_heap", esp_get_minimum_free_heap_size());
+    cJSON_AddStringToObject(root, "snmp_enabled", snmp_agent_is_enabled() ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "snmp_running", snmp_agent_is_running() ? "ON" : "OFF");
+    cJSON_AddNumberToObject(root, "socket_limit", CONFIG_LWIP_MAX_SOCKETS);
     const esp_app_desc_t *app = esp_app_get_description();
     cJSON_AddStringToObject(root, "firmware", app ? app->version : "");
     cJSON_AddNumberToObject(root, "reset_reason", esp_reset_reason());

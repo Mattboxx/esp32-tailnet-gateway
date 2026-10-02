@@ -18,7 +18,7 @@ forwarding, privacy hardening and a ready-to-flash release.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-7c3aed.svg)](#hardware)
-[![ESP-IDF](https://img.shields.io/badge/ESP--IDF-5.3.1-e7352c.svg)](https://docs.espressif.com/projects/esp-idf/)
+[![ESP-IDF](https://img.shields.io/badge/ESP--IDF-5.5.3-e7352c.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![CodeQL](https://github.com/Mattboxx/esp32-tailscale-gateway/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailscale-gateway/actions/workflows/codeql.yml)
 [![Latest release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailscale-gateway?label=ready-to-flash)](../../releases/latest)
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-ea4aaa.svg?style=plastic&logo=githubsponsors)](https://github.com/sponsors/Csontikka)
@@ -47,28 +47,26 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
-Development is now aligned with upstream **v0.1.27** as
-`0.1.27-Mattboxx-1.6-dev.2`, while retaining the Mattboxx features and privacy
-removals. See the [integration record](docs/UPSTREAM-0.1.27.md) for the ported
-fixes, deliberate differences and validation scope. This does not replace
-the published stable release until the candidate is promoted separately.
+**[Stable release: 0.1.28-Mattboxx-1.6](../../releases/tag/v0.1.28-Mattboxx-1.6)**
+combines upstream **v0.1.28** and its following HTTP-registration fix with the
+Mattboxx additions. It keeps your existing settings and introduces no automatic
+telemetry, external crash upload or firmware polling. Original credits remain
+with Csontikka, microlink's authors and contributors, including gszigethy's SNMP
+agent contribution.
 
-Revision `dev.1` fixes Automation deep-link loading after login and isolates
-MQTT settings from WOL failures. Unknown or failed loads no longer look like
-disabled integrations; see the [Automation UI fix](docs/AUTOMATION-UI-FIX.md).
-Revision `dev.2` prevents cached SDK configurations from producing a 10-socket
-firmware instead of the required 16-socket budget. Hardware testing of `dev.1`
-confirmed the UI fix and identified ntfy socket exhaustion.
+New: optional **read-only SNMP**, reliable Automation loading after login,
+honest Loading/Unavailable states instead of false Disabled switches, and a
+pinned **ESP-IDF 5.5.3 / 26-socket** build that avoids ntfy/web socket starvation.
+All HTTP endpoints now check their registration result, and a local favicon
+avoids unnecessary 404 log noise. SNMP uses the same temperature sensor as the
+dashboard, is **OFF by default**, and adds no background external reporting.
 
-The stable **[0.1.19-Mattboxx-1.5 release](../../releases/tag/v0.1.19-Mattboxx-1.5)**
-is based on upstream `v0.1.19`. It improves CPU monitoring, MQTT command safety,
-Tailscale configuration lifetime, ntfy command handling and DHCP parsing.
-The exact hardware-tested binary was promoted without rebuilding, so its
-dashboard still reports `0.1.19-Mattboxx-1.5-dev`; this is the intended 1.5 image.
-See the [release notes](docs/RELEASE-1.5.md) and
-[validation record](docs/REVIEW-1.5.md) for completed checks and remaining
-hardware-test coverage. Stable is the project's release channel, not a formal
-security certification.
+See [release notes and hardware validation](docs/RELEASE-1.6.md),
+[the v0.1.28 integration record](docs/UPSTREAM-0.1.28.md), and
+[the previous upstream integration](docs/UPSTREAM-0.1.27.md).
+Stable is the project's release channel, not a security certification.
+The earlier [1.5 release](../../releases/tag/v0.1.19-Mattboxx-1.5) remains
+available unchanged for rollback.
 
 | Area | Added or improved in this edition |
 |---|---|
@@ -80,6 +78,7 @@ security certification.
 | **Tailscale 4via6** | Optional bidirectional TCP/UDP/ICMP translation for overlapping IPv4 LANs, with calculated advertised prefix, flow counters and Home Assistant controls. |
 | **Exit-node server** | Advertise the ESP32 itself as a Tailscale exit node, with automatic IPv4 egress masquerading, admin-approval guidance, fail-closed IPv6 behavior and Home Assistant/ntfy visibility. Server mode cannot conflict with selecting another exit node. |
 | **Web administration** | Responsive dark UI, graphical feature switches, clear disabled cards, configurable web port, optional password gate and session timeout, local OTA and encrypted backup/restore. |
+| **SNMP monitoring** | Optional read-only v1/v2c agent for LibreNMS, Zabbix or Observium; standard interface/CPU/memory/temperature MIBs, disabled by default, with a graphical System switch. Enabled/running state and socket budget also appear in MQTT/Home Assistant and ntfy info. |
 | **Fast, safer login** | Salted 60,000-round PBKDF2-HMAC-SHA256 verifier plus a one-time browser challenge; no plaintext password for modern records and no multi-second ESP-side unlock delay. |
 | **Reliability fixes** | Repairs WiFi scan/save and HTTP 431 failures, ntfy reboot loops and missed commands, false post-login offline state, forwarding-table startup counts and web/Tailscale socket starvation. |
 | **Privacy cleanup** | Removes anonymous telemetry, external crash/log uploads, automatic GitHub polling/downloads, Cloudflare speed tests and the hard-coded public DNS fallback. |
@@ -551,9 +550,11 @@ key); disable it for the tailnet or pre-authorize the node.
   private topics and broker/server ACLs, especially when commands are enabled.
   The dashboard warns on plaintext transports, and ntfy `info` hides private
   network details unless they are explicitly enabled.
-- **ESP-IDF 5.3.1.** The pinned PlatformIO framework must be compatibility-tested
-  before a patch-line upgrade; security-relevant upstream fixes are reviewed
-  against the enabled feature set in this fork.
+- **ESP-IDF 5.5.3.** PlatformIO Espressif32 is pinned to 6.13.0 for reproducible
+  SDK selection. Builds reject cached socket limits below 26. Release-specific
+  hardware coverage and untested scenarios are listed in the release notes.
+- **SNMPv1/v2c is unencrypted.** It is off by default. If enabled, restrict UDP
+  161 with the firewall and use a private community; do not expose it publicly.
 - **2.4 GHz only**, single AP subnet.
 
 ## Privacy and outbound traffic

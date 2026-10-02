@@ -50,9 +50,8 @@ fix will likely need to land in that project first.
 
 ## Supported Versions
 
-This project is under **heavy development**. Only the current `mattboxx` branch is
-supported for security fixes. Older commits and unreleased snapshots are not
-maintained.
+The current stable release and default `Main` branch receive security fixes.
+Development candidates and older releases are not independently maintained.
 
 ## Deployment hardening
 
@@ -76,10 +75,15 @@ maintained.
   AP-client MACs and WOL MAC/broadcast details require the private-details
   option. Saved WOL device **names are always included**, as an intentional
   convenience; do not put sensitive information in those names.
+- SNMP is OFF by default. SNMPv1/v2c community authentication is plaintext,
+  not encryption: use a private community, restrict UDP 161 with the firewall,
+  and never forward it to the public Internet. It supports reads only, not SET.
+  The community is not included in MQTT discovery/state or ntfy replies.
 
 ## Review limitations
 
-See [the 1.5 review record](docs/REVIEW-1.5.md) for fixes and validation scope.
+See [the 1.6 release record](docs/RELEASE-1.6.md) and
+[the 1.5 review record](docs/REVIEW-1.5.md) for fixes and validation scope.
 Pattern-based secret scans and successful compilation are not a penetration
 test and cannot establish the absence of vulnerabilities or personal data.
 The CI history scan checks fetched, reachable Git objects. It cannot inspect

@@ -26,6 +26,7 @@
 #include "nvs_params.h"
 #include "microlink.h"
 #include "dns_relay.h"
+#include "snmp_agent.h"
 #include "lwip_route_hook.h"
 #include "acl.h"
 #include "sdlog.h"
@@ -77,10 +78,10 @@ extern bool wifi_ap_runtime_enabled(void);
 extern void wifi_ap_policy_set_auto_off(bool auto_off);
 
 /* sdkconfig.defaults does not override an existing generated sdkconfig.
- * Refuse stale 10-socket builds: HTTP, microlink, DNS and MQTT consume that
- * table before ntfy or another browser can open a connection. */
-#if CONFIG_LWIP_MAX_SOCKETS < 16
-#error "Set CONFIG_LWIP_MAX_SOCKETS=16 in the active sdkconfig; the gateway requires the full socket budget"
+ * Refuse stale socket budgets: HTTP, microlink, DNS, MQTT and SNMP consume
+ * descriptors before ntfy or another browser can open a connection. */
+#if CONFIG_LWIP_MAX_SOCKETS < 26
+#error "Set CONFIG_LWIP_MAX_SOCKETS=26 in the active sdkconfig; use the pinned IDF 5.5.3 platform"
 #endif
 
 static const char *TAG = "web_ui";
@@ -210,14 +211,8 @@ static const char *reset_reason_str(void)
  * (kept until the diag handler migrates to this shared helper). */
 static float sample_cpu_temp_c(void)
 {
-    static temperature_sensor_handle_t s_sensor = NULL;
-    if (!s_sensor) {
-        temperature_sensor_config_t cfg = TEMPERATURE_SENSOR_CONFIG_DEFAULT(-10, 80);
-        if (temperature_sensor_install(&cfg, &s_sensor) != ESP_OK) return -999.0f;
-        temperature_sensor_enable(s_sensor);
-    }
     float tc = 0;
-    if (temperature_sensor_get_celsius(s_sensor, &tc) != ESP_OK) return -999.0f;
+    if (!snmp_agent_chip_temp_c(&tc)) return -999.0f;
     return tc;
 }
 
@@ -5060,6 +5055,148 @@ static const httpd_uri_t uri_sdlog_erase = {
  * redirect can be both a wildcard URI handler AND a 404 fallback.
  * Wildcard match avoids the "httpd_uri: URI ... not found" WARN
  * spam the 404-only path used to emit. */
+/* ------------------------------------------------------------------ */
+/* SNMP agent — GET /api/snmp, POST /api/snmp                          */
+/* ------------------------------------------------------------------ */
+
+static const char FAVICON_SVG[] =
+    "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16'"
+    " fill='#0f172a'/><g fill='none' stroke='#60a5fa' stroke-width='1.8' stroke-linecap='round'"
+    "><path d='M9.5 9.5a9.5 9.5 0 0 1 13 0'/><path d='M12.2 12a5.6 5.6 0 0 1 7.6 0'/></g><rect "
+    "x='10.5' y='15' width='11' height='11' rx='2.2' fill='#1e293b' stroke='#3b82f6' stroke-wid"
+    "th='1.6'/><path d='M8 18.5h2.5M8 22.5h2.5M21.5 18.5H24M21.5 22.5H24M14 26v2M18 26v2' strok"
+    "e='#3b82f6' stroke-width='1.4' stroke-linecap='round'/><rect x='13.6' y='18.1' width='4.8'"
+    " height='4.8' rx='.8' fill='#3b82f6'/></svg>";
+
+static esp_err_t favicon_handler(httpd_req_t *req)
+{
+    httpd_resp_set_type(req, "image/svg+xml");
+    httpd_resp_set_hdr(req, "Cache-Control", "public, max-age=604800");
+    return httpd_resp_send(req, FAVICON_SVG, sizeof FAVICON_SVG - 1);
+}
+static const httpd_uri_t uri_favicon = {
+    .uri = "/favicon.ico", .method = HTTP_GET, .handler = favicon_handler,
+};
+
+/* httpd_register_uri_handler() fails once max_uri_handlers is used up, and the
+ * endpoints registered last would then just 404 with nothing pointing at the
+ * cause. Log it, naming the knob. */
+static void reg_uri(httpd_handle_t srv, const httpd_uri_t *u)
+{
+    esp_err_t err = httpd_register_uri_handler(srv, u);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "register %s failed: %s (raise conf.max_uri_handlers)",
+                 u->uri, esp_err_to_name(err));
+    }
+}
+
+static esp_err_t snmp_get_handler(httpd_req_t *req)
+{
+    if (require_auth(req) != ESP_OK) return ESP_FAIL;
+
+    bool enabled, running;
+    char community[256], sys_name[256], sys_contact[256], sys_location[256];
+    snmp_agent_get_config(&enabled, &running,
+                          community,    sizeof community,
+                          sys_name,     sizeof sys_name,
+                          sys_contact,  sizeof sys_contact,
+                          sys_location, sizeof sys_location);
+
+    cJSON *root = cJSON_CreateObject();
+    if (!root) { httpd_resp_send_500(req); return ESP_FAIL; }
+
+    cJSON_AddBoolToObject  (root, "enabled",       enabled);
+    cJSON_AddBoolToObject  (root, "running",       running);
+    cJSON_AddStringToObject(root, "community",     community);
+    cJSON_AddStringToObject(root, "sys_name",      sys_name);
+    cJSON_AddStringToObject(root, "sys_contact",   sys_contact);
+    cJSON_AddStringToObject(root, "sys_location",  sys_location);
+
+    char *body = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!body) { httpd_resp_send_500(req); return ESP_FAIL; }
+    httpd_resp_set_type(req, "application/json");
+    esp_err_t err = httpd_resp_sendstr(req, body);
+    free(body);
+    return err;
+}
+
+static esp_err_t snmp_post_handler(httpd_req_t *req)
+{
+    if (require_auth(req) != ESP_OK) return ESP_FAIL;
+    nvs_save_errors_reset();
+
+    /* Four 255-byte strings can exceed 1 KB as JSON, and escaping can make
+     * the wire representation larger still. Keep the request off the httpd
+     * stack and accept the entire form the UI permits. */
+    size_t buf_size = 8192;
+    char *buf = malloc_body_buf(buf_size);
+    if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
+    if (recv_body(req, buf, buf_size, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
+
+    cJSON *root = cJSON_Parse(buf);
+    free(buf);
+    if (!root) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
+        return ESP_FAIL;
+    }
+
+    /* Seed from current config so omitted fields remain unchanged. */
+    bool cur_enabled, cur_running;
+    char community[256], sys_name[256], sys_contact[256], sys_location[256];
+    snmp_agent_get_config(&cur_enabled, &cur_running,
+                          community,    sizeof community,
+                          sys_name,     sizeof sys_name,
+                          sys_contact,  sizeof sys_contact,
+                          sys_location, sizeof sys_location);
+
+    bool enabled = cur_enabled;
+    const cJSON *j;
+
+    j = cJSON_GetObjectItem(root, "enabled");
+    if (cJSON_IsBool(j)) enabled = cJSON_IsTrue(j);
+
+    const char *keys[] = { "community", "sys_name", "sys_contact", "sys_location" };
+    char *values[] = { community, sys_name, sys_contact, sys_location };
+    for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
+        j = cJSON_GetObjectItem(root, keys[i]);
+        if (cJSON_IsString(j) && j->valuestring) {
+            if (strlen(j->valuestring) >= 256) {
+                cJSON_Delete(root);
+                httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                                    "SNMP field exceeds 255 bytes");
+                return ESP_FAIL;
+            }
+            strcpy(values[i], j->valuestring);
+        }
+    }
+
+    cJSON_Delete(root);
+
+    /* An enabled agent with an empty community accepts any request carrying
+     * a zero-length community. A disabled agent may retain an empty value. */
+    if (enabled && community[0] == '\0') {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                            "SNMP community must not be empty");
+        return ESP_FAIL;
+    }
+
+    /* A single NVS blob holds the complete configuration, including enable.
+     * No live change occurs when its write fails. */
+    esp_err_t err = snmp_agent_save_config(enabled, community, sys_name,
+                                           sys_contact, sys_location);
+    if (err != ESP_OK) nvs_save_record_err(SNMP_NVS_KEY_CONFIG, err);
+
+    return send_save_response(req);
+}
+
+static const httpd_uri_t uri_snmp_get = {
+    .uri = "/api/snmp", .method = HTTP_GET,  .handler = snmp_get_handler,
+};
+static const httpd_uri_t uri_snmp_post = {
+    .uri = "/api/snmp", .method = HTTP_POST, .handler = snmp_post_handler,
+};
+
 void web_ui_init(void)
 {
     static httpd_handle_t server = NULL;
@@ -5086,7 +5223,7 @@ void web_ui_init(void)
      * instead of WebCrypto's ~100 ms. */
     httpd_config_t conf           = HTTPD_DEFAULT_CONFIG();
     conf.uri_match_fn             = httpd_uri_match_wildcard;
-    conf.max_uri_handlers         = 72;
+    conf.max_uri_handlers         = 88;
     conf.stack_size               = 12288;
     /* The HTTP server needs three lwIP sockets internally. Four client slots
      * are enough for this SPA's post-login burst while preserving descriptors
@@ -5111,67 +5248,70 @@ void web_ui_init(void)
         ESP_LOGE(TAG, "httpd_start failed");
         return;
     }
-    httpd_register_uri_handler(server, &uri_index);
-    httpd_register_uri_handler(server, &uri_status);
-    httpd_register_uri_handler(server, &uri_network);
-    httpd_register_uri_handler(server, &uri_network_save);
-    httpd_register_uri_handler(server, &uri_network_scan);
-    httpd_register_uri_handler(server, &uri_network_scan_result);
-    httpd_register_uri_handler(server, &uri_wol);
-    httpd_register_uri_handler(server, &uri_wol_save);
-    httpd_register_uri_handler(server, &uri_wol_send);
-    httpd_register_uri_handler(server, &uri_mqtt);
-    httpd_register_uri_handler(server, &uri_mqtt_save);
-    httpd_register_uri_handler(server, &uri_mqtt_publish);
-    httpd_register_uri_handler(server, &uri_ntfy);
-    httpd_register_uri_handler(server, &uri_ntfy_save);
-    httpd_register_uri_handler(server, &uri_ntfy_test);
-    httpd_register_uri_handler(server, &uri_tools_route);
-    httpd_register_uri_handler(server, &uri_tools_ping);
-    httpd_register_uri_handler(server, &uri_tools_trace);
-    httpd_register_uri_handler(server, &uri_firewall);
-    httpd_register_uri_handler(server, &uri_firewall_add);
-    httpd_register_uri_handler(server, &uri_firewall_delete);
-    httpd_register_uri_handler(server, &uri_firewall_clear);
-    httpd_register_uri_handler(server, &uri_dhcp_reservations);
-    httpd_register_uri_handler(server, &uri_dhcp_reservations_save);
-    httpd_register_uri_handler(server, &uri_dhcp_leases);
-    httpd_register_uri_handler(server, &uri_dhcp_kick);
-    httpd_register_uri_handler(server, &uri_portmap);
-    httpd_register_uri_handler(server, &uri_portmap_save);
-    httpd_register_uri_handler(server, &uri_tailnet_forward);
-    httpd_register_uri_handler(server, &uri_tailnet_forward_save);
-    httpd_register_uri_handler(server, &uri_mac_deny);
-    httpd_register_uri_handler(server, &uri_mac_deny_save);
-    httpd_register_uri_handler(server, &uri_log_raw);
-    httpd_register_uri_handler(server, &uri_log_clear);
-    httpd_register_uri_handler(server, &uri_log_precrash);
-    httpd_register_uri_handler(server, &uri_log_precrash_clear);
-    httpd_register_uri_handler(server, &uri_tailscale);
-    httpd_register_uri_handler(server, &uri_tailscale_save);
-    httpd_register_uri_handler(server, &uri_tailscale_reset_identity);
-    httpd_register_uri_handler(server, &uri_system);
-    httpd_register_uri_handler(server, &uri_system_save);
-    httpd_register_uri_handler(server, &uri_system_restart);
-    httpd_register_uri_handler(server, &uri_system_factory_reset);
-    httpd_register_uri_handler(server, &uri_system_ota);
-    httpd_register_uri_handler(server, &uri_system_secrets_get);
-    httpd_register_uri_handler(server, &uri_system_secrets_post);
-    httpd_register_uri_handler(server, &uri_system_diag);
-    httpd_register_uri_handler(server, &uri_system_debug_crash);
-    httpd_register_uri_handler(server, &uri_auth_status);
-    httpd_register_uri_handler(server, &uri_auth_challenge);
-    httpd_register_uri_handler(server, &uri_auth_login);
-    httpd_register_uri_handler(server, &uri_auth_logout);
-    httpd_register_uri_handler(server, &uri_auth_setup);
-    httpd_register_uri_handler(server, &uri_auth_change_password);
-    httpd_register_uri_handler(server, &uri_auth_clear_password);
-    httpd_register_uri_handler(server, &uri_sdlog_status_get);
-    httpd_register_uri_handler(server, &uri_sdlog_status_post);
-    httpd_register_uri_handler(server, &uri_sdlog_list);
-    httpd_register_uri_handler(server, &uri_sdlog_download);
-    httpd_register_uri_handler(server, &uri_sdlog_tail);
-    httpd_register_uri_handler(server, &uri_sdlog_erase);
+    reg_uri(server, &uri_index);
+    reg_uri(server, &uri_favicon);
+    reg_uri(server, &uri_status);
+    reg_uri(server, &uri_network);
+    reg_uri(server, &uri_network_save);
+    reg_uri(server, &uri_network_scan);
+    reg_uri(server, &uri_network_scan_result);
+    reg_uri(server, &uri_wol);
+    reg_uri(server, &uri_wol_save);
+    reg_uri(server, &uri_wol_send);
+    reg_uri(server, &uri_mqtt);
+    reg_uri(server, &uri_mqtt_save);
+    reg_uri(server, &uri_mqtt_publish);
+    reg_uri(server, &uri_ntfy);
+    reg_uri(server, &uri_ntfy_save);
+    reg_uri(server, &uri_ntfy_test);
+    reg_uri(server, &uri_tools_route);
+    reg_uri(server, &uri_tools_ping);
+    reg_uri(server, &uri_tools_trace);
+    reg_uri(server, &uri_firewall);
+    reg_uri(server, &uri_firewall_add);
+    reg_uri(server, &uri_firewall_delete);
+    reg_uri(server, &uri_firewall_clear);
+    reg_uri(server, &uri_dhcp_reservations);
+    reg_uri(server, &uri_dhcp_reservations_save);
+    reg_uri(server, &uri_dhcp_leases);
+    reg_uri(server, &uri_dhcp_kick);
+    reg_uri(server, &uri_portmap);
+    reg_uri(server, &uri_portmap_save);
+    reg_uri(server, &uri_tailnet_forward);
+    reg_uri(server, &uri_tailnet_forward_save);
+    reg_uri(server, &uri_mac_deny);
+    reg_uri(server, &uri_mac_deny_save);
+    reg_uri(server, &uri_log_raw);
+    reg_uri(server, &uri_log_clear);
+    reg_uri(server, &uri_log_precrash);
+    reg_uri(server, &uri_log_precrash_clear);
+    reg_uri(server, &uri_tailscale);
+    reg_uri(server, &uri_tailscale_save);
+    reg_uri(server, &uri_tailscale_reset_identity);
+    reg_uri(server, &uri_system);
+    reg_uri(server, &uri_system_save);
+    reg_uri(server, &uri_snmp_get);
+    reg_uri(server, &uri_snmp_post);
+    reg_uri(server, &uri_system_restart);
+    reg_uri(server, &uri_system_factory_reset);
+    reg_uri(server, &uri_system_ota);
+    reg_uri(server, &uri_system_secrets_get);
+    reg_uri(server, &uri_system_secrets_post);
+    reg_uri(server, &uri_system_diag);
+    reg_uri(server, &uri_system_debug_crash);
+    reg_uri(server, &uri_auth_status);
+    reg_uri(server, &uri_auth_challenge);
+    reg_uri(server, &uri_auth_login);
+    reg_uri(server, &uri_auth_logout);
+    reg_uri(server, &uri_auth_setup);
+    reg_uri(server, &uri_auth_change_password);
+    reg_uri(server, &uri_auth_clear_password);
+    reg_uri(server, &uri_sdlog_status_get);
+    reg_uri(server, &uri_sdlog_status_post);
+    reg_uri(server, &uri_sdlog_list);
+    reg_uri(server, &uri_sdlog_download);
+    reg_uri(server, &uri_sdlog_tail);
+    reg_uri(server, &uri_sdlog_erase);
     ESP_LOGI(TAG, "web UI listening on :%d (HTTP)", conf.server_port);
     /* HTTPS redirect server gone with HTTPS itself — direct HTTP-on-80
      * is now the only listener, so nothing to redirect anywhere. */

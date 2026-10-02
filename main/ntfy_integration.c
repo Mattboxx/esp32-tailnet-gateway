@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "runtime_metrics.h"
+#include "snmp_agent.h"
 #include "cJSON.h"
 #include "dhcps_ext.h"
 #include "esp_app_desc.h"
@@ -201,6 +202,9 @@ static void send_info(const ntfy_integration_config_t *c)
             (unsigned long)esp_get_free_heap_size(),
             (unsigned long)esp_get_minimum_free_heap_size(), (int)esp_reset_reason(),
             (unsigned)web_ui_configured_port());
+    appendf(text, 8192, "Socket limit: %d\nSNMP: %s (%s)\n",
+            CONFIG_LWIP_MAX_SOCKETS, snmp_agent_is_enabled() ? "enabled" : "disabled",
+            snmp_agent_is_running() ? "running" : "stopped");
 
     esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     esp_netif_ip_info_t ip = {0};

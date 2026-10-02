@@ -34,6 +34,9 @@ async function fixture(browser, options = {}) {
     } else if (url.pathname === '/api/ntfy') {
       if (state.ntfyFailures) { state.ntfyFailures--; status = 503; }
       body = state.ntfyBody || ntfy;
+    } else if (url.pathname === '/api/snmp') {
+      if (state.snmpFailures) { state.snmpFailures--; status = 503; }
+      body = state.snmpBody || { enabled: false, running: false, community: 'fixture' };
     } else if (url.pathname === '/api/wol') {
       if (state.wolFails) return route.abort('failed');
       if (state.wolDelay) await new Promise(resolve => setTimeout(resolve, state.wolDelay));
@@ -42,7 +45,7 @@ async function fixture(browser, options = {}) {
     if (state.rejectProtected && ['/api/mqtt', '/api/ntfy'].includes(url.pathname)) status = 401;
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
   });
-  await page.goto('http://esp32.test/#automation');
+  await page.goto('http://esp32.test/#' + (options.page || 'automation'));
   return { context, page, calls, errors, state };
 }
 
@@ -162,7 +165,22 @@ async function main() {
     assert.deepEqual(f.errors, []);
     await f.context.close(); count++;
 
-    console.log(`PASS: ${count} browser scenarios (auth deep links, WOL isolation, retries, unknown state, reload recovery and coalescing)`);
+    // New upstream SNMP settings use the same honest unknown-state model:
+    // no failed read may turn a running listener into an unchecked switch.
+    f = await fixture(browser, { page: 'system', snmpBody: { enabled: true, running: true, community: 'fixture' } });
+    await f.page.waitForFunction(() => document.getElementById('sys-snmp-badge').textContent === 'Running');
+    assert.equal(await f.page.locator('#sys-snmp-en').isChecked(), true);
+    f.state.snmpFailures = 2;
+    await f.page.locator('#sys-snmp-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-snmp-badge').textContent === 'Unavailable');
+    assert.equal(await f.page.locator('#sys-snmp-en').isChecked(), true);
+    f.state.snmpBody = { enabled: false, running: false, community: 'fixture' };
+    await f.page.locator('#sys-snmp-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-snmp-badge').textContent === 'Disabled');
+    assert.equal(await f.page.locator('#sys-snmp-card').getAttribute('data-feature-state'), 'disabled');
+    assert.deepEqual(f.errors, []);
+    await f.context.close(); count++;
+    console.log(`PASS: ${count} browser scenarios (auth deep links, WOL isolation, retries, unknown state, reload recovery, coalescing and SNMP)`);
   } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

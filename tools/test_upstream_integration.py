@@ -1,4 +1,4 @@
-"""Static regression guards for the v0.1.27 port, not hardware tests."""
+"""Static regression guards for the upstream ports, not hardware tests."""
 from pathlib import Path
 import unittest
 
@@ -35,12 +35,39 @@ class UpstreamIntegrationTests(unittest.TestCase):
 
     def test_network_limits_and_ui(self):
         defaults = self.text("sdkconfig.defaults")
+        self.assertIn("CONFIG_LWIP_MAX_SOCKETS=26", defaults)
+        self.assertIn("platform = espressif32@6.13.0", self.text("platformio.ini"))
         self.assertIn("CONFIG_LWIP_MAX_ACTIVE_TCP=24", defaults)
         self.assertIn("CONFIG_LWIP_TCP_OOSEQ_MAX_PBUFS=4", defaults)
         self.assertIn("#define TS_MTU_TAILSCALE       1280", self.text("main/tailscale_mtu.h"))
         html = self.text("main/index.html")
         for control in ("ts-adv-ap", "ts-ipn-version", "ts-effective-routes", "ts-exit-pending"):
             self.assertIn(f'id="{control}"', html)
+
+    def test_snmp_is_optional_authenticated_and_ordered(self):
+        source = self.text("components/snmp_agent/snmp_agent.c")
+        self.assertIn("static bool   s_enabled  = false", source)
+        self.assertIn("SNMP community must not be empty", self.text("main/web_ui.c"))
+        main = self.text("main/main.c")
+        self.assertLess(main.index("netif_hooks_init();"), main.index("snmp_agent_init();"))
+        self.assertNotIn("temperature_sensor_install", self.text("main/web_ui.c"))
+        web = self.text("main/web_ui.c")
+        for handler in ("snmp_get_handler", "snmp_post_handler"):
+            body = web.split(f"static esp_err_t {handler}", 1)[1].split("\n}", 1)[0]
+            self.assertIn("require_auth(req)", body)
+        apply = source.split("void snmp_agent_apply_live(", 1)[1].split("esp_err_t snmp_agent_save_config", 1)[0]
+        self.assertNotIn("close(", apply)
+        self.assertIn("shutdown(s_sock", apply)
+        self.assertIn("SO_RCVTIMEO", source)
+
+    def test_every_http_endpoint_registration_is_checked(self):
+        web = self.text("main/web_ui.c")
+        init = web.split("void web_ui_init(void)", 1)[1]
+        self.assertNotIn("httpd_register_uri_handler(", init)
+        import re
+        capacity = int(re.search(r"conf.max_uri_handlers\s*=\s*(\d+)", init)[1])
+        self.assertGreaterEqual(capacity, len(re.findall(r"reg_uri\(server,", init)) + 8)
+        self.assertIn("reg_uri(server, &uri_favicon)", init)
 
     def test_routes_not_written_by_composer(self):
         source = self.text("main/tailscale_manager.c")

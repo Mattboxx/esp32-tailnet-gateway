@@ -1,16 +1,37 @@
 # Custom ESP32-S3 router branch
 
-## Upstream v0.1.27 alignment (1.6 development)
+## Upstream v0.1.28 alignment (1.6 stable)
 
-The v0.1.20-v0.1.27 improvements are integrated on top of the Mattboxx 1.5
-features. See [the integration record](docs/UPSTREAM-0.1.27.md). MQTT/HA, ntfy,
+The v0.1.20-v0.1.28 improvements and the subsequent HTTP-handler registration
+fix are integrated on top of the Mattboxx 1.5 features. See
+[the latest integration record](docs/UPSTREAM-0.1.28.md) and
+[the earlier integration record](docs/UPSTREAM-0.1.27.md). MQTT/HA, ntfy,
 WOL, AP policy, LAN-to-Tailnet forwarding, 4via6, exit-node advertising,
 authentication and privacy removals remain in place. No Ethernet driver or
 automatic external telemetry/update service is introduced by this alignment.
 
 This branch starts from upstream `main` at `v0.1.19` and targets the ESP32-S3
 N16R8 used during development. Hardware validation is revision-specific; the
-current changes and pending tests are in [the review record](docs/REVIEW-1.5.md).
+current release coverage is in [the 1.6 release record](docs/RELEASE-1.6.md).
+
+## New in the 1.6 stable release
+
+- Upstream read-only SNMP agent, OFF by default, with a graphical switch,
+  neutral failed-load state, plaintext-protocol warning and password-masked
+  community field. New SNMP enabled/running and socket-limit diagnostics in
+  MQTT/Home Assistant and ntfy info do not disclose the SNMP community.
+- Pinned IDF 5.5.3 with 26 socket slots and a build guard against stale local
+  SDK configurations. Hardware diagnostics verify the compiled budget.
+- Authentication-gated Automation reads, independent WOL/MQTT rendering,
+  bounded retryable reads and explicit stale/unavailable configuration states.
+- Checked registration of every HTTP endpoint, extra handler-table capacity,
+  and a locally served/embedded favicon; no new CDN or browser tracking.
+- SNMP descriptors are closed only by their owning task; disable wakes that
+  task without recycling a socket number during receive/send. Configuration
+  is mutex-protected during replies. Invalid versions/integers and overflowing
+  OID arcs are rejected, in addition to upstream's bounded BER parsing.
+- Ready-to-flash binaries and Windows package include checksum verification,
+  a settings-preserving update and an explicitly confirmed erase-only install.
 
 ## New in the 1.5 stable release
 
