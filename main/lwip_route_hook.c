@@ -52,14 +52,29 @@ static inline bool ip_in_cgnat(uint32_t ip_host_order)
     return (ip_host_order & TAILSCALE_CGNAT_MASK) == TAILSCALE_CGNAT_NET;
 }
 
+/* Shared with route_explain so diagnostics use the live routing policy. */
+static inline bool ip_is_rfc1918(uint32_t ip_host_order)
+{
+    return ((ip_host_order & 0xFF000000UL) == 0x0A000000UL) ||
+           ((ip_host_order & 0xFFF00000UL) == 0xAC100000UL) ||
+           ((ip_host_order & 0xFFFF0000UL) == 0xC0A80000UL);
+}
+
+/* Upstream v0.1.29: CGNAT is also a valid physical uplink address.
+ * Only the named WireGuard interface is the tunnel. */
+static inline bool netif_is_wg(const struct netif *n)
+{
+    return n && n->name[0] == 'w' && n->name[1] == 'g';
+}
+
 static struct netif *find_wg_netif(void)
 {
     extern struct netif *netif_list;
     for (struct netif *n = netif_list; n; n = n->next) {
+        if (!netif_is_wg(n)) continue;
         const ip4_addr_t *addr = netif_ip4_addr(n);
         if (addr == NULL || ip4_addr_isany_val(*addr)) continue;
-        uint32_t ip = lwip_ntohl(ip4_addr_get_u32(addr));
-        if (ip_in_cgnat(ip)) return n;
+        return n;
     }
     return NULL;
 }
@@ -84,6 +99,51 @@ static struct netif *find_sta_netif(void)
         }
     }
     return NULL;
+}
+
+/* Core locking is optional in ESP-IDF (LOCK_TCPIP_CORE can be a no-op).
+ * Use an actual cross-core critical section for this small bounded table.
+ * Never call microlink, log, allocate or perform I/O while holding it. */
+static portMUX_TYPE s_accepted_routes_lock = portMUX_INITIALIZER_UNLOCKED;
+
+static void publish_accepted_routes(const tailscale_accepted_route_t *routes, int count)
+{
+    if (count < 0 || count > TAILSCALE_ACCEPTED_ROUTES_MAX || (count && !routes)) return;
+    portENTER_CRITICAL(&s_accepted_routes_lock);
+    if (count) memcpy(tailscale_accepted_routes, routes, count * sizeof(*routes));
+    tailscale_accepted_routes_count = count;
+    portEXIT_CRITICAL(&s_accepted_routes_lock);
+}
+
+int tailscale_accepted_routes_snapshot(tailscale_accepted_route_t *routes, int capacity)
+{
+    if (!routes || capacity <= 0) return 0;
+    portENTER_CRITICAL(&s_accepted_routes_lock);
+    int count = tailscale_accepted_routes_count;
+    if (count > capacity) count = capacity;
+    if (count) memcpy(routes, tailscale_accepted_routes, count * sizeof(*routes));
+    portEXIT_CRITICAL(&s_accepted_routes_lock);
+    return count;
+}
+
+/* Packet lookup copies only the match, not a 32-entry table per packet. */
+static bool accepted_route_lookup(uint32_t dst_hbo, tailscale_accepted_route_t *match)
+{
+    bool found = false;
+    portENTER_CRITICAL(&s_accepted_routes_lock);
+    for (int i = 0; i < tailscale_accepted_routes_count; i++) {
+        tailscale_accepted_route_t route = tailscale_accepted_routes[i];
+        uint8_t plen = route.prefix_len;
+        if (plen == 0 || plen > 32) continue;
+        uint32_t mask = plen == 32 ? 0xFFFFFFFFUL : (0xFFFFFFFFUL << (32 - plen));
+        if ((dst_hbo & mask) == (route.network & mask)) {
+            *match = route;
+            found = true;
+            break;
+        }
+    }
+    portEXIT_CRITICAL(&s_accepted_routes_lock);
+    return found;
 }
 
 static struct netif *s_original_default = NULL;
@@ -151,11 +211,19 @@ static void keepalive_start(uint32_t target_ip_hbo)
     }
 }
 
+static void set_default_callback(void *target)
+{
+    netif_set_default(target);
+}
+
 static void set_default_via_tcpip(struct netif *target)
 {
-    LOCK_TCPIP_CORE();
-    netif_set_default(target);
-    UNLOCK_TCPIP_CORE();
+    /* Always marshal to the stack, including SDK builds without core locking.
+     * Netifs are retained for the boot lifetime. On queue failure the
+     * supervisor retries next cycle rather than changing it off-thread. */
+    if (tcpip_callback(set_default_callback, target) != ERR_OK) {
+        ESP_LOGW(TAG, "Could not queue default-route update; will retry");
+    }
 }
 
 static void route_supervisor_task(void *arg)
@@ -225,6 +293,7 @@ static void route_supervisor_task(void *arg)
         if (tailscale_accept_routes) {
             microlink_t *ml = tailscale_get_microlink();
             int peer_n = ml ? microlink_get_peer_count(ml) : 0;
+            tailscale_accepted_route_t next_routes[TAILSCALE_ACCEPTED_ROUTES_MAX];
             int new_count = 0;
             for (int i = 0; i < peer_n &&
                  new_count < TAILSCALE_ACCEPTED_ROUTES_MAX; i++) {
@@ -232,16 +301,16 @@ static void route_supervisor_task(void *arg)
                 if (microlink_get_peer_info(ml, i, &pi) != ESP_OK) continue;
                 for (int r = 0; r < pi.subnet_route_count &&
                      new_count < TAILSCALE_ACCEPTED_ROUTES_MAX; r++) {
-                    tailscale_accepted_routes[new_count].network =
+                    next_routes[new_count].network =
                         pi.subnet_routes[r].network;
-                    tailscale_accepted_routes[new_count].prefix_len =
+                    next_routes[new_count].prefix_len =
                         pi.subnet_routes[r].prefix_len;
                     new_count++;
                 }
             }
-            tailscale_accepted_routes_count = new_count;
-        } else if (tailscale_accepted_routes_count != 0) {
-            tailscale_accepted_routes_count = 0;
+            publish_accepted_routes(next_routes, new_count);
+        } else {
+            publish_accepted_routes(NULL, 0);
         }
 
         vTaskDelay(pdMS_TO_TICKS(2000));
@@ -346,7 +415,7 @@ struct netif *__wrap_ip4_route_src_hook(const ip4_addr_t *src,
      * that may legitimately sit on 192.168.x.x LANs reachable via STA —
      * and those would loop into the tunnel if we redirected them. Local
      * origin keeps the IDF default behaviour: STA-bound, no WG. */
-    if (tailscale_accept_routes && tailscale_accepted_routes_count > 0 &&
+    if (tailscale_accept_routes &&
         src && !ip4_addr_isany_val(*src)) {
         bool src_is_local = false;
         extern struct netif *netif_list;
@@ -355,23 +424,18 @@ struct netif *__wrap_ip4_route_src_hook(const ip4_addr_t *src,
             if (na && ip4_addr_cmp(src, na)) { src_is_local = true; break; }
         }
         if (!src_is_local) {
-            for (int i = 0; i < tailscale_accepted_routes_count; i++) {
-                uint8_t plen = tailscale_accepted_routes[i].prefix_len;
-                if (plen == 0 || plen > 32) continue;
-                uint32_t mask = (plen == 32) ? 0xFFFFFFFFUL
-                                             : (0xFFFFFFFFUL << (32 - plen));
-                if ((dst_hbo & mask) ==
-                    (tailscale_accepted_routes[i].network & mask)) {
-                    if (should_log_route_hook()) {
-                        uint32_t net = tailscale_accepted_routes[i].network;
-                        ESP_LOGW(TAG, "[ROUTE_HOOK] ACCEPT_ROUTE src=%lu.%lu.%lu.%lu "
-                                 "dst=%lu.%lu.%lu.%lu match=%lu.%lu.%lu.%lu/%u -> wg",
-                                 (src_hbo>>24)&0xFF, (src_hbo>>16)&0xFF, (src_hbo>>8)&0xFF, src_hbo&0xFF,
-                                 (dst_hbo>>24)&0xFF, (dst_hbo>>16)&0xFF, (dst_hbo>>8)&0xFF, dst_hbo&0xFF,
-                                 (net>>24)&0xFF, (net>>16)&0xFF, (net>>8)&0xFF, net&0xFF, plen);
-                    }
-                    return find_wg_netif();
+            tailscale_accepted_route_t matched;
+            if (accepted_route_lookup(dst_hbo, &matched)) {
+                uint8_t plen = matched.prefix_len;
+                if (should_log_route_hook()) {
+                    uint32_t net = matched.network;
+                    ESP_LOGW(TAG, "[ROUTE_HOOK] ACCEPT_ROUTE src=%lu.%lu.%lu.%lu "
+                             "dst=%lu.%lu.%lu.%lu match=%lu.%lu.%lu.%lu/%u -> wg",
+                             (src_hbo>>24)&0xFF, (src_hbo>>16)&0xFF, (src_hbo>>8)&0xFF, src_hbo&0xFF,
+                             (dst_hbo>>24)&0xFF, (dst_hbo>>16)&0xFF, (dst_hbo>>8)&0xFF, dst_hbo&0xFF,
+                             (net>>24)&0xFF, (net>>16)&0xFF, (net>>8)&0xFF, net&0xFF, plen);
                 }
+                return find_wg_netif();
             }
         }
     }
@@ -395,8 +459,9 @@ struct netif *__wrap_ip4_route_src_hook(const ip4_addr_t *src,
             const ip4_addr_t *mask = netif_ip4_netmask(n);
             if (addr == NULL || mask == NULL) continue;
             if (ip4_addr_isany_val(*addr)) continue;
-            /* Skip the WG netif (CGNAT — handled in step 1, would loop). */
-            if (ip_in_cgnat(lwip_ntohl(ip4_addr_get_u32(addr)))) continue;
+            /* Hook-selected netifs bypass lwIP's normal link checks. */
+            if (!netif_is_up(n) || !netif_is_link_up(n)) continue;
+            if (netif_is_wg(n)) continue;
 
             /* 2a: dst sits inside this netif's own prefix. This MUST include
              * the AP netif — packets to 192.168.4.x (AP clients, e.g. Pi at
@@ -425,9 +490,7 @@ struct netif *__wrap_ip4_route_src_hook(const ip4_addr_t *src,
         }
 
         /* 2b: RFC 1918 fallback. */
-        bool is_private = ((dst_hbo & 0xFF000000UL) == 0x0A000000UL) ||  /* 10.0.0.0/8 */
-                          ((dst_hbo & 0xFFF00000UL) == 0xAC100000UL) ||  /* 172.16.0.0/12 */
-                          ((dst_hbo & 0xFFFF0000UL) == 0xC0A80000UL);    /* 192.168.0.0/16 */
+        bool is_private = ip_is_rfc1918(dst_hbo);
         if (is_private && sta_match != NULL) {
             if (should_log_route_hook()) {
                 ESP_LOGW(TAG, "[ROUTE_HOOK] LAN_RFC1918 src=%lu.%lu.%lu.%lu "
@@ -462,9 +525,7 @@ struct netif *__wrap_ip4_route_src_hook(const ip4_addr_t *src,
                 if (na && ip4_addr_cmp(src, na)) { src_is_self = true; break; }
             }
         }
-        bool is_priv = ((dst_hbo & 0xFF000000UL) == 0x0A000000UL) ||
-                       ((dst_hbo & 0xFFF00000UL) == 0xAC100000UL) ||
-                       ((dst_hbo & 0xFFFF0000UL) == 0xC0A80000UL);
+        bool is_priv = ip_is_rfc1918(dst_hbo);
         if (src_is_self) {
             /* CGNAT was already returned in step 1; here we just need
              * to bypass exit-node for the remaining public space. */
@@ -547,6 +608,8 @@ void route_explain(uint32_t src_hbo, uint32_t dst_hbo,
 
     out[0] = '\0';
     name_netif(NULL, out_netif, out_netif_size);
+    tailscale_accepted_route_t accepted[TAILSCALE_ACCEPTED_ROUTES_MAX];
+    int accepted_count = tailscale_accepted_routes_snapshot(accepted, TAILSCALE_ACCEPTED_ROUTES_MAX);
 
     ip4_addr_t dst;
     dst.addr = lwip_htonl(dst_hbo);
@@ -576,17 +639,17 @@ void route_explain(uint32_t src_hbo, uint32_t dst_hbo,
      * traffic (mirrors the hook: peer subnet routes are programmed
      * only for AP-client packets, not for the ESP's own LAN probes). */
     if (!src_is_self &&
-        tailscale_accept_routes && tailscale_accepted_routes_count > 0) {
-        for (int i = 0; i < tailscale_accepted_routes_count; i++) {
-            uint8_t plen = tailscale_accepted_routes[i].prefix_len;
+        tailscale_accept_routes && accepted_count > 0) {
+        for (int i = 0; i < accepted_count; i++) {
+            uint8_t plen = accepted[i].prefix_len;
             if (plen == 0 || plen > 32) continue;
             uint32_t mask = (plen == 32) ? 0xFFFFFFFFUL
                                          : (0xFFFFFFFFUL << (32 - plen));
             if ((dst_hbo & mask) ==
-                (tailscale_accepted_routes[i].network & mask)) {
+                (accepted[i].network & mask)) {
                 struct netif *wg = find_wg_netif();
                 name_netif(wg, out_netif, out_netif_size);
-                uint32_t nw = tailscale_accepted_routes[i].network;
+                uint32_t nw = accepted[i].network;
                 /* Resolve the advertising peer's hostname. */
                 char peer_host[40] = "unknown peer";
                 microlink_t *ml = tailscale_get_microlink();
@@ -626,7 +689,8 @@ void route_explain(uint32_t src_hbo, uint32_t dst_hbo,
             const ip4_addr_t *addr = netif_ip4_addr(n);
             const ip4_addr_t *mask = netif_ip4_netmask(n);
             if (!addr || !mask || ip4_addr_isany_val(*addr)) continue;
-            if (ip_in_cgnat(lwip_ntohl(ip4_addr_get_u32(addr)))) continue;
+            if (!netif_is_up(n) || !netif_is_link_up(n)) continue;
+            if (netif_is_wg(n)) continue;
             if ((dst.addr & mask->addr) == (addr->addr & mask->addr)) {
                 name_netif(n, out_netif, out_netif_size);
                 snprintf(out, out_size,
@@ -637,9 +701,7 @@ void route_explain(uint32_t src_hbo, uint32_t dst_hbo,
                 sta_match = n;
             }
         }
-        bool is_private = ((dst_hbo & 0xFF000000UL) == 0x0A000000UL) ||
-                          ((dst_hbo & 0xFFF00000UL) == 0xAC100000UL) ||
-                          ((dst_hbo & 0xFFFF0000UL) == 0xC0A80000UL);
+        bool is_private = ip_is_rfc1918(dst_hbo);
         if (is_private && sta_match) {
             name_netif(sta_match, out_netif, out_netif_size);
             snprintf(out, out_size,
@@ -653,9 +715,7 @@ void route_explain(uint32_t src_hbo, uint32_t dst_hbo,
      * ESP's own DERP/STUN sessions); forwarded public destinations egress
      * via the WG tunnel (the actual exit-node forwarding path). */
     if (tailscale_exit_node_ip != 0) {
-        bool is_priv = ((dst_hbo & 0xFF000000UL) == 0x0A000000UL) ||
-                       ((dst_hbo & 0xFFF00000UL) == 0xAC100000UL) ||
-                       ((dst_hbo & 0xFFFF0000UL) == 0xC0A80000UL);
+        bool is_priv = ip_is_rfc1918(dst_hbo);
         if (!is_priv) {
             if (src_is_self) {
                 for (struct netif *n = netif_list; n; n = n->next) {

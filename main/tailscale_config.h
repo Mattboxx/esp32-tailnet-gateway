@@ -34,7 +34,8 @@ extern int32_t tailscale_snat_subnet_routes;      // 1 = SNAT (masquerade) tunne
 // Accepted-routes table — rebuilt periodically from microlink peer info when
 // tailscale_accept_routes=1. Each entry is a CIDR (network in host byte order).
 // `tailscale_accepted_routes_count` is the number of valid entries (always
-// authoritative — entries past it must not be read).
+// authoritative — entries past it must not be read). Internal lookup/publication
+// uses a cross-core critical section; other readers must use the snapshot.
 #define TAILSCALE_ACCEPTED_ROUTES_MAX 32
 typedef struct {
     uint32_t network;     // host byte order
@@ -42,6 +43,7 @@ typedef struct {
 } tailscale_accepted_route_t;
 extern tailscale_accepted_route_t tailscale_accepted_routes[TAILSCALE_ACCEPTED_ROUTES_MAX];
 extern int tailscale_accepted_routes_count;
+int tailscale_accepted_routes_snapshot(tailscale_accepted_route_t *routes, int capacity);
 
 // Runtime state
 extern bool tailscale_connected;         // Tunnel is up and authenticated

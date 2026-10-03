@@ -82,7 +82,8 @@ Development candidates and older releases are not independently maintained.
 
 ## Review limitations
 
-See [the 1.6 release record](docs/RELEASE-1.6.md) and
+See [the 1.7 release record](docs/RELEASE-1.7.md),
+[the earlier 1.6 release record](docs/RELEASE-1.6.md) and
 [the 1.5 review record](docs/REVIEW-1.5.md) for fixes and validation scope.
 Pattern-based secret scans and successful compilation are not a penetration
 test and cannot establish the absence of vulnerabilities or personal data.

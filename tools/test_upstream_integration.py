@@ -9,6 +9,20 @@ class UpstreamIntegrationTests(unittest.TestCase):
     def text(self, path):
         return (ROOT / path).read_text(encoding="utf-8")
 
+    def test_accepted_routes_are_published_atomically(self):
+        source = self.text('main/lwip_route_hook.c')
+        supervisor = source.split('static void route_supervisor_task', 1)[1].split('void lwip_route_hook_init', 1)[0]
+        self.assertNotIn('tailscale_accepted_routes[new_count]', supervisor)
+        self.assertIn('publish_accepted_routes(next_routes, new_count)', supervisor)
+        publisher = source.split('static void publish_accepted_routes', 1)[1].split('int tailscale_accepted_routes_snapshot', 1)[0]
+        self.assertLess(publisher.index('portENTER_CRITICAL('), publisher.index('memcpy('))
+        self.assertLess(publisher.index('tailscale_accepted_routes_count = count'), publisher.index('portEXIT_CRITICAL('))
+        self.assertNotIn('LOCK_TCPIP_CORE()', publisher)
+        self.assertIn('tcpip_callback(set_default_callback, target)', source)
+        web = self.text('main/web_ui.c')
+        self.assertNotIn('tailscale_accepted_routes[i]', web)
+        self.assertIn('tailscale_accepted_routes_snapshot(accepted', web)
+
     def test_custom_features_and_privacy_preserved(self):
         cmake = self.text("main/CMakeLists.txt")
         for source in ("wol.c", "mqtt_integration.c", "ntfy_integration.c",

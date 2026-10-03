@@ -5,6 +5,7 @@ import hashlib
 import shutil
 import subprocess
 import zipfile
+import re
 from check_sensitive_data import credential_findings
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,12 +24,13 @@ def main():
     parser.add_argument('--esptool-license', type=Path, required=True)
     args = parser.parse_args()
     version = args.version
-    assert version == '0.1.28-Mattboxx-1.6'
+    project_version = re.search(r'set\(PROJECT_VER "([^"]+)"\)', (ROOT / 'CMakeLists.txt').read_text())[1]
+    assert version == project_version and re.fullmatch(r'0\.1\.\d+-Mattboxx-\d+\.\d+', version), 'Only the current stable version may be packaged'
     sdkbuild = ROOT / '.pio/build/esp32-s3'
     assert sha(args.tested_image) == args.tested_sha256.lower()
     assert sha(sdkbuild / 'firmware.bin') == args.tested_sha256.lower(), 'Build changed after hardware validation'
     assert version.encode() in args.tested_image.read_bytes()
-    assert b'Mattboxx-1.6-dev' not in args.tested_image.read_bytes()
+    assert (version + '-dev').encode() not in args.tested_image.read_bytes()
     assert '#define CONFIG_LWIP_MAX_SOCKETS 26' in (sdkbuild / 'config/sdkconfig.h').read_text()
     out = ROOT / 'build' / ('release-' + version)
     out.mkdir(exist_ok=False)
@@ -66,8 +68,9 @@ firmware-factory.bin is the merged fresh-board image, NOT a web OTA image.
 Do not unplug during flashing. Use a USB DATA cable, not a charge-only cable.
 If detection fails: hold BOOT, tap RESET, release BOOT and retry.
 
-Based on Csontikka/esp32-tailscale-subnet-router v0.1.28 with its following
-URI-registration fix. Preserves MQTT/HA, WOL, ntfy, AP policy, LAN-to-Tailnet
+Based on Csontikka/esp32-tailscale-subnet-router v0.1.29. Includes its CGNAT
+uplink / disconnected-interface routing fixes and synchronized route snapshots.
+Preserves MQTT/HA, WOL, ntfy, AP policy, LAN-to-Tailnet
 forwarding, 4via6, exit advertising, custom web port and password/session policy.
 Includes Automation loading fixes, a pinned IDF 5.5.3/26-socket build, read-only
 SNMP (OFF by default), malformed-packet hardening and checked HTTP endpoints.
@@ -77,7 +80,7 @@ Optional user-enabled MQTT/ntfy and the VPN still make their configured traffic.
 SNMPv1/v2c is unencrypted. Keep it OFF unless needed, choose a private community
 and restrict UDP 161 with the firewall. Web UI is HTTP: trusted LAN/tailnet only.
 Stable is a release channel, not a security certification; hardware coverage and
-limitations: https://github.com/Mattboxx/esp32-tailscale-gateway/blob/Main/docs/RELEASE-1.6.md
+limitations: https://github.com/Mattboxx/esp32-tailscale-gateway/blob/Main/docs/RELEASE-1.7.md
 Original credits: Csontikka/router, Csontikka/microlink and their contributors.
 
 esptool.exe: Espressif esptool v5.3.1 Windows amd64, GPL-2.0-or-later.

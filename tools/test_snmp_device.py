@@ -78,11 +78,13 @@ def login(host):
     client = urllib.request.build_opener(urllib.request.ProxyHandler({}),
         urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
-    def api(path, payload=None):
-        body = None if payload is None else json.dumps(payload).encode()
+    def api(path, payload=None, *, raw=False, timeout=12):
+        if raw:
+            assert isinstance(payload, bytes), 'Raw API bodies must be bytes'
+        body = payload if raw else (None if payload is None else json.dumps(payload).encode())
         req = urllib.request.Request(base + path, body,
-            headers={'Content-Type': 'application/json'} if body is not None else {})
-        with client.open(req, timeout=12) as response:
+            headers={'Content-Type': 'application/octet-stream' if raw else 'application/json'} if body is not None else {})
+        with client.open(req, timeout=timeout) as response:
             return json.load(response)
 
     challenge = api('/api/auth/challenge')
@@ -99,6 +101,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('host')
     parser.add_argument('--allow-temporary-enable', action='store_true', required=True)
+    parser.add_argument('--expected-version', default='0.1.29-Mattboxx-1.7')
     args = parser.parse_args()
     api = login(args.host)
     limits = api('/api/system/diag')['network_limits']
@@ -138,7 +141,7 @@ def main():
         for version in (0, 1):
             result = exchange(request(comm, system_oid, version))
             assert result[0] == system_oid and result[1] == 4
-            assert b'0.1.28-Mattboxx-1.6' in result[2]
+            assert args.expected_version.encode() in result[2]
         print('PASS: SNMPv1 and v2c sysDescr identify the installed release')
         for version in (0, 1):
             oid, count = [1, 3, 6, 1, 2, 1], 0

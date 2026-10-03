@@ -31,6 +31,7 @@ jobs:
           python3 -m unittest discover -s tools -p 'test_sensitive_scanner.py'
           python3 -m unittest discover -s tools -p 'test_upstream_integration.py'
           SNMP_SANITIZE=1 python3 tools/test_snmp_codec.py
+          ROUTE_SANITIZE=1 python3 tools/test_route_hook.py
       - name: Check sensitive data without logging secret values
         run: |
           python3 tools/check_sensitive_data.py --history

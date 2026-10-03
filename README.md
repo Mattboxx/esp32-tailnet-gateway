@@ -47,22 +47,27 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
-**[Stable release: 0.1.28-Mattboxx-1.6](../../releases/tag/v0.1.28-Mattboxx-1.6)**
-combines upstream **v0.1.28** and its following HTTP-registration fix with the
+**[Stable release: 0.1.29-Mattboxx-1.7](../../releases/tag/v0.1.29-Mattboxx-1.7)**
+combines upstream **v0.1.29** with the
 Mattboxx additions. It keeps your existing settings and introduces no automatic
 telemetry, external crash upload or firmware polling. Original credits remain
 with Csontikka, microlink's authors and contributors, including gszigethy's SNMP
 agent contribution.
 
-New: optional **read-only SNMP**, reliable Automation loading after login,
+New in **1.7**: correct tunnel detection on CGNAT uplinks (e.g. LTE/Starlink),
+LAN bypass skips disconnected interfaces, and peer-route tables are published
+atomically instead of being changed underneath packet/UI readers. The Web
+Session badge now distinguishes a disabled idle timer from a disabled password.
+All 1.6 improvements remain: optional **read-only SNMP**, reliable Automation loading after login,
 honest Loading/Unavailable states instead of false Disabled switches, and a
 pinned **ESP-IDF 5.5.3 / 26-socket** build that avoids ntfy/web socket starvation.
 All HTTP endpoints now check their registration result, and a local favicon
 avoids unnecessary 404 log noise. SNMP uses the same temperature sensor as the
 dashboard, is **OFF by default**, and adds no background external reporting.
 
-See [release notes and hardware validation](docs/RELEASE-1.6.md),
-[the v0.1.28 integration record](docs/UPSTREAM-0.1.28.md), and
+See [release notes and validation](docs/RELEASE-1.7.md),
+[the v0.1.29 integration record](docs/UPSTREAM-0.1.29.md),
+[the previous 1.6 validation](docs/RELEASE-1.6.md), and
 [the previous upstream integration](docs/UPSTREAM-0.1.27.md).
 Stable is the project's release channel, not a security certification.
 The earlier [1.5 release](../../releases/tag/v0.1.19-Mattboxx-1.5) remains

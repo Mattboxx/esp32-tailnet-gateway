@@ -7107,9 +7107,10 @@
           document.getElementById('sys-auth-to-save').disabled = true;
           var toBadge = document.getElementById('sys-auth-to-badge');
           var label;
-          if (to === 0)   label = 'Disabled';
-          else if (to >= 3600) label = (to / 3600) + ' h';
-          else            label = (to / 60)   + ' min';
+          if (d.web_auth_enabled === false) label = 'Password gate off';
+          else if (to === 0) label = 'Password required · no idle timeout';
+          else if (to >= 3600) label = 'Idle timeout: ' + (to / 3600) + ' h';
+          else label = 'Idle timeout: ' + (to / 60) + ' min';
           toBadge.className   = 'badge badge-neutral';
           toBadge.textContent = label;
 

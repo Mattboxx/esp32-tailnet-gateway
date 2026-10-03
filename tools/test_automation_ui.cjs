@@ -37,6 +37,8 @@ async function fixture(browser, options = {}) {
     } else if (url.pathname === '/api/snmp') {
       if (state.snmpFailures) { state.snmpFailures--; status = 503; }
       body = state.snmpBody || { enabled: false, running: false, community: 'fixture' };
+    } else if (url.pathname === '/api/system') {
+      body = state.systemBody || { web_auth_enabled: true, session_timeout_s: 0 };
     } else if (url.pathname === '/api/wol') {
       if (state.wolFails) return route.abort('failed');
       if (state.wolDelay) await new Promise(resolve => setTimeout(resolve, state.wolDelay));
@@ -180,7 +182,20 @@ async function main() {
     assert.equal(await f.page.locator('#sys-snmp-card').getAttribute('data-feature-state'), 'disabled');
     assert.deepEqual(f.errors, []);
     await f.context.close(); count++;
-    console.log(`PASS: ${count} browser scenarios (auth deep links, WOL isolation, retries, unknown state, reload recovery, coalescing and SNMP)`);
+    // An unlimited idle timer must not imply that password protection is off.
+    f = await fixture(browser, { page: 'system' });
+    await f.page.waitForFunction(() => document.getElementById('sys-auth-to-badge').textContent === 'Password required · no idle timeout');
+    assert.equal(await f.page.locator('#sys-web-auth-enabled').isChecked(), true);
+    f.state.systemBody = { web_auth_enabled: false, session_timeout_s: 1800 };
+    await f.page.locator('#sys-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-auth-to-badge').textContent === 'Password gate off');
+    assert.equal(await f.page.locator('#sys-web-auth-enabled').isChecked(), false);
+    f.state.systemBody = { web_auth_enabled: true, session_timeout_s: 3600 };
+    await f.page.locator('#sys-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-auth-to-badge').textContent === 'Idle timeout: 1 h');
+    assert.deepEqual(f.errors, []);
+    await f.context.close(); count++;
+    console.log(`PASS: ${count} browser scenarios (auth deep links, WOL isolation, retries, unknown state, reload recovery, coalescing, SNMP and session security labels)`);
   } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

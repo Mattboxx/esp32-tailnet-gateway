@@ -15,6 +15,7 @@ def main():
     parser.add_argument('host')
     parser.add_argument('--seconds', type=int, default=300)
     parser.add_argument('--test-notification', action='store_true')
+    parser.add_argument('--expected-version', default='0.1.29-Mattboxx-1.7')
     args = parser.parse_args()
     anonymous = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     paths = ('/api/status', '/api/network', '/api/tailscale', '/api/firewall',
@@ -34,7 +35,7 @@ def main():
     for path in paths:
         assert isinstance(api(path), (dict, list)), path
     system = api('/api/system')
-    assert system['version'] == '0.1.28-Mattboxx-1.6'
+    assert system['version'] == args.expected_version
     assert not api('/api/snmp')['enabled']
     print('PASS: all protected endpoints load after login; correct release; SNMP OFF')
     if args.test_notification:
@@ -65,7 +66,7 @@ def main():
         assert heap > 12000, 'Internal heap fell below the smoke-test reserve'
         samples += 1
         if samples % 12 == 0:
-            print(f'PASS: {samples*5}s uptime/network/integration soak', flush=True)
+            print(f'PASS: {time.monotonic()-start:.0f}s uptime/network/integration soak ({samples} samples)', flush=True)
     print(f'PASS: {samples} samples without reboot, uplink/tunnel loss or integration disconnect; internal heap minimum {minimum_heap} B')
 
 

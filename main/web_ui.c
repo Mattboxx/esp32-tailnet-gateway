@@ -3071,13 +3071,15 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     cJSON_AddItemToObject(root, "peers", peers);
 
     /* Accepted-routes table (peer routes we've decided to honour). */
+    tailscale_accepted_route_t accepted[TAILSCALE_ACCEPTED_ROUTES_MAX];
+    int accepted_count = tailscale_accepted_routes_snapshot(accepted, TAILSCALE_ACCEPTED_ROUTES_MAX);
     cJSON *acc = cJSON_CreateArray();
-    for (int i = 0; i < tailscale_accepted_routes_count; i++) {
+    for (int i = 0; i < accepted_count; i++) {
         cJSON *r = cJSON_CreateObject();
         char buf[16];
-        ip4_hbo_to_str(tailscale_accepted_routes[i].network, buf, sizeof buf);
+        ip4_hbo_to_str(accepted[i].network, buf, sizeof buf);
         cJSON_AddStringToObject(r, "network",    buf);
-        cJSON_AddNumberToObject(r, "prefix_len", tailscale_accepted_routes[i].prefix_len);
+        cJSON_AddNumberToObject(r, "prefix_len", accepted[i].prefix_len);
         cJSON_AddItemToArray(acc, r);
     }
     cJSON_AddItemToObject(root, "accepted_routes", acc);

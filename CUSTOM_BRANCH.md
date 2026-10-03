@@ -1,10 +1,10 @@
 # Custom ESP32-S3 router branch
 
-## Upstream v0.1.28 alignment (1.6 stable)
+## Upstream v0.1.29 alignment (1.7 stable)
 
-The v0.1.20-v0.1.28 improvements and the subsequent HTTP-handler registration
-fix are integrated on top of the Mattboxx 1.5 features. See
-[the latest integration record](docs/UPSTREAM-0.1.28.md) and
+The v0.1.20-v0.1.29 improvements are integrated on top of the Mattboxx features. See
+[the latest integration record](docs/UPSTREAM-0.1.29.md),
+[the preceding integration record](docs/UPSTREAM-0.1.28.md) and
 [the earlier integration record](docs/UPSTREAM-0.1.27.md). MQTT/HA, ntfy,
 WOL, AP policy, LAN-to-Tailnet forwarding, 4via6, exit-node advertising,
 authentication and privacy removals remain in place. No Ethernet driver or
@@ -12,9 +12,24 @@ automatic external telemetry/update service is introduced by this alignment.
 
 This branch starts from upstream `main` at `v0.1.19` and targets the ESP32-S3
 N16R8 used during development. Hardware validation is revision-specific; the
-current release coverage is in [the 1.6 release record](docs/RELEASE-1.6.md).
+current release coverage is in [the 1.7 release record](docs/RELEASE-1.7.md).
 
-## New in the 1.6 stable release
+## New in the 1.7 stable release
+
+- Upstream v0.1.29 routing fixes: identify the tunnel by its `wg` interface
+  name, not a CGNAT IP; skip down/link-down LAN interfaces in bypass and Tools.
+  HTTP registration checks and local favicon were already included in 1.6.
+- Additional route-table synchronization: build a complete peer-route generation
+  first, publish under a cross-core critical section, and snapshot it for web
+  diagnostics. Default-route updates are marshalled into the TCP/IP task even
+  when the SDK disables its optional core-locking macros.
+- Correct Web Session label: no idle timeout no longer implies no password.
+- Regression harness compiles the real route hook and diagnostic functions,
+  exercising CGNAT/missing tunnel, disconnected interfaces, exit-node split,
+  accepted-route snapshots and invalid prefix lengths. CI runs sanitizers.
+- Existing features/privacy removals and the IDF 5.5.3/26-socket budget remain.
+
+## Previously added in the 1.6 stable release
 
 - Upstream read-only SNMP agent, OFF by default, with a graphical switch,
   neutral failed-load state, plaintext-protocol warning and password-masked
