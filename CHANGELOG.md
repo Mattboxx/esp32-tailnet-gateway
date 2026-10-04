@@ -6,6 +6,25 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.29-Mattboxx-1.8] — 2026-10-04
+
+### Fixed
+
+- ntfy HTTPS command reception reboot loop (`vApplicationStackOverflowHook`):
+  separate no-inline worker/report/poll frames, heap-backed alert log buffer,
+  12 KiB worker stack, checked task creation and minimum-stack diagnostics.
+- Failed `info` publications now increment command errors instead of success.
+  Oversized ntfy responses are rejected rather than partially assembled.
+- Mutex-protected ntfy status and independent alert-result accounting.
+- Panic popup points to the pre-crash log card in Diagnostics.
+
+### Tests
+
+- Exact-ELF frame budgets detect the old 1.7 regression; actual-C callback,
+  command accounting, alert allocation/failure tests run with sanitizers in CI.
+- Opt-in HTTPS/info hardware soak without logging private payloads.
+- Coverage, limitations and downloads: [release record](docs/RELEASE-1.8.md).
+
 ## [0.1.19-Mattboxx-1.4] — 2026-09-05
 
 ### Added

@@ -1,6 +1,6 @@
 # Custom ESP32-S3 router branch
 
-## Upstream v0.1.29 alignment (1.7 stable)
+## Upstream v0.1.29 alignment (1.8 stable)
 
 The v0.1.20-v0.1.29 improvements are integrated on top of the Mattboxx features. See
 [the latest integration record](docs/UPSTREAM-0.1.29.md),
@@ -12,9 +12,22 @@ automatic external telemetry/update service is introduced by this alignment.
 
 This branch starts from upstream `main` at `v0.1.19` and targets the ESP32-S3
 N16R8 used during development. Hardware validation is revision-specific; the
-current release coverage is in [the 1.7 release record](docs/RELEASE-1.7.md).
+current release coverage is in [the 1.8 release record](docs/RELEASE-1.8.md).
 
-## New in the 1.7 stable release
+## New in the 1.8 stable hotfix
+
+- Fix the ntfy stack-overflow reboot loop during HTTPS command reception.
+  Heavy functions cannot be inlined into the worker; its compiled frame drops
+  from 4,240 to 496 bytes. Alert logs are heap-backed and freed before TLS.
+- Give the worker a 12 KiB stack, check task creation and expose its running
+  state/minimum remaining stack through the authenticated ntfy API.
+- Synchronize status counters, propagate failed `info` replies, and reject
+  oversized command responses instead of parsing a silently damaged stream.
+- Correct the panic popup's pre-crash log location to Diagnostics.
+- Add exact-ELF stack budgets, actual-C regression tests with sanitizer CI,
+  and an opt-in HTTPS/info hardware soak. Previous features remain intact.
+
+## Previously added in the 1.7 stable release
 
 - Upstream v0.1.29 routing fixes: identify the tunnel by its `wg` interface
   name, not a CGNAT IP; skip down/link-down LAN interfaces in bypass and Tools.

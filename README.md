@@ -47,14 +47,20 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
-**[Stable release: 0.1.29-Mattboxx-1.7](../../releases/tag/v0.1.29-Mattboxx-1.7)**
+**[Stable release: 0.1.29-Mattboxx-1.8](../../releases/tag/v0.1.29-Mattboxx-1.8)**
 combines upstream **v0.1.29** with the
 Mattboxx additions. It keeps your existing settings and introduces no automatic
 telemetry, external crash upload or firmware polling. Original credits remain
 with Csontikka, microlink's authors and contributors, including gszigethy's SNMP
 agent contribution.
 
-New in **1.7**: correct tunnel detection on CGNAT uplinks (e.g. LTE/Starlink),
+**New in 1.8: ntfy reboot-loop hotfix.** HTTPS command reception could exhaust
+the worker stack and repeatedly restart 1.7. Reporting/polling now have separate
+compiler frames, alert logs live off-stack, and the TLS worker has a checked
+12 KiB stack. Failed `info` replies are reported honestly; oversized command
+responses are rejected. **Upgrade if you use ntfy command reception.**
+
+Retained from **1.7**: correct tunnel detection on CGNAT uplinks (e.g. LTE/Starlink),
 LAN bypass skips disconnected interfaces, and peer-route tables are published
 atomically instead of being changed underneath packet/UI readers. The Web
 Session badge now distinguishes a disabled idle timer from a disabled password.
@@ -65,7 +71,7 @@ All HTTP endpoints now check their registration result, and a local favicon
 avoids unnecessary 404 log noise. SNMP uses the same temperature sensor as the
 dashboard, is **OFF by default**, and adds no background external reporting.
 
-See [release notes and validation](docs/RELEASE-1.7.md),
+See [release notes and validation](docs/RELEASE-1.8.md),
 [the v0.1.29 integration record](docs/UPSTREAM-0.1.29.md),
 [the previous 1.6 validation](docs/RELEASE-1.6.md), and
 [the previous upstream integration](docs/UPSTREAM-0.1.27.md).

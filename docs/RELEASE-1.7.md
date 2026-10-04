@@ -1,5 +1,10 @@
 # ESP32 Tailscale Gateway 0.1.29-Mattboxx-1.7
 
+> Superseded by [1.8](RELEASE-1.8.md): a subsequently reproduced ntfy HTTPS
+> command-reception stack overflow can cause repeated panic/reboots in 1.7.
+> Upgrade if using ntfy commands. The original 1.7 images/checksums below are
+> preserved; its short test notification/soak did not cover this command path.
+
 Stable community release, October 4, 2026. For the ESP32-S3 N16R8 reference
 board with 8MB octal PSRAM and the existing 4MB partition layout. Not a
 universal image for all ESP32 variants or Ethernet board wiring.

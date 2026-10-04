@@ -31,7 +31,20 @@ def main():
     with anonymous.open('http://' + args.host + '/favicon.ico', timeout=5) as response:
         assert response.headers['Content-Type'] == 'image/svg+xml'
     print('PASS: 15 protected GET endpoints reject unauthenticated access; favicon is served')
-    api = login(args.host)
+    session_api = login(args.host)
+    def api(*positional, **keywords):
+        nonlocal session_api
+        try:
+            return session_api(*positional, **keywords)
+        except urllib.error.HTTPError as error:
+            if error.code != 401:
+                raise
+            # A fifth UI/test login may evict one of the four sessions.
+            # Keep the previous uptime below: reauthentication must not hide
+            # a reboot, which still fails the monotonic-uptime assertion.
+            session_api = login(args.host)
+            print('Renewed test session after HTTP 401', flush=True)
+            return session_api(*positional, **keywords)
     for path in paths:
         assert isinstance(api(path), (dict, list)), path
     system = api('/api/system')
