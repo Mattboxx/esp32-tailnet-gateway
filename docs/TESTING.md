@@ -14,6 +14,26 @@ Tests live under `tools/test_lib/`, the driver is `tools/run_tests.py`.
 
 ## Prerequisites
 
+### ntfy reboot regression (1.8 and later)
+
+`python tools/test_ntfy_stack.py` checks the no-inlining/heap-buffer guards.
+Add `--objdump <Xtensa objdump executable> --elf <built firmware.elf>` to
+verify the actual compiler-generated frame budgets. The old 1.7 release ELF
+fails this check (4,240-byte worker frame); the corrected 1.8 frame is 496 bytes.
+`python tools/test_ntfy_logic.py` compiles the actual HTTP callback, command
+accounting and alert builder with synthetic dependencies. Set `NTFY_SANITIZE=1`
+on a supported compiler to run ASan/UBSan, as CI does.
+
+Hardware: set `TEST_DEVICE_PASSWORD` privately in the environment, then run
+`python tools/test_ntfy_device.py <device-host> --seconds 600 --commands 5`.
+Use only on your own device: it publishes generic `info` commands to its
+configured HTTPS ntfy endpoint and temporarily allows commands while the
+tunnel is connected. It restores that policy in `finally`, but does not toggle
+ntfy itself. The worker must already be enabled. This publisher supports topics
+without a bearer token; protected topics need a separate authorized publisher.
+It checks responses without printing/saving their potentially private contents.
+It does not send WOL, force an uplink outage or exercise multi-day operation.
+
 ```bash
 pip install playwright paramiko
 playwright install chromium

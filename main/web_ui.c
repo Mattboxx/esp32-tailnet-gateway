@@ -1970,6 +1970,8 @@ static esp_err_t ntfy_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "alerts_sent", st.alerts_sent);
     cJSON_AddNumberToObject(root, "commands_received", st.commands_received);
     cJSON_AddNumberToObject(root, "command_errors", st.command_errors);
+    cJSON_AddBoolToObject(root, "task_running", st.task_running);
+    cJSON_AddNumberToObject(root, "stack_min_free_bytes", st.stack_min_free_bytes);
     char *body = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     if (!body) { httpd_resp_send_500(req); return ESP_FAIL; }

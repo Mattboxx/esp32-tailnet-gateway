@@ -15,7 +15,7 @@ def main():
     parser.add_argument('host')
     parser.add_argument('--seconds', type=int, default=300)
     parser.add_argument('--test-notification', action='store_true')
-    parser.add_argument('--expected-version', default='0.1.29-Mattboxx-1.7')
+    parser.add_argument('--expected-version', default='0.1.29-Mattboxx-1.8')
     args = parser.parse_args()
     anonymous = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     paths = ('/api/status', '/api/network', '/api/tailscale', '/api/firewall',

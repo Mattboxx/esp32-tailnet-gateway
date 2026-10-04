@@ -72,7 +72,10 @@ Based on Csontikka/esp32-tailscale-subnet-router v0.1.29. Includes its CGNAT
 uplink / disconnected-interface routing fixes and synchronized route snapshots.
 Preserves MQTT/HA, WOL, ntfy, AP policy, LAN-to-Tailnet
 forwarding, 4via6, exit advertising, custom web port and password/session policy.
-Includes Automation loading fixes, a pinned IDF 5.5.3/26-socket build, read-only
+Includes the ntfy reboot-loop fix: separate compiler stack frames, heap-backed
+alert logs, a 12 KiB TLS worker stack and stack-reserve diagnostics. Failed info
+replies and oversized command responses no longer masquerade as success.
+Retains Automation loading fixes, a pinned IDF 5.5.3/26-socket build, read-only
 SNMP (OFF by default), malformed-packet hardening and checked HTTP endpoints.
 No telemetry, external crash upload, release polling or public speed test.
 Optional user-enabled MQTT/ntfy and the VPN still make their configured traffic.
@@ -80,7 +83,7 @@ Optional user-enabled MQTT/ntfy and the VPN still make their configured traffic.
 SNMPv1/v2c is unencrypted. Keep it OFF unless needed, choose a private community
 and restrict UDP 161 with the firewall. Web UI is HTTP: trusted LAN/tailnet only.
 Stable is a release channel, not a security certification; hardware coverage and
-limitations: https://github.com/Mattboxx/esp32-tailscale-gateway/blob/Main/docs/RELEASE-1.7.md
+limitations: https://github.com/Mattboxx/esp32-tailscale-gateway/blob/Main/docs/RELEASE-{version.rsplit('-', 1)[1]}.md
 Original credits: Csontikka/router, Csontikka/microlink and their contributors.
 
 esptool.exe: Espressif esptool v5.3.1 Windows amd64, GPL-2.0-or-later.

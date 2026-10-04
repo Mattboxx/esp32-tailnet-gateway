@@ -1,0 +1,95 @@
+"""Exercise the actual ntfy callback, command accounting and alert builder.
+
+Synthetic HTTP/log/allocator functions; no board access or external traffic.
+"""
+from pathlib import Path
+import os
+import subprocess
+import tempfile
+
+ROOT = Path(__file__).resolve().parents[1]
+source = (ROOT / 'main/ntfy_integration.c').read_text()
+buffer_type = 'typedef struct {' + source.split('typedef struct {', 1)[1].split('} response_buffer_t;', 1)[0] + '} response_buffer_t;\n'
+callback = 'static esp_err_t http_event' + source.split('static esp_err_t http_event', 1)[1].split('static void defaults', 1)[0]
+command = 'static NTFY_NOINLINE void handle_command' + source.split('static NTFY_NOINLINE void handle_command', 1)[1].split('static bool response_is_ours', 1)[0]
+alert = 'static NTFY_NOINLINE esp_err_t send_tailscale_alert' + source.split('static NTFY_NOINLINE esp_err_t send_tailscale_alert', 1)[1].split('static void task_main', 1)[0]
+fixture = r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <strings.h>
+#include <ctype.h>
+#define NTFY_NOINLINE
+#define ESP_OK 0
+#define ESP_FAIL -1
+#define ESP_ERR_NO_MEM 2
+#define ESP_ERR_INVALID_ARG 3
+#define HTTP_EVENT_ON_DATA 1
+#define portMAX_DELAY 0
+typedef int esp_err_t;
+typedef struct { bool info_enabled; } ntfy_integration_config_t;
+typedef struct { int event_id, data_len; void *data, *user_data; } esp_http_client_event_t;
+static int s_lock;
+static struct { unsigned alerts_sent, commands_received, command_errors; } s_status;
+static void xSemaphoreTake(int a,int b) { (void)a; (void)b; }
+static void xSemaphoreGive(int a) { (void)a; }
+static int publish_result, info_result, allocations, fail_at, live;
+static char published[2300];
+static void *checked_malloc(size_t n) {
+    if (++allocations == fail_at) return NULL;
+    void *p = malloc(n); if(p) live++; return p;
+}
+static void checked_free(void *p) { if(p) live--; free(p); }
+#define malloc checked_malloc
+#define free checked_free
+static esp_err_t publish_message(const ntfy_integration_config_t *c,const char *title,const char *tags,const char *msg) {
+    (void)c; (void)title; (void)tags;
+    assert(strlen(msg)<sizeof published); strcpy(published,msg); return publish_result;
+}
+static size_t log_capture_read(char *out,size_t capacity) {
+    memset(out,'x',capacity-1); out[capacity-1]=0; return capacity-1;
+}
+static esp_err_t send_info(const ntfy_integration_config_t *c) { (void)c; return info_result; }
+static esp_err_t wake_argument(const ntfy_integration_config_t *c,const char *s) { (void)c; (void)s; return ESP_FAIL; }
+static const char *esp_err_to_name(esp_err_t e) { (void)e; return "fixture error"; }
+'''
+tests = r'''
+int main(void) {
+    char storage[10]; memset(storage,0x5a,sizeof storage);
+    response_buffer_t b={.data=storage,.capacity=8};
+    esp_http_client_event_t e={.event_id=HTTP_EVENT_ON_DATA,.data_len=3,.data="abc",.user_data=&b};
+    assert(http_event(&e)==ESP_OK && b.used==3 && !strcmp(storage,"abc"));
+    e.data_len=5; e.data="12345"; http_event(&e);
+    assert(b.overflow && b.used==3 && !strcmp(storage,"abc"));
+    e.data_len=1; e.data="z"; http_event(&e);
+    assert(b.overflow && b.used==3 && storage[8]==0x5a && storage[9]==0x5a);
+    ntfy_integration_config_t c={.info_enabled=true};
+    info_result=ESP_FAIL; handle_command(&c," info\n");
+    assert(s_status.command_errors==1 && s_status.commands_received==0);
+    info_result=ESP_OK; handle_command(&c,"INFO");
+    assert(s_status.command_errors==1 && s_status.commands_received==1);
+    handle_command(&c,"unknown"); assert(s_status.command_errors==1);
+    publish_result=ESP_OK; assert(send_tailscale_alert(&c)==ESP_OK);
+    assert(s_status.alerts_sent==1 && live==0 && strlen(published)<2300);
+    assert(strstr(published,"Recent local log tail:"));
+    publish_result=ESP_FAIL; assert(send_tailscale_alert(&c)==ESP_FAIL);
+    assert(s_status.alerts_sent==1 && live==0);
+    for(int i=1;i<=2;i++) {
+        allocations=0; fail_at=i;
+        assert(send_tailscale_alert(&c)==ESP_ERR_NO_MEM && live==0);
+    }
+    puts("PASS: ntfy overflow latch/bounds, info failure accounting, heap alert builder and OOM cleanup");
+}
+'''
+with tempfile.TemporaryDirectory(prefix='ntfy-logic-') as directory:
+    path = Path(directory)
+    (path / 'test.c').write_text(fixture + buffer_type + callback + command + alert + tests)
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror']
+    if os.environ.get('NTFY_SANITIZE') == '1':
+        flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+    binary = path / ('test.exe' if os.name == 'nt' else 'test')
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary)], check=True)
+    subprocess.run([str(binary)], check=True)

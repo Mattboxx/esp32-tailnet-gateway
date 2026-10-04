@@ -44,6 +44,12 @@ static SemaphoreHandle_t s_lock;
 static TaskHandle_t s_task;
 static char s_last_event_id[48];
 
+/* TLS certificate verification needs its own stack reserve. Keep the large
+ * reporting/polling frames out of task_main: GCC otherwise inlines them and
+ * permanently reserves their buffers even on a simple command poll. */
+#define NTFY_TASK_STACK_BYTES 12288
+#define NTFY_NOINLINE __attribute__((noinline))
+
 extern bool wifi_ap_runtime_enabled(void);
 extern bool wifi_ap_policy_auto_off(void);
 
@@ -51,13 +57,17 @@ typedef struct {
     char *data;
     size_t capacity;
     size_t used;
+    bool overflow;
 } response_buffer_t;
 
 static esp_err_t http_event(esp_http_client_event_t *event)
 {
     response_buffer_t *buffer = event->user_data;
-    if (event->event_id == HTTP_EVENT_ON_DATA && buffer && event->data_len > 0
-        && buffer->used + (size_t)event->data_len < buffer->capacity) {
+    if (event->event_id == HTTP_EVENT_ON_DATA && buffer && event->data_len > 0) {
+        if (buffer->overflow || (size_t)event->data_len >= buffer->capacity - buffer->used) {
+            buffer->overflow = true;
+            return ESP_OK;
+        }
         memcpy(buffer->data + buffer->used, event->data, event->data_len);
         buffer->used += event->data_len;
         buffer->data[buffer->used] = '\0';
@@ -148,7 +158,7 @@ static void set_auth(esp_http_client_handle_t client,
     esp_http_client_set_header(client, "Authorization", value);
 }
 
-static esp_err_t publish_message(const ntfy_integration_config_t *c,
+static NTFY_NOINLINE esp_err_t publish_message(const ntfy_integration_config_t *c,
                                  const char *title, const char *tags,
                                  const char *message)
 {
@@ -171,7 +181,9 @@ static esp_err_t publish_message(const ntfy_integration_config_t *c,
     int status = err == ESP_OK ? esp_http_client_get_status_code(client) : 0;
     esp_http_client_cleanup(client);
     bool ok = err == ESP_OK && status >= 200 && status < 300;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
     s_status.last_publish_ok = ok;
+    xSemaphoreGive(s_lock);
     if (!ok) ESP_LOGW(TAG, "publish failed: %s HTTP %d", esp_err_to_name(err), status);
     return ok ? ESP_OK : (err == ESP_OK ? ESP_FAIL : err);
 }
@@ -186,10 +198,10 @@ static void appendf(char *out, size_t size, const char *fmt, ...)
     va_end(args);
 }
 
-static void send_info(const ntfy_integration_config_t *c)
+static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
 {
     char *text = calloc(1, 8192);
-    if (!text) return;
+    if (!text) return ESP_ERR_NO_MEM;
     const esp_app_desc_t *app = esp_app_get_description();
     runtime_metrics_t cpu = runtime_metrics_get();
     if (cpu.valid)
@@ -291,16 +303,19 @@ static void send_info(const ntfy_integration_config_t *c)
      * contains passwords, WiFi keys, Tailscale keys, or broker/ntfy tokens. */
     size_t length = strlen(text), offset = 0;
     unsigned part = 1, parts = (unsigned)((length + 3499) / 3500);
+    esp_err_t result = ESP_OK;
     while (offset < length) {
         size_t take = length - offset > 3500 ? 3500 : length - offset;
         char saved = text[offset + take]; text[offset + take] = '\0';
         char title[64];
         if (parts > 1) snprintf(title, sizeof title, "ESP32 router info %u/%u", part, parts);
         else strlcpy(title, "ESP32 router info", sizeof title);
-        (void)publish_message(c, title, "information,mattboxx-response", text + offset);
+        esp_err_t err = publish_message(c, title, "information,mattboxx-response", text + offset);
+        if (err != ESP_OK) result = err;
         text[offset + take] = saved; offset += take; part++;
     }
     free(text);
+    return result;
 }
 
 static esp_err_t wake_argument(const ntfy_integration_config_t *c, const char *argument)
@@ -317,7 +332,7 @@ static esp_err_t wake_argument(const ntfy_integration_config_t *c, const char *a
     return c->allow_direct_mac ? wol_send_mac(mac, NULL, 9) : ESP_ERR_INVALID_STATE;
 }
 
-static void handle_command(const ntfy_integration_config_t *c, const char *message)
+static NTFY_NOINLINE void handle_command(const ntfy_integration_config_t *c, const char *message)
 {
     while (*message && isspace((unsigned char)*message)) message++;
     /* Mobile clients often append a newline. Trim edges without changing
@@ -331,7 +346,7 @@ static void handle_command(const ntfy_integration_config_t *c, const char *messa
     message = command;
     esp_err_t err = ESP_ERR_INVALID_ARG;
     if (c->info_enabled && strcasecmp(message, "info") == 0) {
-        send_info(c); err = ESP_OK;
+        err = send_info(c);
     } else if (strncasecmp(message, "wol ", 4) == 0) {
         err = wake_argument(c, message + 4);
         char reply[160];
@@ -339,9 +354,11 @@ static void handle_command(const ntfy_integration_config_t *c, const char *messa
                  err == ESP_OK ? "packet sent" : esp_err_to_name(err));
         (void)publish_message(c, "ESP32 WOL response", "mattboxx-response", reply);
     }
+    xSemaphoreTake(s_lock, portMAX_DELAY);
     if (err == ESP_OK) s_status.commands_received++;
     else if (strncasecmp(message, "wol ", 4) == 0 || strcasecmp(message, "info") == 0)
         s_status.command_errors++;
+    xSemaphoreGive(s_lock);
 }
 
 static bool response_is_ours(cJSON *root)
@@ -350,7 +367,7 @@ static bool response_is_ours(cJSON *root)
     return cJSON_IsString(title) && strncmp(title->valuestring, "ESP32 ", 6) == 0;
 }
 
-static void poll_commands(const ntfy_integration_config_t *c)
+static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
 {
     char cursor[sizeof s_last_event_id];
     xSemaphoreTake(s_lock, portMAX_DELAY);
@@ -383,7 +400,7 @@ static void poll_commands(const ntfy_integration_config_t *c)
     esp_err_t err = esp_http_client_perform(client);
     int status = err == ESP_OK ? esp_http_client_get_status_code(client) : 0;
     esp_http_client_cleanup(client);
-    if (err != ESP_OK || status != 200) {
+    if (err != ESP_OK || status != 200 || rb.overflow) {
         ESP_LOGW(TAG, "command poll failed: %s HTTP %d", esp_err_to_name(err), status);
         free(response);
         return;
@@ -420,18 +437,23 @@ static bool uplink_connected(void)
     return sta && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr != 0;
 }
 
-static void send_tailscale_alert(const ntfy_integration_config_t *c)
+static NTFY_NOINLINE esp_err_t send_tailscale_alert(const ntfy_integration_config_t *c)
 {
-    char logs[2300];
-    size_t n = log_capture_read(logs, sizeof logs);
+    char *logs = malloc(2300);
+    char *message = malloc(2300);
+    if (!logs || !message) { free(logs); free(message); return ESP_ERR_NO_MEM; }
+    size_t n = log_capture_read(logs, 2300);
     const char *tail = logs;
     if (n > 1800) tail += n - 1800;
-    char *message = malloc(2300);
-    if (!message) return;
     snprintf(message, 2300, "Internet uplink is connected, but Tailscale has remained disconnected.\n\nRecent local log tail:\n%.1800s", tail);
-    if (publish_message(c, "ESP32 Tailscale problem", "warning,mattboxx-response", message) == ESP_OK)
+    free(logs);
+    esp_err_t err = publish_message(c, "ESP32 Tailscale problem", "warning,mattboxx-response", message);
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    if (err == ESP_OK)
         s_status.alerts_sent++;
+    xSemaphoreGive(s_lock);
     free(message);
+    return err;
 }
 
 static void task_main(void *arg)
@@ -455,10 +477,8 @@ static void task_main(void *arg)
         if (retry_seconds) retry_seconds--;
         if (c.tailscale_alerts && ts_down && down_seconds >= c.failure_delay_seconds
             && !alerted && retry_seconds == 0) {
-            bool before = s_status.last_publish_ok;
-            send_tailscale_alert(&c);
-            alerted = s_status.last_publish_ok;
-            if (!alerted || (!before && !s_status.last_publish_ok)) retry_seconds = 60;
+            alerted = send_tailscale_alert(&c) == ESP_OK;
+            if (!alerted) retry_seconds = 60;
         }
         bool can_poll = c.commands_enabled
                      && (!c.commands_only_when_tailscale_down || ts_down);
@@ -481,7 +501,10 @@ void ntfy_integration_init(void)
     if (!s_lock) return;
     load_config(&s_config);
     load_string("ntfy_last", s_last_event_id, sizeof s_last_event_id);
-    xTaskCreate(task_main, "ntfy", 8192, NULL, 3, &s_task);
+    if (xTaskCreate(task_main, "ntfy", NTFY_TASK_STACK_BYTES, NULL, 3, &s_task) != pdPASS) {
+        s_task = NULL;
+        ESP_LOGE(TAG, "Cannot allocate ntfy worker stack");
+    }
 }
 
 void ntfy_integration_get_config(ntfy_integration_config_t *out)
@@ -493,12 +516,20 @@ void ntfy_integration_get_config(ntfy_integration_config_t *out)
 
 void ntfy_integration_get_status(ntfy_integration_status_t *out)
 {
-    if (out) memcpy(out, &s_status, sizeof *out);
+    if (!out) return;
+    if (!s_lock) { memset(out, 0, sizeof *out); return; }
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    memcpy(out, &s_status, sizeof *out);
+    xSemaphoreGive(s_lock);
+    out->task_running = s_task != NULL;
+    /* ESP-IDF reports the high-water mark in bytes, not FreeRTOS words. */
+    out->stack_min_free_bytes = s_task ? uxTaskGetStackHighWaterMark(s_task) : 0;
 }
 
 esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *c)
 {
     if (!config_valid(c)) return ESP_ERR_INVALID_ARG;
+    if (!s_lock || !s_task) return ESP_ERR_INVALID_STATE;
     ntfy_integration_config_t old;
     snapshot(&old);
     bool endpoint_changed = strcmp(old.server, c->server) != 0
@@ -531,6 +562,7 @@ esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *c)
 
 esp_err_t ntfy_integration_send_test(void)
 {
+    if (!s_lock || !s_task) return ESP_ERR_INVALID_STATE;
     ntfy_integration_config_t c;
     snapshot(&c);
     if (!c.enabled) return ESP_ERR_INVALID_STATE;

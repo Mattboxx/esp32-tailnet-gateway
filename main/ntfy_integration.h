@@ -25,6 +25,8 @@ typedef struct {
     uint32_t alerts_sent;
     uint32_t commands_received;
     uint32_t command_errors;
+    bool task_running;
+    uint32_t stack_min_free_bytes;
 } ntfy_integration_status_t;
 
 void ntfy_integration_init(void);
