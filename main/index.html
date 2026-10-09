@@ -2776,7 +2776,7 @@
       <div class="page-header">
         <div class="page-header-left">
           <h1 class="page-title">System</h1>
-          <p class="page-subtitle">Firmware info, local logs, password, manual update, backup</p>
+          <p class="page-subtitle">Firmware info, local logs, password, updates, backup</p>
         </div>
         <div class="page-header-actions">
           <button class="btn btn-secondary btn-md" id="sys-reload">Refresh</button>
@@ -2937,7 +2937,7 @@
         </div>
       </div>
 
-      <!-- ===== Local manual firmware update ===== -->
+      <!-- ===== Firmware update: opt-in GitHub + local upload ===== -->
       <div class="card mt-4">
         <div class="card-header">
           <div class="card-header-left">
@@ -2946,13 +2946,41 @@
           <span class="badge badge-neutral" id="sys-ota-badge">Manual only</span>
         </div>
         <div class="card-body">
-          <p class="form-hint" style="margin:0 0 0.75rem 0;">Updates are never fetched by the ESP32. Upload a trusted local <code class="mono">firmware.bin</code>; it is written to the inactive OTA partition and verified by the bootloader after reboot.</p>
+          <p class="form-hint" style="margin:0 0 0.75rem 0;">Only Mattboxx releases from <a href="https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases" target="_blank" rel="noopener">the custom fork</a> are eligible. GitHub downloads use HTTPS, a SHA-256 checksum and board/version checks. Settings are preserved; the device restarts after installation.</p>
           <div class="grid grid-cols-2">
             <div class="stat-row" style="border-top:none;">
               <span class="stat-label">Running</span>
               <span class="stat-value mono" id="sys-ota-running">—</span>
             </div>
           </div>
+          <div class="stat-row"><span class="stat-label">Latest compatible update</span><span class="stat-value mono" id="sys-updates-latest">Not checked</span></div>
+          <div class="form-hint" id="sys-updates-status" role="status">Loading update settings…</div>
+          <div class="form-hint" id="sys-updates-last-check">—</div>
+          <a id="sys-updates-release" target="_blank" rel="noopener" style="display:none;">Release notes</a>
+          <div class="form-group mt-4">
+            <label class="feature-switch"><input type="checkbox" id="sys-updates-enabled" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>Check GitHub for updates automatically</span></label>
+            <span class="form-hint">OFF by default. When enabled: check after startup, then once per day. No device settings, keys or logs are sent.</span>
+          </div>
+          <div id="sys-updates-policy" class="feature-card" data-feature-state="unknown">
+            <div class="card-body" style="padding:0;">
+              <div class="form-group">
+                <label class="feature-switch"><input type="checkbox" id="sys-updates-auto" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>Install updates automatically</span></label>
+                <span class="form-hint">OFF by default. May reboot the gateway without further confirmation. Requires automatic checks.</span>
+              </div>
+              <div class="form-group"><label class="form-label" for="sys-updates-hour">Automatic installation time</label><select class="select" id="sys-updates-hour" disabled><option value="-1">As soon as an update is found</option></select><span class="form-hint">Optional hourly window in the device's configured timezone. A synchronized clock is required for scheduled installs.</span></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="sys-updates-beta" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>Include beta / pre-release updates</span></label>
+            <span class="form-hint">OFF = stable releases only. Applies to both manual and automatic GitHub installs. Beta firmware may be unstable.</span>
+          </div>
+          <div class="form-footer-actions" style="margin:0.75rem 0; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-md" id="sys-updates-reload">Refresh status</button>
+            <button class="btn btn-primary btn-md" id="sys-updates-save" disabled>Save update settings</button>
+            <button class="btn btn-secondary btn-md" id="sys-updates-check" disabled>Check now</button>
+            <button class="btn btn-primary btn-md" id="sys-updates-install" disabled>Install latest update</button>
+          </div>
+          <span class="form-hint">Check now and Install latest update also work with periodic checks OFF. Save channel changes first. Changing policy or starting a download requires a password-backed session. Installs never downgrade the running version.</span>
           <hr style="border:none; border-top:1px solid var(--border); margin:1rem 0 0.5rem 0;">
           <div class="form-group">
             <label class="form-label" for="sys-ota-file">Manual upload (firmware.bin)</label>
@@ -2967,7 +2995,7 @@
           </div>
         </div>
         <div class="form-footer">
-          <span class="form-footer-hint">No release polling and no automatic download.</span>
+          <span class="form-footer-hint">Local uploads remain available independently of GitHub updates.</span>
           <div class="form-footer-actions">
             <button class="btn btn-primary btn-md" id="sys-ota-upload" disabled>Upload &amp; reboot</button>
           </div>
@@ -3067,7 +3095,7 @@
           <div class="stat-row"><span class="stat-label">Original upstream</span><span class="stat-value mono"><a href="https://github.com/Csontikka/esp32-tailscale-subnet-router" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/esp32-tailscale-subnet-router</a></span></div>
           <div class="stat-row"><span class="stat-label">Tailscale stack</span><span class="stat-value mono"><a href="https://github.com/Csontikka/microlink" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/microlink</a> (userspace WireGuard + DERP + DISCO)</span></div>
           <div class="stat-row"><span class="stat-label">License</span><span class="stat-value mono">MIT — see LICENSE in the repo</span></div>
-          <div class="stat-row"><span class="stat-label">Privacy</span><span class="stat-value mono">No telemetry / no update polling</span></div>
+          <div class="stat-row"><span class="stat-label">Privacy</span><span class="stat-value mono">No telemetry / GitHub updates opt-in only</span></div>
         </div>
       </div>
 
@@ -7092,6 +7120,7 @@
           /* SD flight-recorder card refreshes on every System-tab load. */
           if (typeof loadSdlog === 'function') loadSdlog();
           loadSnmp();
+          loadRemoteUpdates();
 
           var authToggle = document.getElementById('sys-web-auth-enabled');
           authToggle.checked = d.web_auth_enabled !== false;
@@ -7184,7 +7213,83 @@
       el.textContent = '≈ ' + (v * 0.25).toFixed(2) + ' dBm';
     }
 
-    /* Manual OTA upload only: the ESP32 never polls or downloads firmware. */
+    /* Opt-in updates are asynchronous and independent of local OTA upload. */
+    var s_updatesLoaded = false, s_updatesDirty = false, s_updatesPending = null, s_updatesBusy = false;
+    (function () {
+      var select = document.getElementById('sys-updates-hour');
+      for (var hour = 0; hour < 24; hour++) {
+        var option = document.createElement('option'); option.value = hour;
+        option.textContent = String(hour).padStart(2, '0') + ':00–' + String(hour).padStart(2, '0') + ':59'; select.appendChild(option);
+      }
+    })();
+    function updatesControls() {
+      var editable = s_updatesLoaded && !s_updatesBusy;
+      var enabled = document.getElementById('sys-updates-enabled').checked;
+      document.getElementById('sys-updates-enabled').disabled = !editable;
+      document.getElementById('sys-updates-beta').disabled = !editable;
+      document.getElementById('sys-updates-auto').disabled = !editable || !enabled;
+      document.getElementById('sys-updates-hour').disabled = !editable || !enabled || !document.getElementById('sys-updates-auto').checked;
+      document.getElementById('sys-updates-save').disabled = !editable || !s_updatesDirty;
+      ['check', 'install'].forEach(function (action) { document.getElementById('sys-updates-' + action).disabled = !editable || s_updatesDirty; });
+      if (s_updatesLoaded) setFeatureCardState('sys-updates-policy', enabled);
+    }
+    function loadRemoteUpdates() {
+      if (s_updatesPending) return s_updatesPending;
+      s_updatesPending = readAutomationSettings('/api/system/updates').then(function (d) {
+        if (!d || typeof d.enabled !== 'boolean' || typeof d.auto_install !== 'boolean' || typeof d.beta_channel !== 'boolean' || typeof d.busy !== 'boolean') throw new Error('Invalid update settings response');
+        s_updatesLoaded = true; s_updatesBusy = d.busy;
+        if (!s_updatesDirty) {
+          document.getElementById('sys-updates-enabled').checked = d.enabled;
+          document.getElementById('sys-updates-auto').checked = d.auto_install;
+          document.getElementById('sys-updates-beta').checked = d.beta_channel;
+          document.getElementById('sys-updates-hour').value = d.install_hour;
+        }
+        document.getElementById('sys-updates-latest').textContent = d.latest_version || (d.checked ? 'No newer compatible release' : 'Not checked');
+        document.getElementById('sys-updates-status').textContent = (d.status || 'Ready') + (d.busy && d.progress ? ' · ' + d.progress + '%' : '');
+        document.getElementById('sys-updates-last-check').textContent = d.last_check > 1700000000 ? 'Last successful check: ' + new Date(d.last_check * 1000).toLocaleString() : 'No successful check recorded this boot';
+        var link = document.getElementById('sys-updates-release');
+        var safe = typeof d.release_url === 'string' && /^https:\/\/github\.com\/Mattboxx\/esp32-tailscale-gateway-NAS-recovery\/releases\/tag\/[a-zA-Z0-9.-]+$/.test(d.release_url);
+        link.style.display = safe ? '' : 'none'; if (safe) link.href = d.release_url;
+        var badge = document.getElementById('sys-ota-badge');
+        badge.textContent = d.busy ? 'Working…' : d.update_available ? 'Update available' : d.enabled ? (d.auto_install ? 'Automatic install' : 'Checks enabled') : 'Periodic checks off';
+        badge.className = 'badge ' + (d.update_available ? 'badge-warning' : 'badge-neutral');
+        updatesControls();
+      }).catch(function (e) {
+        document.getElementById('sys-updates-status').textContent = 'Update status unavailable: ' + e.message;
+        document.getElementById('sys-ota-badge').textContent = 'Unavailable';
+        s_updatesLoaded = false; updatesControls();
+      }).finally(function () { s_updatesPending = null; });
+      return s_updatesPending;
+    }
+    ['enabled', 'auto', 'beta', 'hour'].forEach(function (field) {
+      document.getElementById('sys-updates-' + field).addEventListener('change', function () {
+        if (field === 'enabled' && !this.checked) document.getElementById('sys-updates-auto').checked = false;
+        s_updatesDirty = true; updatesControls();
+      });
+    });
+    function updatesPost(path, body) {
+      s_updatesBusy = true; updatesControls();
+      return apiFetch('/api/system/updates' + path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {})})
+        .then(function (r) { if (!r.ok) return r.text().then(function (t) { throw new Error(t || 'HTTP ' + r.status); }); return r.json(); })
+        .catch(function (e) { showToast('error', 'Update request failed', e.message, 7000); throw e; })
+        .finally(function () { s_updatesBusy = false; updatesControls(); });
+    }
+    document.getElementById('sys-updates-reload').addEventListener('click', loadRemoteUpdates);
+    document.getElementById('sys-updates-save').addEventListener('click', function () {
+      var body = {enabled: document.getElementById('sys-updates-enabled').checked,
+        auto_install: document.getElementById('sys-updates-auto').checked,
+        beta_channel: document.getElementById('sys-updates-beta').checked,
+        install_hour: Number(document.getElementById('sys-updates-hour').value)};
+      if (body.auto_install && !confirm('Enable unattended firmware installs and automatic gateway restarts?')) return;
+      updatesPost('', body).then(function () { s_updatesDirty = false; return loadRemoteUpdates(); }).catch(function () {});
+    });
+    document.getElementById('sys-updates-check').addEventListener('click', function () { updatesPost('/check').then(loadRemoteUpdates).catch(function () {}); });
+    document.getElementById('sys-updates-install').addEventListener('click', function () {
+      if (!confirm('Download and install the latest newer compatible release from the selected channel? The gateway will restart.')) return;
+      updatesPost('/install').then(loadRemoteUpdates).catch(function () {});
+    });
+    setInterval(function () { if (location.hash === '#system' && !s_updatesDirty && s_updatesLoaded) loadRemoteUpdates(); }, 5000);
+    /* Local OTA still accepts a trusted file independently of update policy. */
     document.getElementById('sys-ota-file').addEventListener('change', function () {
       document.getElementById('sys-ota-upload').disabled = !(this.files && this.files[0]);
     });

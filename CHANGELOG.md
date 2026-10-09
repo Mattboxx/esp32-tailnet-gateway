@@ -6,6 +6,25 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.10-dev — opt-in fork updates
+
+- Default-OFF periodic GitHub checks, automatic install, stable/beta channels
+  and optional device-local-time hourly window, with graphical System switches.
+- Manual Check now and Install latest update perform asynchronous GitHub
+  checks/downloads even when periodic checks are OFF. Local upload remains.
+- Select only newer compatible Mattboxx releases, excluding drafts, upstream
+  builds, unsupported assets, missing SHA-256 and excessive image sizes.
+- Validate HTTPS certificates and redirect hosts, image chip/project/version,
+  exact download length, SHA-256 and OTA image before committing the boot slot.
+- Share exclusive flash-writer ownership between local and remote OTA. Abort
+  failed writes; preserve settings and the running image; reboot only on success.
+- Require a password-backed session for update policy/actions; expose diagnostic
+  status in MQTT/Home Assistant and ntfy info without remote install commands.
+- Keep old poller keys inert. Save new policy atomically under a separate NVS
+  key; backup snapshots cannot silently activate unattended updates on restore.
+- Add actual-C downloader failure/selection tests, sanitizer CI and UI scenarios.
+  No board has been flashed or declared stable as part of this implementation.
+
 ### 0.1.31-Mattboxx-1.9-dev — upstream alignment
 
 - Integrate published upstream v0.1.30 and v0.1.31, without importing later

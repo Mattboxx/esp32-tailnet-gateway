@@ -44,6 +44,8 @@
 #include "mac_deny.h"
 #include "reset_history.h"
 #include "ota.h"
+#include "ota_remote.h"
+#include "ota_validation.h"
 #include <stdlib.h>
 #include <time.h>
 
@@ -3415,6 +3417,14 @@ static esp_err_t system_handler(httpd_req_t *req)
         cJSON_AddStringToObject(root, "build_time", desc->time);
         cJSON_AddStringToObject(root, "idf_ver",    desc->idf_ver);
     }
+    /* Included in config snapshots as information only. The normal System
+     * save handler intentionally cannot activate OTA from a restored backup. */
+    ota_remote_state_t update; ota_remote_get_state(&update);
+    cJSON *policy = cJSON_AddObjectToObject(root, "firmware_updates");
+    cJSON_AddBoolToObject(policy, "enabled", update.config.enabled);
+    cJSON_AddBoolToObject(policy, "auto_install", update.config.auto_install);
+    cJSON_AddBoolToObject(policy, "beta_channel", update.config.beta_channel);
+    cJSON_AddNumberToObject(policy, "install_hour", update.config.install_hour);
 
     /* Device label (the friendly name shown in the nav). */
     {
@@ -3695,6 +3705,79 @@ static esp_err_t system_ota_upload_handler(httpd_req_t *req)
 static const httpd_uri_t uri_system_ota = {
     .uri = "/api/system/ota", .method = HTTP_POST, .handler = system_ota_upload_handler,
 };
+
+static esp_err_t updates_get_handler(httpd_req_t *req)
+{
+    if (require_auth(req) != ESP_OK) return ESP_FAIL;
+    ota_remote_state_t state; ota_remote_get_state(&state);
+    cJSON *json = cJSON_CreateObject();
+    if (!json) { httpd_resp_send_500(req); return ESP_FAIL; }
+    cJSON_AddBoolToObject(json, "enabled", state.config.enabled);
+    cJSON_AddBoolToObject(json, "auto_install", state.config.auto_install);
+    cJSON_AddBoolToObject(json, "beta_channel", state.config.beta_channel);
+    cJSON_AddNumberToObject(json, "install_hour", state.config.install_hour);
+    cJSON_AddBoolToObject(json, "busy", state.busy);
+    cJSON_AddBoolToObject(json, "checked", state.checked);
+    cJSON_AddBoolToObject(json, "update_available", state.update_available);
+    cJSON_AddNumberToObject(json, "last_check", state.last_check);
+    cJSON_AddNumberToObject(json, "progress", state.progress);
+    cJSON_AddStringToObject(json, "latest_version", state.latest_version);
+    cJSON_AddStringToObject(json, "status", state.status);
+    cJSON_AddStringToObject(json, "release_url", state.release_url);
+    cJSON_AddStringToObject(json, "repository", OTA_FORK_REPO);
+    char *text = cJSON_PrintUnformatted(json); cJSON_Delete(json);
+    if (!text) { httpd_resp_send_500(req); return ESP_FAIL; }
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    esp_err_t err = httpd_resp_sendstr(req, text); free(text); return err;
+}
+
+static esp_err_t updates_result(httpd_req_t *req, esp_err_t err)
+{
+    if (err != ESP_OK) {
+        httpd_resp_set_status(req, err == ESP_ERR_INVALID_STATE ? "409 Conflict" : err == ESP_ERR_INVALID_ARG ? "400 Bad Request" : "500 Internal Server Error");
+        return httpd_resp_sendstr(req, err == ESP_ERR_INVALID_STATE ? "An update operation is already active" : "Update operation failed; check settings");
+    }
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_status(req, "202 Accepted");
+    return httpd_resp_sendstr(req, "{\"ok\":true}");
+}
+
+static esp_err_t updates_save_handler(httpd_req_t *req)
+{
+    /* Opting in permits future unattended firmware replacement: never bypass
+     * the password-backed session when the ordinary UI gate is disabled. */
+    if (require_password_session(req) != ESP_OK) return ESP_FAIL;
+    char body[256];
+    if (recv_body(req, body, sizeof body, NULL) != ESP_OK) return ESP_FAIL;
+    cJSON *json = cJSON_Parse(body);
+    const cJSON *enabled = cJSON_GetObjectItemCaseSensitive(json, "enabled");
+    const cJSON *automatic = cJSON_GetObjectItemCaseSensitive(json, "auto_install");
+    const cJSON *beta = cJSON_GetObjectItemCaseSensitive(json, "beta_channel");
+    const cJSON *hour = cJSON_GetObjectItemCaseSensitive(json, "install_hour");
+    if (!cJSON_IsObject(json) || !cJSON_IsBool(enabled) || !cJSON_IsBool(automatic) ||
+        !cJSON_IsBool(beta) || !cJSON_IsNumber(hour) || hour->valuedouble < -1 || hour->valuedouble > 23 ||
+        hour->valuedouble != (double)(int)hour->valuedouble) {
+        cJSON_Delete(json); return updates_result(req, ESP_ERR_INVALID_ARG);
+    }
+    ota_remote_config_t config = {cJSON_IsTrue(enabled), cJSON_IsTrue(automatic), cJSON_IsTrue(beta), (int)hour->valuedouble};
+    cJSON_Delete(json); return updates_result(req, ota_remote_set_config(&config));
+}
+
+static esp_err_t updates_check_handler(httpd_req_t *req)
+{
+    if (require_password_session(req) != ESP_OK) return ESP_FAIL;
+    return updates_result(req, ota_remote_request(false));
+}
+static esp_err_t updates_install_handler(httpd_req_t *req)
+{
+    if (require_password_session(req) != ESP_OK) return ESP_FAIL;
+    return updates_result(req, ota_remote_request(true));
+}
+static const httpd_uri_t uri_updates_get = { .uri = "/api/system/updates", .method = HTTP_GET, .handler = updates_get_handler };
+static const httpd_uri_t uri_updates_save = { .uri = "/api/system/updates", .method = HTTP_POST, .handler = updates_save_handler };
+static const httpd_uri_t uri_updates_check = { .uri = "/api/system/updates/check", .method = HTTP_POST, .handler = updates_check_handler };
+static const httpd_uri_t uri_updates_install = { .uri = "/api/system/updates/install", .method = HTTP_POST, .handler = updates_install_handler };
 
 /* ---- Encrypted-secrets backup endpoints ---------------------------------
  * Plain-text secrets bundle. NEVER reached without a valid session, and
@@ -5303,6 +5386,10 @@ void web_ui_init(void)
     reg_uri(server, &uri_system_restart);
     reg_uri(server, &uri_system_factory_reset);
     reg_uri(server, &uri_system_ota);
+    reg_uri(server, &uri_updates_get);
+    reg_uri(server, &uri_updates_save);
+    reg_uri(server, &uri_updates_check);
+    reg_uri(server, &uri_updates_install);
     reg_uri(server, &uri_system_secrets_get);
     reg_uri(server, &uri_system_secrets_post);
     reg_uri(server, &uri_system_diag);

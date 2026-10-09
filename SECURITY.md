@@ -30,6 +30,25 @@ upstream resolver therefore sees those queries when this feature is enabled.
 Message lengths, source endpoint/transaction matching and deadlines are
 bounded, but this integration is not a penetration test or a full DNS parser.
 
+## GitHub firmware update trust boundary (1.10 development)
+
+Periodic checks, automatic installation and beta releases default OFF.
+The operator may enable them or start a one-off check/install using a real
+password-backed session, even if the ordinary UI password gate is disabled.
+Only the fixed Mattboxx repository is used; no arbitrary URL or GitHub token
+is accepted. HTTPS certificate/redirect checks, release SHA-256 and matching
+ESP32-S3/project/version validation precede committing the inactive OTA slot.
+The original always-on upstream poller and legacy preferences remain removed.
+
+The GitHub account and release infrastructure are trusted firmware publishers.
+A checksum is not a publisher signature: a compromised account could publish
+a malicious image with a matching checksum. This does not add Secure Boot or
+independent firmware signing. Automatic installs explicitly authorize future
+gateway restarts and firmware replacement; beta opt-in accepts less-tested
+images. Review releases manually if that risk is unacceptable. No settings,
+keys or logs are uploaded, but GitHub sees the source public IP and generic
+User-Agent. See [update policy and validation limits](docs/UPDATES.md).
+
 ## Reporting a Vulnerability
 
 If you think you've found a security issue in this firmware — for example a

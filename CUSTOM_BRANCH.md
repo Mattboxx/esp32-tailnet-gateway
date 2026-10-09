@@ -1,5 +1,16 @@
 # Custom ESP32-S3 router branch
 
+## New in 1.10 development: operator-controlled GitHub updates
+
+User-requested replacement for the removed always-on upstream poller:
+fork-only HTTPS release checks, automatic install, optional local-time window,
+stable/beta selection, Check now and Install latest update. All switches start
+OFF; manual GitHub actions work without enabling periodic checks. Local binary
+upload remains. Require compatible newer Mattboxx tags, firmware.bin, GitHub
+SHA-256, board/project/version validation and exclusive OTA writing. Configuration
+and actions require the password-backed UI session; HA and ntfy expose status,
+not unauthenticated install commands. [Full policy and limits](docs/UPDATES.md).
+
 ## Upstream v0.1.31 alignment (1.9 development)
 
 All changes in the published v0.1.30/v0.1.31 tags are accounted for in
@@ -154,7 +165,8 @@ version intentionally retains that suffix. See [release notes](docs/RELEASE-1.5.
 
 - Built-in anonymous telemetry and its hard-coded Cloudflare Worker. No boot,
   usage, reconnect, reset or crash event is uploaded.
-- Automatic GitHub release polling and firmware downloads.
+- Forced upstream GitHub release polling and downloads. Replaced in 1.10
+  development by explicit, default-OFF checks/install for the Mattboxx fork.
 - Cloudflare speed test and its hard-coded public DNS fallback.
 - Browser-side automatic GitHub release requests.
 

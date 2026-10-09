@@ -115,6 +115,6 @@ Per rule: **source** / **destination** (`any` or CIDR), **protocol**
 | **Timezone** | Device TZ; a real change flags a pending reboot. |
 | **Outbound telemetry** | Not compiled in. Logs and crash summaries remain local; MQTT publishes only when explicitly configured and enabled. |
 | **SD card logging** | Enable + per-sink (console / SD) log level; the on-device flight recorder. |
-| **Firmware update (OTA)** | Authenticated manual upload. Automatic GitHub polling/download and auto-install controls are removed in this fork. |
+| **Firmware update (OTA)** | Local binary upload plus Check now / Install latest update from this fork. Optional daily checks, automatic install, beta channel and local-time install window; all switches default OFF. Policy/actions require a password-backed session. See [UPDATES.md](UPDATES.md). |
 | **Encrypted backup / restore** | Export/import the full config, encrypted with a passphrase. |
 | **Danger zone** | Reboot, factory reset, reset Tailscale identity. |

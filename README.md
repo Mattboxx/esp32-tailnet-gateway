@@ -47,7 +47,14 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
-**Development branch: 0.1.31-Mattboxx-1.9-dev.** Upstream v0.1.30 and v0.1.31
+**Development branch: 0.1.31-Mattboxx-1.10-dev.** New: opt-in update checks,
+automatic install with an optional local-time window, stable/beta channels,
+and **Install latest update** for a one-click GitHub download/install even
+with periodic checks OFF. Only this fork's compatible newer releases qualify;
+HTTPS, GitHub SHA-256, ESP32-S3/project/version checks and exclusive OTA writing
+are required. All switches default OFF. See [update policy and release requirements](docs/UPDATES.md).
+
+Upstream v0.1.30 and v0.1.31
 are integrated, with CGNAT uplink exceptions, lifecycle-safe route supervision,
 PSRAM-backed received tunnel packets and a separate, peer-restricted exit-node
 DNS service. All Mattboxx controls and the 1.8 ntfy hotfix are retained.
@@ -98,11 +105,11 @@ available unchanged for rollback.
 | **ntfy remote operations** | Optional outage alerts, bounded diagnostic context, `info` replies and WOL commands with durable polling and replay protection. Private details stay hidden unless explicitly enabled. |
 | **Tailscale 4via6** | Optional bidirectional TCP/UDP/ICMP translation for overlapping IPv4 LANs, with calculated advertised prefix, flow counters and Home Assistant controls. |
 | **Exit-node server** | Advertise the ESP32 itself as a Tailscale exit node, with automatic IPv4 egress masquerading, admin-approval guidance, fail-closed IPv6 behavior and Home Assistant/ntfy visibility. Server mode cannot conflict with selecting another exit node. The 1.9 development branch adds upstream's separate DNS PeerAPI for native Tailscale exit-node clients. |
-| **Web administration** | Responsive dark UI, graphical feature switches, clear disabled cards, configurable web port, optional password gate and session timeout, local OTA and encrypted backup/restore. |
+| **Web administration** | Responsive dark UI, graphical feature switches, clear disabled cards, configurable web port, optional password gate and session timeout, local OTA and encrypted backup/restore. The 1.10 development branch adds opt-in fork-only GitHub updates, stable/beta channels and one-click latest install. |
 | **SNMP monitoring** | Optional read-only v1/v2c agent for LibreNMS, Zabbix or Observium; standard interface/CPU/memory/temperature MIBs, disabled by default, with a graphical System switch. Enabled/running state and socket budget also appear in MQTT/Home Assistant and ntfy info. |
 | **Fast, safer login** | Salted 60,000-round PBKDF2-HMAC-SHA256 verifier plus a one-time browser challenge; no plaintext password for modern records and no multi-second ESP-side unlock delay. |
 | **Reliability fixes** | Repairs WiFi scan/save and HTTP 431 failures, ntfy reboot loops and missed commands, false post-login offline state, forwarding-table startup counts and web/Tailscale socket starvation. |
-| **Privacy cleanup** | Removes anonymous telemetry, external crash/log uploads, automatic GitHub polling/downloads, Cloudflare speed tests and the hard-coded public DNS fallback. |
+| **Privacy cleanup** | Removes anonymous telemetry, external crash/log uploads, forced GitHub polling, Cloudflare speed tests and the hard-coded public DNS fallback. GitHub checks/downloads return only as explicit opt-in or user-triggered actions in 1.10 development. |
 | **Easy installation** | Releases include one factory image, one update image and a Windows ZIP with Espressif `esptool` plus guided clean-install/update batch files. No toolchain required. |
 
 The complete technical comparison is in [`CUSTOM_BRANCH.md`](CUSTOM_BRANCH.md).
@@ -250,12 +257,13 @@ traffic you route through it.)*
 - **Optional ntfy integration** — alerts when the internet uplink works but
   Tailscale remains down, includes a bounded local log tail, and accepts
   replay-protected `info` and WOL commands. It is disabled by default.
-- **Robust by design** — encrypted config backup/restore, local-only manual
-  OTA upload, per-sink (console + SD) log levels, auto AP-channel realign on
+- **Robust by design** — encrypted config backup/restore, local manual
+  OTA upload and optional fork-only GitHub updates, per-sink (console + SD) log levels, auto AP-channel realign on
   STA roam, and pre-crash log capture.
-- **Private by design** — no usage reports, crash uploads, release polling,
-  or automatic firmware downloads. Outbound application traffic is limited
-  to Tailscale and the MQTT/ntfy endpoints explicitly configured by the operator.
+- **Private by design** — no usage reports or crash uploads. Periodic release
+  checks/downloads are OFF unless explicitly enabled; manual GitHub actions
+  authorize one check/download. Other outbound application traffic goes to
+  Tailscale and the MQTT/ntfy endpoints configured by the operator.
 
 ## Hardware
 
@@ -580,9 +588,13 @@ key); disable it for the tailnet or pre-authorize the node.
 
 ## Privacy and outbound traffic
 
-This build contains no usage reporting, crash upload, release polling, or
-automatic firmware download. Crash summaries and logs stay on the device.
-The only application-level outbound connections are Tailscale/Headscale and,
+This build contains no usage reporting or external crash/log upload.
+GitHub updates are OFF by default: the operator can enable periodic checks,
+automatic installs and beta releases independently, or request a one-off
+check/install. Those actions contact GitHub and its release-asset CDN without
+sending settings, keys or logs; GitHub sees the public source IP and a generic
+updater User-Agent. See [the update trust model](docs/UPDATES.md).
+Other application-level connections are Tailscale/Headscale and,
 when enabled by the operator, the configured MQTT broker and ntfy server. DNS, DHCP and NTP
 remain available as infrastructure needed to resolve and establish those
 connections. Diagnostic ping and traceroute run only when explicitly started.

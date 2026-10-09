@@ -10,6 +10,9 @@ const mqtt = { enabled: true, connected: true, uri: 'mqtts://broker.example',
   broker_watchdog_wol_mac: '02:00:00:00:00:01' };
 const ntfy = { enabled: true, server: 'https://notify.example', topic: 'fixture',
   info_enabled: true, commands_enabled: true, last_publish_ok: true };
+const updates = { enabled: false, auto_install: false, beta_channel: false,
+  install_hour: -1, busy: false, checked: false, update_available: false,
+  status: 'Periodic checks disabled', latest_version: '' };
 
 async function fixture(browser, options = {}) {
   const context = await browser.newContext();
@@ -39,6 +42,16 @@ async function fixture(browser, options = {}) {
       body = state.snmpBody || { enabled: false, running: false, community: 'fixture' };
     } else if (url.pathname === '/api/system') {
       body = state.systemBody || { web_auth_enabled: true, session_timeout_s: 0 };
+    } else if (url.pathname === '/api/system/updates') {
+      if (route.request().method() === 'POST') {
+        state.savedUpdates = route.request().postDataJSON();
+        state.updatesBody = { ...updates, ...state.savedUpdates };
+      }
+      if (state.updatesFailures) { state.updatesFailures--; status = 503; }
+      body = state.updatesBody || updates;
+    } else if (url.pathname === '/api/system/updates/install' || url.pathname === '/api/system/updates/check') {
+      state.updatesBody = { ...(state.updatesBody || updates), busy: true, status: 'Checking GitHub releases' };
+      body = { ok: true }; status = 202;
     } else if (url.pathname === '/api/tailscale') {
       body = { settings: state.tailscaleSettings || {}, runtime: {}, peers: [] };
     } else if (url.pathname === '/api/wol') {
@@ -213,7 +226,57 @@ async function main() {
     assert.equal(await f.page.locator('#ts-advertise-exit').isChecked(), true);
     assert.deepEqual(f.errors, []);
     await f.context.close(); count++;
-    console.log(`PASS: ${count} browser scenarios (auth deep links, WOL isolation, retries, unknown state, reload recovery, coalescing, SNMP, session labels and exit-node DNS)`);
+    // Manual GitHub installs remain usable while periodic checks are OFF;
+    // channel changes must be saved and writes are never retried silently.
+    f = await fixture(browser, { page: 'system' });
+    await f.page.waitForFunction(() => !document.getElementById('sys-updates-install').disabled);
+    assert.equal(await f.page.locator('#sys-updates-enabled').isChecked(), false);
+    assert.equal(await f.page.locator('#sys-updates-auto').isDisabled(), true);
+    assert.equal(await f.page.locator('#sys-updates-policy').getAttribute('data-feature-state'), 'disabled');
+    await f.page.locator('#sys-updates-beta').locator('..').click();
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
+    await f.page.locator('#sys-updates-save').click();
+    await f.page.waitForFunction(() => !document.getElementById('sys-updates-install').disabled);
+    assert.deepEqual(f.state.savedUpdates, {enabled: false, auto_install: false, beta_channel: true, install_hour: -1});
+    f.page.on('dialog', dialog => dialog.accept());
+    await f.page.locator('#sys-updates-install').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Working…');
+    assert.equal(f.calls.filter(url => url === '/api/system/updates/install').length, 1);
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
+    f.state.updatesBody.busy = false; f.state.updatesBody.status = 'Rejected: SHA-256 mismatch';
+    await f.page.locator('#sys-updates-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-updates-status').textContent.includes('SHA-256 mismatch'));
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), false);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    f = await fixture(browser, { page: 'system' });
+    await f.page.waitForFunction(() => !document.getElementById('sys-updates-install').disabled);
+    f.page.on('dialog', dialog => dialog.accept());
+    await f.page.locator('#sys-updates-enabled').locator('..').click();
+    await f.page.locator('#sys-updates-auto').locator('..').click();
+    await f.page.locator('#sys-updates-hour').selectOption('4');
+    await f.page.locator('#sys-updates-save').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Automatic install');
+    assert.deepEqual(f.state.savedUpdates, {enabled: true, auto_install: true, beta_channel: false, install_hour: 4});
+    await f.page.locator('#sys-updates-enabled').locator('..').click();
+    assert.equal(await f.page.locator('#sys-updates-auto').isChecked(), false);
+    assert.equal(await f.page.locator('#sys-updates-auto').isDisabled(), true);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Failed status reads retain visible policy, disable writes and do not
+    // report an enabled automatic installer as OFF. Invalid links stay hidden.
+    f = await fixture(browser, { page: 'system', updatesBody: {...updates,
+      enabled: true, auto_install: true, beta_channel: true, install_hour: 3,
+      release_url: 'javascript:alert(1)'} });
+    await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Automatic install');
+    assert.equal(await f.page.locator('#sys-updates-release').isVisible(), false);
+    f.state.updatesFailures = 2;
+    await f.page.locator('#sys-updates-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Unavailable');
+    assert.equal(await f.page.locator('#sys-updates-auto').isChecked(), true);
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
+    await f.page.locator('#sys-updates-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Automatic install');
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    console.log(`PASS: ${count} browser scenarios (automation, SNMP/session labels, exit DNS and opt-in/manual/beta GitHub updates)`);
   } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

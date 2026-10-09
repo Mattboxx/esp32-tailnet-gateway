@@ -124,6 +124,25 @@ class UpstreamIntegrationTests(unittest.TestCase):
         self.assertTrue('fourvia6_translate_wg_input' in wg, '4via6 input hook missing')
         self.assertTrue('fourvia6_translate_wg_output' in wg, '4via6 output hook missing')
 
+    def test_updates_are_fork_only_opt_in_and_privileged(self):
+        source = self.text('main/ota_remote.c')
+        validation = self.text('main/ota_validation.h')
+        self.assertIn('OTA_FORK_REPO "Mattboxx/esp32-tailscale-gateway-NAS-recovery"', validation)
+        self.assertNotIn('Csontikka', source + validation)
+        self.assertIn('.crt_bundle_attach = esp_crt_bundle_attach', source)
+        self.assertIn('.disable_auto_redirect = true', source)
+        self.assertIn('ota_download_url_allowed(b.location)', source)
+        installer = source.split('static OTA_NOINLINE bool install_release', 1)[1].split('static void worker', 1)[0]
+        self.assertLess(installer.index('image_matches('), installer.index('esp_ota_begin('))
+        self.assertLess(installer.index('memcmp(actual, s_digest'), installer.index('esp_ota_set_boot_partition('))
+        self.assertIn('ota_writer_try_acquire()', installer)
+        self.assertIn('ota_writer_release()', installer)
+        self.assertNotIn('s_state.config.enabled = true', source)
+        web = self.text('main/web_ui.c')
+        for handler in ('updates_save_handler', 'updates_check_handler', 'updates_install_handler'):
+            block = web.split('static esp_err_t ' + handler, 1)[1].split('\n}', 1)[0]
+            self.assertIn('require_password_session(req)', block)
+
 
 if __name__ == "__main__":
     unittest.main()

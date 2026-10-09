@@ -79,7 +79,9 @@ alert logs, a 12 KiB TLS worker stack and stack-reserve diagnostics. Failed info
 replies and oversized command responses no longer masquerade as success.
 Retains Automation loading fixes, a pinned IDF 5.5.3/31-socket build, read-only
 SNMP (OFF by default), malformed-packet hardening and checked HTTP endpoints.
-No telemetry, external crash upload, release polling or public speed test.
+No telemetry, external crash upload or public speed test. GitHub update checks,
+automatic install and beta channel default OFF; opt-in or one-off manual
+actions contact only the Mattboxx release repository and GitHub asset CDN.
 Optional user-enabled MQTT/ntfy and the VPN still make their configured traffic.
 
 SNMPv1/v2c is unencrypted. Keep it OFF unless needed, choose a private community

@@ -28,6 +28,7 @@
 #include "nvs_params.h"
 #include "tailscale_config.h"
 #include "peer_dns.h"
+#include "ota_remote.h"
 #include "wol.h"
 #include "fourvia6.h"
 #include "tailnet_forward.h"
@@ -200,6 +201,20 @@ static void publish_discovery(void)
                              "{{ value_json.uptime_seconds }}", NULL, "duration", "s");
     discovery_publish_entity("sensor", "firmware", "Firmware", s_state_topic,
                              "{{ value_json.firmware }}", NULL, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "update_checks", "Automatic update checks", s_state_topic,
+                             "{{ value_json.update_checks }}", NULL, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "update_auto", "Automatic firmware install", s_state_topic,
+                             "{{ value_json.update_auto }}", NULL, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "update_beta", "Beta update channel", s_state_topic,
+                             "{{ value_json.update_beta }}", NULL, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "update_available", "Firmware update available", s_state_topic,
+                             "{{ value_json.update_available }}", NULL, NULL, NULL);
+    discovery_publish_entity("sensor", "update_version", "Available firmware version", s_state_topic,
+                             "{{ value_json.update_version }}", NULL, NULL, NULL);
+    discovery_publish_entity("sensor", "update_status", "Firmware update status", s_state_topic,
+                             "{{ value_json.update_status }}", NULL, NULL, NULL);
+    discovery_publish_entity("sensor", "update_progress", "Firmware update progress", s_state_topic,
+                             "{{ value_json.update_progress }}", NULL, NULL, "%");
     discovery_publish_entity("sensor", "reset_reason", "Reset reason code", s_state_topic,
                              "{{ value_json.reset_reason }}", NULL, NULL, NULL);
     discovery_publish_entity("binary_sensor", "access_point", "Access point", s_state_topic,
@@ -432,6 +447,14 @@ static void publish_state(void)
     cJSON_AddNumberToObject(root, "socket_limit", CONFIG_LWIP_MAX_SOCKETS);
     const esp_app_desc_t *app = esp_app_get_description();
     cJSON_AddStringToObject(root, "firmware", app ? app->version : "");
+    ota_remote_state_t update; ota_remote_get_state(&update);
+    cJSON_AddStringToObject(root, "update_checks", update.config.enabled ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "update_auto", update.config.auto_install ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "update_beta", update.config.beta_channel ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "update_available", update.update_available ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "update_version", update.latest_version);
+    cJSON_AddStringToObject(root, "update_status", update.status);
+    cJSON_AddNumberToObject(root, "update_progress", update.progress);
     cJSON_AddNumberToObject(root, "reset_reason", esp_reset_reason());
     cJSON_AddStringToObject(root, "mqtt_watchdog_triggered",
                             s_watchdog_triggered ? "ON" : "OFF");

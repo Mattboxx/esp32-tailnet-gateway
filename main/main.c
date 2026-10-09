@@ -61,6 +61,7 @@
 #include "mac_deny.h"
 #include "reset_history.h"
 #include "ota.h"
+#include "ota_remote.h"
 #include "cli.h"
 #include "esp_ota_ops.h"
 
@@ -802,6 +803,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(ret);
     remove_legacy_outbound_settings();
+    ota_remote_init();
 
     /* Install the ESP_LOG ring buffer + RTC-NOINIT pre-crash buffer as
      * early as possible so the boot-time output is recoverable from

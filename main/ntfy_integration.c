@@ -34,6 +34,7 @@
 #include "nvs_params.h"
 #include "tailscale_config.h"
 #include "peer_dns.h"
+#include "ota_remote.h"
 #include "wol.h"
 #include "tailnet_forward.h"
 #include "web_ui.h"
@@ -239,6 +240,11 @@ static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
             ts ? "connected" : "disconnected", tailscale_enabled ? "yes" : "no",
             tailscale_advertise_exit_node ? "yes" : "no");
     microlink_t *ml = tailscale_get_microlink();
+    ota_remote_state_t update; ota_remote_get_state(&update);
+    appendf(text, 8192, "GitHub updates: checks %s, automatic install %s, channel %s\nUpdate: %s (%s)\n",
+            update.config.enabled ? "on" : "off", update.config.auto_install ? "on" : "off",
+            update.config.beta_channel ? "stable + beta" : "stable only",
+            update.latest_version[0] ? update.latest_version : "none", update.status);
     appendf(text, 8192, "Exit-node server (this boot): %s\nExit-node DNS: %s (port %u)\n",
             tailscale_exit_server_active() ? "active" : "inactive",
             peer_dns_is_running() ? "running" : "stopped", (unsigned)tailscale_peerapi_port());
