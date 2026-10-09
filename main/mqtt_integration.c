@@ -27,6 +27,7 @@
 #include "microlink.h"
 #include "nvs_params.h"
 #include "tailscale_config.h"
+#include "peer_dns.h"
 #include "wol.h"
 #include "fourvia6.h"
 #include "tailnet_forward.h"
@@ -269,6 +270,12 @@ static void publish_discovery(void)
     discovery_publish_entity("switch", "advertise_exit_node",
                              "Advertise as exit node", s_state_topic,
                              "{{ value_json.advertise_exit_node }}", command, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "exit_server_active", "Exit-node server active",
+                             s_state_topic, "{{ value_json.exit_server_active }}", NULL, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "exit_dns_running", "Exit-node DNS running",
+                             s_state_topic, "{{ value_json.exit_dns_running }}", NULL, NULL, NULL);
+    discovery_publish_entity("sensor", "exit_dns_port", "Exit-node DNS port",
+                             s_state_topic, "{{ value_json.exit_dns_port }}", NULL, NULL, NULL);
     snprintf(command, sizeof command, "%s/command/exit_node_lan_bypass", cfg.base_topic);
     discovery_publish_entity("switch", "exit_node_lan_bypass",
                              "Exit node allow LAN access", s_state_topic,
@@ -390,6 +397,9 @@ static void publish_state(void)
                             tailscale_snat_subnet_routes ? "ON" : "OFF");
     cJSON_AddStringToObject(root, "advertise_exit_node",
                             tailscale_advertise_exit_node ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "exit_server_active", tailscale_exit_server_active() ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "exit_dns_running", peer_dns_is_running() ? "ON" : "OFF");
+    cJSON_AddNumberToObject(root, "exit_dns_port", tailscale_peerapi_port());
     cJSON_AddStringToObject(root, "exit_node_lan_bypass",
                             tailscale_lan_bypass ? "ON" : "OFF");
     fourvia6_status_t v6;

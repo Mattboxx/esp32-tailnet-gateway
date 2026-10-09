@@ -99,7 +99,8 @@ CONFIG_LWIP_L2_TO_L3_COPY=y
 # 5.3.1 caps this setting at 16; larger values are silently replaced with 10.
 # Keep the HTTP client pool small below so the remaining descriptors stay
 # available to DERP, ntfy, MQTT, DNS and diagnostics.
-CONFIG_LWIP_MAX_SOCKETS=26
+# PeerAPI exit DNS has its own listener/control socket and three clients.
+CONFIG_LWIP_MAX_SOCKETS=31
 
 # A modern browser request plus the 64-byte ts_session cookie routinely
 # exceeds ESP-IDF's 512-byte default.  At 512 the server rejects otherwise

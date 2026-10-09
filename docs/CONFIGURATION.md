@@ -35,7 +35,7 @@ Up to **5** networks, tried in order. Per network:
 | **AP IP / Subnet mask** | `192.168.4.1` / `255.255.255.0` | The AP subnet. Changing it offers to update the advertised Tailscale route. |
 | **DNS served to AP clients** | this device | Empty = the on-board forwarder; or push a specific resolver. |
 | **On-board DNS forwarder** | on | Resolver + PSRAM response cache for AP clients. |
-| **Forwarder upstream** | learned / `1.1.1.1` | Upstream resolver the forwarder queries. |
+| **Forwarder upstream** | configured / learned | Upstream resolver the forwarder queries. This fork has no hard-coded public fallback. |
 | **Hide SSID** | off | Stop broadcasting the SSID in beacons. |
 
 ## Network → DHCP, clients, denylist, port forwarding
@@ -58,6 +58,7 @@ Up to **5** networks, tried in order. Per network:
 | **Additional advertised subnet routes** | One CIDR per line, maximum 400 bytes. Combined and deduplicated with the automatic AP, 4via6 and exit-node routes. The UI shows the saved preview; Status shows the boot's active routes. |
 | **Source-NAT advertised routes** | Off by default. Masquerades traffic forwarded from the tunnel out to the uplink LAN (or out to the internet when this device is an exit node) to the device's own STA IP — the Tailscale default for subnet routers. **On** = the uplink subnet works the moment you advertise it (upstream hosts reply to this device, which un-NATs back into the tunnel). **Off** = the upstream router needs a static route for the tailnet (`100.64.0.0/10 → this device`) instead. Enabling it offers to add your uplink subnet to the advertised routes. ⚠️ Do **not** advertise *and* accept the same subnet — that loops the inbound route back into the tunnel. |
 | **Exit node** | Route AP-client public traffic through this tailnet exit node. Fails closed if unreachable. |
+| **Advertise this ESP32 as an exit node** | Opt-in server mode, mutually exclusive with choosing another exit node. Requires restart and Tailscale admin approval. IPv4 Internet egress is masqueraded; IPv6 remains fail-closed. |
 | **Max peers** | Upper bound on tracked peers. |
 | **Accept peer subnet routes** | Install routes other nodes advertise. |
 | **LAN bypass when using an exit node** | RFC1918 destinations stay on the local LAN even with an exit node selected. |
@@ -67,6 +68,29 @@ Up to **5** networks, tried in order. Per network:
 `Auto (Tailscale 1280)` uses MTU 1280 and TCP MSS 1240 on both direct and
 relayed paths to avoid oversized return packets. A fixed MTU can be
 forced (576–1500) if a path misbehaves.
+
+### Exit-node DNS (1.9 development / upstream v0.1.31)
+
+Native Tailscale clients using this ESP32 as their exit node discover a separate
+DNS PeerAPI at `http://<ESP-tailnet-IP>:41180/dns-query`. It is not the admin UI
+and does not use its password challenge. Requests require the local tunnel IP
+and a remote IP matching a currently known peer; LAN/AP requests are denied.
+Normal tailnet/firewall policy still applies. Only IPv4 and IPv4-mapped socket
+addresses are supported by this service.
+
+The DNS server starts only for this boot's enabled exit-node server mode.
+Changing the saved switch requires restart; it does not silently change the
+running server/NAT policy. If the custom admin port is 41180, DNS uses 41181
+and advertises that actual port. New TCP forwarding rules cannot use the
+active DNS port. Startup/handler-registration failures are logged locally,
+and a failed listener is not advertised. UI, MQTT/HA and ntfy `info` expose
+runtime active/running state and the selected port, never resolver credentials.
+
+DNS uses the configured forwarder upstream, otherwise STA's learned resolver:
+UDP first with bounded waiting, then TCP for truncation or UDP failure. There
+is no automatic public resolver fallback. A missing or unsafe resolver fails
+the lookup. The build reserves 31 sockets; saved feature settings are retained.
+See [the integration record](UPSTREAM-0.1.31.md) for testing limitations.
 
 ## Firewall
 
@@ -91,6 +115,6 @@ Per rule: **source** / **destination** (`any` or CIDR), **protocol**
 | **Timezone** | Device TZ; a real change flags a pending reboot. |
 | **Outbound telemetry** | Not compiled in. Logs and crash summaries remain local; MQTT publishes only when explicitly configured and enabled. |
 | **SD card logging** | Enable + per-sink (console / SD) log level; the on-device flight recorder. |
-| **Firmware update (OTA)** | Manual upload, or polled auto-install window. Optional **beta channel** also offers GitHub pre-releases (off by default = stable releases only). |
+| **Firmware update (OTA)** | Authenticated manual upload. Automatic GitHub polling/download and auto-install controls are removed in this fork. |
 | **Encrypted backup / restore** | Export/import the full config, encrypted with a passphrase. |
 | **Danger zone** | Reboot, factory reset, reset Tailscale identity. |

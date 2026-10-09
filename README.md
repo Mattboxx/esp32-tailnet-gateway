@@ -47,6 +47,16 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
+**Development branch: 0.1.31-Mattboxx-1.9-dev.** Upstream v0.1.30 and v0.1.31
+are integrated, with CGNAT uplink exceptions, lifecycle-safe route supervision,
+PSRAM-backed received tunnel packets and a separate, peer-restricted exit-node
+DNS service. All Mattboxx controls and the 1.8 ntfy hotfix are retained.
+The development build uses **31 sockets** and adds DNS runtime status to the
+UI, MQTT/Home Assistant and ntfy `info`. See the
+[complete integration and validation record](docs/UPSTREAM-0.1.31.md).
+This source update does **not** promote a new stable release or claim new
+hardware testing; the download below remains the previously tested 1.8 image.
+
 **[Stable release: 0.1.29-Mattboxx-1.8](../../releases/tag/v0.1.29-Mattboxx-1.8)**
 combines upstream **v0.1.29** with the
 Mattboxx additions. It keeps your existing settings and introduces no automatic
@@ -87,7 +97,7 @@ available unchanged for rollback.
 | **MQTT + Home Assistant** | Retained availability and device state, Last Will, broker watchdog, inbound commands and automatic discovery for AP, routes, SNAT, LAN bypass, Tailscale, 4via6, reconnect, restart, WOL and every LAN → Tailnet rule. |
 | **ntfy remote operations** | Optional outage alerts, bounded diagnostic context, `info` replies and WOL commands with durable polling and replay protection. Private details stay hidden unless explicitly enabled. |
 | **Tailscale 4via6** | Optional bidirectional TCP/UDP/ICMP translation for overlapping IPv4 LANs, with calculated advertised prefix, flow counters and Home Assistant controls. |
-| **Exit-node server** | Advertise the ESP32 itself as a Tailscale exit node, with automatic IPv4 egress masquerading, admin-approval guidance, fail-closed IPv6 behavior and Home Assistant/ntfy visibility. Server mode cannot conflict with selecting another exit node. |
+| **Exit-node server** | Advertise the ESP32 itself as a Tailscale exit node, with automatic IPv4 egress masquerading, admin-approval guidance, fail-closed IPv6 behavior and Home Assistant/ntfy visibility. Server mode cannot conflict with selecting another exit node. The 1.9 development branch adds upstream's separate DNS PeerAPI for native Tailscale exit-node clients. |
 | **Web administration** | Responsive dark UI, graphical feature switches, clear disabled cards, configurable web port, optional password gate and session timeout, local OTA and encrypted backup/restore. |
 | **SNMP monitoring** | Optional read-only v1/v2c agent for LibreNMS, Zabbix or Observium; standard interface/CPU/memory/temperature MIBs, disabled by default, with a graphical System switch. Enabled/running state and socket budget also appear in MQTT/Home Assistant and ntfy info. |
 | **Fast, safer login** | Salted 60,000-round PBKDF2-HMAC-SHA256 verifier plus a one-time browser challenge; no plaintext password for modern records and no multi-second ESP-side unlock delay. |

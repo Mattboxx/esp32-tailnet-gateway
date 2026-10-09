@@ -13,12 +13,15 @@ class UpstreamIntegrationTests(unittest.TestCase):
         source = self.text('main/lwip_route_hook.c')
         supervisor = source.split('static void route_supervisor_task', 1)[1].split('void lwip_route_hook_init', 1)[0]
         self.assertNotIn('tailscale_accepted_routes[new_count]', supervisor)
-        self.assertIn('publish_accepted_routes(next_routes, new_count)', supervisor)
+        self.assertIn('tcpip_callback_wait(publish_routes_cb, &new_routes)', supervisor)
+        self.assertIn('publish_accepted_routes(state->routes, state->count)', source)
         publisher = source.split('static void publish_accepted_routes', 1)[1].split('int tailscale_accepted_routes_snapshot', 1)[0]
         self.assertLess(publisher.index('portENTER_CRITICAL('), publisher.index('memcpy('))
         self.assertLess(publisher.index('tailscale_accepted_routes_count = count'), publisher.index('portEXIT_CRITICAL('))
         self.assertNotIn('LOCK_TCPIP_CORE()', publisher)
-        self.assertIn('tcpip_callback(set_default_callback, target)', source)
+        self.assertIn('tcpip_callback_wait(set_default_callback, target)', source)
+        self.assertIn('tailscale_lifecycle_try_acquire()', supervisor)
+        self.assertIn('tailscale_lifecycle_release()', supervisor)
         web = self.text('main/web_ui.c')
         self.assertNotIn('tailscale_accepted_routes[i]', web)
         self.assertIn('tailscale_accepted_routes_snapshot(accepted', web)
@@ -49,7 +52,7 @@ class UpstreamIntegrationTests(unittest.TestCase):
 
     def test_network_limits_and_ui(self):
         defaults = self.text("sdkconfig.defaults")
-        self.assertIn("CONFIG_LWIP_MAX_SOCKETS=26", defaults)
+        self.assertIn("CONFIG_LWIP_MAX_SOCKETS=31", defaults)
         self.assertIn("platform = espressif32@6.13.0", self.text("platformio.ini"))
         self.assertIn("CONFIG_LWIP_MAX_ACTIVE_TCP=24", defaults)
         self.assertIn("CONFIG_LWIP_TCP_OOSEQ_MAX_PBUFS=4", defaults)
@@ -90,6 +93,36 @@ class UpstreamIntegrationTests(unittest.TestCase):
         self.assertNotIn("static char buf", composer)
         self.assertIn("xSemaphoreCreateMutexStatic", source)
         self.assertIn("s_active_ipn_version", source)
+
+    def test_031_peerapi_is_separate_and_opt_in(self):
+        dns = self.text('main/peer_dns.c')
+        manager = self.text('main/tailscale_manager.c')
+        self.assertIn('!tailscale_exit_server_active()', dns)
+        self.assertIn('local_ip != own_ip', dns)
+        self.assertIn('peer.vpn_ip == remote_ip', dns)
+        self.assertIn('from.sin_port == htons(53)', dns)
+        self.assertIn('httpd_stop(server)', dns)
+        self.assertIn('.peer_api_port = peer_dns_is_running()', manager)
+        self.assertIn('TAILSCALE_PEERAPI_PORT + 1', manager)
+        web = self.text('main/web_ui.c')
+        init = web.split('void web_ui_init(void)', 1)[1]
+        self.assertNotIn('peer_dns_get_handler', init)
+        self.assertIn('exit_dns_running', web)
+        self.assertIn('exit_dns_running', self.text('main/mqtt_integration.c'))
+        self.assertIn('Exit-node DNS:', self.text('main/ntfy_integration.c'))
+
+    def test_030_microlink_stop_and_psram_fixes(self):
+        prefix = 'external/microlink/components/microlink/'
+        source = self.text(prefix + 'src/ml_netcheck.c')
+        self.assertIn('ML_EVT_SHUTDOWN_REQUEST', source)
+        self.assertIn('remain > 250000ULL', source)
+        self.assertIn('ml->stop_incomplete = false', self.text(prefix + 'src/microlink.c'))
+        io = self.text(prefix + 'src/ml_net_io.c')
+        self.assertIn('uint8_t *pkt_data = ml_psram_malloc(n)', io)
+        wg = self.text(prefix + 'components/wireguard_lwip/src/wireguardif.c')
+        self.assertIn('wireguardif_has_host_route', wg)
+        self.assertTrue('fourvia6_translate_wg_input' in wg, '4via6 input hook missing')
+        self.assertTrue('fourvia6_translate_wg_output' in wg, '4via6 output hook missing')
 
 
 if __name__ == "__main__":

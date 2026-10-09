@@ -95,6 +95,7 @@ esp_err_t tailnet_forward_set_all(const tailnet_forward_rule_t *rules,int count,
         for(int j=0;j<i;j++)if(rules[j].enabled&&r->enabled&&rules[j].proto==r->proto&&rules[j].listen_port==r->listen_port){if(error)snprintf(error,en,"Duplicate listen port in rule %d",i+1);return ESP_ERR_INVALID_STATE;}
         if(r->enabled&&portmap_listen_conflicts(r->proto,r->listen_port)){if(error)snprintf(error,en,"Rule %d conflicts with AP-side forwarding",i+1);return ESP_ERR_INVALID_STATE;}
         if(r->enabled&&r->proto==TAILNET_FORWARD_PROTO_TCP&&r->listen_port==web_ui_configured_port()){if(error)snprintf(error,en,"Rule %d conflicts with the Web UI port",i+1);return ESP_ERR_INVALID_STATE;}
+        if(r->enabled&&r->proto==TAILNET_FORWARD_PROTO_TCP&&tailscale_exit_server_active()&&r->listen_port==tailscale_peerapi_port()){if(error)snprintf(error,en,"Rule %d conflicts with the exit-node DNS port",i+1);return ESP_ERR_INVALID_STATE;}
     }
     store_t st={.magic=STORE_MAGIC};memcpy(st.rules,rules,count*sizeof rules[0]);nvs_handle_t nvs;esp_err_t err=nvs_open(NVS_NAMESPACE,NVS_READWRITE,&nvs);
     if(err==ESP_OK){err=nvs_set_blob(nvs,NVS_KEY,&st,sizeof st);if(err==ESP_OK)err=nvs_commit(nvs);nvs_close(nvs);}if(err!=ESP_OK)return err;

@@ -39,6 +39,8 @@ async function fixture(browser, options = {}) {
       body = state.snmpBody || { enabled: false, running: false, community: 'fixture' };
     } else if (url.pathname === '/api/system') {
       body = state.systemBody || { web_auth_enabled: true, session_timeout_s: 0 };
+    } else if (url.pathname === '/api/tailscale') {
+      body = { settings: state.tailscaleSettings || {}, runtime: {}, peers: [] };
     } else if (url.pathname === '/api/wol') {
       if (state.wolFails) return route.abort('failed');
       if (state.wolDelay) await new Promise(resolve => setTimeout(resolve, state.wolDelay));
@@ -195,7 +197,23 @@ async function main() {
     await f.page.waitForFunction(() => document.getElementById('sys-auth-to-badge').textContent === 'Idle timeout: 1 h');
     assert.deepEqual(f.errors, []);
     await f.context.close(); count++;
-    console.log(`PASS: ${count} browser scenarios (auth deep links, WOL isolation, retries, unknown state, reload recovery, coalescing, SNMP and session security labels)`);
+    // Saved exit-node policy and the running DNS listener are distinct.
+    // A custom Web UI port of 41180 must allow the advertised alternate 41181.
+    f = await fixture(browser, { page: 'tailscale', tailscaleSettings: {
+      enabled: true, advertise_exit_node: true, exit_server_active: true,
+      exit_dns_running: true, peerapi_port: 41181 } });
+    await f.page.waitForFunction(() => document.getElementById('ts-exit-dns-status').textContent.includes('DNS running on port 41181'));
+    assert.equal(await f.page.locator('#ts-advertise-exit').isChecked(), true);
+    f.state.tailscaleSettings.exit_dns_running = false;
+    await f.page.locator('#ts-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('ts-exit-dns-status').textContent.includes('DNS unavailable'));
+    f.state.tailscaleSettings.exit_server_active = false;
+    await f.page.locator('#ts-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('ts-exit-dns-status').textContent.includes('after restart'));
+    assert.equal(await f.page.locator('#ts-advertise-exit').isChecked(), true);
+    assert.deepEqual(f.errors, []);
+    await f.context.close(); count++;
+    console.log(`PASS: ${count} browser scenarios (auth deep links, WOL isolation, retries, unknown state, reload recovery, coalescing, SNMP, session labels and exit-node DNS)`);
   } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

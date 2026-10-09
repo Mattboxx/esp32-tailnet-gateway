@@ -31,7 +31,7 @@ def main():
     assert sha(sdkbuild / 'firmware.bin') == args.tested_sha256.lower(), 'Build changed after hardware validation'
     assert version.encode() in args.tested_image.read_bytes()
     assert (version + '-dev').encode() not in args.tested_image.read_bytes()
-    assert '#define CONFIG_LWIP_MAX_SOCKETS 26' in (sdkbuild / 'config/sdkconfig.h').read_text()
+    assert '#define CONFIG_LWIP_MAX_SOCKETS 31' in (sdkbuild / 'config/sdkconfig.h').read_text()
     out = ROOT / 'build' / ('release-' + version)
     out.mkdir(exist_ok=False)
     shutil.copyfile(args.tested_image, out / 'firmware.bin')
@@ -68,14 +68,16 @@ firmware-factory.bin is the merged fresh-board image, NOT a web OTA image.
 Do not unplug during flashing. Use a USB DATA cable, not a charge-only cable.
 If detection fails: hold BOOT, tap RESET, release BOOT and retry.
 
-Based on Csontikka/esp32-tailscale-subnet-router v0.1.29. Includes its CGNAT
-uplink / disconnected-interface routing fixes and synchronized route snapshots.
+Based on Csontikka/esp32-tailscale-subnet-router v0.1.31. Includes CGNAT uplink
+exceptions, lifecycle-leased TCP/IP routing and synchronized route snapshots.
+Exit-node server mode adds a separate, known-peer-only DNS PeerAPI and
+PSRAM-backed received tunnel packets. Custom admin ports are preserved.
 Preserves MQTT/HA, WOL, ntfy, AP policy, LAN-to-Tailnet
 forwarding, 4via6, exit advertising, custom web port and password/session policy.
 Includes the ntfy reboot-loop fix: separate compiler stack frames, heap-backed
 alert logs, a 12 KiB TLS worker stack and stack-reserve diagnostics. Failed info
 replies and oversized command responses no longer masquerade as success.
-Retains Automation loading fixes, a pinned IDF 5.5.3/26-socket build, read-only
+Retains Automation loading fixes, a pinned IDF 5.5.3/31-socket build, read-only
 SNMP (OFF by default), malformed-packet hardening and checked HTTP endpoints.
 No telemetry, external crash upload, release polling or public speed test.
 Optional user-enabled MQTT/ntfy and the VPN still make their configured traffic.

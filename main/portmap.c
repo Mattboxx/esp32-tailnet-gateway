@@ -12,6 +12,7 @@
 #include "portmap.h"
 #include "tailnet_forward.h"
 #include "web_ui.h"
+#include "tailscale_config.h"
 
 static const char *TAG = "portmap";
 
@@ -92,6 +93,8 @@ esp_err_t portmap_set_all(const portmap_entry_t *arr, int count)
         if (!entry_is_filled(&arr[i])) continue;
         if (tailnet_forward_listen_conflicts(arr[i].proto, arr[i].ext_port)) return ESP_ERR_INVALID_STATE;
         if (arr[i].proto == PORTMAP_PROTO_TCP && arr[i].ext_port == web_ui_configured_port()) return ESP_ERR_INVALID_STATE;
+        if (arr[i].proto == PORTMAP_PROTO_TCP && tailscale_exit_server_active()
+            && arr[i].ext_port == tailscale_peerapi_port()) return ESP_ERR_INVALID_STATE;
         for (int j = 0; j < i; j++)
             if (entry_is_filled(&arr[j]) && arr[j].proto == arr[i].proto && arr[j].ext_port == arr[i].ext_port)
                 return ESP_ERR_INVALID_STATE;

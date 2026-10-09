@@ -6,6 +6,31 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.9-dev — upstream alignment
+
+- Integrate published upstream v0.1.30 and v0.1.31, without importing later
+  unreleased main-branch commits or removing Mattboxx features.
+- Preserve known tailnet peer /32 priority on CGNAT uplinks while keeping
+  non-peer local destinations, DNS resolvers and DHCP servers on the uplink.
+- Serialize route supervision with the VPN lifecycle and execute netif/default
+  and accepted-route publication in the TCP/IP task; retain cross-core snapshots.
+- Port microlink's bounded netcheck shutdown, complete-stop cleanup and
+  PSRAM-backed received IPv4 tunnel packet queue.
+- Add separate exit-node DNS PeerAPI with GET/POST DNS wire messages, UDP-first
+  resolver forwarding, TCP fallback and advertised Hostinfo services.
+- Require a known peer and the local tunnel address for DNS; no public resolver
+  fallback. Check registration failures and advertise only a running listener.
+- Preserve custom Web UI ports; DNS uses 41181 when administration uses 41180.
+  Reject new TCP forwarding rules conflicting with the active DNS port.
+- Add exit-server/DNS runtime status to Tailscale settings, MQTT/HA and ntfy info.
+  Keep saved exit policy separate from the running boot's NAT policy.
+- Correct CGNAT NAT handling: only actual tunnel TCP egress skips translation;
+  local CGNAT LAN egress honors subnet SNAT and exit-server masquerading.
+- Increase the socket budget from 26 to 31; preserve the 1.8 ntfy stack fix.
+- Add actual-C CGNAT/NAT and DNS authorization/parser tests, 50,000 decoder
+  mutations, UI status tests and fixed-baseline feature-preservation guards.
+- Build/test details and hardware limitations: [integration record](docs/UPSTREAM-0.1.31.md).
+
 ## [0.1.29-Mattboxx-1.8] — 2026-10-04
 
 ### Fixed

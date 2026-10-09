@@ -25,9 +25,12 @@
 #include "lwip/prot/ip4.h"
 #include "lwip/err.h"
 #include "lwip/tcpip.h"
+#include "lwip/dns.h"
+#include "lwip/dhcp.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "freertos/idf_additions.h"   /* xTaskCreateWithCaps — PSRAM stack */
 #include "esp_heap_caps.h"            /* MALLOC_CAP_SPIRAM */
@@ -99,6 +102,75 @@ static struct netif *find_sta_netif(void)
         }
     }
     return NULL;
+}
+
+/* An uplink can live in 100.64.0.0/10 itself, or hand out a resolver from
+ * it: Starlink, many LTE/5G routers and some ISPs do. "CGNAT destination ->
+ * always the tunnel" then captures traffic only the uplink can carry -- the
+ * DHCP-provided resolver first of all, after which the control plane and the
+ * relays stop resolving and the node drops off the tailnet (issue #17).
+ *
+ * So before the tunnel rule: a CGNAT destination that is not a tailnet peer
+ * goes out through a real interface when it is
+ *   - on-link on an interface that is up (the uplink's own subnet), or
+ *   - one of the resolvers in use, or
+ *   - the uplink's DHCP server (a unicast renewal has to reach it).
+ * Tailnet peers keep going to the tunnel even if the uplink's prefix covers
+ * them (a /10 uplink covers every one of them): the WireGuard netif knows each
+ * peer as a /32, and that is asked first.
+ *
+ * Returns NULL when the tunnel rule should apply. *why gets a short reason
+ * for route_explain(). Runs in the TCP/IP thread from the hook. */
+static struct netif *cgnat_local_exception(uint32_t dst_hbo, const char **why)
+{
+    extern struct netif *netif_list;
+    ip4_addr_t dst;
+    dst.addr = lwip_htonl(dst_hbo);
+
+    if (microlink_wg_has_peer_ip(find_wg_netif(), dst.addr)) return NULL;
+
+    for (struct netif *n = netif_list; n; n = n->next) {
+        if (netif_is_wg(n)) continue;
+        if (!netif_is_up(n) || !netif_is_link_up(n)) continue;
+        const ip4_addr_t *addr = netif_ip4_addr(n);
+        const ip4_addr_t *mask = netif_ip4_netmask(n);
+        if (addr == NULL || mask == NULL) continue;
+        if (ip4_addr_isany_val(*addr) || ip4_addr_isany_val(*mask)) continue;
+        if (ip4_addr_netcmp(&dst, addr, mask)) {
+            if (why) *why = "on-link on this interface, not a tailnet peer";
+            return n;
+        }
+    }
+
+    struct netif *uplink = find_sta_netif();
+    if (uplink == NULL) return NULL;
+    for (u8_t i = 0; i < DNS_MAX_SERVERS; i++) {
+        const ip_addr_t *srv = dns_getserver(i);
+        if (srv && IP_IS_V4(srv) && !ip_addr_isany(srv) &&
+            ip4_addr_get_u32(ip_2_ip4(srv)) == dst.addr) {
+            if (why) *why = "uplink DNS resolver, not a tailnet peer";
+            return uplink;
+        }
+    }
+    struct dhcp *dhcp = netif_dhcp_data(uplink);
+    if (dhcp && !ip_addr_isany_val(dhcp->server_ip_addr) && IP_IS_V4(&dhcp->server_ip_addr) &&
+        ip4_addr_get_u32(ip_2_ip4(&dhcp->server_ip_addr)) == dst.addr) {
+        if (why) *why = "uplink DHCP server, not a tailnet peer";
+        return uplink;
+    }
+    return NULL;
+}
+
+typedef struct {
+    uint32_t dst_hbo;
+    struct netif *local;
+    const char *why;
+} cgnat_query_t;
+
+static void cgnat_exception_cb(void *ctx)
+{
+    cgnat_query_t *q = ctx;
+    q->local = cgnat_local_exception(q->dst_hbo, &q->why);
 }
 
 /* Core locking is optional in ESP-IDF (LOCK_TCPIP_CORE can be a no-op).
@@ -211,54 +283,128 @@ static void keepalive_start(uint32_t target_ip_hbo)
     }
 }
 
-static void set_default_callback(void *target)
+static void set_default_callback(void *ctx)
 {
-    netif_set_default(target);
+    netif_set_default(ctx);
 }
 
 static void set_default_via_tcpip(struct netif *target)
 {
-    /* Always marshal to the stack, including SDK builds without core locking.
-     * Netifs are retained for the boot lifetime. On queue failure the
-     * supervisor retries next cycle rather than changing it off-thread. */
-    if (tcpip_callback(set_default_callback, target) != ERR_OK) {
-        ESP_LOGW(TAG, "Could not queue default-route update; will retry");
+    tcpip_callback_wait(set_default_callback, target);
+}
+
+typedef struct {
+    struct netif *wg;
+    struct netif *uplink;
+    bool wg_ready;
+    struct netif *default_netif;
+} supervisor_netifs_t;
+
+static void supervisor_netifs_cb(void *ctx)
+{
+    supervisor_netifs_t *state = ctx;
+    state->wg = find_wg_netif();
+    state->uplink = find_sta_netif();
+    state->wg_ready = state->wg && netif_is_up(state->wg);
+    state->default_netif = netif_default;
+}
+
+typedef struct {
+    tailscale_accepted_route_t routes[TAILSCALE_ACCEPTED_ROUTES_MAX];
+    int count;
+} supervisor_routes_t;
+
+static void publish_routes_cb(void *ctx)
+{
+    const supervisor_routes_t *state = ctx;
+    publish_accepted_routes(state->routes, state->count);
+}
+
+/* The library queues its PCB update rather than waiting for execution.
+ * Queue a completion behind it and keep the lifecycle lease until both have
+ * run. tcpip_callback_wait is not a queue barrier with core locking enabled. */
+static void pin_complete_cb(void *ctx)
+{
+    xSemaphoreGive((SemaphoreHandle_t)ctx);
+}
+
+static esp_err_t pin_wg_output_sync(microlink_t *ml, struct netif *uplink,
+                                    SemaphoreHandle_t done,
+                                    struct tcpip_callback_msg *completion)
+{
+    esp_err_t err = microlink_pin_wg_output_netif(ml, uplink);
+    if (err != ESP_OK) return err;
+    /* Reuse a preallocated completion message: retry mailbox pressure while
+     * retaining the lease, without needing another heap allocation. */
+    while (tcpip_callbackmsg_trycallback(completion) != ERR_OK) {
+        vTaskDelay(1);
     }
+    xSemaphoreTake(done, portMAX_DELAY);
+    return ESP_OK;
 }
 
 static void route_supervisor_task(void *arg)
 {
     (void)arg;
+    SemaphoreHandle_t pin_done = xSemaphoreCreateBinary();
+    struct tcpip_callback_msg *pin_completion = pin_done
+        ? tcpip_callbackmsg_new(pin_complete_cb, pin_done) : NULL;
+    if (!pin_completion) {
+        if (pin_done) vSemaphoreDelete(pin_done);
+        ESP_LOGE(TAG, "supervisor completion allocation failed");
+        vTaskDeleteWithCaps(NULL);
+        return;
+    }
     ESP_LOGI(TAG, "supervisor task started (exit_node=%lu)",
              (unsigned long)tailscale_exit_node_ip);
     while (1) {
-        struct netif *wg = find_wg_netif();
-        struct netif *sta = find_sta_netif();
+        if (!tailscale_lifecycle_try_acquire()) {
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            continue;
+        }
+        static uint32_t seen_generation = 0;
+        uint32_t generation = tailscale_lifecycle_generation();
+        if (generation != seen_generation) {
+            s_wg_udp_pinned = false;
+            seen_generation = generation;
+        }
+        /* This executes in TCP/IP context with core locking off, or under
+         * the core lock with it on. The lease keeps the WG pointer alive. */
+        supervisor_netifs_t netifs = {0};
+        if (tcpip_callback_wait(supervisor_netifs_cb, &netifs) != ERR_OK) {
+            tailscale_lifecycle_release();
+            vTaskDelay(pdMS_TO_TICKS(2000));
+            continue;
+        }
+        struct netif *wg = netifs.wg;
+        struct netif *uplink = netifs.uplink;
         /* wireguardif only flips its netif to LINK_UP after at least one
          * peer has a valid session, which is exactly the chicken/egg case
          * we are trying to bootstrap for the exit node. Treat the netif
          * as usable as soon as it has its IP and is administratively up. */
-        bool wg_ready = wg && netif_is_up(wg);
+        bool wg_ready = netifs.wg_ready;
 
-        if (s_original_default == NULL && netif_default != NULL &&
-            (!wg || netif_default != wg)) {
-            s_original_default = netif_default;
+        if (s_original_default == NULL && netifs.default_netif != NULL &&
+            (!wg || netifs.default_netif != wg)) {
+            s_original_default = netifs.default_netif;
             ESP_LOGI(TAG, "Cached original default route: %c%c%d",
-                     netif_default->name[0], netif_default->name[1],
-                     netif_default->num);
+                     netifs.default_netif->name[0], netifs.default_netif->name[1],
+                     netifs.default_netif->num);
         }
 
         struct netif *want = NULL;
         if (tailscale_exit_node_ip != 0) {
-            if (wg_ready && sta != NULL) {
-                if (!s_wg_udp_pinned) {
-                    microlink_t *ml = tailscale_get_microlink();
-                    esp_err_t pr = ml ? microlink_pin_wg_output_netif(ml, sta) : ESP_ERR_INVALID_STATE;
-                    if (pr == ESP_OK) {
-                        s_wg_udp_pinned = true;
-                        ESP_LOGI(TAG, "WG UDP pinned to upstream %c%c%d",
-                                 sta->name[0], sta->name[1], sta->num);
+            if (wg_ready && uplink != NULL) {
+                microlink_t *ml = tailscale_get_microlink();
+                /* Retry every pass: the library does not propagate failure
+                 * to enqueue its pin callback, so cached success is unsafe. */
+                esp_err_t pr = ml ? pin_wg_output_sync(ml, uplink, pin_done, pin_completion) : ESP_ERR_INVALID_STATE;
+                if (pr == ESP_OK) {
+                    if (!s_wg_udp_pinned) {
+                        ESP_LOGI(TAG, "WG UDP pin requested on upstream %c%c%d",
+                                 uplink->name[0], uplink->name[1], uplink->num);
                     }
+                    s_wg_udp_pinned = true;
                 }
                 want = wg;
                 /* Keep the WG session warm on the chosen exit node — without
@@ -269,18 +415,18 @@ static void route_supervisor_task(void *arg)
             want = s_original_default;
             if (s_wg_udp_pinned) {
                 microlink_t *ml = tailscale_get_microlink();
-                if (ml) microlink_pin_wg_output_netif(ml, NULL);
+                if (ml) pin_wg_output_sync(ml, NULL, pin_done, pin_completion);
                 s_wg_udp_pinned = false;
                 ESP_LOGI(TAG, "WG UDP unpinned (exit node off)");
             }
             keepalive_stop();
         }
 
-        if (want != NULL && want != netif_default) {
+        if (want != NULL && want != netifs.default_netif) {
             ESP_LOGI(TAG, "Switching default route: %c%c%d -> %c%c%d (exit_node=%lu)",
-                     netif_default ? netif_default->name[0] : '?',
-                     netif_default ? netif_default->name[1] : '?',
-                     netif_default ? netif_default->num : 0,
+                     netifs.default_netif ? netifs.default_netif->name[0] : '?',
+                     netifs.default_netif ? netifs.default_netif->name[1] : '?',
+                     netifs.default_netif ? netifs.default_netif->num : 0,
                      want->name[0], want->name[1], want->num,
                      (unsigned long)tailscale_exit_node_ip);
             set_default_via_tcpip(want);
@@ -290,28 +436,28 @@ static void route_supervisor_task(void *arg)
          * When tailscale_accept_routes=1 the route hook redirects any
          * destination matching one of these CIDRs into the WG tunnel — the
          * way `tailscale up --accept-routes` does on the official client. */
+        supervisor_routes_t new_routes = {0};
         if (tailscale_accept_routes) {
             microlink_t *ml = tailscale_get_microlink();
             int peer_n = ml ? microlink_get_peer_count(ml) : 0;
-            tailscale_accepted_route_t next_routes[TAILSCALE_ACCEPTED_ROUTES_MAX];
-            int new_count = 0;
             for (int i = 0; i < peer_n &&
-                 new_count < TAILSCALE_ACCEPTED_ROUTES_MAX; i++) {
+                 new_routes.count < TAILSCALE_ACCEPTED_ROUTES_MAX; i++) {
                 microlink_peer_info_t pi;
                 if (microlink_get_peer_info(ml, i, &pi) != ESP_OK) continue;
                 for (int r = 0; r < pi.subnet_route_count &&
-                     new_count < TAILSCALE_ACCEPTED_ROUTES_MAX; r++) {
-                    next_routes[new_count].network =
+                     new_routes.count < TAILSCALE_ACCEPTED_ROUTES_MAX; r++) {
+                    new_routes.routes[new_routes.count].network =
                         pi.subnet_routes[r].network;
-                    next_routes[new_count].prefix_len =
+                    new_routes.routes[new_routes.count].prefix_len =
                         pi.subnet_routes[r].prefix_len;
-                    new_count++;
+                    new_routes.count++;
                 }
             }
-            publish_accepted_routes(next_routes, new_count);
-        } else {
-            publish_accepted_routes(NULL, 0);
         }
+        /* Packet hooks also run in TCP/IP context: publish entries/count
+         * together without depending on CONFIG_LWIP_TCPIP_CORE_LOCKING. */
+        tcpip_callback_wait(publish_routes_cb, &new_routes);
+        tailscale_lifecycle_release();
 
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
@@ -347,7 +493,8 @@ void lwip_route_hook_init(void)
  * reachable via the STA gateway).
  *
  * Order of precedence:
- *   1. CGNAT dst (100.64.0.0/10) — always to wg netif (Phase 1.5c).
+ *   1. CGNAT dst (100.64.0.0/10) — known tailnet peers to WG; otherwise
+ *      on-link destinations and uplink DNS/DHCP servers stay local.
  *   2. Exit-node on AND lan_bypass on AND dst is in some non-wg netif's
  *      prefix → that netif.
  *   3. Exit-node on AND lan_bypass on AND dst is RFC1918 private → STA.
@@ -395,8 +542,10 @@ struct netif *__wrap_ip4_route_src_hook(const ip4_addr_t *src,
     uint32_t dst_hbo = lwip_ntohl(dest->addr);
     uint32_t src_hbo = (src != NULL) ? lwip_ntohl(src->addr) : 0;
 
-    /* 1. Tailnet CGNAT — always WG. */
+    /* Tailnet peers win; non-peer on-link/resolver/DHCP CGNAT stays local. */
     if (ip_in_cgnat(dst_hbo)) {
+        struct netif *local = cgnat_local_exception(dst_hbo, NULL);
+        if (local) return local;
         if (should_log_route_hook()) {
             ESP_LOGW(TAG, "[ROUTE_HOOK] CGNAT src=%lu.%lu.%lu.%lu dst=%lu.%lu.%lu.%lu -> wg",
                      (src_hbo>>24)&0xFF, (src_hbo>>16)&0xFF, (src_hbo>>8)&0xFF, src_hbo&0xFF,
@@ -626,8 +775,20 @@ void route_explain(uint32_t src_hbo, uint32_t dst_hbo,
         }
     }
 
-    /* 1. CGNAT. */
+    /* The HTTP diagnostic must not inspect WireGuard peer entries outside
+     * TCP/IP context. The packet hook above already runs on that task. */
     if (ip_in_cgnat(dst_hbo)) {
+        cgnat_query_t q = {.dst_hbo = dst_hbo};
+        if (tcpip_callback_wait(cgnat_exception_cb, &q) != ERR_OK) {
+            snprintf(out_netif, out_netif_size, "unavailable");
+            snprintf(out, out_size, "TCP/IP route diagnostic unavailable");
+            return;
+        }
+        if (q.local) {
+            name_netif(q.local, out_netif, out_netif_size);
+            snprintf(out, out_size, "CGNAT address, but %s", q.why ? q.why : "local");
+            return;
+        }
         struct netif *wg = find_wg_netif();
         name_netif(wg, out_netif, out_netif_size);
         snprintf(out, out_size,
@@ -874,7 +1035,9 @@ err_t __wrap_ip_napt_forward(struct pbuf *p, struct ip_hdr *iphdr,
         }
 
         uint32_t dest_hbo = lwip_ntohl(iphdr->dest.addr);
-        if (ip_in_cgnat(dest_hbo) && proto == 6 /* IPPROTO_TCP */) {
+        /* CGNAT is also a legitimate uplink range. Preserve the tailnet
+         * TCP tuple only on actual tunnel egress, not a local CGNAT LAN. */
+        if (wg && outp == wg && ip_in_cgnat(dest_hbo) && proto == 6 /* IPPROTO_TCP */) {
             return ERR_OK;
         }
 
@@ -892,9 +1055,8 @@ err_t __wrap_ip_napt_forward(struct pbuf *p, struct ip_hdr *iphdr,
          * on the STA side) reverses it automatically. Gated to inp==wg && outp==sta
          * so AP→tunnel / tunnel→AP / AP→WAN paths are untouched (no regression).
          * Runs in the single-threaded tcpip context, so the toggle is race-free. */
-        if ((tailscale_snat_subnet_routes || tailscale_advertise_exit_node) &&
+        if ((tailscale_snat_subnet_routes || tailscale_exit_server_active()) &&
             inp && outp && inp != outp &&
-            !ip_in_cgnat(dest_hbo) &&
             inp == find_wg_netif() && netif_is_sta(outp)) {
             uint8_t saved = inp->napt;
             inp->napt = 1;

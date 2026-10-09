@@ -1,5 +1,23 @@
 # Custom ESP32-S3 router branch
 
+## Upstream v0.1.31 alignment (1.9 development)
+
+All changes in the published v0.1.30/v0.1.31 tags are accounted for in
+[the integration record](docs/UPSTREAM-0.1.31.md). This includes CGNAT LAN,
+resolver and DHCP routing exceptions; lifecycle-leased TCP/IP route updates;
+microlink stop/netcheck cleanup; received UDP packet storage in PSRAM; and
+the exit-node DNS PeerAPI with control-plane service advertisement.
+
+Existing AP policies, WOL, MQTT/HA, ntfy (including the 1.8 stack hotfix),
+independent LAN-to-Tailnet forwarding, AP-side port maps, 4via6, exit-node
+selection/advertising, web-port/password/session policies, encrypted backups,
+SNMP, metrics, diagnostics and privacy removals remain. Regression checks
+compare endpoint, UI, HA entity and command identifiers with the previous fork.
+The socket budget is raised to 31 for the separate DNS server. Configurable
+admin ports remain supported, including 41180 (DNS then advertises 41181).
+The stable 1.8 release and its existing binaries are unchanged. No new board
+flash or hardware stability claim accompanies this source alignment.
+
 ## Upstream v0.1.29 alignment (1.8 stable)
 
 The v0.1.20-v0.1.29 improvements are integrated on top of the Mattboxx features. See

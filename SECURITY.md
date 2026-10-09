@@ -11,6 +11,25 @@ and enforce Tailnet ACLs; this is a gateway, not an application firewall. A
 source CIDR is a network filter, not client identity: a hostile device with
 access to the same layer-2 LAN may spoof a permitted source address.
 
+## Exit-node DNS PeerAPI boundary (1.9 development)
+
+Opt-in exit-node server mode starts a separate HTTP DNS server, normally on
+TCP 41180 (41181 if the admin UI already uses 41180). This is not a public DNS
+service or an admin endpoint: before reading a query/body, it requires the
+local tunnel address and a remote address matching a known microlink peer.
+Merely using a CGNAT address does not grant access; LAN/AP and native IPv6
+requests are denied. Its HTTP listener still consumes bounded resources for
+rejected connections, so restrict untrusted networks with firewall policy.
+Requests over the tunnel use WireGuard encryption, not HTTPS or the UI login.
+
+Known-peer membership is not per-user authorization. Use tailnet access rules
+and the ESP firewall to restrict which trusted peers should use the exit node.
+DNS queries deliberately leave through the configured/learned uplink resolver,
+using standard unencrypted UDP/TCP DNS; no public fallback is added. The
+upstream resolver therefore sees those queries when this feature is enabled.
+Message lengths, source endpoint/transaction matching and deadlines are
+bounded, but this integration is not a penetration test or a full DNS parser.
+
 ## Reporting a Vulnerability
 
 If you think you've found a security issue in this firmware — for example a

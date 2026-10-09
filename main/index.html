@@ -2300,6 +2300,7 @@
             <label class="form-label">Routes after restart</label>
             <pre class="mono" id="ts-effective-routes" style="white-space:pre-wrap; overflow-wrap:anywhere;">—</pre>
             <span class="form-hint" id="ts-exit-pending"></span>
+            <span class="form-hint" id="ts-exit-dns-status">Exit-node DNS: not loaded yet.</span>
           </div>
           <div class="form-group">
             <label class="feature-switch">
@@ -5853,6 +5854,9 @@
           document.getElementById('ts-adv-ap').checked = !!s.advertise_ap;
           document.getElementById('ts-effective-routes').textContent = s.effective_routes_valid === false ? 'Invalid route configuration' : (s.effective_routes || 'None');
           document.getElementById('ts-exit-pending').textContent = s.exit_node_restart_pending ? 'Saved exit node differs from the running tunnel. Restart to apply.' : '';
+          document.getElementById('ts-exit-dns-status').textContent = s.exit_server_active
+            ? ('Exit-node server active · DNS ' + (s.exit_dns_running ? ('running on port ' + s.peerapi_port) : 'unavailable'))
+            : 'Exit-node DNS inactive · starts only in exit-node server mode after restart.';
           document.getElementById('ts-routes').value        = s.advertise_routes || '';
           document.getElementById('ts-max-peers').value     = s.max_peers   || 16;
           document.getElementById('ts-accept-routes').checked = !!s.accept_routes;

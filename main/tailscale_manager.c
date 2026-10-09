@@ -25,6 +25,8 @@
 #include "esp_sntp.h"
 #include "fourvia6.h"
 #include "upstream_validation.h"
+#include "peer_dns.h"
+#include "web_ui.h"
 
 /* Local helper: load a string from NVS, defaulting to an empty heap
  * buffer when the key isn't there. Other modules assume non-NULL. */
@@ -81,6 +83,19 @@ static StaticSemaphore_t s_lifecycle_storage;
 static SemaphoreHandle_t s_lifecycle;
 static portMUX_TYPE s_connect_lock = portMUX_INITIALIZER_UNLOCKED;
 static bool s_connect_in_flight;
+static uint32_t s_lifecycle_generation;
+static bool s_exit_server_active;
+static uint16_t s_peerapi_port = TAILSCALE_PEERAPI_PORT;
+
+bool tailscale_lifecycle_try_acquire(void)
+{
+    return s_lifecycle && xSemaphoreTake(s_lifecycle, 0) == pdTRUE;
+}
+
+void tailscale_lifecycle_release(void) { xSemaphoreGive(s_lifecycle); }
+uint32_t tailscale_lifecycle_generation(void) { return s_lifecycle_generation; }
+bool tailscale_exit_server_active(void) { return s_exit_server_active; }
+uint16_t tailscale_peerapi_port(void) { return s_peerapi_port; }
 
 /* Read saved settings into caller-owned storage: no mutable static preview
  * shared between HTTP, MQTT and the connect task. Manual routes are untouched. */
@@ -194,6 +209,11 @@ void tailscale_init(void)
         tailscale_advertise_exit_node = 0;
         (void)nvs_param_set_int("ts_adv_exit", 0);
     }
+    s_exit_server_active = tailscale_enabled && tailscale_advertise_exit_node && !tailscale_exit_node_ip;
+    /* Preserve every existing custom admin port, including 41180. PeerAPI
+     * advertises its actual boot-selected port rather than assuming port 80. */
+    s_peerapi_port = web_ui_configured_port() == TAILSCALE_PEERAPI_PORT
+                  ? TAILSCALE_PEERAPI_PORT + 1 : TAILSCALE_PEERAPI_PORT;
     s_routes_valid = tailscale_routes_preview(s_active_routes, sizeof s_active_routes);
     ESP_LOGI(TAG, "Config loaded (enabled=%ld, max_peers=%ld, login_server=%s, exit_node=%lu.%lu.%lu.%lu)",
              (long)tailscale_enabled, (long)tailscale_max_peers,
@@ -251,6 +271,10 @@ static esp_err_t tailscale_connect_locked(void)
                  s_active_ipn_version, strchr(s_active_ipn_version, '-') ? "" : "-t00000000000-g00000000000");
     }
 
+    /* Start before announcing PeerAPI; a failed listener must not be advertised.
+     * This is the sole startup caller, serialized by the lifecycle mutex. */
+    peer_dns_start();
+    ++s_lifecycle_generation;
     microlink_config_t cfg = {
         .auth_key = s_active_auth_key,
         .device_name = s_active_hostname[0] ? s_active_hostname : NULL,
@@ -267,6 +291,7 @@ static esp_err_t tailscale_connect_locked(void)
         .ctrl_host = s_active_login_server[0] ? s_active_login_server : NULL,
         .ipn_version = s_effective_ipn_version[0] ? s_effective_ipn_version : NULL,
         .advertise_routes = s_active_routes[0] ? s_active_routes : NULL,
+        .peer_api_port = peer_dns_is_running() ? tailscale_peerapi_port() : 0,
         .netcheck_override_enabled = (tailscale_netcheck_override != 0),
         .netcheck_override_threshold_ms = (uint32_t)tailscale_netcheck_threshold_ms,
         .preferred_derp_region = (uint16_t)tailscale_default_derp_region,

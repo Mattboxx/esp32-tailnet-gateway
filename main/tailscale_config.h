@@ -54,6 +54,16 @@ extern uint32_t tailscale_tunnel_ip;     // Tailnet IP, network byte order (0 if
 struct microlink_s;
 struct microlink_s *tailscale_get_microlink(void);
 
+/* Non-blocking task-context lease; never take it from a TCP/IP callback. */
+bool tailscale_lifecycle_try_acquire(void);
+void tailscale_lifecycle_release(void);
+uint32_t tailscale_lifecycle_generation(void); /* read while leased */
+
+/* Actual boot policy, not the editable/saved switch. Changes need restart. */
+bool tailscale_exit_server_active(void);
+#define TAILSCALE_PEERAPI_PORT 41180
+uint16_t tailscale_peerapi_port(void);
+
 // Lifecycle
 void init_sntp_if_needed(void);          // Start SNTP once (idempotent); defined in tailscale_manager.c
 void tailscale_init(void);               // Load NVS settings; call once from app_main

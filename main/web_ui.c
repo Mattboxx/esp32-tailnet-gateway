@@ -22,6 +22,7 @@
 #include "lwip/sockets.h"
 #include "web_ui.h"
 #include "tailscale_config.h"
+#include "peer_dns.h"
 #include "tailscale_mtu.h"
 #include "nvs_params.h"
 #include "microlink.h"
@@ -80,8 +81,8 @@ extern void wifi_ap_policy_set_auto_off(bool auto_off);
 /* sdkconfig.defaults does not override an existing generated sdkconfig.
  * Refuse stale socket budgets: HTTP, microlink, DNS, MQTT and SNMP consume
  * descriptors before ntfy or another browser can open a connection. */
-#if CONFIG_LWIP_MAX_SOCKETS < 26
-#error "Set CONFIG_LWIP_MAX_SOCKETS=26 in the active sdkconfig; use the pinned IDF 5.5.3 platform"
+#if CONFIG_LWIP_MAX_SOCKETS < 31
+#error "Set CONFIG_LWIP_MAX_SOCKETS=31 in the active sdkconfig; use the pinned IDF 5.5.3 platform"
 #endif
 
 static const char *TAG = "web_ui";
@@ -2939,6 +2940,9 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     cJSON_AddBoolToObject  (settings, "accept_routes",           tailscale_accept_routes != 0);
     cJSON_AddBoolToObject  (settings, "snat_subnet_routes",      tailscale_snat_subnet_routes != 0);
     cJSON_AddBoolToObject  (settings, "advertise_exit_node",     tailscale_advertise_exit_node != 0);
+    cJSON_AddBoolToObject(settings, "exit_server_active", tailscale_exit_server_active());
+    cJSON_AddBoolToObject(settings, "exit_dns_running", peer_dns_is_running());
+    cJSON_AddNumberToObject(settings, "peerapi_port", tailscale_peerapi_port());
     {
         int32_t saved = 0;
         (void)nvs_param_get_int("ts_exit_node", &saved);
