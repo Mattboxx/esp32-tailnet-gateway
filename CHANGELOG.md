@@ -6,6 +6,24 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.10-dev.5 — network hook and forwarding persistence fixes
+
+- Identify the WireGuard input interface by its pinned driver's `wg` name
+  as well as its Tailnet address. Never hook a CGNAT Wi-Fi, Ethernet or AP
+  interface as a raw-IP tunnel; preserve the physical input/ACL chain.
+- Keep the AP-side forwarding table unchanged until its NVS write and commit
+  succeed. Failed saves cannot show or later install unpersisted rules.
+- Publish and snapshot the AP table with a short cross-core critical section,
+  without holding it across NVS, Tailnet resolution or lwIP operations.
+- Remove stale AP/Tailnet bindings and clear installed status on a refresh
+  with no STA address; restore the saved mappings when the uplink returns.
+- Add actual-C regressions for delayed tunnel discovery on CGNAT uplinks,
+  idempotence, input/drop chaining, NVS open/write/commit failures, in-flight
+  rule visibility, subsequent refresh, port conflicts and uplink loss/recovery.
+  Both new regressions reproduced failures before their fixes. Run with
+  ASan/UBSan in CI; this candidate has not been flashed or hardware-certified.
+- Retain all dev.4 update, ntfy privacy/transport and existing fork features.
+
 ### 0.1.31-Mattboxx-1.10-dev.4 — opt-in fork updates and ntfy transport/state hardening
 
 - Disable Install latest update after a successful check finds no newer

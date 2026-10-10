@@ -13,6 +13,7 @@
 #include "tailnet_forward.h"
 #include "web_ui.h"
 #include "tailscale_config.h"
+#include "freertos/FreeRTOS.h"
 
 static const char *TAG = "portmap";
 
@@ -21,52 +22,73 @@ static const char *TAG = "portmap";
 static portmap_entry_t s_table[PORTMAP_MAX];
 static int             s_count  = 0;
 static bool            s_loaded = false;
+/* Only the HTTP task writes the saved AP table. Publish/copy it under a
+ * short cross-core lock; never hold this lock across NVS, lwIP or Tailnet. */
+static portMUX_TYPE s_table_lock = portMUX_INITIALIZER_UNLOCKED;
 typedef struct { uint8_t proto; uint16_t port; } installed_t;
 static installed_t s_installed[PORTMAP_MAX + TAILNET_FORWARD_MAX];
 static int s_installed_count;
 
-static void clear_cache(void)
+static bool cache_loaded(void)
 {
-    memset(s_table, 0, sizeof s_table);
-    s_count = 0;
+    portENTER_CRITICAL(&s_table_lock);
+    bool loaded = s_loaded;
+    portEXIT_CRITICAL(&s_table_lock);
+    return loaded;
+}
+
+static void publish_table(const portmap_entry_t *table, int count)
+{
+    portENTER_CRITICAL(&s_table_lock);
+    memcpy(s_table, table, sizeof s_table);
+    s_count = count;
+    s_loaded = true;
+    portEXIT_CRITICAL(&s_table_lock);
 }
 
 void portmap_init(void)
 {
-    clear_cache();
+    if (cache_loaded()) return;
+    portmap_entry_t table[PORTMAP_MAX] = {0};
+    int count = 0;
 
     nvs_handle_t nvs;
     if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs) == ESP_OK) {
         size_t expected = sizeof s_table;
         size_t actual   = expected;
-        if (nvs_get_blob(nvs, NVS_KEY, s_table, &actual) == ESP_OK
+        if (nvs_get_blob(nvs, NVS_KEY, table, &actual) == ESP_OK
             && actual == expected) {
             for (int i = 0; i < PORTMAP_MAX; i++) {
-                if (s_table[i].valid) s_count++;
+                if (table[i].valid) count++;
             }
-            ESP_LOGI(TAG, "loaded %d portmap(s) from NVS", s_count);
+            ESP_LOGI(TAG, "loaded %d portmap(s) from NVS", count);
         } else {
-            clear_cache();
+            memset(table, 0, sizeof table);
         }
         nvs_close(nvs);
     }
 
-    s_loaded = true;
+    publish_table(table, count);
 }
 
 int portmap_count(void)
 {
-    if (!s_loaded) portmap_init();
-    return s_count;
+    if (!cache_loaded()) portmap_init();
+    portENTER_CRITICAL(&s_table_lock);
+    int count = s_count;
+    portEXIT_CRITICAL(&s_table_lock);
+    return count;
 }
 
 bool portmap_get(int i, portmap_entry_t *out)
 {
-    if (!s_loaded) portmap_init();
+    if (!cache_loaded()) portmap_init();
     if (!out || i < 0 || i >= PORTMAP_MAX) return false;
-    if (!s_table[i].valid) return false;
-    memcpy(out, &s_table[i], sizeof *out);
-    return true;
+    portENTER_CRITICAL(&s_table_lock);
+    bool valid = s_table[i].valid;
+    if (valid) memcpy(out, &s_table[i], sizeof *out);
+    portEXIT_CRITICAL(&s_table_lock);
+    return valid;
 }
 
 static bool entry_is_filled(const portmap_entry_t *e)
@@ -78,9 +100,12 @@ static bool entry_is_filled(const portmap_entry_t *e)
 
 bool portmap_listen_conflicts(uint8_t proto, uint16_t port)
 {
+    bool conflict = false;
+    portENTER_CRITICAL(&s_table_lock);
     for (int i = 0; i < PORTMAP_MAX; i++)
-        if (s_table[i].valid && s_table[i].proto == proto && s_table[i].ext_port == port) return true;
-    return false;
+        if (s_table[i].valid && s_table[i].proto == proto && s_table[i].ext_port == port) { conflict = true; break; }
+    portEXIT_CRITICAL(&s_table_lock);
+    return conflict;
 }
 
 esp_err_t portmap_set_all(const portmap_entry_t *arr, int count)
@@ -99,36 +124,51 @@ esp_err_t portmap_set_all(const portmap_entry_t *arr, int count)
             if (entry_is_filled(&arr[j]) && arr[j].proto == arr[i].proto && arr[j].ext_port == arr[i].ext_port)
                 return ESP_ERR_INVALID_STATE;
     }
-    clear_cache();
+    portmap_entry_t candidate[PORTMAP_MAX] = {0};
+    int candidate_count = 0;
     for (int i = 0; i < count; i++) {
         if (!entry_is_filled(&arr[i])) continue;
-        memcpy(&s_table[s_count], &arr[i], sizeof s_table[0]);
-        s_table[s_count].valid = 1;
-        s_count++;
+        memcpy(&candidate[candidate_count], &arr[i], sizeof candidate[0]);
+        candidate[candidate_count].valid = 1;
+        candidate_count++;
     }
 
     nvs_handle_t nvs;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
     if (err != ESP_OK) return err;
-    err = nvs_set_blob(nvs, NVS_KEY, s_table, sizeof s_table);
+    err = nvs_set_blob(nvs, NVS_KEY, candidate, sizeof candidate);
     if (err == ESP_OK) err = nvs_commit(nvs);
     nvs_close(nvs);
 
     if (err == ESP_OK) {
-        ESP_LOGI(TAG, "saved %d portmap(s) to NVS", s_count);
+        /* Do not expose or install the new policy until it is durable.
+         * A failed save must leave the old cache and bindings unchanged,
+         * including on a later DHCP-triggered refresh. */
+        publish_table(candidate, candidate_count);
+        ESP_LOGI(TAG, "saved %d portmap(s) to NVS", candidate_count);
         /* Re-install so the live NAPT bindings track the new table. */
         portmap_install_all();
     } else {
         ESP_LOGE(TAG, "save failed: %s", esp_err_to_name(err));
     }
-    s_loaded = true;
     return err;
 }
 
 static void portmap_install_cb(void *arg)
 {
     (void)arg;
-    if (!s_loaded) portmap_init();
+    if (!cache_loaded()) portmap_init();
+    portmap_entry_t table[PORTMAP_MAX];
+    portENTER_CRITICAL(&s_table_lock);
+    memcpy(table, s_table, sizeof table);
+    portEXIT_CRITICAL(&s_table_lock);
+
+    /* Remove stale bindings even when the uplink has lost its address.
+     * Tailnet runtime status must not report these mappings as installed. */
+    for (int i = 0; i < s_installed_count; i++)
+        ip_portmap_remove(s_installed[i].proto, s_installed[i].port);
+    s_installed_count = 0;
+    tailnet_forward_prepare_install();
 
     /* Pull the current STA IP — without it the NAPT bind has nothing to
      * tie the external side to. Skip silently when STA isn't up yet;
@@ -141,18 +181,12 @@ static void portmap_install_cb(void *arg)
     }
     uint32_t bind_ip = ip_info.ip.addr;
 
-    /* The lwIP table is global. Remove everything we installed last time,
-     * including deleted rules, before rebuilding both independent tables. */
-    for (int i = 0; i < s_installed_count; i++)
-        ip_portmap_remove(s_installed[i].proto, s_installed[i].port);
-    s_installed_count = 0;
-    tailnet_forward_prepare_install();
     int ap_installed = 0, tailnet_installed = 0;
     for (int i = 0; i < PORTMAP_MAX; i++) {
-        if (!s_table[i].valid) continue;
-        if (ip_portmap_add(s_table[i].proto, bind_ip, s_table[i].ext_port,
-                           s_table[i].int_ip, s_table[i].int_port)) {
-            s_installed[s_installed_count++] = (installed_t){s_table[i].proto, s_table[i].ext_port};
+        if (!table[i].valid) continue;
+        if (ip_portmap_add(table[i].proto, bind_ip, table[i].ext_port,
+                           table[i].int_ip, table[i].int_port)) {
+            s_installed[s_installed_count++] = (installed_t){table[i].proto, table[i].ext_port};
             ap_installed++;
         }
     }

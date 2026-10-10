@@ -286,6 +286,12 @@ static void netif_hooks_refresh_cb(void *arg)
     (void)arg;
     extern struct netif *netif_list;
     for (struct netif *n = netif_list; n; n = n->next) {
+        /* The uplink (e.g. LTE/Starlink) or AP can also use 100.64/10.
+         * The pinned WireGuard driver identifies its raw-IP netif as "wg".
+         * Never replace a physical interface's Ethernet/ACL input based
+         * only on its address: that also corrupts the saved input chain
+         * when the real tunnel is created later. */
+        if (n->name[0] != 'w' || n->name[1] != 'g') continue;
         const ip4_addr_t *a = netif_ip4_addr(n);
         if (!a || ip4_addr_isany_val(*a)) continue;
         uint32_t h = lwip_ntohl(a->addr);
