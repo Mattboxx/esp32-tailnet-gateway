@@ -6,7 +6,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### 0.1.31-Mattboxx-1.10-dev.1 — opt-in fork updates and ntfy transport hardening
+### 0.1.31-Mattboxx-1.10-dev.2 — opt-in fork updates and ntfy transport/state hardening
 
 - Disable Install latest update after a successful check finds no newer
   compatible release; re-enable it when an update is found. Preserve one-click
@@ -16,6 +16,15 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   final ntfy server URL; redirect responses fail without executing commands.
 - Reject ntfy token header-control characters and stop before network access
   if the Authorization header cannot be allocated. Anonymous topics still work.
+- Discard obsolete ntfy poll replies after settings changes, including a
+  disable/re-enable cycle, and recheck the offline-only policy before dispatch.
+- Persist ntfy settings and their endpoint-bound command cursor in one validated
+  NVS record; migrate legacy settings automatically and fail closed on corruption.
+- Reject missing/unsafe/oversized command IDs and defer command execution when
+  its replay cursor cannot persist. Keep encrypted token backup/restore working
+  with the authoritative configuration; report storage failures as HTTP 500.
+- Add actual-C settings-change, cursor-write failure, state reload and migration
+  regressions. Commands already accepted may finish; this is not WOL cancellation.
 - Default-OFF periodic GitHub checks, automatic install, stable/beta channels
   and optional device-local-time hourly window, with graphical System switches.
 - Manual Check now and Install latest update perform asynchronous GitHub

@@ -16,7 +16,7 @@ class NtfyStackTests(unittest.TestCase):
     def test_heavy_frames_not_inlined(self):
         source = (ROOT / 'main/ntfy_integration.c').read_text()
         for name in ('publish_message', 'send_info', 'handle_command',
-                     'poll_commands', 'send_tailscale_alert'):
+                     'poll_commands', 'send_tailscale_alert', 'save_state'):
             self.assertRegex(source, rf'static NTFY_NOINLINE \w+ {name}\(')
         self.assertIn('#define NTFY_TASK_STACK_BYTES 12288', source)
         self.assertIn('!= pdPASS', source)
@@ -37,7 +37,7 @@ def check_elf(objdump, elf):
     disassembly = subprocess.check_output([objdump, '-d', str(elf)], text=True)
     limits = {'task_main': 768, 'poll_commands': 1280, 'send_info': 2048,
               'send_tailscale_alert': 256, 'handle_command': 512,
-              'publish_message': 1024}
+              'publish_message': 1024, 'save_state': 768}
     frames = {}
     for name, limit in limits.items():
         match = re.search(rf'<{name}>:\s*\n[^\n]*\bentry\s+a1,\s*(0x[\da-f]+|\d+)', disassembly)

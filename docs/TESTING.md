@@ -27,6 +27,9 @@ on a supported compiler to run ASan/UBSan, as CI does.
 `python tools/test_ntfy_transport.py` compiles the actual publish/poll and
 authorization paths. It checks redirect refusal, 401/403/500 failures, token
 control characters, header-allocation failure and direct/anonymous success.
+It also changes settings during a simulated poll and between messages, injects
+cursor/settings persistence failures, checks ID validation, and exercises actual
+state loading/migration without reverting to legacy enabled settings on error.
 Set `CJSON_SOURCE` to the SDK's `components/json/cJSON/cJSON.c` on Windows,
 or install `libcjson-dev`/`pkg-config` on Linux. CI runs this with sanitizers.
 

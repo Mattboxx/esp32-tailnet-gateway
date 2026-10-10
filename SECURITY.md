@@ -58,6 +58,11 @@ token header-control characters and fail before networking if the Authorization
 header cannot be installed. Anonymous topics still work when explicitly chosen.
 This is not protection against a compromised configured server or public topic.
 Use HTTPS and broker-side access controls; explicit HTTP remains unencrypted.
+Queued command replies are revalidated after configuration changes and tunnel
+recovery. Settings and the endpoint-bound replay cursor share one validated NVS
+record; persistence errors defer command execution rather than risk a reboot
+replay. Already accepted commands may finish. Legacy settings migrate once;
+invalid new state does not silently reactivate the old enabled configuration.
 See [confirmed issues and regression coverage](docs/NTFY-TRANSPORT.md).
 
 ## Reporting a Vulnerability

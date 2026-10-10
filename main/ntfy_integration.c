@@ -32,6 +32,7 @@
 #include "microlink.h"
 #include "mqtt_integration.h"
 #include "nvs_params.h"
+#include "nvs.h"
 #include "tailscale_config.h"
 #include "peer_dns.h"
 #include "ota_remote.h"
@@ -45,6 +46,8 @@ static ntfy_integration_status_t s_status;
 static SemaphoreHandle_t s_lock;
 static TaskHandle_t s_task;
 static char s_last_event_id[48];
+/* Changes invalidate queued replies, including a disable/re-enable cycle. */
+static uint64_t s_config_generation;
 
 /* TLS certificate verification needs its own stack reserve. Keep the large
  * reporting/polling frames out of task_main: GCC otherwise inlines them and
@@ -87,29 +90,38 @@ static void defaults(ntfy_integration_config_t *c)
     c->info_enabled = true;
 }
 
-static void load_string(const char *key, char *out, size_t size)
+static bool load_string(const char *key, char *out, size_t size)
 {
-    char *value = nvs_param_get_str(key);
-    if (value) { strlcpy(out, value, size); free(value); }
+    /* Distinguish a missing optional key from a read/allocation/type error.
+     * Never turn a failed token read into an anonymous configuration. */
+    size_t length = size;
+    esp_err_t err = nvs_param_get_str_buf(key, out, &length);
+    return err == ESP_OK || err == ESP_ERR_NVS_NOT_FOUND;
 }
 
-static void load_config(ntfy_integration_config_t *c)
+static bool load_config(ntfy_integration_config_t *c)
 {
     defaults(c);
-    uint8_t b;
-    uint16_t u16;
-    if (nvs_param_get_u8("ntfy_en", &b) == ESP_OK) c->enabled = b != 0;
-    if (nvs_param_get_u8("ntfy_alert", &b) == ESP_OK) c->tailscale_alerts = b != 0;
-    if (nvs_param_get_u8("ntfy_cmd", &b) == ESP_OK) c->commands_enabled = b != 0;
-    if (nvs_param_get_u8("ntfy_down", &b) == ESP_OK) c->commands_only_when_tailscale_down = b != 0;
-    if (nvs_param_get_u8("ntfy_mac", &b) == ESP_OK) c->allow_direct_mac = b != 0;
-    if (nvs_param_get_u8("ntfy_info", &b) == ESP_OK) c->info_enabled = b != 0;
-    if (nvs_param_get_u8("ntfy_infdet", &b) == ESP_OK) c->info_include_details = b != 0;
-    if (nvs_param_get_u16("ntfy_delay", &u16) == ESP_OK) c->failure_delay_seconds = u16;
-    if (nvs_param_get_u16("ntfy_poll", &u16) == ESP_OK) c->poll_interval_seconds = u16;
-    load_string("ntfy_srv", c->server, sizeof c->server);
-    load_string("ntfy_topic", c->topic, sizeof c->topic);
-    load_string("ntfy_token", c->token, sizeof c->token);
+    bool valid = true;
+#define LOAD_U8(key, field) do { uint8_t b; esp_err_t err = nvs_param_get_u8((key), &b); \
+    if (err == ESP_OK && b <= 1) (field) = b != 0; \
+    else if (err != ESP_ERR_NVS_NOT_FOUND) valid = false; } while (0)
+#define LOAD_U16(key, field) do { uint16_t n; esp_err_t err = nvs_param_get_u16((key), &n); \
+    if (err == ESP_OK) (field) = n; \
+    else if (err != ESP_ERR_NVS_NOT_FOUND) valid = false; } while (0)
+    LOAD_U8("ntfy_en", c->enabled); LOAD_U8("ntfy_alert", c->tailscale_alerts);
+    LOAD_U8("ntfy_cmd", c->commands_enabled);
+    LOAD_U8("ntfy_down", c->commands_only_when_tailscale_down);
+    LOAD_U8("ntfy_mac", c->allow_direct_mac); LOAD_U8("ntfy_info", c->info_enabled);
+    LOAD_U8("ntfy_infdet", c->info_include_details);
+    LOAD_U16("ntfy_delay", c->failure_delay_seconds);
+    LOAD_U16("ntfy_poll", c->poll_interval_seconds);
+#undef LOAD_U8
+#undef LOAD_U16
+    valid = load_string("ntfy_srv", c->server, sizeof c->server) && valid;
+    valid = load_string("ntfy_topic", c->topic, sizeof c->topic) && valid;
+    valid = load_string("ntfy_token", c->token, sizeof c->token) && valid;
+    return valid;
 }
 
 static bool topic_valid(const char *topic)
@@ -145,6 +157,103 @@ static bool config_valid(const ntfy_integration_config_t *c)
     return (!c->enabled || (server_ok && topic_valid(c->topic)))
         && c->failure_delay_seconds >= 15 && c->failure_delay_seconds <= 3600
         && c->poll_interval_seconds >= 5 && c->poll_interval_seconds <= 300;
+}
+
+/* Configuration and its endpoint-bound replay cursor are one versioned NVS
+ * value. Writing individual keys can leave a partially updated configuration
+ * after a flash allocation failure or reset. Never serialize native bools:
+ * validate an explicit bitset before decoding untrusted persisted bytes. */
+typedef struct {
+    uint32_t schema;
+    uint32_t flags;
+    uint16_t delay, poll;
+    char server[160], topic[96], token[160], cursor[48];
+} saved_ntfy_state_t;
+
+static bool event_id_valid(const char *id)
+{
+    size_t length = 0;
+    if (!id || !id[0]) return false;
+    for (const unsigned char *p = (const unsigned char *)id; *p; ++p) {
+        if (++length >= sizeof s_last_event_id ||
+            !((*p >= 'a' && *p <= 'z') || (*p >= 'A' && *p <= 'Z') ||
+              (*p >= '0' && *p <= '9') || *p == '-' || *p == '_')) return false;
+    }
+    return true;
+}
+
+/* Caller holds s_lock (or runs before the worker is started). This lock is
+ * held only for short NVS operations, never across HTTP/TLS or command work. */
+static NTFY_NOINLINE esp_err_t save_state(const ntfy_integration_config_t *c,
+                                        const char *cursor)
+{
+    saved_ntfy_state_t saved = {0};
+    saved.schema = 1;
+    saved.flags = (c->enabled ? 1U : 0) | (c->tailscale_alerts ? 2U : 0) |
+        (c->commands_enabled ? 4U : 0) | (c->commands_only_when_tailscale_down ? 8U : 0) |
+        (c->allow_direct_mac ? 16U : 0) | (c->info_enabled ? 32U : 0) |
+        (c->info_include_details ? 64U : 0);
+    saved.delay = c->failure_delay_seconds; saved.poll = c->poll_interval_seconds;
+    strlcpy(saved.server, c->server, sizeof saved.server);
+    strlcpy(saved.topic, c->topic, sizeof saved.topic);
+    strlcpy(saved.token, c->token, sizeof saved.token);
+    strlcpy(saved.cursor, cursor, sizeof saved.cursor);
+    nvs_handle_t nvs;
+    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
+    if (err == ESP_OK) {
+        err = nvs_set_blob(nvs, "ntfy_state_v1", &saved, sizeof saved);
+        if (err == ESP_OK) err = nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+    return err;
+}
+
+static void load_state(ntfy_integration_config_t *c)
+{
+    defaults(c);
+    s_last_event_id[0] = 0;
+    saved_ntfy_state_t saved;
+    size_t length = sizeof saved;
+    nvs_handle_t nvs;
+    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs);
+    if (err == ESP_OK) {
+        err = nvs_get_blob(nvs, "ntfy_state_v1", &saved, &length);
+        nvs_close(nvs);
+    }
+    if (err == ESP_ERR_NVS_NOT_FOUND) {
+        /* One-time migration. Keep legacy values untouched for recovery;
+         * after success the new record is authoritative, even if corrupt. */
+        bool legacy_valid = load_config(c);
+        if (!load_string("ntfy_last", s_last_event_id, sizeof s_last_event_id))
+            s_last_event_id[0] = 0;
+        if (!event_id_valid(s_last_event_id)) s_last_event_id[0] = 0;
+        if (legacy_valid && config_valid(c) && save_state(c, s_last_event_id) == ESP_OK) return;
+    } else if (err == ESP_OK && length == sizeof saved && saved.schema == 1 &&
+               (saved.flags & ~127U) == 0 &&
+               memchr(saved.server, 0, sizeof saved.server) &&
+               memchr(saved.topic, 0, sizeof saved.topic) &&
+               memchr(saved.token, 0, sizeof saved.token) &&
+               memchr(saved.cursor, 0, sizeof saved.cursor) &&
+               (!saved.cursor[0] || event_id_valid(saved.cursor))) {
+        c->enabled = (saved.flags & 1U) != 0;
+        c->tailscale_alerts = (saved.flags & 2U) != 0;
+        c->commands_enabled = (saved.flags & 4U) != 0;
+        c->commands_only_when_tailscale_down = (saved.flags & 8U) != 0;
+        c->allow_direct_mac = (saved.flags & 16U) != 0;
+        c->info_enabled = (saved.flags & 32U) != 0;
+        c->info_include_details = (saved.flags & 64U) != 0;
+        c->failure_delay_seconds = saved.delay; c->poll_interval_seconds = saved.poll;
+        strlcpy(c->server, saved.server, sizeof c->server);
+        strlcpy(c->topic, saved.topic, sizeof c->topic);
+        strlcpy(c->token, saved.token, sizeof c->token);
+        if (config_valid(c)) {
+            strlcpy(s_last_event_id, saved.cursor, sizeof s_last_event_id);
+            return;
+        }
+    }
+    /* Never fall back to an old enabled configuration on corruption/errors. */
+    defaults(c); s_last_event_id[0] = 0;
+    ESP_LOGW(TAG, "Stored settings unavailable or invalid; integration disabled");
 }
 
 static void snapshot(ntfy_integration_config_t *out)
@@ -395,10 +504,33 @@ static bool response_is_ours(cJSON *root)
     return cJSON_IsString(title) && strncmp(title->valuestring, "ESP32 ", 6) == 0;
 }
 
+static bool config_equal(const ntfy_integration_config_t *a, const ntfy_integration_config_t *b)
+{
+    return a->enabled == b->enabled && a->tailscale_alerts == b->tailscale_alerts &&
+           a->commands_enabled == b->commands_enabled &&
+           a->commands_only_when_tailscale_down == b->commands_only_when_tailscale_down &&
+           a->allow_direct_mac == b->allow_direct_mac && a->info_enabled == b->info_enabled &&
+           a->info_include_details == b->info_include_details &&
+           a->failure_delay_seconds == b->failure_delay_seconds &&
+           a->poll_interval_seconds == b->poll_interval_seconds &&
+           strcmp(a->server, b->server) == 0 && strcmp(a->topic, b->topic) == 0 &&
+           strcmp(a->token, b->token) == 0;
+}
+
+static bool poll_current_locked(const ntfy_integration_config_t *c, uint64_t generation)
+{
+    return generation == s_config_generation && config_equal(c, &s_config) &&
+           c->enabled && c->commands_enabled &&
+           (!c->commands_only_when_tailscale_down ||
+            (tailscale_enabled && !tailscale_is_connected()));
+}
+
 static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
 {
     char cursor[sizeof s_last_event_id];
     xSemaphoreTake(s_lock, portMAX_DELAY);
+    uint64_t generation = s_config_generation;
+    if (!poll_current_locked(c, generation)) { xSemaphoreGive(s_lock); return; }
     strlcpy(cursor, s_last_event_id, sizeof cursor);
     xSemaphoreGive(s_lock);
 
@@ -442,14 +574,26 @@ static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
         cJSON *kind = cJSON_GetObjectItem(event, "event");
         cJSON *msg = cJSON_GetObjectItem(event, "message");
         if (cJSON_IsString(kind) && strcmp(kind->valuestring, "message") == 0) {
-            bool duplicate = false;
-            if (cJSON_IsString(id)) {
-                xSemaphoreTake(s_lock, portMAX_DELAY);
-                duplicate = strcmp(s_last_event_id, id->valuestring) == 0;
+            /* No ID means no durable replay protection. Reject IDs that could
+             * truncate or inject additional query parameters into `since`. */
+            if (!cJSON_IsString(id) || !event_id_valid(id->valuestring)) {
+                cJSON_Delete(event); continue;
+            }
+            xSemaphoreTake(s_lock, portMAX_DELAY);
+            if (!poll_current_locked(c, generation)) {
+                xSemaphoreGive(s_lock); cJSON_Delete(event); break;
+            }
+            bool duplicate = strcmp(s_last_event_id, id->valuestring) == 0;
+            /* Persist BEFORE dispatch; otherwise a flash error followed by a
+             * reboot can replay WOL. Serialized with configuration saves so
+             * an old poll cannot overwrite a new topic's cursor/settings. */
+            esp_err_t saved = duplicate ? ESP_OK : save_state(c, id->valuestring);
+            if (saved == ESP_OK && !duplicate)
                 strlcpy(s_last_event_id, id->valuestring, sizeof s_last_event_id);
-                xSemaphoreGive(s_lock);
-                /* Prevent a reboot from replaying a cached WOL command. */
-                (void)nvs_param_set_str("ntfy_last", id->valuestring);
+            xSemaphoreGive(s_lock);
+            if (saved != ESP_OK) {
+                ESP_LOGW(TAG, "Cannot persist command cursor; dispatch deferred");
+                cJSON_Delete(event); break;
             }
             if (!duplicate && cJSON_IsString(msg) && !response_is_ours(event))
                 handle_command(c, msg->valuestring);
@@ -528,8 +672,7 @@ void ntfy_integration_init(void)
     if (s_task) return;
     s_lock = xSemaphoreCreateMutex();
     if (!s_lock) return;
-    load_config(&s_config);
-    load_string("ntfy_last", s_last_event_id, sizeof s_last_event_id);
+    load_state(&s_config);
     if (xTaskCreate(task_main, "ntfy", NTFY_TASK_STACK_BYTES, NULL, 3, &s_task) != pdPASS) {
         s_task = NULL;
         ESP_LOGE(TAG, "Cannot allocate ntfy worker stack");
@@ -559,34 +702,17 @@ esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *c)
 {
     if (!config_valid(c)) return ESP_ERR_INVALID_ARG;
     if (!s_lock || !s_task) return ESP_ERR_INVALID_STATE;
-    ntfy_integration_config_t old;
-    snapshot(&old);
-    bool endpoint_changed = strcmp(old.server, c->server) != 0
-                         || strcmp(old.topic, c->topic) != 0;
-    esp_err_t e = nvs_param_set_u8("ntfy_en", c->enabled);
-#define SAVE_U8(k,v) do { if (e == ESP_OK) e = nvs_param_set_u8((k),(v)?1:0); } while (0)
-#define SAVE_STR(k,v) do { if (e == ESP_OK) e = nvs_param_set_str((k),(v)); } while (0)
-    SAVE_U8("ntfy_alert", c->tailscale_alerts);
-    SAVE_U8("ntfy_cmd", c->commands_enabled);
-    SAVE_U8("ntfy_down", c->commands_only_when_tailscale_down);
-    SAVE_U8("ntfy_mac", c->allow_direct_mac);
-    SAVE_U8("ntfy_info", c->info_enabled);
-    SAVE_U8("ntfy_infdet", c->info_include_details);
-    SAVE_STR("ntfy_srv", c->server); SAVE_STR("ntfy_topic", c->topic);
-    SAVE_STR("ntfy_token", c->token);
-#undef SAVE_U8
-#undef SAVE_STR
-    if (e == ESP_OK) e = nvs_param_set_u16("ntfy_delay", c->failure_delay_seconds);
-    if (e == ESP_OK) e = nvs_param_set_u16("ntfy_poll", c->poll_interval_seconds);
-    if (e != ESP_OK) return e;
-    xSemaphoreTake(s_lock, portMAX_DELAY); memcpy(&s_config, c, sizeof *c); xSemaphoreGive(s_lock);
-    if (endpoint_changed) {
-        xSemaphoreTake(s_lock, portMAX_DELAY);
-        s_last_event_id[0] = '\0';
-        xSemaphoreGive(s_lock);
-        (void)nvs_param_erase("ntfy_last");
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    bool endpoint_changed = strcmp(s_config.server, c->server) != 0
+                         || strcmp(s_config.topic, c->topic) != 0;
+    esp_err_t e = save_state(c, endpoint_changed ? "" : s_last_event_id);
+    if (e == ESP_OK) {
+        memcpy(&s_config, c, sizeof *c);
+        s_config_generation++;
+        if (endpoint_changed) s_last_event_id[0] = '\0';
     }
-    return ESP_OK;
+    xSemaphoreGive(s_lock);
+    return e;
 }
 
 esp_err_t ntfy_integration_send_test(void)

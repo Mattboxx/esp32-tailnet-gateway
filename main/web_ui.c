@@ -2017,7 +2017,12 @@ static esp_err_t ntfy_save_handler(httpd_req_t *req)
     if(cJSON_IsNumber(item)) c.poll_interval_seconds=(uint16_t)item->valueint;
     cJSON_Delete(root);
     esp_err_t err = ntfy_integration_set_config(&c);
-    if (err != ESP_OK) { httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid ntfy settings"); return ESP_FAIL; }
+    if (err != ESP_OK) {
+        if (err == ESP_ERR_INVALID_ARG)
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid ntfy settings");
+        else httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "ntfy settings could not be saved");
+        return ESP_FAIL;
+    }
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_sendstr(req, "{\"ok\":true}");
 }
@@ -3783,8 +3788,8 @@ static const httpd_uri_t uri_updates_install = { .uri = "/api/system/updates/ins
  * Plain-text secrets bundle. NEVER reached without a valid session, and
  * the SPA passphrase-encrypts the response BEFORE writing the backup
  * file to disk. Restore is the mirror image — SPA decrypts in the
- * browser, POSTs the plain bundle here, NVS writes happen atomically
- * through the same nvs_save_* helpers as every other config handler. */
+ * browser, POSTs the plain bundle here. Each module persists its values;
+ * this is not a transaction across all restored firmware settings. */
 static esp_err_t system_secrets_get_handler(httpd_req_t *req)
 {
     if (require_password_session(req) != ESP_OK) return ESP_FAIL;
@@ -3810,9 +3815,9 @@ static esp_err_t system_secrets_get_handler(httpd_req_t *req)
         free(s);
     }
     {
-        char *s = nvs_param_get_str("ntfy_token");
-        cJSON_AddStringToObject(root, "ntfy_token", s ? s : "");
-        free(s);
+        ntfy_integration_config_t ntfy;
+        ntfy_integration_get_config(&ntfy);
+        cJSON_AddStringToObject(root, "ntfy_token", ntfy.token);
     }
 
     /* Full network table including PSK + EAP credentials. Mirrors the
@@ -3871,10 +3876,27 @@ static esp_err_t system_secrets_post_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    const cJSON *ntfy_token = cJSON_GetObjectItemCaseSensitive(root, "ntfy_token");
+    if (ntfy_token) {
+        ntfy_integration_config_t ntfy;
+        ntfy_integration_get_config(&ntfy);
+        if (!cJSON_IsString(ntfy_token) || strlen(ntfy_token->valuestring) >= sizeof ntfy.token) {
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid ntfy token");
+            return ESP_FAIL;
+        }
+        strlcpy(ntfy.token, ntfy_token->valuestring, sizeof ntfy.token);
+        esp_err_t err = ntfy_integration_set_config(&ntfy);
+        if (err != ESP_OK) {
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, err == ESP_ERR_INVALID_ARG ? HTTPD_400_BAD_REQUEST :
+                               HTTPD_500_INTERNAL_SERVER_ERROR, "ntfy token could not be restored");
+            return ESP_FAIL;
+        }
+    }
     save_str_if_present(root, "auth_key",    "ts_authkey");
     save_str_if_present(root, "ap_password", "ap_passwd");
     save_str_if_present(root, "mqtt_password", "mqtt_pass");
-    save_str_if_present(root, "ntfy_token", "ntfy_token");
 
     /* Network array — only rewrite NVS when the client actually sent one,
      * so a partial restore (e.g. just the auth_key) doesn't wipe the
