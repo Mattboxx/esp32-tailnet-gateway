@@ -17,6 +17,7 @@
 #include "tailscale_config.h"
 #include "netif_hooks.h"
 #include "web_ui.h"
+#include "esp_log.h"
 
 #define NVS_KEY "tn_fwd"
 #define STORE_MAGIC 0x544e4631u
@@ -27,15 +28,28 @@ static tailnet_forward_runtime_t s_runtime[TAILNET_FORWARD_MAX];
 static int s_count;
 static bool s_loaded;
 static SemaphoreHandle_t s_lock;
+static StaticSemaphore_t s_lock_storage;
 #define LOCK() do { if (s_lock) xSemaphoreTake(s_lock, portMAX_DELAY); } while (0)
 #define UNLOCK() do { if (s_lock) xSemaphoreGive(s_lock); } while (0)
 
 static bool cgnat(uint32_t hbo) { return (hbo & 0xffc00000u) == 0x64400000u; }
 static bool hostname_valid(const char *s) {
-    size_t n = s ? strlen(s) : 0;
+    if (!s || !memchr(s, 0, TAILNET_FORWARD_DEST_LEN)) return false;
+    size_t n = strlen(s);
     if (!n || n >= TAILNET_FORWARD_DEST_LEN) return false;
     for (size_t i=0;i<n;i++) if (!(isalnum((unsigned char)s[i]) || s[i]=='-' || s[i]=='.')) return false;
     return s[0]!='.' && s[n-1]!='.';
+}
+
+static bool rule_is_valid(const tailnet_forward_rule_t *r)
+{
+    if (r->valid != 1 || r->enabled > 1 || (r->proto != 6 && r->proto != 17) ||
+        !r->listen_port || !r->destination_port || r->source_prefix > 32 ||
+        !memchr(r->name, 0, sizeof r->name) || !hostname_valid(r->destination)) return false;
+    uint32_t mask = r->source_prefix == 0 ? 0 : (r->source_prefix == 32 ? UINT32_MAX : UINT32_MAX << (32 - r->source_prefix));
+    /* Stored networks are already normalized by parse_cidr. Do not silently
+     * broaden an inconsistent saved policy while loading or accepting it. */
+    return (r->source_network & mask) == r->source_network;
 }
 
 esp_err_t tailnet_forward_parse_cidr(const char *text, uint32_t *network, uint8_t *prefix) {
@@ -76,11 +90,34 @@ static void manager(void *arg) {
 }
 void tailnet_forward_init(void) {
     if(s_loaded)return;
-    if(!s_lock)s_lock=xSemaphoreCreateMutex();
+    if(!s_lock)s_lock=xSemaphoreCreateMutexStatic(&s_lock_storage);
     memset(s_rules,0,sizeof s_rules);memset(s_runtime,0,sizeof s_runtime);
+    s_count=0;
     store_t st={0};size_t len=sizeof st;nvs_handle_t nvs;
-    if(nvs_open(NVS_NAMESPACE,NVS_READONLY,&nvs)==ESP_OK){if(nvs_get_blob(nvs,NVS_KEY,&st,&len)==ESP_OK&&len==sizeof st&&st.magic==STORE_MAGIC){memcpy(s_rules,st.rules,sizeof s_rules);for(int i=0;i<TAILNET_FORWARD_MAX;i++)if(s_rules[i].valid)s_count++;}nvs_close(nvs);}
-    s_loaded=true;xTaskCreate(manager,"tn_forward",4096,NULL,4,NULL);
+    if(nvs_open(NVS_NAMESPACE,NVS_READONLY,&nvs)==ESP_OK){
+        if(nvs_get_blob(nvs,NVS_KEY,&st,&len)==ESP_OK&&len==sizeof st&&st.magic==STORE_MAGIC){
+            bool valid=true;
+            for(int i=0;i<TAILNET_FORWARD_MAX;i++){
+                const tailnet_forward_rule_t *r=&st.rules[i];
+                if(!r->valid)continue;
+                ip4_addr_t a;
+                if(!rule_is_valid(r)||(ip4addr_aton(r->destination,&a)&&!cgnat(lwip_ntohl(a.addr)))){valid=false;break;}
+                for(int j=0;j<s_count;j++)
+                    if(r->enabled&&s_rules[j].enabled&&r->proto==s_rules[j].proto&&r->listen_port==s_rules[j].listen_port){valid=false;break;}
+                if(!valid)break;
+                /* Compact occupied slots: runtime/getters iterate 0..count. */
+                s_rules[s_count++]=*r;
+            }
+            if(!valid){
+                memset(s_rules,0,sizeof s_rules);s_count=0;
+                ESP_LOGE("tn_forward","Invalid stored forwarding rules; ignoring the whole table");
+            }
+        }
+        nvs_close(nvs);
+    }
+    s_loaded=true;
+    if(xTaskCreate(manager,"tn_forward",4096,NULL,4,NULL)!=pdPASS)
+        ESP_LOGE("tn_forward","Forwarding manager could not start");
 }
 int tailnet_forward_count(void){if(!s_loaded)tailnet_forward_init();LOCK();int n=s_count;UNLOCK();return n;}
 bool tailnet_forward_get(int i,tailnet_forward_rule_t *r,tailnet_forward_runtime_t *rt){if(!s_loaded)tailnet_forward_init();LOCK();bool ok=i>=0&&i<s_count&&s_rules[i].valid;if(ok){if(r)*r=s_rules[i];if(rt)*rt=s_runtime[i];}UNLOCK();return ok;}
@@ -90,7 +127,7 @@ esp_err_t tailnet_forward_set_all(const tailnet_forward_rule_t *rules,int count,
     if(!rules||count<0||count>TAILNET_FORWARD_MAX)return ESP_ERR_INVALID_ARG;
     for(int i=0;i<count;i++){
         const tailnet_forward_rule_t *r=&rules[i];
-        if(!r->valid||(r->proto!=6&&r->proto!=17)||!r->listen_port||!r->destination_port||r->source_prefix>32||!hostname_valid(r->destination)){if(error)snprintf(error,en,"Invalid rule %d",i+1);return ESP_ERR_INVALID_ARG;}
+        if(!rule_is_valid(r)){if(error)snprintf(error,en,"Invalid rule %d",i+1);return ESP_ERR_INVALID_ARG;}
         ip4_addr_t a;if(ip4addr_aton(r->destination,&a)&&!cgnat(lwip_ntohl(a.addr))){if(error)snprintf(error,en,"Rule %d destination must be in 100.64.0.0/10",i+1);return ESP_ERR_INVALID_ARG;}
         for(int j=0;j<i;j++)if(rules[j].enabled&&r->enabled&&rules[j].proto==r->proto&&rules[j].listen_port==r->listen_port){if(error)snprintf(error,en,"Duplicate listen port in rule %d",i+1);return ESP_ERR_INVALID_STATE;}
         if(r->enabled&&portmap_listen_conflicts(r->proto,r->listen_port)){if(error)snprintf(error,en,"Rule %d conflicts with AP-side forwarding",i+1);return ESP_ERR_INVALID_STATE;}
@@ -110,14 +147,59 @@ bool tailnet_forward_get_mapping(int i,uint8_t *proto,uint16_t *listen,uint32_t 
 void tailnet_forward_prepare_install(void){LOCK();for(int i=0;i<s_count;i++)s_runtime[i].installed=false;UNLOCK();}
 void tailnet_forward_mark_installed(int i,bool ok,const char *err){LOCK();if(i>=0&&i<s_count){s_runtime[i].installed=ok;if(err)strlcpy(s_runtime[i].error,err,sizeof s_runtime[i].error);else if(ok)s_runtime[i].error[0]=0;}UNLOCK();}
 
-static bool packet_fields(struct pbuf *p,bool eth,uint32_t *src,uint8_t *proto,uint16_t *dport){
-    size_t off=eth?14:0;if(!p||p->len<off+24)return false;uint8_t *b=p->payload;if(eth&&(b[12]!=8||b[13]!=0))return false;
-    struct ip_hdr *ip=(struct ip_hdr *)(b+off);if(IPH_V(ip)!=4||(lwip_ntohs(IPH_OFFSET(ip))&IP_OFFMASK))return false;
-    uint16_t ihl=IPH_HL(ip)*4;if(ihl<20||p->len<off+ihl+4)return false;*proto=IPH_PROTO(ip);if(*proto!=6&&*proto!=17)return false;
-    memcpy(dport,b+off+ihl+2,2);*dport=lwip_ntohs(*dport);*src=lwip_ntohl(ip->src.addr);return true;
+static bool packet_fields(struct pbuf *p, bool eth, uint32_t *src,
+                          uint32_t *destination_nbo, uint8_t *proto, uint16_t *dport)
+{
+    /* Inspect bounded copies, not potentially unaligned/incomplete headers
+     * in the first pbuf. A split header must not bypass the source policy. */
+    uint16_t off = eth ? 14 : 0;
+    uint8_t ip[20], ports[4], type[2];
+    if (!p) return false;
+    if (eth && (pbuf_copy_partial(p, type, sizeof type, 12) != sizeof type ||
+                type[0] != 8 || type[1] != 0)) return false;
+    if (pbuf_copy_partial(p, ip, sizeof ip, off) != sizeof ip || (ip[0] >> 4) != 4) return false;
+    uint16_t ihl = (ip[0] & 15) * 4;
+    uint16_t total = ((uint16_t)ip[2] << 8) | ip[3];
+    uint16_t fragment = ((uint16_t)ip[6] << 8) | ip[7];
+    if (ihl < 20 || total < ihl + sizeof ports || (fragment & IP_OFFMASK)) return false;
+    *proto = ip[9];
+    if (*proto != 6 && *proto != 17) return false;
+    if (pbuf_copy_partial(p, ports, sizeof ports, off + ihl) != sizeof ports) return false;
+    *dport = ((uint16_t)ports[2] << 8) | ports[3];
+    uint32_t source_nbo;
+    memcpy(&source_nbo, ip + 12, sizeof source_nbo);
+    memcpy(destination_nbo, ip + 16, sizeof *destination_nbo);
+    *src = lwip_ntohl(source_nbo);
+    return true;
 }
-bool tailnet_forward_allow_uplink_packet(struct pbuf *p){uint32_t src;uint8_t proto;uint16_t dp;if(!packet_fields(p,true,&src,&proto,&dp))return true;LOCK();for(int i=0;i<s_count;i++)if(s_rules[i].valid&&s_rules[i].enabled&&s_rules[i].proto==proto&&s_rules[i].listen_port==dp){uint32_t mask=s_rules[i].source_prefix==0?0:(s_rules[i].source_prefix==32?0xffffffffu:0xffffffffu<<(32-s_rules[i].source_prefix));bool ok=s_runtime[i].installed&&((src&mask)==s_rules[i].source_network);if(ok)s_runtime[i].accepted_packets++;else s_runtime[i].blocked_packets++;UNLOCK();return ok;}UNLOCK();return true;}
-bool tailnet_forward_allow_non_uplink_packet(struct pbuf *p,bool eth){uint32_t src;uint8_t proto;uint16_t dp;if(!packet_fields(p,eth,&src,&proto,&dp))return true;return !tailnet_forward_listen_conflicts(proto,dp);}
+bool tailnet_forward_allow_uplink_packet(struct pbuf *p, uint32_t local_ip_nbo)
+{
+    uint32_t src, destination; uint8_t proto; uint16_t dp;
+    /* Match the pinned SDK's ip4_input DNAT condition: destination equals
+     * the receiving interface address. Routed traffic is not this listener. */
+    if (!local_ip_nbo || !packet_fields(p, true, &src, &destination, &proto, &dp) || destination != local_ip_nbo) return true;
+    LOCK();
+    for (int i = 0; i < s_count; i++) {
+        const tailnet_forward_rule_t *r = &s_rules[i];
+        if (!r->valid || !r->enabled || r->proto != proto || r->listen_port != dp) continue;
+        bool ok = false;
+        if (r->source_prefix <= 32) {
+            uint32_t mask = r->source_prefix == 0 ? 0 : (r->source_prefix == 32 ? UINT32_MAX : UINT32_MAX << (32 - r->source_prefix));
+            ok = s_runtime[i].installed && ((src & mask) == r->source_network);
+        }
+        if (ok) s_runtime[i].accepted_packets++; else s_runtime[i].blocked_packets++;
+        UNLOCK();
+        return ok;
+    }
+    UNLOCK();
+    return true;
+}
+bool tailnet_forward_allow_non_uplink_packet(struct pbuf *p, bool eth, uint32_t local_ip_nbo)
+{
+    uint32_t src, destination; uint8_t proto; uint16_t dp;
+    if (!local_ip_nbo || !packet_fields(p, eth, &src, &destination, &proto, &dp) || destination != local_ip_nbo) return true;
+    return !tailnet_forward_listen_conflicts(proto, dp);
+}
 bool tailnet_forward_is_routed_target(uint8_t proto,uint32_t dst,uint16_t port){uint32_t h=lwip_ntohl(dst);LOCK();bool found=false;for(int i=0;i<s_count;i++)if(s_runtime[i].installed&&s_rules[i].proto==proto&&s_runtime[i].resolved_ip==h&&s_rules[i].destination_port==port){found=true;break;}UNLOCK();return found;}
 bool tailnet_forward_is_routed_response(uint8_t proto,uint32_t src,uint16_t port){return tailnet_forward_is_routed_target(proto,src,port);}
 void tailnet_forward_totals(uint32_t *enabled,uint32_t *installed,uint32_t *accepted,uint32_t *blocked){uint32_t e=0,n=0,a=0,b=0;LOCK();for(int i=0;i<s_count;i++){if(s_rules[i].enabled)e++;if(s_runtime[i].installed)n++;a+=s_runtime[i].accepted_packets;b+=s_runtime[i].blocked_packets;}UNLOCK();if(enabled)*enabled=e;if(installed)*installed=n;if(accepted)*accepted=a;if(blocked)*blocked=b;}

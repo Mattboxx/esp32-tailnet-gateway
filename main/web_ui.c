@@ -2547,13 +2547,22 @@ static esp_err_t tailnet_forward_save_handler(httpd_req_t *req)
     for(int i=0;i<count;i++){
         cJSON *j=cJSON_GetArrayItem(arr,i);const cJSON *name=cJSON_GetObjectItem(j,"name"),*enabled=cJSON_GetObjectItem(j,"enabled"),*proto=cJSON_GetObjectItem(j,"protocol"),*lp=cJSON_GetObjectItem(j,"listen_port"),*dst=cJSON_GetObjectItem(j,"tailnet_destination"),*dp=cJSON_GetObjectItem(j,"destination_port"),*cidr=cJSON_GetObjectItem(j,"allowed_source_subnet");
         if(!cJSON_IsObject(j)||!cJSON_IsString(proto)||!cJSON_IsString(dst)||!cJSON_IsString(cidr)){cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"incomplete rule");return ESP_FAIL;}
+        /* Never turn an omitted or mistyped OFF value into an enabled
+         * listener. The UI/backup format always supplies an explicit bool. */
+        if(!cJSON_IsBool(enabled)){cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"enabled must be true or false");return ESP_FAIL;}
+        if(!dst->valuestring||strlen(dst->valuestring)>=TAILNET_FORWARD_DEST_LEN){cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"Tailnet destination is too long");return ESP_FAIL;}
+        if(name&&(!cJSON_IsString(name)||!name->valuestring||strlen(name->valuestring)>=TAILNET_FORWARD_NAME_LEN)){cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"name must be a string of at most 31 bytes");return ESP_FAIL;}
         uint16_t lpi=0,dpi=0;if(!json_port_value(lp,&lpi)||!json_port_value(dp,&dpi)){cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"invalid port");return ESP_FAIL;}
-        tailnet_forward_rule_t *r=&rules[i];r->valid=1;r->enabled=!cJSON_IsBool(enabled)||cJSON_IsTrue(enabled);r->proto=!strcasecmp(proto->valuestring,"udp")?17:(!strcasecmp(proto->valuestring,"tcp")?6:0);r->listen_port=lpi;r->destination_port=dpi;
+        tailnet_forward_rule_t *r=&rules[i];r->valid=1;r->enabled=cJSON_IsTrue(enabled);r->proto=!strcasecmp(proto->valuestring,"udp")?17:(!strcasecmp(proto->valuestring,"tcp")?6:0);r->listen_port=lpi;r->destination_port=dpi;
         strlcpy(r->destination,dst->valuestring,sizeof r->destination);if(cJSON_IsString(name))strlcpy(r->name,name->valuestring,sizeof r->name);
         if(tailnet_forward_parse_cidr(cidr->valuestring,&r->source_network,&r->source_prefix)!=ESP_OK){cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"invalid allowed source subnet");return ESP_FAIL;}
     }
     cJSON_Delete(root);char why[128]="";esp_err_t err=tailnet_forward_set_all(rules,count,why,sizeof why);
-    if(err!=ESP_OK){httpd_resp_set_status(req,err==ESP_ERR_INVALID_STATE?"409 Conflict":"400 Bad Request");return httpd_resp_sendstr(req,why[0]?why:"invalid rules");}
+    if(err!=ESP_OK){
+        bool invalid=err==ESP_ERR_INVALID_ARG||err==ESP_ERR_INVALID_STATE;
+        httpd_resp_set_status(req,err==ESP_ERR_INVALID_STATE?"409 Conflict":invalid?"400 Bad Request":"500 Internal Server Error");
+        return httpd_resp_sendstr(req,invalid?(why[0]?why:"invalid rules"):"Could not save forwarding rules");
+    }
     mqtt_integration_tailnet_forward_changed();httpd_resp_set_type(req,"application/json");return httpd_resp_sendstr(req,"{\"ok\":true}");
 }
 static const httpd_uri_t uri_tailnet_forward={.uri="/api/tailnet-forward",.method=HTTP_GET,.handler=tailnet_forward_handler};

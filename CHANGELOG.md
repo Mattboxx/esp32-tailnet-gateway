@@ -6,6 +6,30 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.10-dev.6 — Tailnet forwarding policy and saved-rule validation
+
+- Apply LAN-to-Tailnet listener filtering only to packets addressed to the
+  receiving interface, matching the pinned SDK's receive-side DNAT condition.
+  Same-numbered services on routed LAN/AP/Tailnet hosts remain independent.
+- Inspect bounded header copies across pbuf chains instead of unaligned raw
+  pointers into the first segment; preserve source-CIDR and installed-state
+  checks and fail closed on an invalid stored prefix before any bit shift.
+- Validate stored rule flags, protocols, ports, bounded labels/destinations,
+  normalized source CIDRs, Tailnet literal destinations and duplicate listeners.
+  Compact occupied slots; ignore an inconsistent whole table without deleting
+  its NVS record or automatically broadening its source policy.
+- Use a static rule mutex, removing the old unchecked heap-allocation path.
+  Log failure to create the forwarding manager instead of silently ignoring it.
+- Require an explicit JSON boolean for `enabled`; reject mistyped or omitted
+  values instead of treating a string such as `"false"` as ON. Reject oversized
+  destinations/labels before truncation and return HTTP 500 for storage errors.
+- Add actual-C packet, NVS and HTTP/cJSON regressions. Reproduce destination
+  interference, missing occupied slots and implicit enablement before fixing
+  them; cover 53 pbuf splits, all valid prefix widths, 50,000 malformed packets,
+  corrupted saved rules, failed writes, ON/OFF and HTTP/auth error handling.
+- Preserve dev.5 and earlier fork features. This software-tested candidate is
+  not a new stable release or hardware/fragment-forwarding certification.
+
 ### 0.1.31-Mattboxx-1.10-dev.5 — network hook and forwarding persistence fixes
 
 - Identify the WireGuard input interface by its pinned driver's `wg` name

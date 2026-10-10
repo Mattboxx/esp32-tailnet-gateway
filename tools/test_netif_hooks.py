@@ -38,8 +38,8 @@ static uint32_t swap32(uint32_t x) { return ((x&255)<<24)|((x&0xff00)<<8)|((x>>8
 static bool denied, queue_fails;
 static unsigned raw_calls, physical_calls, filter_calls, frees;
 static struct netif *expected_raw;
-static bool tailnet_forward_allow_non_uplink_packet(struct pbuf *p, bool ethernet) {
-    assert(p && !p->freed && !ethernet); ++filter_calls; return !denied;
+static bool tailnet_forward_allow_non_uplink_packet(struct pbuf *p, bool ethernet, uint32_t local_ip) {
+    assert(p && !p->freed && !ethernet && expected_raw && local_ip==expected_raw->ip.addr); ++filter_calls; return !denied;
 }
 static void pbuf_free(struct pbuf *p) { assert(!p->freed); p->freed=true; ++frees; }
 static err_t raw_input(struct pbuf *p, struct netif *n) {
