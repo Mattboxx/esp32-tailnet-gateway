@@ -18,6 +18,7 @@ validation = 'static bool topic_valid' + source.split('static bool topic_valid',
 transport = 'static void build_url' + source.split('static void build_url', 1)[1].split('static void appendf', 1)[0]
 poll = 'static bool response_is_ours' + source.split('static bool response_is_ours', 1)[1].split('static bool uplink_connected', 1)[0]
 fixture = r'''
+#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
