@@ -6,6 +6,31 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.10-dev.9 — reliable receive-DNAT packet handling
+
+- Normalize fragmented TCP/UDP datagrams before the pinned ESP-IDF SDK applies
+  receive DNAT. Enforce the installed listener policy on the complete datagram,
+  rather than treating a later fragment's payload as a transport header.
+- Add a private bounded reassembly pool keyed by input interface, protocol,
+  source, destination and identification. Keep local-service/native reassembly
+  separate; expire incomplete datagrams and reject overlapping or invalid pieces.
+- Expire the private pool with allocation-free packet-time checks and a
+  best-effort callback from the existing manager. A full callback queue or memory
+  shortage cannot require a new per-packet timer or assert during its allocation.
+- Validate minimum transport header lengths and coalesce split headers before
+  the SDK reads or rewrites them. If memory is insufficient, release the packet
+  without handing an incomplete header to NAPT. Preserve legitimate small first
+  fragments, out-of-order arrival and fragmented TCP/UDP payloads.
+- Enable IPv4 reassembly in the canonical build configuration. Reject builds
+  using old generated configurations with reassembly disabled. Fragmented IPv4
+  option headers remain unsupported, consistent with the pinned native reassembler.
+- Add actual pinned lwIP/NAPT/pbuf regressions using synthetic interfaces, plus
+  isolation, expiry, overlap and capacity tests for the private pool. Run the
+  memory-instrumented suite in CI alongside the existing fork regressions.
+- Preserve AP forwarding, LAN-to-Tailnet forwarding, MQTT/Home Assistant, ntfy,
+  WOL, remote updates and existing saved settings. This development candidate
+  is not a hardware validation or a new stable/beta release.
+
 ### 0.1.31-Mattboxx-1.10-dev.8 — serialize forwarding configuration transactions
 
 - Serialize AP-side and LAN-to-Tailnet conflict checks, NVS writes/commits and

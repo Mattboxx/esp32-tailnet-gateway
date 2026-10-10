@@ -75,6 +75,7 @@ static int xTaskCreate(void (*fn)(void*),const char *name,unsigned stack,void *a
     assert(fn && !strcmp(name,"tn_forward") && stack==4096 && !arg && prio==4 && !handle); return pdPASS;
 }
 static void vTaskDelay(unsigned t) { (void)t; abort(); }
+static void tailnet_reassembly_refresh(void) {}
 static void netif_hooks_refresh(void) {}
 typedef struct { uint32_t addr; } ip4_addr_t;
 static uint32_t swap32(uint32_t x) { return ((x&255)<<24)|((x&0xff00)<<8)|((x>>8)&0xff00)|(x>>24); }

@@ -1,4 +1,5 @@
 #include "tailnet_forward.h"
+#include "tailnet_reassembly.h"
 #include "control_validation.h"
 #include <ctype.h>
 #include <stdio.h>
@@ -91,7 +92,10 @@ static void manager(void *arg) {
         LOCK();
         for(int i=0;i<s_count;i++){uint32_t old=s_runtime[i].resolved_ip;resolve_rule(i);if(old!=s_runtime[i].resolved_ip)changed=true;}
         UNLOCK();
-        netif_hooks_refresh(); if(changed)portmap_install_all(); vTaskDelay(pdMS_TO_TICKS(3000));
+        netif_hooks_refresh();
+        tailnet_reassembly_refresh();
+        if(changed)portmap_install_all();
+        vTaskDelay(pdMS_TO_TICKS(3000));
     }
 }
 void tailnet_forward_init(void) {

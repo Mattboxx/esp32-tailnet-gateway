@@ -20,6 +20,13 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           submodules: recursive
+      - name: Pinned ESP-IDF 5.5.3 lwIP for real packet-path regressions
+        uses: actions/checkout@v7
+        with:
+          repository: espressif/esp-lwip
+          ref: fd432e4ee2cfb7f7f1c7eb7227e0173412e7b84e
+          path: .test-deps/esp-lwip
+          persist-credentials: false
       - name: Install scanner dependency
         run: |
           python3 -m pip install PyYAML==6.0.2
@@ -47,6 +54,7 @@ jobs:
           TAILNET_SANITIZE=1 python3 tools/test_tailnet_state.py
           TAILNET_SANITIZE=1 python3 tools/test_tailnet_api.py
           TAILNET_SANITIZE=1 python3 tools/test_tailnet_core.py
+          LWIP_SOURCE=.test-deps/esp-lwip TAILNET_SANITIZE=1 python3 tools/test_tailnet_sdk.py
           PEER_DNS_SANITIZE=1 python3 tools/test_peer_dns.py
           OTA_SANITIZE=1 python3 tools/test_ota_remote.py
       - name: Check sensitive data without logging secret values

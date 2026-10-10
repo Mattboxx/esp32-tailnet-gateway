@@ -61,6 +61,11 @@ static uint16_t pbuf_copy_partial(const struct pbuf *p,void *to,uint16_t length,
     return copied;
 }
 static unsigned freed, inputs, translated, local_dns;
+#define IP_REASSEMBLY 0
+#define IP_MF 0x2000
+#define PBUF_RAW 0
+static void pbuf_realloc(struct pbuf *p,uint16_t length) { assert(length<=p->tot_len);p->tot_len=length;if(p->len>length)p->len=length; }
+static struct pbuf *pbuf_coalesce(struct pbuf *p,int layer) { assert(layer==PBUF_RAW);return p; }
 void pbuf_free(struct pbuf *p) { assert(core_depth==1 && p); ++freed; }
 static err_t __real_ip4_input(struct pbuf *p,struct netif *n) {
     assert(core_depth==1); ++inputs;
@@ -78,6 +83,8 @@ static void packet(uint8_t *b,bool ethernet,uint8_t proto,uint32_t src,uint32_t 
     b[off]=0x45; b[off+3]=40; b[off+8]=64; b[off+9]=proto;
     uint32_t v=swap32(src); memcpy(b+off+12,&v,4); v=swap32(dest); memcpy(b+off+16,&v,4);
     b[off+22]=port>>8; b[off+23]=port;
+    if(proto==6)b[off+32]=0x50;
+    else {b[off+24]=0;b[off+25]=20;}
 }
 '''
 tests=r'''
@@ -153,6 +160,8 @@ if args.elf:
     symbols=subprocess.check_output([args.objdump,'-t',str(args.elf)],text=True)
     frames={}
     for name,limit in {'__wrap_ip4_input':128,'tailnet_forward_allow_ipv4_packet':128,
+                       'prepare_dnat_packet':256,
+                       'tailnet_reassemble':384,
                        'allow_packet':256,
                        'tailnet_forward_snapshot_mappings':384,'portmap_install_cb':2560}.items():
         match=re.search(rf'<{name}>:\s*\n[^\n]*\bentry\s+a1,\s*(0x[\da-f]+|\d+)',disassemble(name))
@@ -169,6 +178,8 @@ if args.elf:
         assert '<pbuf_copy_partial>' in disassemble('allow_packet'), 'Inlined parser must still perform bounded packet reads'
         frames['packet_fields']='inlined in budgeted allow_packet'
     assert '<tailnet_forward_allow_ipv4_packet>' in disassemble('__wrap_ip4_input')
+    assert '<prepare_dnat_packet>' in disassemble('__wrap_ip4_input')
+    assert '<tailnet_reassemble>' in disassemble('prepare_dnat_packet')
     assert '<ip4_input>' in disassemble('__wrap_ip4_input')
     assert '<__wrap_ip4_input>' in disassemble('ethernet_input')
     raw=disassemble('ip_input')

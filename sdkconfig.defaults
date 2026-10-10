@@ -87,6 +87,7 @@ CONFIG_ESP_CONSOLE_UART_BAUDRATE=921600
 
 # --- LWIP: NAPT, IP forwarding, socket budget -------------------------------
 CONFIG_LWIP_IP_FORWARD=y
+CONFIG_LWIP_IP4_REASSEMBLY=y
 CONFIG_LWIP_IPV4_NAPT=y
 CONFIG_LWIP_L2_TO_L3_COPY=y
 # 10 (default) gets eaten by http_server + microlink + remote console + DNS

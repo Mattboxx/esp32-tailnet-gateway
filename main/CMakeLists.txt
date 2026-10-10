@@ -1,3 +1,7 @@
+if(NOT CMAKE_BUILD_EARLY_EXPANSION AND NOT CONFIG_LWIP_IP4_REASSEMBLY)
+    message(FATAL_ERROR "Enable CONFIG_LWIP_IP4_REASSEMBLY for safe TCP/UDP receive DNAT; regenerate old sdkconfig files before building.")
+endif()
+
 # Generate index_html_data.c by gzipping main/index.html at configure
 # time. We can't use EMBED_TXTFILES / target_add_binary_data because
 # PIO's SCons wrapper double-prefixes the .S output path, breaking the
@@ -52,6 +56,7 @@ idf_component_register(SRCS "main.c"
                             "forwarding_config.c"
                             "tailnet_forward.c"
                             "tailnet_input.c"
+                            "tailnet_reassembly.c"
                             "mac_deny.c"
                             "reset_history.c"
                             "ota.c"
