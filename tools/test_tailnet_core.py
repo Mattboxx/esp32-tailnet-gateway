@@ -164,7 +164,7 @@ if args.elf:
         rows=[line.split() for line in symbols.splitlines() if line.split() and line.split()[-1]==name and ' F ' in line]
         if not rows:return raw
         row=rows[0];start=int(row[0],16);end=start+int(row[-2],16)
-        targets=set(int(n,16) for n in re.findall(rf'\b(?:b\w+|j)\s+[^\n]*\b([\da-f]+) <{re.escape(name)}\+0x[\da-f]+>',raw))
+        targets=set(int(n,16) for n in re.findall(rf'\b(?:b[\w.]+|j(?:\.n)?)\s+[^\n]*\b([\da-f]+) <{re.escape(name)}\+0x[\da-f]+>',raw))
         for address in sorted(targets):
             assert start<=address<end
             raw+=subprocess.check_output([args.objdump,'-d',f'--start-address={address}',f'--stop-address={end}',str(args.elf)],text=True)
