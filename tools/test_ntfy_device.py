@@ -19,6 +19,8 @@ def main():
     parser.add_argument('--commands', type=int, default=5)
     args = parser.parse_args()
     api = login(args.host)
+    version = api('/api/system')['version']
+    assert isinstance(version, str) and version, 'Missing running firmware version'
     deadline = time.monotonic() + 120
     while True:
         state = api('/api/status')
@@ -78,7 +80,7 @@ def main():
             lines = response.read(1024 * 1024).splitlines()
         replies = [json.loads(line) for line in lines if line]
         assert any(e.get('title', '').startswith('ESP32 router info') and
-                   '0.1.29-Mattboxx-1.8' in e.get('message', '') for e in replies)
+                   version in e.get('message', '') for e in replies)
         print(f'PASS: {sent} info commands/replies; {time.monotonic()-start:.0f}s without restart; '
               f'minimum stack {minimum_stack} B, internal heap {minimum_heap} B', flush=True)
     finally:

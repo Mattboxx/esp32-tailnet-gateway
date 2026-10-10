@@ -6,11 +6,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### 0.1.31-Mattboxx-1.10-dev — opt-in fork updates
+### 0.1.31-Mattboxx-1.10-dev.1 — opt-in fork updates and ntfy transport hardening
 
 - Disable Install latest update after a successful check finds no newer
   compatible release; re-enable it when an update is found. Preserve one-click
   initial installs and reject incomplete/invalid update-status responses.
+- Prevent ntfy redirects from replaying bearer tokens, private notification
+  bodies or command requests to another origin or downgrading HTTPS. Use the
+  final ntfy server URL; redirect responses fail without executing commands.
+- Reject ntfy token header-control characters and stop before network access
+  if the Authorization header cannot be allocated. Anonymous topics still work.
 - Default-OFF periodic GitHub checks, automatic install, stable/beta channels
   and optional device-local-time hourly window, with graphical System switches.
 - Manual Check now and Install latest update perform asynchronous GitHub

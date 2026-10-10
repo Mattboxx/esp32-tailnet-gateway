@@ -47,12 +47,17 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
-**Development branch: 0.1.31-Mattboxx-1.10-dev.** New: opt-in update checks,
+**Development branch: 0.1.31-Mattboxx-1.10-dev.1.** New: opt-in update checks,
 automatic install with an optional local-time window, stable/beta channels,
 and **Install latest update** for a one-click GitHub download/install even
 with periodic checks OFF. Only this fork's compatible newer releases qualify;
 HTTPS, GitHub SHA-256, ESP32-S3/project/version checks and exclusive OTA writing
 are required. All switches default OFF. See [update policy and release requirements](docs/UPDATES.md).
+
+The same development branch hardens ntfy transport: no redirect replay of
+tokens or private notifications, no unauthenticated fallback after a header
+allocation failure, and strict token-header validation. Configure the final
+server URL; see [ntfy transport fixes and test coverage](docs/NTFY-TRANSPORT.md).
 
 Upstream v0.1.30 and v0.1.31
 are integrated, with CGNAT uplink exceptions, lifecycle-safe route supervision,

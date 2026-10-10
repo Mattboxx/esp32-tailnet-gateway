@@ -120,9 +120,19 @@ static bool topic_valid(const char *topic)
     return true;
 }
 
+static bool token_header_valid(const char *token)
+{
+    if (!token) return false;
+    for (const unsigned char *p = (const unsigned char *)token; *p; ++p)
+        if (*p <= 32 || *p >= 127) return false;
+    return true; /* Empty token is valid for explicitly anonymous topics. */
+}
+
 static bool config_valid(const ntfy_integration_config_t *c)
 {
-    if (!c) return false;
+    if (!c || !memchr(c->server, 0, sizeof c->server) ||
+        !memchr(c->topic, 0, sizeof c->topic) ||
+        !memchr(c->token, 0, sizeof c->token) || !token_header_valid(c->token)) return false;
     bool server_ok = strncmp(c->server, "https://", 8) == 0
                    || strncmp(c->server, "http://", 7) == 0;
     /* Topic is appended as a path segment, so query/fragment syntax has no
@@ -130,6 +140,8 @@ static bool config_valid(const ntfy_integration_config_t *c)
      * URI user-info as well: tokens use the write-only Authorization field
      * and must never become part of a URL that may be logged or returned. */
     if (strpbrk(c->server, "@?#\r\n\t ") != NULL) server_ok = false;
+    for (const unsigned char *p = (const unsigned char *)c->server; *p; ++p)
+        if (*p <= 32 || *p >= 127 || *p == '\\') server_ok = false;
     return (!c->enabled || (server_ok && topic_valid(c->topic)))
         && c->failure_delay_seconds >= 15 && c->failure_delay_seconds <= 3600
         && c->poll_interval_seconds >= 5 && c->poll_interval_seconds <= 300;
@@ -151,13 +163,15 @@ static void build_url(const ntfy_integration_config_t *c, const char *suffix,
              suffix ? suffix : "");
 }
 
-static void set_auth(esp_http_client_handle_t client,
+static esp_err_t set_auth(esp_http_client_handle_t client,
                      const ntfy_integration_config_t *c)
 {
-    if (!c->token[0]) return;
+    if (!memchr(c->token, 0, sizeof c->token) || !token_header_valid(c->token))
+        return ESP_ERR_INVALID_ARG;
+    if (!c->token[0]) return ESP_OK;
     char value[176];
     snprintf(value, sizeof value, "Bearer %s", c->token);
-    esp_http_client_set_header(client, "Authorization", value);
+    return esp_http_client_set_header(client, "Authorization", value);
 }
 
 static NTFY_NOINLINE esp_err_t publish_message(const ntfy_integration_config_t *c,
@@ -171,15 +185,19 @@ static NTFY_NOINLINE esp_err_t publish_message(const ntfy_integration_config_t *
         .method = HTTP_METHOD_POST,
         .timeout_ms = 12000,
         .crt_bundle_attach = esp_crt_bundle_attach,
+        /* SDK redirection retains manually installed Authorization headers
+         * and POST data. Never replay the token or private info to a new
+         * origin (or silently downgrade HTTPS). Configure the final URL. */
+        .disable_auto_redirect = true,
     };
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client) return ESP_ERR_NO_MEM;
-    set_auth(client, c);
+    esp_err_t err = set_auth(client, c);
     esp_http_client_set_header(client, "Content-Type", "text/plain; charset=utf-8");
     if (title) esp_http_client_set_header(client, "Title", title);
     if (tags) esp_http_client_set_header(client, "Tags", tags);
     esp_http_client_set_post_field(client, message, strlen(message));
-    esp_err_t err = esp_http_client_perform(client);
+    if (err == ESP_OK) err = esp_http_client_perform(client);
     int status = err == ESP_OK ? esp_http_client_get_status_code(client) : 0;
     esp_http_client_cleanup(client);
     bool ok = err == ESP_OK && status >= 200 && status < 300;
@@ -403,11 +421,12 @@ static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
     build_url(c, suffix, url, sizeof url);
     response_buffer_t rb = {.data=response,.capacity=8192};
     esp_http_client_config_t config = {.url=url,.method=HTTP_METHOD_GET,.timeout_ms=12000,
-        .crt_bundle_attach=esp_crt_bundle_attach,.event_handler=http_event,.user_data=&rb};
+        .crt_bundle_attach=esp_crt_bundle_attach,.disable_auto_redirect=true,
+        .event_handler=http_event,.user_data=&rb};
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client) { free(response); return; }
-    set_auth(client, c);
-    esp_err_t err = esp_http_client_perform(client);
+    esp_err_t err = set_auth(client, c);
+    if (err == ESP_OK) err = esp_http_client_perform(client);
     int status = err == ESP_OK ? esp_http_client_get_status_code(client) : 0;
     esp_http_client_cleanup(client);
     if (err != ESP_OK || status != 200 || rb.overflow) {

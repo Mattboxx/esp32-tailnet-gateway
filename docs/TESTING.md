@@ -24,6 +24,12 @@ fails this check (4,240-byte worker frame); the corrected 1.8 frame is 496 bytes
 accounting and alert builder with synthetic dependencies. Set `NTFY_SANITIZE=1`
 on a supported compiler to run ASan/UBSan, as CI does.
 
+`python tools/test_ntfy_transport.py` compiles the actual publish/poll and
+authorization paths. It checks redirect refusal, 401/403/500 failures, token
+control characters, header-allocation failure and direct/anonymous success.
+Set `CJSON_SOURCE` to the SDK's `components/json/cJSON/cJSON.c` on Windows,
+or install `libcjson-dev`/`pkg-config` on Linux. CI runs this with sanitizers.
+
 Hardware: set `TEST_DEVICE_PASSWORD` privately in the environment, then run
 `python tools/test_ntfy_device.py <device-host> --seconds 600 --commands 5`.
 Use only on your own device: it publishes generic `info` commands to its

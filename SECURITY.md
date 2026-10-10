@@ -49,6 +49,17 @@ images. Review releases manually if that risk is unacceptable. No settings,
 keys or logs are uploaded, but GitHub sees the source public IP and generic
 User-Agent. See [update policy and validation limits](docs/UPDATES.md).
 
+## ntfy transport boundary (1.10 development)
+
+Publishing and command polling do not follow redirects. Use the final server
+URL: the configured host remains the only intended recipient of the token and
+notification body, and the only source of remote command responses. Reject
+token header-control characters and fail before networking if the Authorization
+header cannot be installed. Anonymous topics still work when explicitly chosen.
+This is not protection against a compromised configured server or public topic.
+Use HTTPS and broker-side access controls; explicit HTTP remains unencrypted.
+See [confirmed issues and regression coverage](docs/NTFY-TRANSPORT.md).
+
 ## Reporting a Vulnerability
 
 If you think you've found a security issue in this firmware — for example a

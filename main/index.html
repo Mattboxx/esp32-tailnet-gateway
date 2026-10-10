@@ -2747,7 +2747,7 @@
           <p class="form-hint" id="ntfy-load-status" role="status">Settings have not loaded yet.</p>
           <div class="form-group feature-master-control"><label class="feature-switch"><input type="checkbox" id="ntfy-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable ntfy integration</span></label><span class="form-hint">No ntfy traffic is sent while disabled. Prefer a self-hosted server or a private, access-controlled topic.</span></div>
           <div class="grid grid-cols-2">
-            <div class="form-group"><label class="form-label" for="ntfy-server">Server URL</label><input class="input mono" id="ntfy-server" value="https://ntfy.sh"></div>
+            <div class="form-group"><label class="form-label" for="ntfy-server">Server URL</label><input class="input mono" id="ntfy-server" value="https://ntfy.sh"><span class="form-hint">Use the final server URL. Redirects are refused to protect tokens, notifications and commands.</span></div>
             <div class="form-group"><label class="form-label" for="ntfy-topic">Topic</label><input class="input mono" id="ntfy-topic" placeholder="private-random-topic"></div>
           </div>
           <div class="alert alert-warning" id="ntfy-transport-warning" style="display:none; margin-bottom:var(--sp-4);">Plain HTTP exposes the ntfy token, notifications and remote commands in transit. Prefer <code class="mono">https://</code>.</div>
