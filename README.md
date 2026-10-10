@@ -47,7 +47,7 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
-**Development branch: 0.1.31-Mattboxx-1.10-dev.2.** New: opt-in update checks,
+**Development branch: 0.1.31-Mattboxx-1.10-dev.3.** New: opt-in update checks,
 automatic install with an optional local-time window, stable/beta channels,
 and **Install latest update** for a one-click GitHub download/install even
 with periodic checks OFF. Only this fork's compatible newer releases qualify;
@@ -58,7 +58,9 @@ The same development branch hardens ntfy transport: no redirect replay of
 tokens or private notifications, no unauthenticated fallback after a header
 allocation failure, and strict token-header validation. Configure the final
 server URL. It also rejects obsolete command replies after settings changes,
-stores settings/cursor together and defers commands on cursor-write failure;
+stores settings/cursor together and defers commands on cursor-write failure.
+Command polling now streams bounded batches rather than stalling on a large
+topic backlog; large notification text and metadata do not grow heap usage;
 see [ntfy transport/state fixes and test coverage](docs/NTFY-TRANSPORT.md).
 
 Upstream v0.1.30 and v0.1.31

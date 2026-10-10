@@ -16,7 +16,7 @@ class NtfyStackTests(unittest.TestCase):
     def test_heavy_frames_not_inlined(self):
         source = (ROOT / 'main/ntfy_integration.c').read_text()
         for name in ('publish_message', 'send_info', 'handle_command',
-                     'poll_commands', 'send_tailscale_alert', 'save_state'):
+                     'poll_commands', 'send_tailscale_alert', 'save_state', 'read_command_batch'):
             self.assertRegex(source, rf'static NTFY_NOINLINE \w+ {name}\(')
         self.assertIn('#define NTFY_TASK_STACK_BYTES 12288', source)
         self.assertIn('!= pdPASS', source)
@@ -25,10 +25,12 @@ class NtfyStackTests(unittest.TestCase):
         self.assertIn('free(logs);', alert)
         self.assertIn('return err;', alert)
 
-    def test_poll_rejects_truncated_response(self):
+    def test_poll_uses_bounded_nonrecursive_stream(self):
         source = (ROOT / 'main/ntfy_integration.c').read_text()
-        self.assertIn('buffer->overflow = true;', source)
-        self.assertIn('status != 200 || rb.overflow', source)
+        self.assertIn('#define NTFY_POLL_BATCH 32', source)
+        self.assertIn('ntfy_json_parser_t parser;', source)
+        self.assertIn('calloc(1, sizeof *batch)', source)
+        self.assertIn('esp_http_client_is_complete_data_received(client)', source)
         self.assertIn('err = send_info(c);', source)
         self.assertIn('uxTaskGetStackHighWaterMark(s_task)', source)
 
@@ -37,7 +39,7 @@ def check_elf(objdump, elf):
     disassembly = subprocess.check_output([objdump, '-d', str(elf)], text=True)
     limits = {'task_main': 768, 'poll_commands': 1280, 'send_info': 2048,
               'send_tailscale_alert': 256, 'handle_command': 512,
-              'publish_message': 1024, 'save_state': 768}
+              'publish_message': 1024, 'save_state': 768, 'read_command_batch': 256}
     frames = {}
     for name, limit in limits.items():
         match = re.search(rf'<{name}>:\s*\n[^\n]*\bentry\s+a1,\s*(0x[\da-f]+|\d+)', disassembly)

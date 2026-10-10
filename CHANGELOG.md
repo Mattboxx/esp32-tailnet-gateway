@@ -6,7 +6,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### 0.1.31-Mattboxx-1.10-dev.2 — opt-in fork updates and ntfy transport/state hardening
+### 0.1.31-Mattboxx-1.10-dev.3 — opt-in fork updates and ntfy transport/state hardening
 
 - Disable Install latest update after a successful check finds no newer
   compatible release; re-enable it when an update is found. Preserve one-click
@@ -25,6 +25,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   with the authoritative configuration; report storage failures as HTTP 500.
 - Add actual-C settings-change, cursor-write failure, state reload and migration
   regressions. Commands already accepted may finish; this is not WOL cancellation.
+- Fix ntfy command starvation when cached responses exceed 8 KiB: read complete
+  JSON events progressively into a fixed heap batch and resume at its durable ID.
+  Large notifications and metadata no longer require whole-frame allocation.
+- Validate JSON nonrecursively with bounded nesting, UTF-8/Unicode escapes,
+  duplicate-field and embedded-NUL rejection. Preserve command edge trimming;
+  reject oversized commands while still advancing past their notification IDs.
+- Add 200-command multi-poll replay, fragmented/large-frame/HTTP failure tests
+  and 100,000 parser mutations compared with cJSON; run the parser with sanitizers.
 - Default-OFF periodic GitHub checks, automatic install, stable/beta channels
   and optional device-local-time hourly window, with graphical System switches.
 - Manual Check now and Install latest update perform asynchronous GitHub

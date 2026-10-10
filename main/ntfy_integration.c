@@ -4,6 +4,7 @@
  * returned by the web API, written to logs, or included in status replies.
  */
 #include "ntfy_integration.h"
+#include "ntfy_json_stream.h"
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -12,7 +13,6 @@
 #include <string.h>
 #include "runtime_metrics.h"
 #include "snmp_agent.h"
-#include "cJSON.h"
 #include "dhcps_ext.h"
 #include "esp_app_desc.h"
 #include "esp_crt_bundle.h"
@@ -58,27 +58,13 @@ static uint64_t s_config_generation;
 extern bool wifi_ap_runtime_enabled(void);
 extern bool wifi_ap_policy_auto_off(void);
 
+#define NTFY_POLL_BATCH 32
 typedef struct {
-    char *data;
-    size_t capacity;
-    size_t used;
-    bool overflow;
-} response_buffer_t;
-
-static esp_err_t http_event(esp_http_client_event_t *event)
-{
-    response_buffer_t *buffer = event->user_data;
-    if (event->event_id == HTTP_EVENT_ON_DATA && buffer && event->data_len > 0) {
-        if (buffer->overflow || (size_t)event->data_len >= buffer->capacity - buffer->used) {
-            buffer->overflow = true;
-            return ESP_OK;
-        }
-        memcpy(buffer->data + buffer->used, event->data, event->data_len);
-        buffer->used += event->data_len;
-        buffer->data[buffer->used] = '\0';
-    }
-    return ESP_OK;
-}
+    ntfy_json_parser_t parser;
+    ntfy_json_event_t events[NTFY_POLL_BATCH];
+    size_t count;
+    char read_buffer[512];
+} command_batch_t;
 
 static void defaults(ntfy_integration_config_t *c)
 {
@@ -498,10 +484,48 @@ static NTFY_NOINLINE void handle_command(const ntfy_integration_config_t *c, con
     xSemaphoreGive(s_lock);
 }
 
-static bool response_is_ours(cJSON *root)
+static void collect_line(command_batch_t *batch)
 {
-    cJSON *title = cJSON_GetObjectItem(root, "title");
-    return cJSON_IsString(title) && strncmp(title->valuestring, "ESP32 ", 6) == 0;
+    ntfy_json_parser_t *p = &batch->parser;
+    if (batch->count < NTFY_POLL_BATCH && ntfy_json_finish(p) &&
+        strcmp(p->event.event, "message") == 0 && event_id_valid(p->event.id))
+        batch->events[batch->count++] = p->event;
+    ntfy_json_reset(p);
+}
+
+static void collect_bytes(command_batch_t *batch, const char *bytes, size_t length)
+{
+    for (size_t i = 0; i < length && batch->count < NTFY_POLL_BATCH; ++i) {
+        unsigned char b = (unsigned char)bytes[i];
+        if (b == '\n') collect_line(batch);
+        else ntfy_json_feed(&batch->parser, b);
+    }
+}
+
+static NTFY_NOINLINE esp_err_t read_command_batch(esp_http_client_handle_t client,
+                                                command_batch_t *batch)
+{
+    esp_err_t err = esp_http_client_open(client, 0);
+    if (err != ESP_OK) return err;
+    if (esp_http_client_fetch_headers(client) < 0 ||
+        esp_http_client_get_status_code(client) != 200) return ESP_FAIL;
+    int64_t deadline = esp_timer_get_time() + 30000000;
+    while (batch->count < NTFY_POLL_BATCH) {
+        if (esp_timer_get_time() >= deadline) return ESP_ERR_TIMEOUT;
+        int n = esp_http_client_read(client, batch->read_buffer, sizeof batch->read_buffer);
+        if (n < 0) return ESP_FAIL;
+        if (!n) {
+            if (!esp_http_client_is_complete_data_received(client)) return ESP_FAIL;
+            /* A final valid JSON object may omit its newline. A truncated or
+             * malformed object never advances the cursor or runs a command. */
+            collect_line(batch);
+            return ESP_OK;
+        }
+        collect_bytes(batch, batch->read_buffer, (size_t)n);
+    }
+    /* Deliberately close after a complete bounded prefix. The next poll
+     * resumes at its last durable ID; unread commands are not skipped. */
+    return ESP_OK;
 }
 
 static bool config_equal(const ntfy_integration_config_t *a, const ntfy_integration_config_t *b)
@@ -543,64 +567,48 @@ static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
     else snprintf(since, sizeof since, "%us", (unsigned)c->poll_interval_seconds + 30U);
     char suffix[96];
     snprintf(suffix, sizeof suffix, "/json?poll=1&since=%s", since);
-    /* Keep the response off the task stack. An 8 KiB automatic buffer here
-     * exhausted the ntfy task's entire 8 KiB stack on the first poll and
-     * corrupted the TLSF heap, causing a reboot loop about 15 seconds after
-     * enabling commands. */
+    /* Fixed heap batch, allocation-free JSON projection. Neither total
+     * response size nor individual notification text grows the task stack. */
     char url[352];
-    char *response = calloc(1, 8192);
-    if (!response) return;
+    command_batch_t *batch = calloc(1, sizeof *batch);
+    if (!batch) return;
     build_url(c, suffix, url, sizeof url);
-    response_buffer_t rb = {.data=response,.capacity=8192};
     esp_http_client_config_t config = {.url=url,.method=HTTP_METHOD_GET,.timeout_ms=12000,
-        .crt_bundle_attach=esp_crt_bundle_attach,.disable_auto_redirect=true,
-        .event_handler=http_event,.user_data=&rb};
+        .crt_bundle_attach=esp_crt_bundle_attach,.disable_auto_redirect=true};
     esp_http_client_handle_t client = esp_http_client_init(&config);
-    if (!client) { free(response); return; }
+    if (!client) { free(batch); return; }
     esp_err_t err = set_auth(client, c);
-    if (err == ESP_OK) err = esp_http_client_perform(client);
+    if (err == ESP_OK) err = read_command_batch(client, batch);
     int status = err == ESP_OK ? esp_http_client_get_status_code(client) : 0;
     esp_http_client_cleanup(client);
-    if (err != ESP_OK || status != 200 || rb.overflow) {
+    if (err != ESP_OK || status != 200) {
         ESP_LOGW(TAG, "command poll failed: %s HTTP %d", esp_err_to_name(err), status);
-        free(response);
+        free(batch);
         return;
     }
-    char *save = NULL;
-    for (char *line = strtok_r(response, "\n", &save); line; line = strtok_r(NULL, "\n", &save)) {
-        cJSON *event = cJSON_Parse(line);
-        if (!event) continue;
-        cJSON *id = cJSON_GetObjectItem(event, "id");
-        cJSON *kind = cJSON_GetObjectItem(event, "event");
-        cJSON *msg = cJSON_GetObjectItem(event, "message");
-        if (cJSON_IsString(kind) && strcmp(kind->valuestring, "message") == 0) {
-            /* No ID means no durable replay protection. Reject IDs that could
-             * truncate or inject additional query parameters into `since`. */
-            if (!cJSON_IsString(id) || !event_id_valid(id->valuestring)) {
-                cJSON_Delete(event); continue;
-            }
+    for (size_t i = 0; i < batch->count; ++i) {
+            const ntfy_json_event_t *event = &batch->events[i];
             xSemaphoreTake(s_lock, portMAX_DELAY);
             if (!poll_current_locked(c, generation)) {
-                xSemaphoreGive(s_lock); cJSON_Delete(event); break;
+                xSemaphoreGive(s_lock); break;
             }
-            bool duplicate = strcmp(s_last_event_id, id->valuestring) == 0;
+            bool duplicate = strcmp(s_last_event_id, event->id) == 0;
             /* Persist BEFORE dispatch; otherwise a flash error followed by a
              * reboot can replay WOL. Serialized with configuration saves so
              * an old poll cannot overwrite a new topic's cursor/settings. */
-            esp_err_t saved = duplicate ? ESP_OK : save_state(c, id->valuestring);
+            esp_err_t saved = duplicate ? ESP_OK : save_state(c, event->id);
             if (saved == ESP_OK && !duplicate)
-                strlcpy(s_last_event_id, id->valuestring, sizeof s_last_event_id);
+                strlcpy(s_last_event_id, event->id, sizeof s_last_event_id);
             xSemaphoreGive(s_lock);
             if (saved != ESP_OK) {
                 ESP_LOGW(TAG, "Cannot persist command cursor; dispatch deferred");
-                cJSON_Delete(event); break;
+                break;
             }
-            if (!duplicate && cJSON_IsString(msg) && !response_is_ours(event))
-                handle_command(c, msg->valuestring);
-        }
-        cJSON_Delete(event);
+            if (!duplicate && event->has_message && !event->message_too_long &&
+                strncmp(event->title, "ESP32 ", 6) != 0)
+                handle_command(c, event->message);
     }
-    free(response);
+    free(batch);
 }
 
 static bool uplink_connected(void)

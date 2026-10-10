@@ -37,6 +37,7 @@ jobs:
           python3 tools/test_ntfy_stack.py
           NTFY_SANITIZE=1 python3 tools/test_ntfy_logic.py
           NTFY_SANITIZE=1 python3 tools/test_ntfy_transport.py
+          NTFY_SANITIZE=1 python3 tools/test_ntfy_stream.py
           SNMP_SANITIZE=1 python3 tools/test_snmp_codec.py
           ROUTE_SANITIZE=1 python3 tools/test_route_hook.py
           PEER_DNS_SANITIZE=1 python3 tools/test_peer_dns.py

@@ -20,7 +20,7 @@ Tests live under `tools/test_lib/`, the driver is `tools/run_tests.py`.
 Add `--objdump <Xtensa objdump executable> --elf <built firmware.elf>` to
 verify the actual compiler-generated frame budgets. The old 1.7 release ELF
 fails this check (4,240-byte worker frame); the corrected 1.8 frame is 496 bytes.
-`python tools/test_ntfy_logic.py` compiles the actual HTTP callback, command
+`python tools/test_ntfy_logic.py` compiles the actual command
 accounting and alert builder with synthetic dependencies. Set `NTFY_SANITIZE=1`
 on a supported compiler to run ASan/UBSan, as CI does.
 
@@ -30,6 +30,10 @@ control characters, header-allocation failure and direct/anonymous success.
 It also changes settings during a simulated poll and between messages, injects
 cursor/settings persistence failures, checks ID validation, and exercises actual
 state loading/migration without reverting to legacy enabled settings on error.
+It replays 200 commands over bounded polls and checks fragmented/large frames,
+missing final newlines and open/header/read/incomplete-body failures.
+`python tools/test_ntfy_stream.py` tests the actual nonrecursive parser, large
+notifications/metadata, UTF-8/Unicode escapes and 100,000 mutations against cJSON.
 Set `CJSON_SOURCE` to the SDK's `components/json/cJSON/cJSON.c` on Windows,
 or install `libcjson-dev`/`pkg-config` on Linux. CI runs this with sanitizers.
 

@@ -1,4 +1,4 @@
-"""Exercise the actual ntfy callback, command accounting and alert builder.
+"""Exercise the actual ntfy command accounting and alert builder.
 
 Synthetic HTTP/log/allocator functions; no board access or external traffic.
 """
@@ -9,9 +9,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/ntfy_integration.c').read_text()
-buffer_type = 'typedef struct {' + source.split('typedef struct {', 1)[1].split('} response_buffer_t;', 1)[0] + '} response_buffer_t;\n'
-callback = 'static esp_err_t http_event' + source.split('static esp_err_t http_event', 1)[1].split('static void defaults', 1)[0]
-command = 'static NTFY_NOINLINE void handle_command' + source.split('static NTFY_NOINLINE void handle_command', 1)[1].split('static bool response_is_ours', 1)[0]
+command = 'static NTFY_NOINLINE void handle_command' + source.split('static NTFY_NOINLINE void handle_command', 1)[1].split('static void collect_line', 1)[0]
 alert = 'static NTFY_NOINLINE esp_err_t send_tailscale_alert' + source.split('static NTFY_NOINLINE esp_err_t send_tailscale_alert', 1)[1].split('static void task_main', 1)[0]
 fixture = r'''
 #include <assert.h>
@@ -58,14 +56,6 @@ static const char *esp_err_to_name(esp_err_t e) { (void)e; return "fixture error
 '''
 tests = r'''
 int main(void) {
-    char storage[10]; memset(storage,0x5a,sizeof storage);
-    response_buffer_t b={.data=storage,.capacity=8};
-    esp_http_client_event_t e={.event_id=HTTP_EVENT_ON_DATA,.data_len=3,.data="abc",.user_data=&b};
-    assert(http_event(&e)==ESP_OK && b.used==3 && !strcmp(storage,"abc"));
-    e.data_len=5; e.data="12345"; http_event(&e);
-    assert(b.overflow && b.used==3 && !strcmp(storage,"abc"));
-    e.data_len=1; e.data="z"; http_event(&e);
-    assert(b.overflow && b.used==3 && storage[8]==0x5a && storage[9]==0x5a);
     ntfy_integration_config_t c={.info_enabled=true};
     info_result=ESP_FAIL; handle_command(&c," info\n");
     assert(s_status.command_errors==1 && s_status.commands_received==0);
@@ -81,12 +71,12 @@ int main(void) {
         allocations=0; fail_at=i;
         assert(send_tailscale_alert(&c)==ESP_ERR_NO_MEM && live==0);
     }
-    puts("PASS: ntfy overflow latch/bounds, info failure accounting, heap alert builder and OOM cleanup");
+    puts("PASS: ntfy info failure accounting, heap alert builder and OOM cleanup (stream bounds tested separately)");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='ntfy-logic-') as directory:
     path = Path(directory)
-    (path / 'test.c').write_text(fixture + buffer_type + callback + command + alert + tests)
+    (path / 'test.c').write_text(fixture + command + alert + tests)
     flags = ['-std=c11', '-Wall', '-Wextra', '-Werror']
     if os.environ.get('NTFY_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']

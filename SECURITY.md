@@ -63,6 +63,11 @@ recovery. Settings and the endpoint-bound replay cursor share one validated NVS
 record; persistence errors defer command execution rather than risk a reboot
 replay. Already accepted commands may finish. Legacy settings migrate once;
 invalid new state does not silently reactivate the old enabled configuration.
+Command polling projects a bounded, fully validated JSON stream instead of
+allocating entire cached responses or recursively parsing arbitrary metadata.
+Oversized command text, ambiguous duplicate fields, malformed UTF-8, embedded
+NUL and excessive nesting cannot execute commands. Authentication/HTTP errors
+do not dispatch queued responses; unread complete batches resume by durable ID.
 See [confirmed issues and regression coverage](docs/NTFY-TRANSPORT.md).
 
 ## Reporting a Vulnerability

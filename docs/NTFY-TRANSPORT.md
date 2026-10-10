@@ -25,6 +25,12 @@ Settings were persisted through twelve independent key writes. A failure after
 the first writes left partially changed settings on disk, although the web API
 reported failure and the running worker retained the old configuration.
 
+The old command poll accumulated the entire cached NDJSON response in 8 KiB.
+Any larger backlog discarded all events without moving the cursor, so every
+subsequent poll repeated the same oversized response until the cache expired.
+The former whole-frame cJSON parse also let arbitrary nested response JSON use
+recursive stack frames and per-field heap allocations in the ntfy worker.
+
 ## Fix and compatibility
 
 - Both ntfy clients explicitly disable automatic redirects. HTTP 3xx fails;
@@ -57,11 +63,28 @@ reported failure and the running worker retained the old configuration.
   Legacy NVS keys are retained for recovery but no longer updated: downgrading
   to older firmware can restore stale ntfy settings. Export an encrypted backup
   first and explicitly review/disable automation after a downgrade.
+- Polling now uses the [documented one-object-per-line JSON stream](https://docs.ntfy.sh/subscribe/api/)
+  and consumes a bounded prefix of up to 32 complete valid message events per
+  request. The TLS client is released before commands execute. Unread events are
+  retrieved on the next poll using the last successfully persisted message ID.
+- A nonrecursive, allocation-free JSON projection retains only command/ID/event
+  fields and the reply-title prefix. It validates the entire frame, including
+  discarded long strings and metadata. Large notification text is not a command;
+  its valid ID can advance the cursor so it cannot starve following commands.
+- Keep the existing 127-byte command limit after edge-whitespace trimming.
+  Unicode escapes and raw UTF-8 are supported; malformed JSON, embedded NUL,
+  duplicate recognized fields, invalid UTF-8 and nesting beyond 32 containers
+  cannot execute or advance a cursor. A malformed frame does not block subsequent
+  valid lines. HTTP failures or incomplete bodies before a full batch discard that
+  batch. A deliberate close after 32 complete events is successful, not an error.
+- Chunked framing and arbitrarily split network reads do not affect decoding.
+  A valid final JSON object can omit its newline; truncated JSON is never executed.
+  Each request has a 30-second overall read budget in addition to socket timeouts.
 
 ## Evidence and limitations
 
 `tools/test_ntfy_transport.py` compiles the actual publish, poll, validation
-and authorization functions with real cJSON and deterministic HTTP fixtures.
+and authorization functions with the actual stream parser and deterministic HTTP fixtures.
 The pre-fix code failed the foreign-redirect regression; the corrected code
 rejects 301/302/303/307/308, 401/403/500, header-allocation failure and invalid
 tokens. Successful direct publishing/polling and anonymous topics still work.
@@ -74,10 +97,18 @@ It reloads the actual saved configuration/cursor, tests legacy migration and
 rejects corrupt records without falling back. It models NVS failures; it does
 not emulate flash power cuts or prove long-term flash endurance.
 
+The transport fixture also replays 200 commands across bounded polls without
+skips, tests 1-byte network fragmentation, a 150,000-byte metadata field preceding
+an info command, a 150,000-byte notification preceding a valid command, omitted
+newlines and HTTP open/header/read/incomplete-body failures. `test_ntfy_stream.py`
+exercises the actual parser, large strings and whitespace, Unicode/UTF-8 and
+100,000 mutated JSON inputs, comparing accepted frames with cJSON. This is a
+regression/fuzz sample, not a formal proof of parser correctness.
+
 The transport fixture does not implement real TLS or contact a live server.
 Passing it does not prove that all firmware bugs or security issues are gone.
 Hardware validation should include a direct HTTPS test notification, an info
-command, WOL, migration/reboot, settings changes during command polling and a
-self-hosted redirect refusal, using the exact candidate build. Very large
-cached poll responses remain an open robustness item: the current bounded
-buffer fails closed on overflow, but can stall replay until the backlog expires.
+command, WOL, migration/reboot, settings changes during command polling, a large
+cached backlog and a self-hosted redirect refusal, using the exact candidate
+build. Server replay/cache expiry limits still apply; this does not turn ntfy
+into a guaranteed-delivery queue or recover messages already expired server-side.
