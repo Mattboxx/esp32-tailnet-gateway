@@ -2,7 +2,7 @@
 
 <img src="assets/logo/banner.png" alt="Tailscale Subnet Router for ESP32-S3" width="100%">
 
-# ESP32 Tailscale Gateway
+# ESP32 Tailscale Gateway & NAS Recovery
 
 ### Subnet router · Exit node · LAN → Tailnet port forwarder · IoT WiFi gateway · MQTT/Home Assistant · Wake-on-LAN
 
@@ -42,12 +42,21 @@ enable switch, counters and live status. This is completely independent from
 the existing AP-side port forwarding.
 
 **[Download the ready-to-flash release](../../releases/latest)** ·
+**[Download the 1.10 beta candidate](../../releases/tag/v0.1.31-Mattboxx-1.10-dev.10)** ·
 **[See every change from upstream](CUSTOM_BRANCH.md)** ·
 **[Read the security model](SECURITY.md)**
 
 ## Why the Mattboxx edition is different
 
-**Development branch: 0.1.31-Mattboxx-1.10-dev.4.** New: opt-in update checks,
+**Beta candidate: 0.1.31-Mattboxx-1.10-dev.10.** Includes upstream v0.1.31,
+all Mattboxx additions, ntfy reliability improvements, safe forwarding packet
+handling, transactional rule saves and live/next-boot Web UI port protection.
+The exact image was flashed and tested on an ESP32-S3 WiFi board, including
+three ntfy `info` replies and preserved saved settings. Download the OTA binary
+or the Windows ZIP with esptool and a double-click update script; see
+[tested scope and limitations](docs/RELEASE-1.10-dev.10.md).
+
+New in the 1.10 line: opt-in update checks,
 automatic install with an optional local-time window, stable/beta channels,
 and **Install latest update** for a one-click GitHub download/install even
 with periodic checks OFF. Only this fork's compatible newer releases qualify;
@@ -71,8 +80,9 @@ DNS service. All Mattboxx controls and the 1.8 ntfy hotfix are retained.
 The development build uses **31 sockets** and adds DNS runtime status to the
 UI, MQTT/Home Assistant and ntfy `info`. See the
 [complete integration and validation record](docs/UPSTREAM-0.1.31.md).
-This source update does **not** promote a new stable release or claim new
-hardware testing; the download below remains the previously tested 1.8 image.
+The 1.10 candidate is a GitHub **pre-release**, not a promotion to stable.
+Enable beta updates to discover it from an older compatible custom version.
+The stable download below remains the previously tested 1.8 image.
 
 **[Stable release: 0.1.29-Mattboxx-1.8](../../releases/tag/v0.1.29-Mattboxx-1.8)**
 combines upstream **v0.1.29** with the

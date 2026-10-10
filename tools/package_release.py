@@ -15,9 +15,17 @@ def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def validate_release_version(version, current, prerelease):
+    suffix = r'-dev(?:\.\d+)?' if prerelease else ''
+    assert version == current and re.fullmatch(r'0\.1\.\d+-Mattboxx-\d+\.\d+' + suffix, version), \
+        'Version must match the current project and the explicitly selected release channel'
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--version', required=True)
+    parser.add_argument('--prerelease', action='store_true',
+                        help='Explicitly package a development candidate, never label it stable')
     parser.add_argument('--tested-image', type=Path, required=True)
     parser.add_argument('--tested-sha256', required=True)
     parser.add_argument('--esptool', type=Path, required=True)
@@ -25,12 +33,13 @@ def main():
     args = parser.parse_args()
     version = args.version
     project_version = re.search(r'set\(PROJECT_VER "([^"]+)"\)', (ROOT / 'CMakeLists.txt').read_text())[1]
-    assert version == project_version and re.fullmatch(r'0\.1\.\d+-Mattboxx-\d+\.\d+', version), 'Only the current stable version may be packaged'
+    validate_release_version(version, project_version, args.prerelease)
     sdkbuild = ROOT / '.pio/build/esp32-s3'
     assert sha(args.tested_image) == args.tested_sha256.lower()
     assert sha(sdkbuild / 'firmware.bin') == args.tested_sha256.lower(), 'Build changed after hardware validation'
     assert version.encode() in args.tested_image.read_bytes()
-    assert (version + '-dev').encode() not in args.tested_image.read_bytes()
+    if not args.prerelease:
+        assert (version + '-dev').encode() not in args.tested_image.read_bytes()
     assert '#define CONFIG_LWIP_MAX_SOCKETS 31' in (sdkbuild / 'config/sdkconfig.h').read_text()
     out = ROOT / 'build' / ('release-' + version)
     out.mkdir(exist_ok=False)
@@ -52,7 +61,7 @@ def main():
     assert full[0x9000:0x19000] == b'\xff' * 0x10000
     assert full[0x20000:0x20000 + args.tested_image.stat().st_size] == args.tested_image.read_bytes()
     readme = f'''ESP32 TAILSCALE GATEWAY - {version}
-Stable community release for ESP32-S3 N16R8 (16MB flash, 8MB octal PSRAM).
+{'Beta development candidate' if args.prerelease else 'Stable community release'} for ESP32-S3 N16R8 (16MB flash, 8MB octal PSRAM).
 Uses the existing 4MB partition layout. NOT for an ESP32-C3, S2, no-PSRAM
 board, or an Ethernet-specific wiring configuration.
 
@@ -74,9 +83,10 @@ Exit-node server mode adds a separate, known-peer-only DNS PeerAPI and
 PSRAM-backed received tunnel packets. Custom admin ports are preserved.
 Preserves MQTT/HA, WOL, ntfy, AP policy, LAN-to-Tailnet
 forwarding, 4via6, exit advertising, custom web port and password/session policy.
-Includes the ntfy reboot-loop fix: separate compiler stack frames, heap-backed
-alert logs, a 12 KiB TLS worker stack and stack-reserve diagnostics. Failed info
+Includes the ntfy reboot-loop fix: separate compiler stack frames, bounded
+memory use, a 12 KiB TLS worker stack and stack-reserve diagnostics. Failed info
 replies and oversized command responses no longer masquerade as success.
+Local log excerpts are not uploaded in ntfy alerts.
 Retains Automation loading fixes, a pinned IDF 5.5.3/31-socket build, read-only
 SNMP (OFF by default), malformed-packet hardening and checked HTTP endpoints.
 No telemetry, external crash upload or public speed test. GitHub update checks,
@@ -86,8 +96,9 @@ Optional user-enabled MQTT/ntfy and the VPN still make their configured traffic.
 
 SNMPv1/v2c is unencrypted. Keep it OFF unless needed, choose a private community
 and restrict UDP 161 with the firewall. Web UI is HTTP: trusted LAN/tailnet only.
-Stable is a release channel, not a security certification; hardware coverage and
-limitations: https://github.com/Mattboxx/esp32-tailscale-gateway/blob/Main/docs/RELEASE-{version.rsplit('-', 1)[1]}.md
+A release channel is not a guarantee that every configuration has been tested.
+Hardware coverage and known limitations:
+https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/blob/Main/docs/RELEASE-{version.split('-Mattboxx-', 1)[1]}.md
 Original credits: Csontikka/router, Csontikka/microlink and their contributors.
 
 esptool.exe: Espressif esptool v5.3.1 Windows amd64, GPL-2.0-or-later.

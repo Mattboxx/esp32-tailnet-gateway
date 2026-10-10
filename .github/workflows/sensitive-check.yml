@@ -40,6 +40,7 @@ jobs:
           /tmp/upstream-tests
           python3 -m unittest discover -s tools -p 'test_sensitive_scanner.py'
           python3 -m unittest discover -s tools -p 'test_upstream_integration.py'
+          python3 tools/test_release_packaging.py
           python3 tools/test_feature_preservation.py
           python3 tools/test_ntfy_stack.py
           NTFY_SANITIZE=1 python3 tools/test_ntfy_logic.py

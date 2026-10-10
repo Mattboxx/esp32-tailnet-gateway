@@ -102,11 +102,13 @@ def main():
     parser.add_argument('host')
     parser.add_argument('--allow-temporary-enable', action='store_true', required=True)
     parser.add_argument('--expected-version', default='0.1.29-Mattboxx-1.7')
+    parser.add_argument('--expected-sockets', type=int, default=31)
+    parser.add_argument('--expected-active-tcp', type=int, default=24)
     args = parser.parse_args()
     api = login(args.host)
     limits = api('/api/system/diag')['network_limits']
-    assert limits['sockets'] == 26 and limits['active_tcp'] == 24
-    print('PASS: authenticated diagnostics report 26 sockets and 24 active TCP slots')
+    assert limits['sockets'] == args.expected_sockets and limits['active_tcp'] == args.expected_active_tcp
+    print(f'PASS: authenticated diagnostics report {args.expected_sockets} sockets and {args.expected_active_tcp} active TCP slots')
     original = api('/api/snmp')
     assert not original['enabled'], 'Agent already enabled; refusing to change its live state'
     config = {key: original[key] for key in ('enabled', 'community', 'sys_name', 'sys_contact', 'sys_location')}
