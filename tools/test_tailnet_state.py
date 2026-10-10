@@ -155,6 +155,7 @@ int main(void) {
 with tempfile.TemporaryDirectory(prefix='tailnet-state-') as directory:
     path=Path(directory); (path/'lwip').mkdir()
     (path/'lwip/pbuf.h').write_text('#pragma once\nstruct pbuf;\n',encoding='utf-8')
+    (path/'lwip/netif.h').write_text('#pragma once\nstruct netif;\n',encoding='utf-8')
     (path/'esp_err.h').write_text('/* fixture supplies esp_err_t */\n',encoding='utf-8')
     # These APIs are mutually exclusive in the source. Mark fixture adapters
     # unused so both old and fixed firmware can reproduce/run under -Werror.

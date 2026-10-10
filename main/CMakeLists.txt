@@ -50,6 +50,7 @@ idf_component_register(SRCS "main.c"
                             "dhcp_reservations.c"
                             "portmap.c"
                             "tailnet_forward.c"
+                            "tailnet_input.c"
                             "mac_deny.c"
                             "reset_history.c"
                             "ota.c"
@@ -72,6 +73,7 @@ idf_component_register(SRCS "main.c"
 # source IP to the WG netif's CGNAT address and breaks the TCP
 # 4-tuple at the tailnet peer.
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip_napt_forward")
+target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip4_input")
 
 # Phase 1.9l: wrap ip4_route_src_hook to add CGNAT-→-WG routing and
 # the exit-node LAN-bypass + self-traffic fallback on top of the

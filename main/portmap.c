@@ -180,6 +180,8 @@ static void portmap_install_cb(void *arg)
         return;
     }
     uint32_t bind_ip = ip_info.ip.addr;
+    tailnet_forward_mapping_t mappings[TAILNET_FORWARD_MAX];
+    int mapping_count=tailnet_forward_snapshot_mappings(mappings,TAILNET_FORWARD_MAX);
 
     int ap_installed = 0, tailnet_installed = 0;
     for (int i = 0; i < PORTMAP_MAX; i++) {
@@ -190,15 +192,15 @@ static void portmap_install_cb(void *arg)
             ap_installed++;
         }
     }
-    for (int i = 0; i < TAILNET_FORWARD_MAX; i++) {
-        uint8_t proto; uint16_t listen, dport; uint32_t destination;
-        if (!tailnet_forward_get_mapping(i, &proto, &listen, &destination, &dport)) continue;
-        bool ok = ip_portmap_add(proto, bind_ip, listen, destination, dport);
+    for (int i = 0; i < mapping_count; i++) {
+        tailnet_forward_mapping_t *m=&mappings[i];
+        m->binding_ip_nbo=bind_ip;
+        bool ok = ip_portmap_add(m->rule.proto, bind_ip, m->rule.listen_port, m->destination_nbo, m->rule.destination_port);
         if (ok) {
-            s_installed[s_installed_count++] = (installed_t){proto, listen};
+            s_installed[s_installed_count++] = (installed_t){m->rule.proto, m->rule.listen_port};
             tailnet_installed++;
         }
-        tailnet_forward_mark_installed(i, ok, ok ? NULL : "lwIP port-map table full");
+        tailnet_forward_mark_installed(m, ok, ok ? NULL : "lwIP port-map table full");
     }
     ESP_LOGI(TAG, "installed %d AP-side + %d LAN-to-Tailnet mapping(s) on STA " IPSTR,
              ap_installed, tailnet_installed, IP2STR(&ip_info.ip));

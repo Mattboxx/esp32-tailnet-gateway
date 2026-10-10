@@ -23,6 +23,7 @@ typedef int esp_err_t;
 #define ESP_ERR_INVALID_ARG -2
 #define ESP_ERR_INVALID_STATE -3
 #include "portmap.h"
+#include "tailnet_forward.h"
 #define NVS_NAMESPACE "tsr"
 #define NVS_READONLY 0
 #define NVS_READWRITE 1
@@ -73,7 +74,7 @@ static esp_err_t nvs_commit(nvs_handle_t h) {
     memcpy(persisted,pending,sizeof persisted); have_blob=true; return ESP_OK;
 }
 static void nvs_close(nvs_handle_t h) { (void)h; assert(!critical_depth); ++closes; }
-static bool tailnet_forward_listen_conflicts(uint8_t proto,uint16_t port) { (void)proto; assert(!critical_depth); return port==tailnet_conflict; }
+bool tailnet_forward_listen_conflicts(uint8_t proto,uint16_t port) { (void)proto; assert(!critical_depth); return port==tailnet_conflict; }
 static uint16_t web_ui_configured_port(void) { return 8080; }
 static bool tailscale_exit_server_active(void) { return true; }
 static uint16_t tailscale_peerapi_port(void) { return 41180; }
@@ -94,12 +95,12 @@ static void ip_portmap_remove(uint8_t proto,uint16_t port) {
     }
     assert(false);
 }
-static void tailnet_forward_prepare_install(void) { assert(!critical_depth); ++prepares; tailnet_installed=false; }
-static bool tailnet_forward_get_mapping(int i,uint8_t *p,uint16_t *l,uint32_t *d,uint16_t *dp) {
-    assert(!critical_depth); if(!tailnet_available || i!=0) return false;
-    *p=6; *l=4444; *d=0x64500001; *dp=22; return true;
+void tailnet_forward_prepare_install(void) { assert(!critical_depth); ++prepares; tailnet_installed=false; }
+int tailnet_forward_snapshot_mappings(tailnet_forward_mapping_t *out,int capacity) {
+    assert(!critical_depth && capacity==TAILNET_FORWARD_MAX); if(!tailnet_available)return 0;
+    out[0]=(tailnet_forward_mapping_t){.rule={.valid=1,.enabled=1,.proto=6,.listen_port=4444,.destination_port=22},.destination_nbo=0x64500001,.slot=0};return 1;
 }
-static void tailnet_forward_mark_installed(int i,bool ok,const char *err) { assert(i==0 && !err); tailnet_installed=ok; }
+void tailnet_forward_mark_installed(const tailnet_forward_mapping_t *m,bool ok,const char *err) { assert(m->slot==0 && m->binding_ip_nbo==0xc0000201 && !err); tailnet_installed=ok; }
 static err_t tcpip_callback_with_block(void (*cb)(void *),void *arg,int block) {
     assert(!critical_depth && !arg && block==1); if(queue_failure) return ESP_FAIL;
     queued_callback=cb; return ERR_OK;
@@ -147,6 +148,9 @@ int main(void) {
 '''
 with tempfile.TemporaryDirectory(prefix='portmap-') as directory:
     path = Path(directory)
+    (path/'lwip').mkdir()
+    (path/'lwip/pbuf.h').write_text('#pragma once\nstruct pbuf;\n',encoding='utf-8')
+    (path/'lwip/netif.h').write_text('#pragma once\nstruct netif;\n',encoding='utf-8')
     (path / 'esp_err.h').write_text('/* fixture supplies esp_err_t */\n', encoding='utf-8')
     (path / 'test.c').write_text(fixture + source + tests, encoding='utf-8')
     flags = ['-std=c11', '-Wall', '-Wextra', '-Werror']

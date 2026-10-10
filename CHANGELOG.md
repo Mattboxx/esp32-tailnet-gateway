@@ -6,6 +6,30 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.10-dev.7 — enforce forwarding policy at IPv4 processing time
+
+- Move Tailnet listener enforcement from early Wi-Fi/WireGuard input callbacks
+  to the TCP/IP core's IPv4 input, before the SDK performs receive DNAT. A packet
+  queued before a rule is activated is checked against the installed policy
+  when processed, not against a now-obsolete receive-time decision.
+- Install NAT bindings and their source/interface restrictions from the same
+  immutable table snapshot. Configuration/resolution tasks cannot change live
+  permissions or the NAT response classification while old bindings remain.
+- Associate install completion with its configuration generation and resolved
+  destination; an obsolete callback cannot mark a newly saved rule as active.
+- Preserve local AP DNS/services when AP NAPT is enabled, where the SDK does
+  not apply receive DNAT. Keep Tailnet listeners restricted to the STA uplink
+  when receive DNAT is eligible on another interface.
+- Keep early ACL/counter/TTL/MSS hooks and the original queued input chains.
+  Apply Tailnet-specific authorization once, on the core, and free denied
+  packets without entering the SDK's IPv4/NAT processing.
+- Add an actual-C core-wrapper/queue regression, reproducing the activation
+  timing failure first. Cover saved-versus-installed policy, obsolete callback
+  status, denied packet ownership, accepted return values, WG restriction and
+  AP DNS behavior with NAPT ON/OFF. Retain existing packet, NVS and API tests.
+- Preserve dev.6 and earlier fork features; no hardware/fragment-forwarding
+  certification or new stable release is implied by these software checks.
+
 ### 0.1.31-Mattboxx-1.10-dev.6 — Tailnet forwarding policy and saved-rule validation
 
 - Apply LAN-to-Tailnet listener filtering only to packets addressed to the

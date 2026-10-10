@@ -236,7 +236,6 @@ static err_t sta_input_hook(struct pbuf *p, struct netif *netif)
 {
     if (p) s_sta_bytes_in += p->tot_len;
     if (acl_drops(acl_check_and_tap(ACL_TO_ESP, p, false))) { pbuf_free(p); return ERR_OK; }
-    if (!tailnet_forward_allow_uplink_packet(p, netif_ip4_addr(netif)->addr)) { pbuf_free(p); return ERR_OK; }
     return original_sta_input ? original_sta_input(p, netif) : ERR_VAL;
 }
 
@@ -254,7 +253,6 @@ static err_t ap_input_hook(struct pbuf *p, struct netif *netif)
 {
     if (p) s_ap_bytes_in += p->tot_len;
     if (acl_drops(acl_check_and_tap(ACL_TO_AP, p, true))) { pbuf_free(p); return ERR_OK; }
-    if (!tailnet_forward_allow_non_uplink_packet(p, true, netif_ip4_addr(netif)->addr)) { pbuf_free(p); return ERR_OK; }
     /* PMTU: tell the client to back off when it sends a DF packet
      * bigger than the tunnel can carry. Runs BEFORE we forward so the
      * client gets the signal even when we'd otherwise drop the frame. */
@@ -277,7 +275,8 @@ static err_t ap_linkoutput_hook(struct netif *netif, struct pbuf *p)
 
 static err_t wg_input_hook(struct pbuf *p, struct netif *netif)
 {
-    if (!tailnet_forward_allow_non_uplink_packet(p, false, netif_ip4_addr(netif)->addr)) { pbuf_free(p); return ERR_OK; }
+    /* Listener policy is checked in IPv4 input on the TCP/IP core. This
+     * shim only preserves the original (possibly queued) input chain. */
     return original_wg_input ? original_wg_input(p, netif) : ERR_VAL;
 }
 

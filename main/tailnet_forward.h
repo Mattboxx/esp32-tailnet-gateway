@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include "esp_err.h"
 #include "lwip/pbuf.h"
+#include "lwip/netif.h"
 
 #define TAILNET_FORWARD_MAX 8
 #define TAILNET_FORWARD_NAME_LEN 32
@@ -28,6 +29,15 @@ typedef struct {
     char error[64];
 } tailnet_forward_runtime_t;
 
+/* Ephemeral snapshot, never written to NVS. Installation and packet policy
+ * use the same copy even if a settings task publishes another configuration. */
+typedef struct {
+    tailnet_forward_rule_t rule;
+    uint32_t destination_nbo, binding_ip_nbo;
+    int slot;
+    uint64_t generation;
+} tailnet_forward_mapping_t;
+
 void tailnet_forward_init(void);
 int tailnet_forward_count(void);
 bool tailnet_forward_get(int index, tailnet_forward_rule_t *rule, tailnet_forward_runtime_t *runtime);
@@ -37,8 +47,11 @@ esp_err_t tailnet_forward_parse_cidr(const char *text, uint32_t *network_hbo, ui
 void tailnet_forward_format_cidr(uint32_t network_hbo, uint8_t prefix, char *out, size_t out_size);
 bool tailnet_forward_listen_conflicts(uint8_t proto, uint16_t port);
 bool tailnet_forward_get_mapping(int slot, uint8_t *proto, uint16_t *listen_port, uint32_t *destination_nbo, uint16_t *destination_port);
+int tailnet_forward_snapshot_mappings(tailnet_forward_mapping_t *out, int capacity);
 void tailnet_forward_prepare_install(void);
-void tailnet_forward_mark_installed(int slot, bool installed, const char *error);
+void tailnet_forward_mark_installed(const tailnet_forward_mapping_t *mapping, bool installed, const char *error);
+/* Called only at IPv4 input on the TCP/IP core, immediately before DNAT. */
+bool tailnet_forward_allow_ipv4_packet(struct pbuf *packet, struct netif *input);
 /* local_ip_nbo is the receiving interface's IPv4 address, not a route
  * destination. The SDK applies receive-side DNAT only to that address. */
 bool tailnet_forward_allow_uplink_packet(struct pbuf *packet, uint32_t local_ip_nbo);

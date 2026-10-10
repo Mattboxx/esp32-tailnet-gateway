@@ -123,6 +123,7 @@ with tempfile.TemporaryDirectory(prefix='tailnet-api-') as directory:
     path=Path(directory); (path/'lwip').mkdir()
     (path/'esp_err.h').write_text('/* fixture supplies esp_err_t */\n',encoding='utf-8')
     (path/'lwip/pbuf.h').write_text('#pragma once\nstruct pbuf;\n',encoding='utf-8')
+    (path/'lwip/netif.h').write_text('#pragma once\nstruct netif;\n',encoding='utf-8')
     (path/'test.c').write_text(fixture+functions+tests,encoding='utf-8')
     flags=['-std=c11','-Wall','-Wextra','-Werror','-I',str(path),'-I',str(ROOT/'main')]
     libs=[]; cjson=os.environ.get('CJSON_SOURCE')

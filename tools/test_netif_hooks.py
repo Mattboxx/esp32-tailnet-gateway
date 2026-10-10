@@ -35,13 +35,9 @@ static uint32_t swap32(uint32_t x) { return ((x&255)<<24)|((x&0xff00)<<8)|((x>>8
 #define lwip_ntohl swap32
 #define ESP_LOGI(...) ((void)0)
 #define ESP_LOGW(...) ((void)0)
-static bool denied, queue_fails;
-static unsigned raw_calls, physical_calls, filter_calls, frees;
+static bool queue_fails;
+static unsigned raw_calls, physical_calls;
 static struct netif *expected_raw;
-static bool tailnet_forward_allow_non_uplink_packet(struct pbuf *p, bool ethernet, uint32_t local_ip) {
-    assert(p && !p->freed && !ethernet && expected_raw && local_ip==expected_raw->ip.addr); ++filter_calls; return !denied;
-}
-static void pbuf_free(struct pbuf *p) { assert(!p->freed); p->freed=true; ++frees; }
 static err_t raw_input(struct pbuf *p, struct netif *n) {
     assert(!p->freed && n==expected_raw); ++raw_calls; return 42;
 }
@@ -62,7 +58,7 @@ int main(void) {
     netif_hooks_refresh();
     assert(sta.input==physical_input && ap.input==physical_input && eth.input==physical_input);
     assert(!hooked_wg && !original_wg_input);
-    struct pbuf p={0}; assert(sta.input(&p,&sta)==24 && physical_calls==1 && filter_calls==0);
+    struct pbuf p={0}; assert(sta.input(&p,&sta)==24 && physical_calls==1);
 
     /* The real tunnel appears later, after DHCP and initial refreshes. */
     struct netif wg={.name={'w','g'},.input=raw_input};
@@ -76,9 +72,7 @@ int main(void) {
     assert(sta.input==physical_input && ap.input==physical_input && eth.input==physical_input);
     for(unsigned i=0;i<20;i++) netif_hooks_refresh();
     assert(original_wg_input==raw_input); /* no self-wrapping / recursion */
-    assert(wg.input(&p,&wg)==42 && raw_calls==1 && filter_calls==1 && !p.freed);
-    denied=true; assert(wg.input(&p,&wg)==ERR_OK && p.freed && frees==1 && raw_calls==1);
-    p.freed=false; denied=false;
+    assert(wg.input(&p,&wg)==42 && raw_calls==1 && !p.freed);
     original_wg_input=NULL; assert(wg.input(&p,&wg)==ERR_VAL && !p.freed);
     original_wg_input=raw_input;
     /* List ordering cannot change the physical interfaces' input chains. */
@@ -86,7 +80,7 @@ int main(void) {
     netif_hooks_refresh(); assert(wg.input(&p,&wg)==42 && raw_calls==2);
     assert(sta.input(&p,&sta)==24 && physical_calls==2);
     assert(ap.input==physical_input && eth.input==physical_input);
-    puts("PASS: actual netif hook discovery rejects CGNAT STA/AP/Ethernet; delayed WG, queue failure, idempotence, raw input/filter/drop and list ordering");
+    puts("PASS: actual netif hook discovery rejects CGNAT STA/AP/Ethernet; delayed WG, queue failure, idempotence, transparent raw/physical input chains and list ordering; policy tested on IPv4 core");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='netif-hooks-') as directory:

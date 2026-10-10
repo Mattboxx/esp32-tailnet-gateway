@@ -14,6 +14,7 @@ source = (ROOT/'main/tailnet_forward.c').read_text(encoding='utf-8')
 filter_functions = 'static bool packet_fields' + source.split('static bool packet_fields', 1)[1]
 conflicts = 'bool tailnet_forward_listen_conflicts' + source.split(
     'bool tailnet_forward_listen_conflicts', 1)[1].split('esp_err_t tailnet_forward_set_all', 1)[0]
+policy='int tailnet_forward_snapshot_mappings'+source.split('int tailnet_forward_snapshot_mappings',1)[1].split('static bool packet_fields',1)[0]
 fixture = r'''
 #include <assert.h>
 #include <stdbool.h>
@@ -24,6 +25,9 @@ fixture = r'''
 #include <stdlib.h>
 typedef int esp_err_t;
 #include "tailnet_forward.h"
+static uint64_t s_generation=1;
+typedef struct { bool installed; tailnet_forward_mapping_t mapping; } active_mapping_t;
+static active_mapping_t s_active[TAILNET_FORWARD_MAX];
 static tailnet_forward_rule_t s_rules[TAILNET_FORWARD_MAX];
 static tailnet_forward_runtime_t s_runtime[TAILNET_FORWARD_MAX];
 static int s_count, lock_depth;
@@ -32,6 +36,8 @@ static int s_count, lock_depth;
 static uint32_t swap32(uint32_t x) { return ((x&255)<<24)|((x&0xff00)<<8)|((x>>8)&0xff00)|(x>>24); }
 #define lwip_ntohl swap32
 #define lwip_htonl swap32
+#define netif_ip4_addr(n) (&(n)->ip)
+static size_t strlcpy(char *d,const char *s,size_t z) { size_t n=strlen(s);if(z){size_t c=n<z-1?n:z-1;memcpy(d,s,c);d[c]=0;}return n; }
 #define lwip_ntohs(x) ((uint16_t)(((x)>>8)|((x)<<8)))
 struct ip_hdr { uint8_t vhl,tos; uint16_t len,id,offset; uint8_t ttl,proto; uint16_t sum; struct { uint32_t addr; } src,dest; };
 #define IPH_V(i) ((i)->vhl>>4)
@@ -61,10 +67,17 @@ static void packet(uint8_t *b,bool eth,uint8_t proto,uint32_t src,uint32_t dest,
 }
 '''
 tests = r'''
+static void install(void) {
+    tailnet_forward_mapping_t maps[TAILNET_FORWARD_MAX];
+    int count=tailnet_forward_snapshot_mappings(maps,TAILNET_FORWARD_MAX);
+    tailnet_forward_prepare_install();
+    for(int i=0;i<count;i++){maps[i].binding_ip_nbo=swap32(local_hbo);tailnet_forward_mark_installed(&maps[i],true,NULL);}
+}
 int main(void) {
     s_count=1;
     s_rules[0]=(tailnet_forward_rule_t){.valid=1,.enabled=1,.proto=6,.listen_port=2222,.destination_port=22,.source_network=0xc0000200,.source_prefix=24};
     s_runtime[0].installed=true; s_runtime[0].resolved_ip=0x64400002;
+    install();
     uint8_t bytes[80]; struct pbuf p={.payload=bytes,.len=54,.tot_len=54};
     /* A same-numbered service on another host is not our forwarding listener. */
     packet(bytes,true,6,0xc6336402,0xc0000202,2222);
@@ -72,14 +85,15 @@ int main(void) {
     packet(bytes,true,6,0xc6336402,local_hbo,2222); assert(!ALLOW_UP(&p));
     packet(bytes,true,6,0xc0000263,local_hbo,2222); assert(ALLOW_UP(&p));
     assert(s_runtime[0].blocked_packets==1 && s_runtime[0].accepted_packets==1);
-    s_runtime[0].installed=false; assert(!ALLOW_UP(&p)); s_runtime[0].installed=true;
+    tailnet_forward_prepare_install(); assert(ALLOW_UP(&p)); install();
     for(unsigned prefix=0;prefix<=32;prefix++) {
         uint32_t mask=prefix==0?0:(prefix==32?UINT32_MAX:UINT32_MAX<<(32-prefix));
         s_rules[0].source_prefix=prefix; s_rules[0].source_network=0xc0000263&mask;
+        install();
         assert(ALLOW_UP(&p));
     }
     s_rules[0].source_prefix=24; s_rules[0].source_network=0xc0000200;
-    s_rules[0].source_prefix=33; assert(!ALLOW_UP(&p)); s_rules[0].source_prefix=24;
+    s_rules[0].source_prefix=33; install(); assert(!ALLOW_UP(&p)); s_rules[0].source_prefix=24; install();
     /* Deny equivalent local listener access from AP and tunnel inputs,
      * but do not interfere with routed/AP-subnet traffic to other hosts. */
     for(unsigned eth=0;eth<2;eth++) {
@@ -96,8 +110,8 @@ int main(void) {
         struct pbuf first={.next=&second,.payload=bytes,.len=split,.tot_len=54};
         assert(!ALLOW_UP(&first));
     }
-    s_rules[0].proto=17; packet(bytes,true,17,0xc6336402,local_hbo,2222); assert(!ALLOW_UP(&p));
-    s_rules[0].enabled=0; assert(ALLOW_UP(&p)); s_rules[0].enabled=1;
+    s_rules[0].proto=17; install(); packet(bytes,true,17,0xc6336402,local_hbo,2222); assert(!ALLOW_UP(&p));
+    s_rules[0].enabled=0; install(); assert(ALLOW_UP(&p)); s_rules[0].enabled=1; install();
     packet(bytes,true,6,0xc6336402,local_hbo,2222); assert(ALLOW_UP(&p));
     assert(!lock_depth);
     /* Malformed/header-boundary coverage; sanitizers catch invalid reads. */
@@ -114,8 +128,9 @@ with tempfile.TemporaryDirectory(prefix='tailnet-filter-') as directory:
     path=Path(directory)
     (path/'lwip').mkdir()
     (path/'lwip/pbuf.h').write_text('#pragma once\nstruct pbuf { struct pbuf *next; void *payload; unsigned short len,tot_len; };\n', encoding='utf-8')
+    (path/'lwip/netif.h').write_text('#pragma once\nstruct netif { char name[2]; unsigned char napt; struct { unsigned addr; } ip; };\n',encoding='utf-8')
     (path/'esp_err.h').write_text('/* fixture supplies esp_err_t */\n', encoding='utf-8')
-    (path/'test.c').write_text(fixture+conflicts+filter_functions+tests, encoding='utf-8')
+    (path/'test.c').write_text(fixture+conflicts+policy+filter_functions+tests, encoding='utf-8')
     flags=['-std=c11','-Wall','-Wextra','-Werror']
     if os.environ.get('TAILNET_SANITIZE')=='1': flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     binary=path/('test.exe' if os.name=='nt' else 'test')

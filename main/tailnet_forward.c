@@ -29,6 +29,11 @@ static int s_count;
 static bool s_loaded;
 static SemaphoreHandle_t s_lock;
 static StaticSemaphore_t s_lock_storage;
+static uint64_t s_generation;
+typedef struct { bool installed; tailnet_forward_mapping_t mapping; } active_mapping_t;
+/* Only the TCP/IP task installs/replaces these snapshots and authorizes
+ * packets from them. Configuration/resolution tasks never modify live policy. */
+static active_mapping_t s_active[TAILNET_FORWARD_MAX];
 #define LOCK() do { if (s_lock) xSemaphoreTake(s_lock, portMAX_DELAY); } while (0)
 #define UNLOCK() do { if (s_lock) xSemaphoreGive(s_lock); } while (0)
 
@@ -92,6 +97,7 @@ void tailnet_forward_init(void) {
     if(s_loaded)return;
     if(!s_lock)s_lock=xSemaphoreCreateMutexStatic(&s_lock_storage);
     memset(s_rules,0,sizeof s_rules);memset(s_runtime,0,sizeof s_runtime);
+    memset(s_active,0,sizeof s_active);s_generation++;
     s_count=0;
     store_t st={0};size_t len=sizeof st;nvs_handle_t nvs;
     if(nvs_open(NVS_NAMESPACE,NVS_READONLY,&nvs)==ESP_OK){
@@ -138,14 +144,44 @@ esp_err_t tailnet_forward_set_all(const tailnet_forward_rule_t *rules,int count,
     if(err==ESP_OK){err=nvs_set_blob(nvs,NVS_KEY,&st,sizeof st);if(err==ESP_OK)err=nvs_commit(nvs);nvs_close(nvs);}if(err!=ESP_OK)return err;
     LOCK();
     memset(s_rules,0,sizeof s_rules);memset(s_runtime,0,sizeof s_runtime);memcpy(s_rules,rules,count*sizeof rules[0]);s_count=count;
+    s_generation++;
     for(int i=0;i<count;i++)resolve_rule(i);
     UNLOCK();
     portmap_install_all();return ESP_OK;
 }
 esp_err_t tailnet_forward_set_enabled(int i,bool enabled){tailnet_forward_rule_t copy[TAILNET_FORWARD_MAX];LOCK();if(i<0||i>=s_count){UNLOCK();return ESP_ERR_INVALID_ARG;}int count=s_count;memcpy(copy,s_rules,sizeof copy);UNLOCK();copy[i].enabled=enabled;char e[64];return tailnet_forward_set_all(copy,count,e,sizeof e);}
 bool tailnet_forward_get_mapping(int i,uint8_t *proto,uint16_t *listen,uint32_t *dest,uint16_t *dport){LOCK();bool ok=i>=0&&i<s_count&&s_rules[i].valid&&s_rules[i].enabled&&s_runtime[i].resolved_ip;if(ok){*proto=s_rules[i].proto;*listen=s_rules[i].listen_port;*dest=lwip_htonl(s_runtime[i].resolved_ip);*dport=s_rules[i].destination_port;}UNLOCK();return ok;}
-void tailnet_forward_prepare_install(void){LOCK();for(int i=0;i<s_count;i++)s_runtime[i].installed=false;UNLOCK();}
-void tailnet_forward_mark_installed(int i,bool ok,const char *err){LOCK();if(i>=0&&i<s_count){s_runtime[i].installed=ok;if(err)strlcpy(s_runtime[i].error,err,sizeof s_runtime[i].error);else if(ok)s_runtime[i].error[0]=0;}UNLOCK();}
+int tailnet_forward_snapshot_mappings(tailnet_forward_mapping_t *out, int capacity)
+{
+    if(!out||capacity<=0)return 0;
+    LOCK();int count=0;
+    for(int i=0;i<s_count&&count<capacity;i++) {
+        if(!s_rules[i].valid||!s_rules[i].enabled||!s_runtime[i].resolved_ip)continue;
+        out[count++]=(tailnet_forward_mapping_t){.rule=s_rules[i],.destination_nbo=lwip_htonl(s_runtime[i].resolved_ip),.slot=i,.generation=s_generation};
+    }
+    UNLOCK();return count;
+}
+void tailnet_forward_prepare_install(void)
+{
+    LOCK();memset(s_active,0,sizeof s_active);
+    for(int i=0;i<s_count;i++)s_runtime[i].installed=false;
+    UNLOCK();
+}
+void tailnet_forward_mark_installed(const tailnet_forward_mapping_t *mapping,bool ok,const char *err)
+{
+    if(!mapping||mapping->slot<0||mapping->slot>=TAILNET_FORWARD_MAX)return;
+    int i=mapping->slot;
+    LOCK();
+    s_active[i].installed=ok;
+    if(ok)s_active[i].mapping=*mapping;
+    /* Do not report an old callback's binding as the newly saved rule. */
+    if(i<s_count&&mapping->generation==s_generation&&mapping->destination_nbo==lwip_htonl(s_runtime[i].resolved_ip)) {
+        s_runtime[i].installed=ok;
+        if(err)strlcpy(s_runtime[i].error,err,sizeof s_runtime[i].error);
+        else if(ok)s_runtime[i].error[0]=0;
+    }
+    UNLOCK();
+}
 
 static bool packet_fields(struct pbuf *p, bool eth, uint32_t *src,
                           uint32_t *destination_nbo, uint8_t *proto, uint16_t *dport)
@@ -172,34 +208,48 @@ static bool packet_fields(struct pbuf *p, bool eth, uint32_t *src,
     *src = lwip_ntohl(source_nbo);
     return true;
 }
-bool tailnet_forward_allow_uplink_packet(struct pbuf *p, uint32_t local_ip_nbo)
+static bool allow_packet(struct pbuf *p, bool eth, uint32_t local_ip_nbo, bool uplink)
 {
     uint32_t src, destination; uint8_t proto; uint16_t dp;
     /* Match the pinned SDK's ip4_input DNAT condition: destination equals
      * the receiving interface address. Routed traffic is not this listener. */
-    if (!local_ip_nbo || !packet_fields(p, true, &src, &destination, &proto, &dp) || destination != local_ip_nbo) return true;
+    if (!local_ip_nbo || !packet_fields(p, eth, &src, &destination, &proto, &dp) || destination != local_ip_nbo) return true;
     LOCK();
-    for (int i = 0; i < s_count; i++) {
-        const tailnet_forward_rule_t *r = &s_rules[i];
-        if (!r->valid || !r->enabled || r->proto != proto || r->listen_port != dp) continue;
+    for (int i = 0; i < TAILNET_FORWARD_MAX; i++) {
+        const tailnet_forward_mapping_t *m=&s_active[i].mapping;
+        const tailnet_forward_rule_t *r=&m->rule;
+        if (!s_active[i].installed || r->proto != proto || r->listen_port != dp) continue;
         bool ok = false;
         if (r->source_prefix <= 32) {
             uint32_t mask = r->source_prefix == 0 ? 0 : (r->source_prefix == 32 ? UINT32_MAX : UINT32_MAX << (32 - r->source_prefix));
-            ok = s_runtime[i].installed && ((src & mask) == r->source_network);
+            ok = uplink && local_ip_nbo==m->binding_ip_nbo && ((src & mask) == r->source_network);
         }
-        if (ok) s_runtime[i].accepted_packets++; else s_runtime[i].blocked_packets++;
+        if(i<s_count&&m->generation==s_generation) {
+            if (ok) s_runtime[i].accepted_packets++; else s_runtime[i].blocked_packets++;
+        }
         UNLOCK();
         return ok;
     }
     UNLOCK();
     return true;
 }
+bool tailnet_forward_allow_uplink_packet(struct pbuf *p, uint32_t local_ip_nbo)
+{
+    return allow_packet(p,true,local_ip_nbo,true);
+}
 bool tailnet_forward_allow_non_uplink_packet(struct pbuf *p, bool eth, uint32_t local_ip_nbo)
 {
-    uint32_t src, destination; uint8_t proto; uint16_t dp;
-    if (!local_ip_nbo || !packet_fields(p, eth, &src, &destination, &proto, &dp) || destination != local_ip_nbo) return true;
-    return !tailnet_forward_listen_conflicts(proto, dp);
+    return allow_packet(p,eth,local_ip_nbo,false);
 }
-bool tailnet_forward_is_routed_target(uint8_t proto,uint32_t dst,uint16_t port){uint32_t h=lwip_ntohl(dst);LOCK();bool found=false;for(int i=0;i<s_count;i++)if(s_runtime[i].installed&&s_rules[i].proto==proto&&s_runtime[i].resolved_ip==h&&s_rules[i].destination_port==port){found=true;break;}UNLOCK();return found;}
+bool tailnet_forward_allow_ipv4_packet(struct pbuf *p,struct netif *input)
+{
+    /* Match receive-DNAT eligibility at the point the SDK consumes input,
+     * not the earlier Wi-Fi/WireGuard callback that merely queues it.
+     * NAPT-enabled AP input is not DNAT: preserve its local DNS/services. */
+    if(!input||input->napt)return true;
+    bool uplink=input->name[0]=='s'&&input->name[1]=='t';
+    return allow_packet(p,false,netif_ip4_addr(input)->addr,uplink);
+}
+bool tailnet_forward_is_routed_target(uint8_t proto,uint32_t dst,uint16_t port){LOCK();bool found=false;for(int i=0;i<TAILNET_FORWARD_MAX;i++)if(s_active[i].installed&&s_active[i].mapping.rule.proto==proto&&s_active[i].mapping.destination_nbo==dst&&s_active[i].mapping.rule.destination_port==port){found=true;break;}UNLOCK();return found;}
 bool tailnet_forward_is_routed_response(uint8_t proto,uint32_t src,uint16_t port){return tailnet_forward_is_routed_target(proto,src,port);}
 void tailnet_forward_totals(uint32_t *enabled,uint32_t *installed,uint32_t *accepted,uint32_t *blocked){uint32_t e=0,n=0,a=0,b=0;LOCK();for(int i=0;i<s_count;i++){if(s_rules[i].enabled)e++;if(s_runtime[i].installed)n++;a+=s_runtime[i].accepted_packets;b+=s_runtime[i].blocked_packets;}UNLOCK();if(enabled)*enabled=e;if(installed)*installed=n;if(accepted)*accepted=a;if(blocked)*blocked=b;}

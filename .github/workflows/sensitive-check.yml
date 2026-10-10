@@ -45,6 +45,7 @@ jobs:
           TAILNET_SANITIZE=1 python3 tools/test_tailnet_filter.py
           TAILNET_SANITIZE=1 python3 tools/test_tailnet_state.py
           TAILNET_SANITIZE=1 python3 tools/test_tailnet_api.py
+          TAILNET_SANITIZE=1 python3 tools/test_tailnet_core.py
           PEER_DNS_SANITIZE=1 python3 tools/test_peer_dns.py
           OTA_SANITIZE=1 python3 tools/test_ota_remote.py
       - name: Check sensitive data without logging secret values
