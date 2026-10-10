@@ -27,7 +27,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "log_capture.h"
 #include "lwip/ip4_addr.h"
 #include "microlink.h"
 #include "mqtt_integration.h"
@@ -620,20 +619,16 @@ static bool uplink_connected(void)
 
 static NTFY_NOINLINE esp_err_t send_tailscale_alert(const ntfy_integration_config_t *c)
 {
-    char *logs = malloc(2300);
-    char *message = malloc(2300);
-    if (!logs || !message) { free(logs); free(message); return ESP_ERR_NO_MEM; }
-    size_t n = log_capture_read(logs, 2300);
-    const char *tail = logs;
-    if (n > 1800) tail += n - 1800;
-    snprintf(message, 2300, "Internet uplink is connected, but Tailscale has remained disconnected.\n\nRecent local log tail:\n%.1800s", tail);
-    free(logs);
+    /* Alerts report connectivity, never export the local log buffer. Private
+     * details for an explicitly requested info reply are a separate policy. */
+    static const char message[] =
+        "Internet uplink is connected, but Tailscale has remained disconnected.\n"
+        "Open the local Diagnostics page to inspect logs.";
     esp_err_t err = publish_message(c, "ESP32 Tailscale problem", "warning,mattboxx-response", message);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     if (err == ESP_OK)
         s_status.alerts_sent++;
     xSemaphoreGive(s_lock);
-    free(message);
     return err;
 }
 

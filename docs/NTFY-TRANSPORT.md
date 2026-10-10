@@ -31,6 +31,11 @@ subsequent poll repeated the same oversized response until the cache expired.
 The former whole-frame cJSON parse also let arbitrary nested response JSON use
 recursive stack frames and per-field heap allocations in the ntfy worker.
 
+Outage alerts unconditionally included the recent local log tail even with
+private info details disabled. Logs can contain local network diagnostics; this
+did not satisfy the requested no-external-log policy. A synthetic private-log
+marker was reproduced in the pre-fix alert payload without contacting a server.
+
 ## Fix and compatibility
 
 - Both ntfy clients explicitly disable automatic redirects. HTTP 3xx fails;
@@ -43,7 +48,11 @@ recursive stack frames and per-field heap allocations in the ntfy worker.
 - A failed Authorization-header setup aborts the request, frees its resources,
   and reports failure. An intentionally empty token still supports anonymous
   topics. Explicit local HTTP setups remain supported with the existing warning.
-- Existing MQTT, WOL, ntfy commands/alerts and update policies are unchanged.
+- MQTT, WOL, ntfy command controls and update policies are retained. Outage
+  alerts remain available but no longer read or publish local logs, with or
+  without private info details enabled. The warning points to local Diagnostics.
+  Local live/pre-crash/SD logs are retained; requested info replies still honor
+  the explicit private-details option. The alert builder needs no heap buffers.
 - A settings generation invalidates old in-flight poll responses after every
   successful save, including a disable/re-enable cycle or token/policy change.
   Each queued message is rechecked against the current policy before dispatch;
@@ -104,6 +113,11 @@ newlines and HTTP open/header/read/incomplete-body failures. `test_ntfy_stream.p
 exercises the actual parser, large strings and whitespace, Unicode/UTF-8 and
 100,000 mutated JSON inputs, comparing accepted frames with cJSON. This is a
 regression/fuzz sample, not a formal proof of parser correctness.
+
+`test_ntfy_logic.py` checks the actual alert builder with allocator/log-reader
+tripwires and a synthetic private-log marker. Both private-details policies leave
+the log reader unused and the marker absent. Publish/OOM failure accounting and
+info error accounting are retained. This does not audit every possible log sink.
 
 The transport fixture does not implement real TLS or contact a live server.
 Passing it does not prove that all firmware bugs or security issues are gone.

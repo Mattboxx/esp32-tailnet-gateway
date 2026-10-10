@@ -6,7 +6,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### 0.1.31-Mattboxx-1.10-dev.3 — opt-in fork updates and ntfy transport/state hardening
+### 0.1.31-Mattboxx-1.10-dev.4 — opt-in fork updates and ntfy transport/state hardening
 
 - Disable Install latest update after a successful check finds no newer
   compatible release; re-enable it when an update is found. Preserve one-click
@@ -33,6 +33,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   reject oversized commands while still advancing past their notification IDs.
 - Add 200-command multi-poll replay, fragmented/large-frame/HTTP failure tests
   and 100,000 parser mutations compared with cJSON; run the parser with sanitizers.
+- Remove local log reads/uploads from ntfy outage alerts, independently of the
+  private-info setting. Alerts now contain a connectivity warning only. Keep
+  local diagnostics and explicitly requested info/WOL responses available.
+- Make the alert builder allocation-free and test that a synthetic private log
+  marker is never read or published; correct the UI hint to match this policy.
 - Default-OFF periodic GitHub checks, automatic install, stable/beta channels
   and optional device-local-time hourly window, with graphical System switches.
 - Manual Check now and Install latest update perform asynchronous GitHub

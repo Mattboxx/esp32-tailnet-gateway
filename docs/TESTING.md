@@ -21,7 +21,9 @@ Add `--objdump <Xtensa objdump executable> --elf <built firmware.elf>` to
 verify the actual compiler-generated frame budgets. The old 1.7 release ELF
 fails this check (4,240-byte worker frame); the corrected 1.8 frame is 496 bytes.
 `python tools/test_ntfy_logic.py` compiles the actual command
-accounting and alert builder with synthetic dependencies. Set `NTFY_SANITIZE=1`
+accounting and alert builder with synthetic dependencies. It checks that alerts
+never read/upload a synthetic private log marker, regardless of private-info
+policy, and require no heap buffers. Set `NTFY_SANITIZE=1`
 on a supported compiler to run ASan/UBSan, as CI does.
 
 `python tools/test_ntfy_transport.py` compiles the actual publish/poll and

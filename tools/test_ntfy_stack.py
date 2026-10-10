@@ -22,7 +22,8 @@ class NtfyStackTests(unittest.TestCase):
         self.assertIn('!= pdPASS', source)
         alert = source.split('send_tailscale_alert(', 1)[1].split('static void task_main', 1)[0]
         self.assertNotIn('char logs[', alert)
-        self.assertIn('free(logs);', alert)
+        self.assertNotIn('log_capture_read(', alert)
+        self.assertNotIn('malloc(', alert)
         self.assertIn('return err;', alert)
 
     def test_poll_uses_bounded_nonrecursive_stream(self):

@@ -68,6 +68,10 @@ allocating entire cached responses or recursively parsing arbitrary metadata.
 Oversized command text, ambiguous duplicate fields, malformed UTF-8, embedded
 NUL and excessive nesting cannot execute commands. Authentication/HTTP errors
 do not dispatch queued responses; unread complete batches resume by durable ID.
+ntfy outage alerts contain only a connectivity warning, never local log tails.
+Private info details do not re-enable log uploads. Local Diagnostics remain
+available to authorized sessions; explicitly requested info replies can still
+include network details under their separate opt-in setting.
 See [confirmed issues and regression coverage](docs/NTFY-TRANSPORT.md).
 
 ## Reporting a Vulnerability

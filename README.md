@@ -47,7 +47,7 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
-**Development branch: 0.1.31-Mattboxx-1.10-dev.3.** New: opt-in update checks,
+**Development branch: 0.1.31-Mattboxx-1.10-dev.4.** New: opt-in update checks,
 automatic install with an optional local-time window, stable/beta channels,
 and **Install latest update** for a one-click GitHub download/install even
 with periodic checks OFF. Only this fork's compatible newer releases qualify;
@@ -61,6 +61,7 @@ server URL. It also rejects obsolete command replies after settings changes,
 stores settings/cursor together and defers commands on cursor-write failure.
 Command polling now streams bounded batches rather than stalling on a large
 topic backlog; large notification text and metadata do not grow heap usage;
+ntfy outage alerts no longer read or upload local log contents;
 see [ntfy transport/state fixes and test coverage](docs/NTFY-TRANSPORT.md).
 
 Upstream v0.1.30 and v0.1.31
@@ -111,7 +112,7 @@ available unchanged for rollback.
 | **WiFi gateway policy** | Keep the client AP always available, or automatically place it in standby while the uplink works and restore it after an outage. The dashboard makes disabled state unmistakable. |
 | **Wake-on-LAN** | Save up to 12 named devices and wake them from the web UI, MQTT, Home Assistant or replay-protected ntfy commands. |
 | **MQTT + Home Assistant** | Retained availability and device state, Last Will, broker watchdog, inbound commands and automatic discovery for AP, routes, SNAT, LAN bypass, Tailscale, 4via6, reconnect, restart, WOL and every LAN → Tailnet rule. |
-| **ntfy remote operations** | Optional outage alerts, bounded diagnostic context, `info` replies and WOL commands with durable polling and replay protection. Private details stay hidden unless explicitly enabled. |
+| **ntfy remote operations** | Optional connectivity outage alerts, `info` replies and WOL commands with durable polling and replay protection. Local logs are not uploaded; private info details stay hidden unless explicitly enabled. |
 | **Tailscale 4via6** | Optional bidirectional TCP/UDP/ICMP translation for overlapping IPv4 LANs, with calculated advertised prefix, flow counters and Home Assistant controls. |
 | **Exit-node server** | Advertise the ESP32 itself as a Tailscale exit node, with automatic IPv4 egress masquerading, admin-approval guidance, fail-closed IPv6 behavior and Home Assistant/ntfy visibility. Server mode cannot conflict with selecting another exit node. The 1.9 development branch adds upstream's separate DNS PeerAPI for native Tailscale exit-node clients. |
 | **Web administration** | Responsive dark UI, graphical feature switches, clear disabled cards, configurable web port, optional password gate and session timeout, local OTA and encrypted backup/restore. The 1.10 development branch adds opt-in fork-only GitHub updates, stable/beta channels and one-click latest install. |
@@ -264,7 +265,7 @@ traffic you route through it.)*
   into Tailscale's 4via6 prefix, advertises it alongside normal IPv4 routes,
   and translates TCP, UDP and ICMP traffic in both directions.
 - **Optional ntfy integration** — alerts when the internet uplink works but
-  Tailscale remains down, includes a bounded local log tail, and accepts
+  Tailscale remains down without uploading local logs, and accepts
   replay-protected `info` and WOL commands. It is disabled by default.
 - **Robust by design** — encrypted config backup/restore, local manual
   OTA upload and optional fork-only GitHub updates, per-sink (console + SD) log levels, auto AP-channel realign on
