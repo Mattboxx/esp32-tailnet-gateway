@@ -248,6 +248,53 @@ async function main() {
     await f.page.waitForFunction(() => document.getElementById('sys-updates-status').textContent.includes('SHA-256 mismatch'));
     assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), false);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
+
+    // A successful check with no candidate disables installation, not checks.
+    // Refresh/polling must preserve this until a newer candidate is found.
+    f = await fixture(browser, { page: 'system' });
+    await f.page.waitForFunction(() => !document.getElementById('sys-updates-check').disabled);
+    await f.page.locator('#sys-updates-check').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Working…');
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
+    assert.equal(await f.page.locator('#sys-updates-check').isDisabled(), true);
+    f.state.updatesBody = {...updates, checked: true, status: 'No newer compatible release'};
+    await f.page.locator('#sys-updates-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-updates-status').textContent === 'No newer compatible release');
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
+    assert.equal(await f.page.locator('#sys-updates-check').isDisabled(), false);
+    assert.match(await f.page.locator('#sys-updates-install').getAttribute('title'), /No newer compatible release/);
+    await f.page.evaluate(() => document.getElementById('sys-updates-install').click());
+    assert.equal(f.calls.filter(url => url === '/api/system/updates/install').length, 0);
+    await f.page.locator('#sys-updates-reload').click();
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
+    await f.page.locator('#sys-updates-check').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Working…');
+    f.state.updatesBody = {...updates, checked: true, update_available: true,
+      latest_version: '0.1.31-Mattboxx-1.11', status: 'Newer compatible release available'};
+    await f.page.locator('#sys-updates-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Update available');
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), false);
+    assert.equal(await f.page.locator('#sys-updates-check').isDisabled(), false);
+    f.state.updatesBody = {...updates, checked: true, status: 'No newer compatible release'};
+    await f.page.locator('#sys-updates-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('sys-updates-status').textContent === 'No newer compatible release');
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+
+    // Missing or non-boolean availability fields must not unlock installation.
+    for (const invalid of [{checked: undefined}, {update_available: 'false'}]) {
+      f = await fixture(browser, {page: 'system', updatesBody: {...updates, ...invalid}});
+      await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Unavailable');
+      assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
+      assert.equal(await f.page.locator('#sys-updates-check').isDisabled(), true);
+      f.state.updatesBody = {...updates, checked: true, status: 'No newer compatible release'};
+      await f.page.locator('#sys-updates-reload').click();
+      await f.page.waitForFunction(() => document.getElementById('sys-updates-status').textContent === 'No newer compatible release');
+      assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
+      assert.equal(await f.page.locator('#sys-updates-check').isDisabled(), false);
+      assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    }
+
     f = await fixture(browser, { page: 'system' });
     await f.page.waitForFunction(() => !document.getElementById('sys-updates-install').disabled);
     f.page.on('dialog', dialog => dialog.accept());

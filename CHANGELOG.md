@@ -8,6 +8,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### 0.1.31-Mattboxx-1.10-dev — opt-in fork updates
 
+- Disable Install latest update after a successful check finds no newer
+  compatible release; re-enable it when an update is found. Preserve one-click
+  initial installs and reject incomplete/invalid update-status responses.
 - Default-OFF periodic GitHub checks, automatic install, stable/beta channels
   and optional device-local-time hourly window, with graphical System switches.
 - Manual Check now and Install latest update perform asynchronous GitHub

@@ -7215,6 +7215,7 @@
 
     /* Opt-in updates are asynchronous and independent of local OTA upload. */
     var s_updatesLoaded = false, s_updatesDirty = false, s_updatesPending = null, s_updatesBusy = false;
+    var s_updatesChecked = false, s_updatesAvailable = false;
     (function () {
       var select = document.getElementById('sys-updates-hour');
       for (var hour = 0; hour < 24; hour++) {
@@ -7230,14 +7231,19 @@
       document.getElementById('sys-updates-auto').disabled = !editable || !enabled;
       document.getElementById('sys-updates-hour').disabled = !editable || !enabled || !document.getElementById('sys-updates-auto').checked;
       document.getElementById('sys-updates-save').disabled = !editable || !s_updatesDirty;
-      ['check', 'install'].forEach(function (action) { document.getElementById('sys-updates-' + action).disabled = !editable || s_updatesDirty; });
+      document.getElementById('sys-updates-check').disabled = !editable || s_updatesDirty;
+      var install = document.getElementById('sys-updates-install');
+      var upToDate = s_updatesChecked && !s_updatesAvailable;
+      install.disabled = !editable || s_updatesDirty || upToDate;
+      install.title = upToDate ? 'No newer compatible release. Use Check now to check again.' : 'Check and install the latest newer compatible release.';
       if (s_updatesLoaded) setFeatureCardState('sys-updates-policy', enabled);
     }
     function loadRemoteUpdates() {
       if (s_updatesPending) return s_updatesPending;
       s_updatesPending = readAutomationSettings('/api/system/updates').then(function (d) {
-        if (!d || typeof d.enabled !== 'boolean' || typeof d.auto_install !== 'boolean' || typeof d.beta_channel !== 'boolean' || typeof d.busy !== 'boolean') throw new Error('Invalid update settings response');
+        if (!d || typeof d.enabled !== 'boolean' || typeof d.auto_install !== 'boolean' || typeof d.beta_channel !== 'boolean' || typeof d.busy !== 'boolean' || typeof d.checked !== 'boolean' || typeof d.update_available !== 'boolean') throw new Error('Invalid update settings response');
         s_updatesLoaded = true; s_updatesBusy = d.busy;
+        s_updatesChecked = d.checked; s_updatesAvailable = d.update_available;
         if (!s_updatesDirty) {
           document.getElementById('sys-updates-enabled').checked = d.enabled;
           document.getElementById('sys-updates-auto').checked = d.auto_install;

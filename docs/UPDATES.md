@@ -17,6 +17,12 @@ automatic install. Beta selection still applies to one-off manual installs.
 Save channel/policy changes before using manual actions. Beta means GitHub
 pre-release inclusion, not an email subscription or registration service.
 
+After a successful check finds no newer compatible release, **Install latest
+update** is disabled; **Check now** remains available. Discovering a newer
+compatible release enables installation again. Before the first successful
+check, the one-click check-and-install workflow remains available. Invalid or
+unavailable local status disables both actions until a successful refresh.
+
 No new image is fetched simply because the System page is opened: the page
 reads local status. The worker is off/idle unless opted in or explicitly
 requested, runs outside the web server, and does not hold the HTTP request
