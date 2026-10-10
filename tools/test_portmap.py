@@ -38,6 +38,9 @@ typedef struct { struct { uint32_t addr; } ip; } esp_netif_ip_info_t;
 typedef int portMUX_TYPE;
 #define portMUX_INITIALIZER_UNLOCKED 0
 static int critical_depth;
+static int transaction_depth;
+static void forwarding_config_lock(void) { assert(!critical_depth && !transaction_depth); transaction_depth=1; }
+static void forwarding_config_unlock(void) { assert(!critical_depth && transaction_depth==1); transaction_depth=0; }
 #define portENTER_CRITICAL(m) do { (void)(m); assert(critical_depth==0); critical_depth=1; } while(0)
 #define portEXIT_CRITICAL(m) do { (void)(m); assert(critical_depth==1); critical_depth=0; } while(0)
 static void log_stub(const char *tag,const char *fmt,...) { (void)tag; (void)fmt; assert(!critical_depth); }
@@ -102,7 +105,7 @@ int tailnet_forward_snapshot_mappings(tailnet_forward_mapping_t *out,int capacit
 }
 void tailnet_forward_mark_installed(const tailnet_forward_mapping_t *m,bool ok,const char *err) { assert(m->slot==0 && m->binding_ip_nbo==0xc0000201 && !err); tailnet_installed=ok; }
 static err_t tcpip_callback_with_block(void (*cb)(void *),void *arg,int block) {
-    assert(!critical_depth && !arg && block==1); if(queue_failure) return ESP_FAIL;
+    assert(!critical_depth && !transaction_depth && !arg && block==1); if(queue_failure) return ESP_FAIL;
     queued_callback=cb; return ERR_OK;
 }
 static void drain(void) { if(queued_callback) { void (*cb)(void*)=queued_callback; queued_callback=NULL; cb(NULL); } }

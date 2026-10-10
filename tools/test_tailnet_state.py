@@ -40,6 +40,9 @@ typedef struct { int unused; } StaticSemaphore_t;
 typedef StaticSemaphore_t *SemaphoreHandle_t;
 static StaticSemaphore_t fake_lock;
 static int lock_depth;
+static int transaction_depth;
+static void forwarding_config_lock(void) { assert(!lock_depth && !transaction_depth); transaction_depth=1; }
+static void forwarding_config_unlock(void) { assert(!lock_depth && transaction_depth==1); transaction_depth=0; }
 static SemaphoreHandle_t xSemaphoreCreateMutex(void) { return &fake_lock; }
 static SemaphoreHandle_t xSemaphoreCreateMutexStatic(StaticSemaphore_t *s) { return s; }
 static void xSemaphoreTake(SemaphoreHandle_t h,int wait) { (void)wait; assert(h && !lock_depth); ++lock_depth; }
@@ -52,7 +55,7 @@ static int xTaskCreate(void (*fn)(void*),const char *name,unsigned stack,void *a
 }
 static void vTaskDelay(unsigned t) { (void)t; abort(); }
 static void netif_hooks_refresh(void) { assert(!lock_depth); }
-static void portmap_install_all(void) { assert(!lock_depth); ++installs; }
+static void portmap_install_all(void) { assert(!lock_depth && !transaction_depth); ++installs; }
 static uint16_t ap_conflict;
 static bool portmap_listen_conflicts(uint8_t proto,uint16_t port) { (void)proto; return port==ap_conflict; }
 static uint16_t web_ui_configured_port(void) { return 8080; }

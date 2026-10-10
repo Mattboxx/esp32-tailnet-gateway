@@ -6,6 +6,26 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.10-dev.8 — serialize forwarding configuration transactions
+
+- Serialize AP-side and LAN-to-Tailnet conflict checks, NVS writes/commits and
+  in-memory publication with one static configuration mutex. Two simultaneous
+  saves can no longer commit in one order and publish in the opposite order,
+  or both reserve the same protocol/listen port across the independent tables.
+- Keep a Tailnet ON/OFF command's read-modify-save operation in that same
+  transaction, so simultaneous commands for separate rules preserve both changes.
+- Snapshot both forwarding tables together for TCP/IP installation, rather than
+  combining tables from opposite sides of a configuration publication. Release
+  the configuration mutex before queueing a TCP/IP callback or mutating lwIP;
+  retain the separate, immutable installed packet policy introduced in dev.7.
+- Add pthread-backed actual-C concurrency regressions with a deliberately
+  suspended NVS completion. Reproduce persistence/publication disagreement,
+  lost ON/OFF changes and AP/Tailnet double reservations before fixing them;
+  also check an installation racing a pending save. Run with ASan/UBSan in CI.
+- Preserve NVS record layouts, existing rules, AP-independent Tailnet forwarding
+  and all previous fork features. These software checks are not a device test,
+  fragment-forwarding certification or a new stable/beta release.
+
 ### 0.1.31-Mattboxx-1.10-dev.7 — enforce forwarding policy at IPv4 processing time
 
 - Move Tailnet listener enforcement from early Wi-Fi/WireGuard input callbacks

@@ -14,6 +14,7 @@
 #include "nvs.h"
 #include "nvs_params.h"
 #include "portmap.h"
+#include "forwarding_config.h"
 #include "tailscale_config.h"
 #include "netif_hooks.h"
 #include "web_ui.h"
@@ -127,9 +128,17 @@ void tailnet_forward_init(void) {
 }
 int tailnet_forward_count(void){if(!s_loaded)tailnet_forward_init();LOCK();int n=s_count;UNLOCK();return n;}
 bool tailnet_forward_get(int i,tailnet_forward_rule_t *r,tailnet_forward_runtime_t *rt){if(!s_loaded)tailnet_forward_init();LOCK();bool ok=i>=0&&i<s_count&&s_rules[i].valid;if(ok){if(r)*r=s_rules[i];if(rt)*rt=s_runtime[i];}UNLOCK();return ok;}
+static esp_err_t set_all_locked(const tailnet_forward_rule_t *rules,int count,char *error,size_t en);
 bool tailnet_forward_listen_conflicts(uint8_t proto,uint16_t port){LOCK();bool found=false;for(int i=0;i<s_count;i++)if(s_rules[i].valid&&s_rules[i].enabled&&s_rules[i].proto==proto&&s_rules[i].listen_port==port){found=true;break;}UNLOCK();return found;}
 
 esp_err_t tailnet_forward_set_all(const tailnet_forward_rule_t *rules,int count,char *error,size_t en) {
+    forwarding_config_lock();
+    esp_err_t err=set_all_locked(rules,count,error,en);
+    forwarding_config_unlock();
+    if(err==ESP_OK)portmap_install_all();
+    return err;
+}
+static esp_err_t set_all_locked(const tailnet_forward_rule_t *rules,int count,char *error,size_t en) {
     if(!rules||count<0||count>TAILNET_FORWARD_MAX)return ESP_ERR_INVALID_ARG;
     for(int i=0;i<count;i++){
         const tailnet_forward_rule_t *r=&rules[i];
@@ -147,9 +156,22 @@ esp_err_t tailnet_forward_set_all(const tailnet_forward_rule_t *rules,int count,
     s_generation++;
     for(int i=0;i<count;i++)resolve_rule(i);
     UNLOCK();
-    portmap_install_all();return ESP_OK;
+    return ESP_OK;
 }
-esp_err_t tailnet_forward_set_enabled(int i,bool enabled){tailnet_forward_rule_t copy[TAILNET_FORWARD_MAX];LOCK();if(i<0||i>=s_count){UNLOCK();return ESP_ERR_INVALID_ARG;}int count=s_count;memcpy(copy,s_rules,sizeof copy);UNLOCK();copy[i].enabled=enabled;char e[64];return tailnet_forward_set_all(copy,count,e,sizeof e);}
+esp_err_t tailnet_forward_set_enabled(int i,bool enabled)
+{
+    tailnet_forward_rule_t copy[TAILNET_FORWARD_MAX];
+    forwarding_config_lock();
+    LOCK();
+    if(i<0||i>=s_count){UNLOCK();forwarding_config_unlock();return ESP_ERR_INVALID_ARG;}
+    int count=s_count;memcpy(copy,s_rules,sizeof copy);
+    UNLOCK();
+    copy[i].enabled=enabled;char e[64];
+    esp_err_t err=set_all_locked(copy,count,e,sizeof e);
+    forwarding_config_unlock();
+    if(err==ESP_OK)portmap_install_all();
+    return err;
+}
 bool tailnet_forward_get_mapping(int i,uint8_t *proto,uint16_t *listen,uint32_t *dest,uint16_t *dport){LOCK();bool ok=i>=0&&i<s_count&&s_rules[i].valid&&s_rules[i].enabled&&s_runtime[i].resolved_ip;if(ok){*proto=s_rules[i].proto;*listen=s_rules[i].listen_port;*dest=lwip_htonl(s_runtime[i].resolved_ip);*dport=s_rules[i].destination_port;}UNLOCK();return ok;}
 int tailnet_forward_snapshot_mappings(tailnet_forward_mapping_t *out, int capacity)
 {

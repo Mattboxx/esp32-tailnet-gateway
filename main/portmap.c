@@ -11,6 +11,7 @@
 #include "nvs_params.h"
 #include "portmap.h"
 #include "tailnet_forward.h"
+#include "forwarding_config.h"
 #include "web_ui.h"
 #include "tailscale_config.h"
 #include "freertos/FreeRTOS.h"
@@ -22,7 +23,7 @@ static const char *TAG = "portmap";
 static portmap_entry_t s_table[PORTMAP_MAX];
 static int             s_count  = 0;
 static bool            s_loaded = false;
-/* Only the HTTP task writes the saved AP table. Publish/copy it under a
+/* Publish/copy the saved AP table under a
  * short cross-core lock; never hold this lock across NVS, lwIP or Tailnet. */
 static portMUX_TYPE s_table_lock = portMUX_INITIALIZER_UNLOCKED;
 typedef struct { uint8_t proto; uint16_t port; } installed_t;
@@ -108,7 +109,7 @@ bool portmap_listen_conflicts(uint8_t proto, uint16_t port)
     return conflict;
 }
 
-esp_err_t portmap_set_all(const portmap_entry_t *arr, int count)
+static esp_err_t set_all_locked(const portmap_entry_t *arr, int count)
 {
     if (!arr) return ESP_ERR_INVALID_ARG;
     if (count < 0) count = 0;
@@ -146,11 +147,20 @@ esp_err_t portmap_set_all(const portmap_entry_t *arr, int count)
          * including on a later DHCP-triggered refresh. */
         publish_table(candidate, candidate_count);
         ESP_LOGI(TAG, "saved %d portmap(s) to NVS", candidate_count);
-        /* Re-install so the live NAPT bindings track the new table. */
-        portmap_install_all();
     } else {
         ESP_LOGE(TAG, "save failed: %s", esp_err_to_name(err));
     }
+    return err;
+}
+
+esp_err_t portmap_set_all(const portmap_entry_t *arr, int count)
+{
+    /* Conflict validation, persistence and publication are one transaction
+     * across both tables, not just independently locked memory copies. */
+    forwarding_config_lock();
+    esp_err_t err = set_all_locked(arr, count);
+    forwarding_config_unlock();
+    if (err == ESP_OK) portmap_install_all();
     return err;
 }
 
@@ -159,9 +169,15 @@ static void portmap_install_cb(void *arg)
     (void)arg;
     if (!cache_loaded()) portmap_init();
     portmap_entry_t table[PORTMAP_MAX];
+    tailnet_forward_mapping_t mappings[TAILNET_FORWARD_MAX];
+    /* Do not combine an AP table from before a save with a Tailnet table
+     * from after it. Release before any lwIP mutation or install reporting. */
+    forwarding_config_lock();
     portENTER_CRITICAL(&s_table_lock);
     memcpy(table, s_table, sizeof table);
     portEXIT_CRITICAL(&s_table_lock);
+    int mapping_count=tailnet_forward_snapshot_mappings(mappings,TAILNET_FORWARD_MAX);
+    forwarding_config_unlock();
 
     /* Remove stale bindings even when the uplink has lost its address.
      * Tailnet runtime status must not report these mappings as installed. */
@@ -180,8 +196,6 @@ static void portmap_install_cb(void *arg)
         return;
     }
     uint32_t bind_ip = ip_info.ip.addr;
-    tailnet_forward_mapping_t mappings[TAILNET_FORWARD_MAX];
-    int mapping_count=tailnet_forward_snapshot_mappings(mappings,TAILNET_FORWARD_MAX);
 
     int ap_installed = 0, tailnet_installed = 0;
     for (int i = 0; i < PORTMAP_MAX; i++) {
