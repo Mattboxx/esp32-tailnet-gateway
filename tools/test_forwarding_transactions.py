@@ -36,6 +36,7 @@ typedef int esp_err_t;
 #include "portmap.h"
 #include "tailnet_forward.h"
 #include "control_validation.h"
+#include "web_ui.h"
 #define NVS_NAMESPACE "tsr"
 #define NVS_READONLY 0
 #define NVS_READWRITE 1
@@ -95,7 +96,6 @@ static microlink_t ml;
 static bool tailscale_connected=true;
 static microlink_t *tailscale_get_microlink(void) { return &ml; }
 static uint32_t microlink_resolve(microlink_t *m,const char *s) { (void)m; (void)s; return 0; }
-static uint16_t web_ui_configured_port(void) { return 8080; }
 static bool tailscale_exit_server_active(void) { return false; }
 static uint16_t tailscale_peerapi_port(void) { return 41180; }
 static void log_stub(const char *tag,const char *fmt,...) { (void)tag; (void)fmt; }
@@ -136,6 +136,15 @@ static void nvs_close(nvs_handle_t h) {
     while(!release_first)assert(!pthread_cond_wait(&gate_cv,&gate_lock));
     assert(!pthread_mutex_unlock(&gate_lock));
 }
+static uint16_t port_nvs=8080;
+static esp_err_t nvs_param_get_u16(const char *key,uint16_t *port) {
+    assert(!strcmp(key,"web_port"));assert(!pthread_mutex_lock(&nvs_lock));
+    *port=port_nvs;assert(!pthread_mutex_unlock(&nvs_lock));return ESP_OK;
+}
+static esp_err_t nvs_param_set_u16(const char *key,uint16_t port) {
+    assert(owns_transaction&&!strcmp(key,"web_port"));assert(!pthread_mutex_lock(&nvs_lock));
+    port_nvs=port;assert(!pthread_mutex_unlock(&nvs_lock));nvs_close(1);return ESP_OK;
+}
 typedef int err_t;
 #define ERR_OK 0
 #define IPSTR "%u"
@@ -163,7 +172,8 @@ static void *run(void *data) {
     else if(job->operation==1)job->result=tailnet_forward_set_enabled((int)job->id-1,false);
     else if(job->operation==2)job->result=portmap_set_all(&job->ap,1);
     else if(job->operation==3)job->result=portmap_set_all(&job->ap,0);
-    else { assert(job->operation==4);portmap_install_cb(NULL);job->result=ESP_OK; }
+    else if(job->operation==4){portmap_install_cb(NULL);job->result=ESP_OK;}
+    else {assert(job->operation==5);job->result=web_ui_save_port(job->ap.ext_port,NULL);}
     if(actor==2) {
         assert(!pthread_mutex_lock(&gate_lock));second_done=true;
         assert(!pthread_cond_broadcast(&gate_cv));assert(!pthread_mutex_unlock(&gate_lock));
@@ -204,6 +214,23 @@ int main(int argc,char **argv) {
         assert(portmap_set_all(&first.ap,1)==ESP_OK);portmap_install_cb(NULL);assert(binding_count==1);
         first.operation=3;second.operation=4;parallel(&first,&second);
         assert(first.result==ESP_OK&&second.result==ESP_OK&&portmap_count()==0&&binding_count==0);
+    } else if(!strcmp(argv[1],"web-after-ap")||!strcmp(argv[1],"ap-after-web")||!strcmp(argv[1],"web-after-tailnet")) {
+        first.ap=second.ap=(portmap_entry_t){.proto=6,.ext_port=2222,.int_port=22,.int_ip=0xc0000202};
+        first.operation=!strcmp(argv[1],"web-after-tailnet")?0:2;second.operation=5;
+        if(!strcmp(argv[1],"ap-after-web")){first.operation=5;second.operation=2;}
+        parallel(&first,&second);
+        assert(first.result==ESP_OK&&second.result==ESP_ERR_INVALID_STATE);
+        if(first.operation==5)assert(port_nvs==2222&&!portmap_count());
+        else assert(port_nvs==8080);
+    } else if(!strcmp(argv[1],"live-port")) {
+        web_ui_set_active_port(80);assert(web_ui_port_reserved(80));
+        first.ap=(portmap_entry_t){.proto=6,.ext_port=80,.int_port=22,.int_ip=0xc0000202};
+        assert(portmap_set_all(&first.ap,1)==ESP_ERR_INVALID_STATE);
+        char why[128];first.rules[0].listen_port=80;
+        assert(tailnet_forward_set_all(first.rules,1,why,sizeof why)==ESP_ERR_INVALID_STATE);
+        /* Legacy records remain saved but cannot install over the admin port. */
+        s_table[0]=first.ap;s_table[0].valid=1;s_count=1;
+        portmap_install_cb(NULL);assert(!binding_count&&portmap_count()==1);
     } else {
         assert(!strcmp(argv[1],"conflict"));first.operation=2;
         first.ap=(portmap_entry_t){.proto=6,.ext_port=2222,.int_port=22,.int_ip=0xc0000202};
@@ -229,13 +256,14 @@ with tempfile.TemporaryDirectory(prefix='forwarding-transactions-') as directory
     for name in ('pbuf','netif'):
         (path/f'lwip/{name}.h').write_text(f'#pragma once\nstruct {name};\n')
     (path/'esp_err.h').write_text('/* fixture supplies esp_err_t */\n')
-    (path/'test.c').write_text('\n'.join((fixture,shared_source,tailnet,ap,tests.replace('INIT_TRANSACTION_HANDLE',init))))
+    web_port=implementation('web_port.c')
+    (path/'test.c').write_text('\n'.join((fixture,shared_source,tailnet,ap,web_port,tests.replace('INIT_TRANSACTION_HANDLE',init))))
     flags=['-std=c11','-Wall','-Wextra','-Werror','-pthread']
     if os.environ.get('FORWARDING_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     binary=path/('test.exe' if os.name=='nt' else 'test')
     subprocess.run([os.environ.get('CC','gcc'),*flags,'-I',str(path),'-I',str(ROOT/'main'),str(path/'test.c'),'-o',str(binary)],check=True)
     failed=[]
-    for scenario in ('persist','toggle','conflict','install'):
+    for scenario in ('persist','toggle','conflict','install','web-after-ap','ap-after-web','web-after-tailnet','live-port'):
         try:
             subprocess.run([str(binary),scenario],check=True,timeout=15)
         except (subprocess.CalledProcessError,subprocess.TimeoutExpired):

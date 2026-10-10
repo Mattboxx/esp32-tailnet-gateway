@@ -59,7 +59,7 @@ static void tailnet_reassembly_refresh(void) { assert(!lock_depth); }
 static void portmap_install_all(void) { assert(!lock_depth && !transaction_depth); ++installs; }
 static uint16_t ap_conflict;
 static bool portmap_listen_conflicts(uint8_t proto,uint16_t port) { (void)proto; return port==ap_conflict; }
-static uint16_t web_ui_configured_port(void) { return 8080; }
+static bool web_ui_port_reserved(uint16_t port) { return port==8080||port==80; }
 static bool tailscale_exit_server_active(void) { return true; }
 static uint16_t tailscale_peerapi_port(void) { return 41180; }
 static void log_stub(const char *tag,const char *fmt,...) { (void)tag; (void)fmt; }

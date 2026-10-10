@@ -3407,13 +3407,6 @@ static bool     session_alive(void);
 static void     session_extend_all_alive(void);
 static void     session_clear_all(void);
 
-uint16_t web_ui_configured_port(void)
-{
-    uint16_t port = 80;
-    if (nvs_param_get_u16("web_port", &port) != ESP_OK || port == 0) port = 80;
-    return port;
-}
-
 static esp_err_t system_handler(httpd_req_t *req)
 {
     if (require_auth(req) != ESP_OK) return ESP_FAIL;
@@ -3552,22 +3545,23 @@ static esp_err_t system_save_handler(httpd_req_t *req)
 
     bool web_port_changed = false;
     const cJSON *wp = cJSON_GetObjectItem(root, "web_port");
-    if (cJSON_IsNumber(wp)) {
-        int requested = (int)wp->valuedouble;
-        if (wp->valuedouble != (double)requested || requested < 1 || requested > 65535) {
+    if (wp) {
+        /* Validate range before converting: large JSON numbers must never
+         * enter an out-of-range floating-point-to-integer conversion. */
+        if (!cJSON_IsNumber(wp) || !(wp->valuedouble >= 1 && wp->valuedouble <= 65535) ||
+            wp->valuedouble != (double)(uint16_t)wp->valuedouble) {
             cJSON_Delete(root);
             httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
                                 "web_port must be a whole number from 1 to 65535");
             return ESP_FAIL;
         }
-        if (portmap_listen_conflicts(PORTMAP_PROTO_TCP, (uint16_t)requested) ||
-            tailnet_forward_listen_conflicts(TAILNET_FORWARD_PROTO_TCP, (uint16_t)requested)) {
+        esp_err_t port_err = web_ui_save_port((uint16_t)wp->valuedouble, &web_port_changed);
+        if (port_err == ESP_ERR_INVALID_STATE) {
             cJSON_Delete(root);
             httpd_resp_set_status(req, "409 Conflict");
-            return httpd_resp_sendstr(req, "Web UI port conflicts with a TCP forwarding rule");
+            return httpd_resp_sendstr(req, "Web UI port conflicts with a TCP forwarding rule or PeerAPI listener");
         }
-        web_port_changed = (uint16_t)requested != web_ui_configured_port();
-        nvs_save_record_err("web_port", nvs_param_set_u16("web_port", (uint16_t)requested));
+        nvs_save_record_err("web_port", port_err);
     }
 
     /* Device-name update — operator-defined label persisted under
@@ -5365,11 +5359,16 @@ void web_ui_init(void)
                           : desired_http_clients;
     conf.lru_purge_enable         = true;
     conf.server_port              = web_ui_configured_port();
+    web_ui_set_active_port(conf.server_port);
 
     if (httpd_start(&server, &conf) != ESP_OK) {
+        web_ui_set_active_port(0);
         ESP_LOGE(TAG, "httpd_start failed");
         return;
     }
+    /* Old stored rules may conflict with the boot listener. Keep their
+     * records, but do not install a DNAT binding over the admin service. */
+    portmap_install_all();
     reg_uri(server, &uri_index);
     reg_uri(server, &uri_favicon);
     reg_uri(server, &uri_status);

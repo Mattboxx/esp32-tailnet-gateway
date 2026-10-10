@@ -150,7 +150,7 @@ static esp_err_t set_all_locked(const tailnet_forward_rule_t *rules,int count,ch
         ip4_addr_t a;if(ip4addr_aton(r->destination,&a)&&!cgnat(lwip_ntohl(a.addr))){if(error)snprintf(error,en,"Rule %d destination must be in 100.64.0.0/10",i+1);return ESP_ERR_INVALID_ARG;}
         for(int j=0;j<i;j++)if(rules[j].enabled&&r->enabled&&rules[j].proto==r->proto&&rules[j].listen_port==r->listen_port){if(error)snprintf(error,en,"Duplicate listen port in rule %d",i+1);return ESP_ERR_INVALID_STATE;}
         if(r->enabled&&portmap_listen_conflicts(r->proto,r->listen_port)){if(error)snprintf(error,en,"Rule %d conflicts with AP-side forwarding",i+1);return ESP_ERR_INVALID_STATE;}
-        if(r->enabled&&r->proto==TAILNET_FORWARD_PROTO_TCP&&r->listen_port==web_ui_configured_port()){if(error)snprintf(error,en,"Rule %d conflicts with the Web UI port",i+1);return ESP_ERR_INVALID_STATE;}
+        if(r->enabled&&r->proto==TAILNET_FORWARD_PROTO_TCP&&web_ui_port_reserved(r->listen_port)){if(error)snprintf(error,en,"Rule %d conflicts with the Web UI port",i+1);return ESP_ERR_INVALID_STATE;}
         if(r->enabled&&r->proto==TAILNET_FORWARD_PROTO_TCP&&tailscale_exit_server_active()&&r->listen_port==tailscale_peerapi_port()){if(error)snprintf(error,en,"Rule %d conflicts with the exit-node DNS port",i+1);return ESP_ERR_INVALID_STATE;}
     }
     store_t st={.magic=STORE_MAGIC};memcpy(st.rules,rules,count*sizeof rules[0]);nvs_handle_t nvs;esp_err_t err=nvs_open(NVS_NAMESPACE,NVS_READWRITE,&nvs);

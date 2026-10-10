@@ -6,6 +6,28 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.10-dev.10 — preserve admin access and legacy AP rules
+
+- Reserve both the running Web UI TCP listener and its next-boot configured
+  port until restart. Saving a new web port cannot expose the still-active
+  listener to AP-side or LAN-to-Tailnet DNAT rules.
+- Put web-port conflict checking and NVS persistence in the same configuration
+  transaction as both forwarding tables. Reject the exit-mode PeerAPI listener
+  as an admin port too. Preserve the old port and report failure if saving fails.
+- Do not install legacy TCP forwarding records over either admin listener.
+  Keep their saved records; report a Tailnet listener conflict instead of
+  replacing the management service.
+- Validate JSON type, whole-number range and bounds before converting a web
+  port to an integer. Reject null, strings, fractions and oversized numbers
+  without modifying settings.
+- Compact occupied legacy AP forwarding slots on load. Validate active flags,
+  protocols, ports, bounded labels and duplicate listeners; ignore inconsistent
+  tables without deleting NVS. Reject nonterminated labels on save.
+- Add actual-C/cJSON request and persistence regressions, plus pthread-backed
+  AP/web/Tailnet save ordering tests and live-listener installation checks.
+  Preserve dev.9 packet handling and all earlier custom features. This is a
+  development candidate; no stable/beta release or device validation is implied.
+
 ### 0.1.31-Mattboxx-1.10-dev.9 — reliable receive-DNAT packet handling
 
 - Normalize fragmented TCP/UDP datagrams before the pinned ESP-IDF SDK applies

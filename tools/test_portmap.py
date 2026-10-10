@@ -9,6 +9,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/portmap.c').read_text(encoding='utf-8')
+if os.environ.get('PORTMAP_BASELINE') == '1':
+    source = subprocess.check_output(['git','show','2ad033009ed28da46ce51ea04d704a10fc159ae6:main/portmap.c'],cwd=ROOT,text=True)
 source = '\n'.join(line for line in source.splitlines() if not line.startswith('#include'))
 fixture = r'''
 #include <assert.h>
@@ -79,6 +81,7 @@ static esp_err_t nvs_commit(nvs_handle_t h) {
 static void nvs_close(nvs_handle_t h) { (void)h; assert(!critical_depth); ++closes; }
 bool tailnet_forward_listen_conflicts(uint8_t proto,uint16_t port) { (void)proto; assert(!critical_depth); return port==tailnet_conflict; }
 static uint16_t web_ui_configured_port(void) { return 8080; }
+static bool web_ui_port_reserved(uint16_t port) { return port==web_ui_configured_port()||port==80; }
 static bool tailscale_exit_server_active(void) { return true; }
 static uint16_t tailscale_peerapi_port(void) { return 41180; }
 static esp_netif_t sta;
@@ -112,6 +115,24 @@ static void drain(void) { if(queued_callback) { void (*cb)(void*)=queued_callbac
 '''
 tests = r'''
 int main(void) {
+    assert(web_ui_port_reserved(80));
+    /* A valid legacy blob may contain occupied nonconsecutive slots. */
+    persisted[3]=(portmap_entry_t){.valid=1,.proto=6,.ext_port=2222,.int_port=22,.int_ip=0xc0000202,.name="legacy"};
+    have_blob=true;portmap_init();portmap_entry_t loaded;
+    assert(portmap_count()==1&&portmap_get(0,&loaded)&&loaded.ext_port==2222);
+    for(unsigned kind=0;kind<5;kind++) {
+        memset(persisted,0,sizeof persisted);persisted[0]=loaded;persisted[1]=loaded;
+        persisted[1].ext_port=3333;
+        switch(kind) {
+        case 0:persisted[1].valid=2;break;
+        case 1:persisted[1].proto=1;break;
+        case 2:persisted[1].int_port=0;break;
+        case 3:memset(persisted[1].name,'x',sizeof persisted[1].name);break;
+        case 4:persisted[1].ext_port=2222;break;
+        }
+        s_loaded=false;portmap_init();assert(!portmap_count());
+    }
+    s_loaded=false;have_blob=false;
     portmap_init(); assert(portmap_count()==0 && !portmap_get(0,NULL));
     portmap_entry_t old={.proto=6,.ext_port=2222,.int_port=22,.int_ip=0xc0000202,.name="old"};
     assert(portmap_set_all(&old,1)==ESP_OK); drain();
@@ -130,6 +151,9 @@ int main(void) {
     fail_phase=0;
     unsigned before_writes=writes;
     changed.ext_port=8080; assert(portmap_set_all(&changed,1)==ESP_ERR_INVALID_STATE);
+    changed.ext_port=80; assert(portmap_set_all(&changed,1)==ESP_ERR_INVALID_STATE);
+    changed.ext_port=3333;memset(changed.name,'x',sizeof changed.name);
+    assert(portmap_set_all(&changed,1)==ESP_ERR_INVALID_ARG);memset(changed.name,0,sizeof changed.name);
     changed.ext_port=41180; assert(portmap_set_all(&changed,1)==ESP_ERR_INVALID_STATE);
     changed.ext_port=4444; tailnet_conflict=4444; assert(portmap_set_all(&changed,1)==ESP_ERR_INVALID_STATE);
     tailnet_conflict=0; assert(writes==before_writes); assert_visible();

@@ -29,6 +29,7 @@ static portMUX_TYPE s_table_lock = portMUX_INITIALIZER_UNLOCKED;
 typedef struct { uint8_t proto; uint16_t port; } installed_t;
 static installed_t s_installed[PORTMAP_MAX + TAILNET_FORWARD_MAX];
 static int s_installed_count;
+static bool entry_is_filled(const portmap_entry_t *entry);
 
 static bool cache_loaded(void)
 {
@@ -59,9 +60,29 @@ void portmap_init(void)
         size_t actual   = expected;
         if (nvs_get_blob(nvs, NVS_KEY, table, &actual) == ESP_OK
             && actual == expected) {
+            bool consistent = true;
             for (int i = 0; i < PORTMAP_MAX; i++) {
-                if (table[i].valid) count++;
+                if (!table[i].valid) continue;
+                if (table[i].valid != 1 || !entry_is_filled(&table[i]) ||
+                    !memchr(table[i].name, 0, sizeof table[i].name)) {
+                    consistent = false;
+                    break;
+                }
+                for (int j = 0; j < count; j++) {
+                    if (table[j].proto == table[i].proto && table[j].ext_port == table[i].ext_port) {
+                        consistent = false;
+                        break;
+                    }
+                }
+                if (!consistent) break;
+                /* Compact in place; getters/UI iterate 0..count, not all slots. */
+                table[count++] = table[i];
             }
+            if (!consistent) {
+                count = 0;
+                ESP_LOGE(TAG, "Invalid stored AP forwarding rules; ignoring the whole table");
+            }
+            memset(table + count, 0, sizeof table - count * sizeof table[0]);
             ESP_LOGI(TAG, "loaded %d portmap(s) from NVS", count);
         } else {
             memset(table, 0, sizeof table);
@@ -117,8 +138,9 @@ static esp_err_t set_all_locked(const portmap_entry_t *arr, int count)
 
     for (int i = 0; i < count; i++) {
         if (!entry_is_filled(&arr[i])) continue;
+        if (!memchr(arr[i].name, 0, sizeof arr[i].name)) return ESP_ERR_INVALID_ARG;
         if (tailnet_forward_listen_conflicts(arr[i].proto, arr[i].ext_port)) return ESP_ERR_INVALID_STATE;
-        if (arr[i].proto == PORTMAP_PROTO_TCP && arr[i].ext_port == web_ui_configured_port()) return ESP_ERR_INVALID_STATE;
+        if (arr[i].proto == PORTMAP_PROTO_TCP && web_ui_port_reserved(arr[i].ext_port)) return ESP_ERR_INVALID_STATE;
         if (arr[i].proto == PORTMAP_PROTO_TCP && tailscale_exit_server_active()
             && arr[i].ext_port == tailscale_peerapi_port()) return ESP_ERR_INVALID_STATE;
         for (int j = 0; j < i; j++)
@@ -200,6 +222,7 @@ static void portmap_install_cb(void *arg)
     int ap_installed = 0, tailnet_installed = 0;
     for (int i = 0; i < PORTMAP_MAX; i++) {
         if (!table[i].valid) continue;
+        if (table[i].proto == PORTMAP_PROTO_TCP && web_ui_port_reserved(table[i].ext_port)) continue;
         if (ip_portmap_add(table[i].proto, bind_ip, table[i].ext_port,
                            table[i].int_ip, table[i].int_port)) {
             s_installed[s_installed_count++] = (installed_t){table[i].proto, table[i].ext_port};
@@ -209,6 +232,10 @@ static void portmap_install_cb(void *arg)
     for (int i = 0; i < mapping_count; i++) {
         tailnet_forward_mapping_t *m=&mappings[i];
         m->binding_ip_nbo=bind_ip;
+        if (m->rule.proto == TAILNET_FORWARD_PROTO_TCP && web_ui_port_reserved(m->rule.listen_port)) {
+            tailnet_forward_mark_installed(m, false, "Web UI listener conflict");
+            continue;
+        }
         bool ok = ip_portmap_add(m->rule.proto, bind_ip, m->rule.listen_port, m->destination_nbo, m->rule.destination_port);
         if (ok) {
             s_installed[s_installed_count++] = (installed_t){m->rule.proto, m->rule.listen_port};

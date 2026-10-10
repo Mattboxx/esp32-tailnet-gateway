@@ -50,6 +50,7 @@ jobs:
           NETIF_SANITIZE=1 python3 tools/test_netif_hooks.py
           PORTMAP_SANITIZE=1 python3 tools/test_portmap.py
           FORWARDING_SANITIZE=1 python3 tools/test_forwarding_transactions.py
+          WEB_PORT_SANITIZE=1 python3 tools/test_web_port.py
           TAILNET_SANITIZE=1 python3 tools/test_tailnet_filter.py
           TAILNET_SANITIZE=1 python3 tools/test_tailnet_state.py
           TAILNET_SANITIZE=1 python3 tools/test_tailnet_api.py
