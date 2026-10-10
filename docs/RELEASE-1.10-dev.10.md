@@ -79,6 +79,13 @@ OTA `firmware.bin` SHA-256:
 
 `017835e2200f2073379c46c056a498ae869da9fca205a19d6c65397f61bbd35e`
 
+After publication, all four GitHub asset digests were compared with the local
+package. An anonymous OTA download was byte-identical to the flashed image.
+The real C updater selector accepted the actual published catalog from an
+older development version with beta enabled, excluded it in stable-only mode,
+and did not offer an identical installed version. A real-board GitHub check
+also completed successfully without changing the saved update preferences.
+
 ## Download and flash
 
 Use `firmware.bin` for **System → Firmware update**. It preserves settings.
