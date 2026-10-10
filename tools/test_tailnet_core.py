@@ -155,9 +155,20 @@ parser.add_argument('--elf',type=Path)
 args=parser.parse_args()
 if args.elf:
     assert args.objdump, '--objdump is required with --elf'
-    def disassemble(name):
-        return subprocess.check_output([args.objdump,'-d',f'--disassemble={name}',str(args.elf)],text=True)
     symbols=subprocess.check_output([args.objdump,'-t',str(args.elf)],text=True)
+    def disassemble(name):
+        raw=subprocess.check_output([args.objdump,'-d',f'--disassemble={name}',str(args.elf)],text=True)
+        # Xtensa padding can desynchronize linear decoding in any caller,
+        # including the policy wrapper. Re-enter only at real branch targets
+        # within this exact symbol; never guess offsets or accept raw bytes.
+        rows=[line.split() for line in symbols.splitlines() if line.split() and line.split()[-1]==name and ' F ' in line]
+        if not rows:return raw
+        row=rows[0];start=int(row[0],16);end=start+int(row[-2],16)
+        targets=set(int(n,16) for n in re.findall(rf'\b(?:b\w+|j)\s+[^\n]*\b([\da-f]+) <{re.escape(name)}\+0x[\da-f]+>',raw))
+        for address in sorted(targets):
+            assert start<=address<end
+            raw+=subprocess.check_output([args.objdump,'-d',f'--start-address={address}',f'--stop-address={end}',str(args.elf)],text=True)
+        return raw
     frames={}
     for name,limit in {'__wrap_ip4_input':128,'tailnet_forward_allow_ipv4_packet':128,
                        'prepare_dnat_packet':256,
@@ -183,16 +194,5 @@ if args.elf:
     assert '<ip4_input>' in disassemble('__wrap_ip4_input')
     assert '<__wrap_ip4_input>' in disassemble('ethernet_input')
     raw=disassemble('ip_input')
-    if '<__wrap_ip4_input>' not in raw:
-        # GCC/LD may insert a padding byte before a branch destination.
-        # Linear objdump can decode that padding as the beginning of the
-        # next opcode. Resynchronize only at real intra-function branch
-        # destinations, within the exact symbol bounds (not guessed bytes).
-        row=next(line.split() for line in symbols.splitlines() if line.split() and line.split()[-1]=='ip_input')
-        start=int(row[0],16); end=start+int(row[-2],16)
-        targets=set(int(n,16) for n in re.findall(r'\b(?:b\w+|j)\s+[^\n]*\b([\da-f]+) <ip_input\+0x[\da-f]+>',raw))
-        for address in sorted(targets):
-            assert start<=address<end
-            raw+=subprocess.check_output([args.objdump,'-d',f'--start-address={address}',f'--stop-address={end}',str(args.elf)],text=True)
     assert '<__wrap_ip4_input>' in raw, 'Raw-IP input must enter the linked policy wrapper'
     print('PASS: exact ELF Ethernet/raw IPv4 calls enter policy wrapper before SDK input; stack frame budgets:',frames)
