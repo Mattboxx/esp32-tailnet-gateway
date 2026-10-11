@@ -104,6 +104,8 @@ def main():
     parser.add_argument('--expected-version', default='0.1.29-Mattboxx-1.7')
     parser.add_argument('--expected-sockets', type=int, default=31)
     parser.add_argument('--expected-active-tcp', type=int, default=24)
+    parser.add_argument('--soak-seconds', type=int, default=0,
+                        help='Keep SNMP enabled through multiple telemetry/forwarding refreshes')
     args = parser.parse_args()
     api = login(args.host)
     limits = api('/api/system/diag')['network_limits']
@@ -178,6 +180,23 @@ def main():
             wait_running(True)
             exchange(valid)
         print('PASS: three live disable/enable cycles, no response while disabled')
+        if args.soak_seconds:
+            import time
+            assert 30 <= args.soak_seconds <= 3600, 'Soak must be 30..3600 seconds'
+            previous = api('/api/status')['uptime_s']
+            start = time.monotonic()
+            samples = 0
+            while time.monotonic() - start < args.soak_seconds:
+                time.sleep(5)
+                state = api('/api/status')
+                assert state['uptime_s'] > previous, 'Unexpected restart/frozen uptime'
+                previous = state['uptime_s']
+                assert state['sta']['connected'] and state['tailscale']['connected']
+                assert api('/api/snmp')['running']
+                exchange(valid)
+                samples += 1
+            print(f'PASS: SNMP enabled for {time.monotonic()-start:.0f}s across '
+                  f'{samples} live queries; WiFi/Tailscale connected, no observed restart', flush=True)
     finally:
         udp.close()
         assert api('/api/snmp', config)['ok']

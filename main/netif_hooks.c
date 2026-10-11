@@ -40,8 +40,6 @@ static netif_input_fn       original_sta_input       = NULL;
 static netif_linkoutput_fn  original_sta_linkoutput  = NULL;
 static netif_input_fn       original_ap_input        = NULL;
 static netif_linkoutput_fn  original_ap_linkoutput   = NULL;
-static netif_input_fn       original_wg_input        = NULL;
-static struct netif        *hooked_wg                = NULL;
 
 /* Wire-byte counters. Updated on the LWIP TCPIP task, read from the
  * HTTP server task. Display-only — torn reads at the 32-bit boundary
@@ -273,43 +271,14 @@ static err_t ap_linkoutput_hook(struct netif *netif, struct pbuf *p)
     return original_ap_linkoutput ? original_ap_linkoutput(netif, p) : ERR_VAL;
 }
 
-static err_t wg_input_hook(struct pbuf *p, struct netif *netif)
-{
-    /* Listener policy is checked in IPv4 input on the TCP/IP core. This
-     * shim only preserves the original (possibly queued) input chain. */
-    return original_wg_input ? original_wg_input(p, netif) : ERR_VAL;
-}
-
-static void netif_hooks_refresh_cb(void *arg)
-{
-    (void)arg;
-    extern struct netif *netif_list;
-    for (struct netif *n = netif_list; n; n = n->next) {
-        /* The uplink (e.g. LTE/Starlink) or AP can also use 100.64/10.
-         * The pinned WireGuard driver identifies its raw-IP netif as "wg".
-         * Never replace a physical interface's Ethernet/ACL input based
-         * only on its address: that also corrupts the saved input chain
-         * when the real tunnel is created later. */
-        if (n->name[0] != 'w' || n->name[1] != 'g') continue;
-        const ip4_addr_t *a = netif_ip4_addr(n);
-        if (!a || ip4_addr_isany_val(*a)) continue;
-        uint32_t h = lwip_ntohl(a->addr);
-        if ((h & 0xffc00000u) != 0x64400000u) continue;
-        if (n == hooked_wg && n->input == wg_input_hook) return;
-        original_wg_input = n->input;
-        hooked_wg = n;
-        n->input = wg_input_hook;
-        ESP_LOGI(TAG, "Tailnet input hook installed on %c%c%d", n->name[0], n->name[1], n->num);
-        return;
-    }
-}
 void netif_hooks_refresh(void)
 {
-    /* netif_list and netif function pointers belong to lwIP's tcpip thread.
-     * Queue the dynamic WireGuard hook there instead of racing packet input. */
-    err_t err = tcpip_try_callback(netif_hooks_refresh_cb, NULL);
-    if (err != ERR_OK)
-        ESP_LOGW(TAG, "could not schedule Tailnet input-hook refresh: %d", err);
+    /* Compatibility entry point for the forwarding manager. Tailnet policy
+     * lives in __wrap_ip4_input, so no tunnel netif shim is needed here.
+     * Reinstalling a transparent shim over SNMP's periodic traffic shim
+     * captures the two wrappers as each other's "original", forming a
+     * recursive input chain. SNMP alone owns the tunnel's input wrapper.
+     * Physical STA/AP ACL hooks are installed once, before SNMP starts. */
 }
 
 

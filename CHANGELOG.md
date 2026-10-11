@@ -6,6 +6,21 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.10-dev.11 — fix SNMP/Tailnet input recursion
+
+- Resolve the reported alternating `ts_input_hook` / `wg_input_hook` crash.
+  Periodic network and SNMP installers captured each other's input callbacks,
+  causing unbounded recursion, stack exhaustion and a watchdog/panic restart.
+- Remove the redundant transparent WireGuard input shim. Listener policy stays
+  enforced by the IPv4-core wrapper; SNMP retains tunnel RX/TX counters and
+  physical STA/AP ACL, TTL and MTU hooks remain unchanged.
+- Test the actual SNMP and network installers together, not just individually:
+  4,000 alternating refreshes, both installation orders, reconnect/address reuse,
+  exact-once counting and 20 disable/enable cycles. The same test fails against
+  the published dev.10 source before invoking the recursive callback chain.
+- Add an opt-in long-running SNMP hardware soak with uptime and connection checks.
+  Preserve all custom controls and configuration; this remains a beta candidate.
+
 ### 0.1.31-Mattboxx-1.10-dev.10 — preserve admin access and legacy AP rules
 
 - Reserve both the running Web UI TCP listener and its next-boot configured
