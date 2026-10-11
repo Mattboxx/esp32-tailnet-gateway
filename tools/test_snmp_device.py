@@ -106,6 +106,7 @@ def main():
     parser.add_argument('--expected-active-tcp', type=int, default=24)
     parser.add_argument('--soak-seconds', type=int, default=0,
                         help='Keep SNMP enabled through multiple telemetry/forwarding refreshes')
+    parser.add_argument('--tailnet-host', help='Also query the same agent over its reachable Tailnet IP')
     args = parser.parse_args()
     api = login(args.host)
     limits = api('/api/system/diag')['network_limits']
@@ -147,6 +148,22 @@ def main():
             assert result[0] == system_oid and result[1] == 4
             assert args.expected_version.encode() in result[2]
         print('PASS: SNMPv1 and v2c sysDescr identify the installed release')
+        if args.tailnet_host:
+            tailnet = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            tailnet.settimeout(5)
+            try:
+                import time
+                # Span several independent 3-second forwarding / 5-second SNMP ticks.
+                for sample in range(12):
+                    tailnet.sendto(request(comm, system_oid, sample % 2), (args.tailnet_host, 161))
+                    reply, sender = tailnet.recvfrom(4096)
+                    assert sender[0] == socket.gethostbyname(args.tailnet_host)
+                    result = decode_reply(reply)
+                    assert result[0] == system_oid and args.expected_version.encode() in result[2]
+                    time.sleep(2)
+                print('PASS: 12 actual Tailnet SNMP v1/v2c replies across repeated installer ticks', flush=True)
+            finally:
+                tailnet.close()
         for version in (0, 1):
             oid, count = [1, 3, 6, 1, 2, 1], 0
             while count < 100:

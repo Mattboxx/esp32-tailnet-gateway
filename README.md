@@ -42,19 +42,23 @@ enable switch, counters and live status. This is completely independent from
 the existing AP-side port forwarding.
 
 **[Download the ready-to-flash release](../../releases/latest)** ·
-**[Download the 1.10 beta candidate](../../releases/tag/v0.1.31-Mattboxx-1.10-dev.10)** ·
+**[Download the 1.10 beta candidate](../../releases/tag/v0.1.31-Mattboxx-1.10-dev.11)** ·
 **[See every change from upstream](CUSTOM_BRANCH.md)** ·
 **[Read the security model](SECURITY.md)**
 
 ## Why the Mattboxx edition is different
 
-**Beta candidate: 0.1.31-Mattboxx-1.10-dev.10.** Includes upstream v0.1.31,
+**Beta candidate: 0.1.31-Mattboxx-1.10-dev.11.** Fixes the reported SNMP/Tailnet
+watchdog/panic: periodic input wrappers could capture each other and recurse.
+The redundant tunnel shim is removed; forwarding policy, SNMP counters and
+all existing features remain. Upgrade from dev.10 rather than enabling SNMP
+on that build. Includes upstream v0.1.31,
 all Mattboxx additions, ntfy reliability improvements, safe forwarding packet
 handling, transactional rule saves and live/next-boot Web UI port protection.
 The exact image was flashed and tested on an ESP32-S3 WiFi board, including
 three ntfy `info` replies and preserved saved settings. Download the OTA binary
 or the Windows ZIP with esptool and a double-click update script; see
-[tested scope and limitations](docs/RELEASE-1.10-dev.10.md).
+[tested scope and limitations](docs/RELEASE-1.10-dev.11.md).
 
 New in the 1.10 line: opt-in update checks,
 automatic install with an optional local-time window, stable/beta channels,

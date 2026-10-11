@@ -1,5 +1,11 @@
 # ESP32 Tailscale Gateway 0.1.31-Mattboxx-1.10-dev.10
 
+**Known crash: superseded by dev.11.** A reported watchdog/panic trace resolves
+to recursive SNMP/Tailnet input wrappers. Earlier short tests did not cover
+their alternating installers together. Do not use this candidate with SNMP;
+upgrade to the fixed candidate. The previous test results below are historical,
+not evidence that this build is reliable under that combination.
+
 Beta development candidate, October 10, 2026. The stable 1.8 release is not
 replaced. Enable the beta channel to discover this candidate from an older
 compatible custom build, or download it explicitly. An already installed
