@@ -55,8 +55,6 @@ static int xTaskCreate(void (*fn)(void*),const char *name,unsigned stack,void *a
 }
 static void vTaskDelay(unsigned t) { (void)t; abort(); }
 static void netif_hooks_refresh(void) { assert(!lock_depth); }
-static void ap_policy_poll(void) {}
-static int64_t esp_timer_get_time(void) { return 0; }
 static void tailnet_reassembly_refresh(void) { assert(!lock_depth); }
 static void portmap_install_all(void) { assert(!lock_depth && !transaction_depth); ++installs; }
 static uint16_t ap_conflict;

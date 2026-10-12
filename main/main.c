@@ -13,6 +13,7 @@
 */
 #include <string.h>
 #include "runtime_metrics.h"
+#include "microlink.h"
 #include "ap_policy.h"
 #include "esp_heap_caps.h"
 #include <stdlib.h>
@@ -786,6 +787,7 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    microlink_json_memory_init();
     remove_legacy_outbound_settings();
     ota_remote_init();
 

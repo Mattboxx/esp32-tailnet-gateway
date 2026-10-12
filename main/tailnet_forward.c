@@ -20,8 +20,6 @@
 #include "netif_hooks.h"
 #include "web_ui.h"
 #include "esp_log.h"
-#include "esp_timer.h"
-#include "ap_policy.h"
 
 #define NVS_KEY "tn_fwd"
 #define STORE_MAGIC 0x544e4631u
@@ -89,15 +87,7 @@ static bool resolve_rule(int i) {
 }
 static void manager(void *arg) {
     (void)arg;
-    int64_t next_refresh = 0;
     for (;;) {
-        /* Reuse this task's 4KB stack for allocation/retry bookkeeping.
-         * The actual WiFi transition still runs on its separate 8KB stack.
-         * Never create/log task failures on the small timer-service stack. */
-        ap_policy_poll();
-        int64_t now = esp_timer_get_time();
-        if (now < next_refresh) { vTaskDelay(pdMS_TO_TICKS(100)); continue; }
-        next_refresh = now + 3000000;
         bool changed=false;
         LOCK();
         for(int i=0;i<s_count;i++){uint32_t old=s_runtime[i].resolved_ip;resolve_rule(i);if(old!=s_runtime[i].resolved_ip)changed=true;}
@@ -105,7 +95,7 @@ static void manager(void *arg) {
         netif_hooks_refresh();
         tailnet_reassembly_refresh();
         if(changed)portmap_install_all();
-        vTaskDelay(pdMS_TO_TICKS(100));
+        vTaskDelay(pdMS_TO_TICKS(3000));
     }
 }
 void tailnet_forward_init(void) {

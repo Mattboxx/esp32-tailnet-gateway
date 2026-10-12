@@ -31,6 +31,8 @@ headers = r'''
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <setjmp.h>
+#include <stdlib.h>
 typedef int esp_err_t;
 #define ESP_OK 0
 #define ESP_FAIL -1
@@ -53,30 +55,24 @@ static int locks;
 '''
 ap_source = re.sub(r'^#include.*\n', '', (ROOT / 'main/ap_policy.c').read_text(), flags=re.M)
 ap_fixture = r'''
-typedef int StaticTimer_t;
-typedef void *TimerHandle_t;
+typedef uint8_t StackType_t;
+typedef unsigned TickType_t;
+typedef int StaticTask_t;
+typedef void *TaskHandle_t;
 static int64_t clock_us;
-static size_t free_bytes=65536,largest_bytes=32768;
-#define MALLOC_CAP_INTERNAL 1
-#define MALLOC_CAP_8BIT 2
-static size_t heap_caps_get_free_size(int caps){(void)caps;return free_bytes;}
-static size_t heap_caps_get_largest_free_block(int caps){(void)caps;return largest_bytes;}
-static unsigned allocations, mode_calls, mode_failures, deletes;
-static bool fail_alloc, last_target, request_during_apply;
-static void (*spawned)(void *), (*timer_callback)(TimerHandle_t), (*shutdown_callback)(void);
+static unsigned allocations, mode_calls, mode_failures, notifications;
+static bool last_target, request_during_apply;
+static void (*spawned)(void *), (*shutdown_callback)(void);
+static jmp_buf blocked;
 static int64_t esp_timer_get_time(void) {return clock_us;}
-static TimerHandle_t xTimerCreateStatic(const char *n,unsigned t,int repeat,void *a,
-    void(*cb)(TimerHandle_t),StaticTimer_t *storage) {
-    (void)n;(void)a;assert(t==100 && repeat);timer_callback=cb;return storage;
-}
-static int xTimerStart(TimerHandle_t timer,unsigned delay){assert(timer && delay==portMAX_DELAY);return pdPASS;}
 static int esp_register_shutdown_handler(void (*cb)(void)){shutdown_callback=cb;return ESP_OK;}
-static int xTaskCreate(void(*fn)(void*),const char*n,unsigned stack,void*a,int priority,void*h) {
-    (void)n;(void)a;(void)h;assert(!locks && stack==8192 && priority==5);allocations++;
-    if(fail_alloc)return 0;
-    assert(!spawned);spawned=fn;return pdPASS;
+static TaskHandle_t xTaskCreateStatic(void(*fn)(void*),const char*n,unsigned stack,
+    void*a,int priority,StackType_t *buffer,StaticTask_t *tcb) {
+    (void)n;(void)a;assert(!locks && stack==8192 && priority==5 && buffer && tcb);
+    assert(((uintptr_t)buffer&15)==0);allocations++;spawned=fn;return tcb;
 }
-static void vTaskDelete(void *task){assert(!task && !locks);deletes++;}
+static void xTaskNotifyGive(TaskHandle_t task){assert(task && !locks);notifications++;}
+static unsigned ulTaskNotifyTake(int clear,unsigned ticks);
 '''
 ap_tests = r'''
 static bool apply(bool target) {
@@ -84,46 +80,40 @@ static bool apply(bool target) {
     if(request_during_apply){request_during_apply=false;ap_policy_request(!target);}
     if(mode_failures){mode_failures--;return false;}return true;
 }
-static void execute(void) {
-    assert(spawned);void (*fn)(void*)=spawned;spawned=NULL;fn(NULL);
-    assert(!s_active && !locks);
+static unsigned ulTaskNotifyTake(int clear,unsigned ticks) {
+    assert(clear && !locks);
+    if(ticks==portMAX_DELAY && (!s_pending || s_shutdown))longjmp(blocked,1);
+    if(ticks!=portMAX_DELAY)clock_us+=(int64_t)ticks*1000;
+    return 0;
 }
-static void tick(unsigned ms){clock_us+=(int64_t)ms*1000;ap_policy_poll();}
+static void execute(void) {
+    assert(spawned);
+    if(!setjmp(blocked))spawned(NULL);
+    assert(!locks);
+}
 int main(void) {
     assert(ap_policy_init(NULL)==ESP_ERR_INVALID_ARG);
     assert(ap_policy_init(apply)==ESP_OK);
+    assert(allocations==1 && ap_policy_init(apply)==ESP_OK && allocations==1);
     ap_policy_request(false);
     for(unsigned i=0;i<1000;i++)ap_policy_request(false);
-    assert(!allocations && s_pending); /* never reserve 8KB during the grace period */
-    tick(1499);assert(!allocations);tick(1);assert(allocations==1);
-    ap_policy_poll();assert(allocations==1);execute();assert(!last_target && mode_calls==1);
-
-    fail_alloc=true;ap_policy_request(true);tick(100);
-    assert(allocations==2 && s_pending && !s_active);
-    tick(999);assert(allocations==2);fail_alloc=false;tick(1);execute();
-    assert(last_target && mode_calls==2 && !s_pending);
-
-    mode_failures=1;ap_policy_request(false);tick(1500);execute();
-    assert(s_pending);tick(1000);execute();assert(!s_pending && !last_target);
-
+    assert(allocations==1 && s_pending);
+    execute();assert(!last_target && mode_calls==1 && clock_us==1500000);
+    ap_policy_request(true);execute();assert(last_target && mode_calls==2);
+    mode_failures=1;ap_policy_request(false);int64_t before_time=clock_us;execute();
+    assert(!s_pending && !last_target && clock_us==before_time+2500000);
     /* A new request arriving during apply must survive the older completion. */
-    request_during_apply=true;ap_policy_request(true);tick(100);execute();
-    assert(s_pending && last_target);tick(1500);execute();assert(!last_target && !s_pending);
+    request_during_apply=true;mode_failures=1;ap_policy_request(true);execute();
+    assert(!last_target && !s_pending);
     /* Replace an already queued transition before the worker gets CPU time. */
-    ap_policy_request(true);tick(100);ap_policy_request(false);execute();
-    assert(s_pending);tick(1500);execute();assert(!last_target);
-
-    /* Many free bytes with a fragmented heap must not enter task creation. */
-    unsigned alloc_before=allocations;largest_bytes=7680;
-    ap_policy_request(true);tick(100);assert(allocations==alloc_before && s_pending);
-    largest_bytes=32768;tick(1000);execute();assert(last_target);
-    ap_policy_request(true);tick(100);unsigned before=mode_calls;
-    shutdown_callback();ap_policy_request(true);execute();tick(10000);
-    assert(ap_policy_is_shutdown() && mode_calls==before && !s_pending && !spawned);
-    puts("AP recovery: grace/coalescing, allocation and mode-failure retries, latest-generation races and shutdown suppression");
+    ap_policy_request(true);ap_policy_request(false);execute();assert(!last_target);
+    ap_policy_request(true);unsigned before=mode_calls;
+    shutdown_callback();ap_policy_request(true);execute();
+    assert(ap_policy_is_shutdown() && mode_calls==before && !s_pending && allocations==1);
+    puts("AP recovery: one reserved stack, 1000 coalesced requests without allocation, grace/retry timing, latest-generation races and shutdown suppression");
 }
 '''
-run('AP allocation-failure recovery without duplicate/delayed worker stacks', headers + ap_fixture + ap_source + ap_tests)
+run('AP recovery remains allocation-free under runtime fragmentation', headers + ap_fixture + ap_source + ap_tests)
 
 ml = (ROOT / 'external/microlink/components/microlink/src/microlink.c').read_text()
 start = ml.split('    /* Create tasks */', 1)[1].split('\nesp_err_t microlink_stop', 1)[0]
@@ -230,3 +220,25 @@ int main(void){
 '''
 run('Actual STUN comparison rejects zero baseline but retains valid equal/different-port detection',
     headers + nat_fixture + 'static void sample(nat_t *ml,uint32_t pub_ip,uint16_t pub_port){' + nat + '}\n' + nat_tests)
+
+internal = (ROOT / 'external/microlink/components/microlink/include/microlink_internal.h').read_text()
+allocate = 'static inline void *ml_psram_malloc' + internal.split('static inline void *ml_psram_malloc', 1)[1].split('static inline void *ml_psram_calloc', 1)[0]
+allocator = 'static void *cjson_psram_malloc' + ml.split('static void *cjson_psram_malloc', 1)[1].split('/* ============================================================================', 1)[0]
+json_fixture = r'''
+#define MALLOC_CAP_SPIRAM 1
+#define MALLOC_CAP_8BIT 2
+typedef struct {void *(*malloc_fn)(size_t);void (*free_fn)(void*);} cJSON_Hooks;
+static cJSON_Hooks installed;static unsigned hook_changes,external_attempts;static bool external_ok=true;
+static void *heap_caps_malloc(size_t n,int caps){assert(caps==3 && !locks);external_attempts++;return external_ok?malloc(n):NULL;}
+static void cJSON_InitHooks(cJSON_Hooks *h){assert(locks==1);installed=*h;hook_changes++;}
+'''
+json_tests = r'''
+int main(void){
+    microlink_json_memory_init();microlink_json_memory_init();assert(hook_changes==1);
+    void *p=installed.malloc_fn(24);assert(p && external_attempts==1);installed.free_fn(p);
+    external_ok=false;p=installed.malloc_fn(24);assert(p && external_attempts==2);installed.free_fn(p);
+}
+'''
+run('One-time JSON allocator initialization, external allocation and internal fallback', headers + json_fixture + allocate + allocator + json_tests)
+boot = (ROOT / 'main/main.c').read_text()
+assert boot.index('microlink_json_memory_init();') < boot.index('ota_remote_init();') < boot.index('web_ui_init();')
