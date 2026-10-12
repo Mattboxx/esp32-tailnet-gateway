@@ -258,17 +258,20 @@ static void ip_addr_set_any(bool ipv6,ip_addr_t *ip){(void)ipv6;*ip=0;}
 endpoint_tests = r'''
 int main(void){
     ip_addr_t direct=0xc0000201,relay=0;struct wireguard_peer p={.ip=direct,.port=41641};
-    now=1000;update_peer_addr(&p,&relay,0);assert(p.ip==0 && p.port==0);
-    now=2000;update_peer_addr(&p,&direct,41642);assert(p.ip==direct && p.port==41642 && p.last_direct_rx==2000);
-    now=31999;update_peer_addr(&p,&relay,0);assert(p.ip==direct && p.port==41642);
-    now=32000;update_peer_addr(&p,&relay,0);assert(!p.ip && !p.port && p.last_direct_rx==2000);
-    now=40000;update_peer_addr(&p,&direct,41643);assert(p.ip==direct && p.port==41643);
-    now=0xfffffff0;update_peer_addr(&p,&direct,41644);
-    now=100;update_peer_addr(&p,&relay,0);assert(p.ip==direct && p.port==41644);
-    now=30000;update_peer_addr(&p,&relay,0);assert(!p.ip && !p.port);
+    now=1000;update_peer_addr(&p,&relay,0,false);assert(p.ip==0 && p.port==0);
+    now=2000;update_peer_addr(&p,&direct,41642,false);assert(p.ip==direct && p.port==41642 && p.last_direct_rx==2000);
+    now=2100;update_peer_addr(&p,&relay,0,true);assert(!p.ip && !p.port);
+    now=2200;update_peer_addr(&p,&direct,41642,true);
+    now=31999;update_peer_addr(&p,&relay,0,false);assert(p.ip==direct && p.port==41642);
+    now=32200;update_peer_addr(&p,&relay,0,false);assert(!p.ip && !p.port && p.last_direct_rx==2200);
+    now=40000;update_peer_addr(&p,&direct,41643,false);assert(p.ip==direct && p.port==41643);
+    now=0xfffffff0;update_peer_addr(&p,&direct,41644,false);
+    now=100;update_peer_addr(&p,&relay,0,false);assert(p.ip==direct && p.port==41644);
+    now=30000;update_peer_addr(&p,&relay,0,false);assert(!p.ip && !p.port);
 }
 '''
 run('Actual authenticated endpoint selection: relay recovery, healthy direct retention, upgrade and clock wrap',
     headers + endpoint_fixture + endpoint + endpoint_tests)
+assert 'update_peer_addr(peer, addr, port, pbuf->tot_len > 0);' in wg_backend
 assert 'uint32_t age = now_wg - wp->last_direct_rx;' in (
     ROOT / 'external/microlink/components/microlink/src/ml_wg_mgr.c').read_text()
