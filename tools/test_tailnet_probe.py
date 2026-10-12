@@ -35,6 +35,7 @@ def main():
             values.append(int.from_bytes(result[2], 'big'))
         return values
 
+    success = False
     try:
         assert api('/api/snmp', dict(config, enabled=True))['ok']
         time.sleep(3)
@@ -44,6 +45,7 @@ def main():
             with client.open('http://' + args.tailnet_host + '/api/auth/challenge', timeout=8) as response:
                 assert response.status == 200
                 response.read(4096)
+                success = True
                 print('PASS: real HTTP over Tailnet', flush=True)
         except OSError:
             print('FAIL: real HTTP over Tailnet timed out or failed', flush=True)
@@ -56,6 +58,7 @@ def main():
         restored = api('/api/snmp')
         assert all(restored[k] == v for k, v in config.items())
         print('PASS: SNMP restored OFF with original configuration', flush=True)
+    assert success, 'Real Tailnet HTTP did not respond; counter diagnostics above are not a connectivity pass'
 
 
 if __name__ == '__main__':

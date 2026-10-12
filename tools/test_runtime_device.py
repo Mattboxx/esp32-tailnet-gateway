@@ -105,7 +105,8 @@ def main():
                     previous_uptime = state['uptime_s']
                     assert api('/api/system')['reset_history'][0]['reason'] == 'SW'
                     time.sleep(3)
-        print(f'PASS: software restart {cycle+1}/2; WiFi/Tailscale/MQTT ready in '
+        services = 'WiFi/Tailscale/MQTT' + ('/real Tailnet HTTP' if args.tailnet_host else '')
+        print(f'PASS: software restart {cycle+1}/2; {services} ready in '
               f'{time.monotonic()-start:.0f}s, same identity/configuration; '
               f'shutdown marker recorded={"shutdown=1" in old_log}', flush=True)
     print('PASS: startup/restart recovery; no credential/configuration/log dump written', flush=True)
