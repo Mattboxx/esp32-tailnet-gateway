@@ -82,9 +82,29 @@ def main():
         live_log = api('/api/log/raw')['data']
         assert 'Failed to create wg_mgr task' not in live_log
         if args.tailnet_host:
-            tailnet = login(args.tailnet_host)
-            assert tailnet('/api/system')['version'] == args.expected_version
-            assert tailnet('/api/status')['tailscale']['connected']
+            # Registration readiness is not peer-session readiness. The host
+            # may still hold the pre-reboot session until lazy handshaking
+            # renews it. Bounded read-only retries must observe the same boot;
+            # they never repeat the restart or hide another reset.
+            service_until = time.monotonic() + 60
+            previous_uptime = api('/api/status')['uptime_s']
+            announced = False
+            while True:
+                try:
+                    tailnet = login(args.tailnet_host)
+                    assert tailnet('/api/system')['version'] == args.expected_version
+                    assert tailnet('/api/status')['tailscale']['connected']
+                    break
+                except OSError:
+                    assert time.monotonic() < service_until, 'Real Tailnet HTTP never became ready'
+                    if not announced:
+                        print('Waiting for real Tailnet peer-session readiness after registration', flush=True)
+                        announced = True
+                    state = api('/api/status')
+                    assert state['uptime_s'] >= previous_uptime, 'Restart during Tailnet readiness check'
+                    previous_uptime = state['uptime_s']
+                    assert api('/api/system')['reset_history'][0]['reason'] == 'SW'
+                    time.sleep(3)
         print(f'PASS: software restart {cycle+1}/2; WiFi/Tailscale/MQTT ready in '
               f'{time.monotonic()-start:.0f}s, same identity/configuration; '
               f'shutdown marker recorded={"shutdown=1" in old_log}', flush=True)
