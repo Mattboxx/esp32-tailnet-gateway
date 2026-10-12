@@ -6,15 +6,13 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/timers.h"
 
 static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
 static bool s_pending, s_active, s_shutdown, s_target;
 static uint32_t s_generation;
 static int64_t s_due;
 static bool (*s_apply)(bool);
-static StaticTimer_t s_timer_storage;
-static TimerHandle_t s_timer;
+static bool s_initialized;
 static const char *TAG = "ap_policy";
 
 bool ap_policy_is_shutdown(void)
@@ -65,34 +63,36 @@ static void try_start(void)
     if (!start) return;
     /* WiFi mode changes stay on the original roomy stack, never on the
      * event/timer task. One worker handles all pending generations. */
-    if (xTaskCreate(worker, "ap_policy", 8192, NULL, 5, NULL) != pdPASS) {
+    size_t free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    size_t largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+    /* Total free RAM is not enough: the stack needs one contiguous block,
+     * plus room for the TCB and concurrent network allocations. */
+    if (free < 10240 || largest < 9216 ||
+        xTaskCreate(worker, "ap_policy", 8192, NULL, 5, NULL) != pdPASS) {
         taskENTER_CRITICAL(&s_lock);
         s_active = false;
         if (generation == s_generation) s_due = esp_timer_get_time() + 1000000;
         taskEXIT_CRITICAL(&s_lock);
         ESP_LOGW(TAG, "Worker allocation deferred; retry pending (free=%u largest=%u)",
-                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
-                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+                 (unsigned)free, (unsigned)largest);
     }
 }
 
-static void retry_tick(TimerHandle_t timer)
+void ap_policy_poll(void)
 {
-    (void)timer;
     try_start();
 }
 
 esp_err_t ap_policy_init(bool (*apply)(bool))
 {
     if (!apply) return ESP_ERR_INVALID_ARG;
-    if (s_timer) return ESP_OK;
+    if (s_initialized) return ESP_OK;
     s_apply = apply;
-    s_timer = xTimerCreateStatic("ap_retry", pdMS_TO_TICKS(100), pdTRUE,
-                                NULL, retry_tick, &s_timer_storage);
-    if (!s_timer || xTimerStart(s_timer, portMAX_DELAY) != pdPASS) return ESP_FAIL;
     /* Later-registered handlers run first: suppress recovery before the
      * WiFi shutdown handler raises STA/AP-down events during esp_restart. */
-    return esp_register_shutdown_handler(ap_policy_shutdown);
+    esp_err_t err = esp_register_shutdown_handler(ap_policy_shutdown);
+    if (err == ESP_OK) s_initialized = true;
+    return err;
 }
 
 void ap_policy_request(bool on)

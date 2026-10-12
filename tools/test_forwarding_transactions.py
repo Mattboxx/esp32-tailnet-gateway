@@ -78,6 +78,8 @@ static int xTaskCreate(void (*fn)(void*),const char *name,unsigned stack,void *a
 static void vTaskDelay(unsigned t) { (void)t; abort(); }
 static void tailnet_reassembly_refresh(void) {}
 static void netif_hooks_refresh(void) {}
+static void ap_policy_poll(void) {}
+static int64_t esp_timer_get_time(void) { return 0; }
 typedef struct { uint32_t addr; } ip4_addr_t;
 static uint32_t swap32(uint32_t x) { return ((x&255)<<24)|((x&0xff00)<<8)|((x>>8)&0xff00)|(x>>24); }
 #define lwip_ntohl swap32

@@ -56,6 +56,11 @@ ap_fixture = r'''
 typedef int StaticTimer_t;
 typedef void *TimerHandle_t;
 static int64_t clock_us;
+static size_t free_bytes=65536,largest_bytes=32768;
+#define MALLOC_CAP_INTERNAL 1
+#define MALLOC_CAP_8BIT 2
+static size_t heap_caps_get_free_size(int caps){(void)caps;return free_bytes;}
+static size_t heap_caps_get_largest_free_block(int caps){(void)caps;return largest_bytes;}
 static unsigned allocations, mode_calls, mode_failures, deletes;
 static bool fail_alloc, last_target, request_during_apply;
 static void (*spawned)(void *), (*timer_callback)(TimerHandle_t), (*shutdown_callback)(void);
@@ -83,7 +88,7 @@ static void execute(void) {
     assert(spawned);void (*fn)(void*)=spawned;spawned=NULL;fn(NULL);
     assert(!s_active && !locks);
 }
-static void tick(unsigned ms){clock_us+=(int64_t)ms*1000;timer_callback(s_timer);}
+static void tick(unsigned ms){clock_us+=(int64_t)ms*1000;ap_policy_poll();}
 int main(void) {
     assert(ap_policy_init(NULL)==ESP_ERR_INVALID_ARG);
     assert(ap_policy_init(apply)==ESP_OK);
@@ -91,7 +96,7 @@ int main(void) {
     for(unsigned i=0;i<1000;i++)ap_policy_request(false);
     assert(!allocations && s_pending); /* never reserve 8KB during the grace period */
     tick(1499);assert(!allocations);tick(1);assert(allocations==1);
-    timer_callback(s_timer);assert(allocations==1);execute();assert(!last_target && mode_calls==1);
+    ap_policy_poll();assert(allocations==1);execute();assert(!last_target && mode_calls==1);
 
     fail_alloc=true;ap_policy_request(true);tick(100);
     assert(allocations==2 && s_pending && !s_active);
@@ -108,6 +113,10 @@ int main(void) {
     ap_policy_request(true);tick(100);ap_policy_request(false);execute();
     assert(s_pending);tick(1500);execute();assert(!last_target);
 
+    /* Many free bytes with a fragmented heap must not enter task creation. */
+    unsigned alloc_before=allocations;largest_bytes=7680;
+    ap_policy_request(true);tick(100);assert(allocations==alloc_before && s_pending);
+    largest_bytes=32768;tick(1000);execute();assert(last_target);
     ap_policy_request(true);tick(100);unsigned before=mode_calls;
     shutdown_callback();ap_policy_request(true);execute();tick(10000);
     assert(ap_policy_is_shutdown() && mode_calls==before && !s_pending && !spawned);

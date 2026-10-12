@@ -33,6 +33,7 @@ def main():
         raise AssertionError('WiFi/Tailscale/MQTT startup did not complete')
 
     ready(api)
+    assert api('/api/system')['reset_history'][0]['reason'] in ('FLASH', 'SW'), 'Unexpected candidate panic'
     original = snapshot(api)
     ap_auto = api('/api/network')['ap']['auto_off_when_connected']
     identity = api('/api/tailscale')['runtime'].get('identity_pubkey_prefix')

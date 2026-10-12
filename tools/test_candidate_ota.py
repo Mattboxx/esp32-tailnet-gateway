@@ -65,7 +65,20 @@ def main():
             continue
     else:
         raise RuntimeError('Candidate did not appear; upload was not repeated')
-    current = snapshot(api)
+    # Startup radio/HTTP transitions can close a read without rejecting OTA.
+    # Retry read-only verification, never the image upload.
+    verify_until = time.monotonic() + 45
+    while True:
+        try:
+            current = snapshot(api)
+            break
+        except OSError:
+            if time.monotonic() >= verify_until:
+                raise
+            time.sleep(3)
+            api = login(args.host)
+    assert api('/api/system')['reset_history'][0]['reason'] in ('FLASH', 'SW'), \
+        'Candidate suffered an unexpected reset after OTA'
     assert current == original, 'Saved settings changed; private values are not displayed'
     print(f'PASS: exact candidate booted in {time.monotonic()-started:.0f}s; '
           f'{len(original)} saved-setting groups unchanged; no private snapshot written', flush=True)
