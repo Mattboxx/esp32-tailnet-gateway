@@ -36,6 +36,7 @@ endif()
 message(STATUS "index.html: ${_gz_out}")
 
 idf_component_register(SRCS "main.c"
+                            "ap_policy.c"
                             "log_capture.c"
                             "nvs_params.c"
                             "tailscale_manager.c"

@@ -83,6 +83,24 @@ static StaticSemaphore_t s_lifecycle_storage;
 static SemaphoreHandle_t s_lifecycle;
 static portMUX_TYPE s_connect_lock = portMUX_INITIALIZER_UNLOCKED;
 static bool s_connect_in_flight;
+static esp_err_t s_start_error;
+static bool s_start_retrying;
+
+esp_err_t tailscale_start_error(void)
+{
+    taskENTER_CRITICAL(&s_connect_lock);
+    esp_err_t err = s_start_error;
+    taskEXIT_CRITICAL(&s_connect_lock);
+    return err;
+}
+
+bool tailscale_start_retrying(void)
+{
+    taskENTER_CRITICAL(&s_connect_lock);
+    bool retrying = s_start_retrying;
+    taskEXIT_CRITICAL(&s_connect_lock);
+    return retrying;
+}
 static uint32_t s_lifecycle_generation;
 static bool s_exit_server_active;
 static uint16_t s_peerapi_port = TAILSCALE_PEERAPI_PORT;
@@ -300,7 +318,7 @@ static esp_err_t tailscale_connect_locked(void)
     microlink_t *instance = microlink_init(&cfg);
     if (!instance) {
         ESP_LOGE(TAG, "microlink_init failed");
-        return ESP_FAIL;
+        return ESP_ERR_NO_MEM;
     }
 
     /* Publish only a successfully started instance. Readers must never see
@@ -329,6 +347,9 @@ esp_err_t tailscale_connect(void)
     if (!s_lifecycle) return ESP_ERR_INVALID_STATE;
     xSemaphoreTake(s_lifecycle, portMAX_DELAY);
     esp_err_t err = tailscale_connect_locked();
+    taskENTER_CRITICAL(&s_connect_lock);
+    if (!s_microlink || err == ESP_OK) s_start_error = err;
+    taskEXIT_CRITICAL(&s_connect_lock);
     xSemaphoreGive(s_lifecycle);
     return err;
 }
@@ -401,7 +422,20 @@ void tailscale_connect_task(void *pvParameters)
         ESP_LOGW(TAG, "SNTP timeout after %ds, attempting Tailscale connect anyway", max_retry / 2);
     }
 
-    tailscale_connect();
+    /* Startup-only retries, never re-register an already published instance.
+     * Other boot services can release temporary allocations after the first
+     * attempt. Keep the same saved identity and avoid reboot loops. */
+    for (unsigned attempt = 0; attempt < 5; ++attempt) {
+        esp_err_t err = tailscale_connect();
+        bool retrying = err == ESP_ERR_NO_MEM && attempt < 4;
+        taskENTER_CRITICAL(&s_connect_lock);
+        s_start_retrying = retrying;
+        taskEXIT_CRITICAL(&s_connect_lock);
+        if (!retrying) break;
+        unsigned delay_ms = 2000u << attempt;
+        ESP_LOGW(TAG, "Startup memory shortage; retry %u/4 in %u ms", attempt + 1, delay_ms);
+        vTaskDelay(pdMS_TO_TICKS(delay_ms));
+    }
     taskENTER_CRITICAL(&s_connect_lock);
     s_connect_in_flight = false;
     taskEXIT_CRITICAL(&s_connect_lock);

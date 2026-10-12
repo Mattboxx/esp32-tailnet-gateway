@@ -53,7 +53,9 @@ async function fixture(browser, options = {}) {
       state.updatesBody = { ...(state.updatesBody || updates), busy: true, status: 'Checking GitHub releases' };
       body = { ok: true }; status = 202;
     } else if (url.pathname === '/api/tailscale') {
-      body = { settings: state.tailscaleSettings || {}, runtime: {}, peers: [] };
+      body = { settings: state.tailscaleSettings || {}, runtime: state.tailscaleRuntime || {}, peers: [] };
+    } else if (url.pathname === '/api/status') {
+      body = state.statusBody || {};
     } else if (url.pathname === '/api/wol') {
       if (state.wolFails) return route.abort('failed');
       if (state.wolDelay) await new Promise(resolve => setTimeout(resolve, state.wolDelay));
@@ -323,7 +325,24 @@ async function main() {
     await f.page.locator('#sys-updates-reload').click();
     await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Automatic install');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
-    console.log(`PASS: ${count} browser scenarios (automation, SNMP/session labels, exit DNS and opt-in/manual/beta GitHub updates)`);
+    // A failed task allocation is not an endlessly registering node. Check
+    // both independently rendered Tailnet badges and recovery to Connected.
+    for (const retrying of [false, true]) {
+      const runtime = {enabled: true, connected: false, startup_error: 'ESP_ERR_NO_MEM', startup_retrying: retrying};
+      const expected = retrying ? 'Retrying startup' : 'Startup failed';
+      f = await fixture(browser, {page: 'tailscale', tailscaleSettings: {enabled: true}, tailscaleRuntime: runtime});
+      await f.page.waitForFunction(text => document.getElementById('ts-page-badge').textContent === text, expected);
+      assert.equal(await f.page.locator('#ts-page-badge').getAttribute('title'), 'ESP_ERR_NO_MEM');
+      assert.deepEqual(f.errors, []); await f.context.close(); count++;
+      f = await fixture(browser, {page: 'status', statusBody: {tailscale: runtime}});
+      await f.page.waitForFunction(text => document.getElementById('ts-badge').textContent === text, expected);
+      assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    }
+    f = await fixture(browser, {page: 'tailscale', tailscaleSettings: {enabled: true}, tailscaleRuntime: {connected: true, startup_error: 'ESP_ERR_NO_MEM'}});
+    await f.page.waitForFunction(() => document.getElementById('ts-page-badge').textContent.includes('Connected'));
+    assert.equal(await f.page.locator('#ts-page-badge').getAttribute('title'), '');
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    console.log(`PASS: ${count} browser scenarios (automation, SNMP/session labels, startup error/retry/recovery, exit DNS and GitHub updates)`);
   } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

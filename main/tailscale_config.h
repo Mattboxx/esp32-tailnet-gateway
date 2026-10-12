@@ -56,6 +56,8 @@ struct microlink_s *tailscale_get_microlink(void);
 
 /* Non-blocking task-context lease; never take it from a TCP/IP callback. */
 bool tailscale_lifecycle_try_acquire(void);
+esp_err_t tailscale_start_error(void);
+bool tailscale_start_retrying(void);
 void tailscale_lifecycle_release(void);
 uint32_t tailscale_lifecycle_generation(void); /* read while leased */
 

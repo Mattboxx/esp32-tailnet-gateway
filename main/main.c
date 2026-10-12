@@ -13,6 +13,8 @@
 */
 #include <string.h>
 #include "runtime_metrics.h"
+#include "ap_policy.h"
+#include "esp_heap_caps.h"
 #include <stdlib.h>
 #include <time.h>
 #include "freertos/FreeRTOS.h"
@@ -160,16 +162,15 @@ static volatile bool s_manual_scan_active = false;
  * address, but brings it back whenever STA disconnects so a bad credential or
  * upstream outage never locks the operator out of the device. */
 static volatile bool     s_ap_auto_off = false;
-static volatile bool     s_ap_target_on = true;
-static volatile uint32_t s_ap_policy_generation = 0;
 
-static void ap_policy_apply_runtime(bool on)
+static bool ap_policy_apply_runtime(bool on)
 {
+    if (ap_policy_is_shutdown()) return true;
     wifi_mode_t mode = WIFI_MODE_NULL;
-    if (esp_wifi_get_mode(&mode) != ESP_OK) return;
+    if (esp_wifi_get_mode(&mode) != ESP_OK) return false;
 
     if (on) {
-        if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_AP) return;
+        if (mode == WIFI_MODE_APSTA || mode == WIFI_MODE_AP) return true;
 
         /* Starting the AP from a fully-stopped state is the safe moment to
          * align it to the current/last uplink channel (unlike retuning a live
@@ -189,48 +190,23 @@ static void ap_policy_apply_runtime(bool on)
         esp_err_t err = esp_wifi_set_mode(WIFI_MODE_APSTA);
         if (err != ESP_OK) {
             ESP_LOGE(TAG_AP, "AP recovery enable failed: %s", esp_err_to_name(err));
-            return;
+            return false;
         }
         vTaskDelay(pdMS_TO_TICKS(200));
+        if (ap_policy_is_shutdown()) return true;
         esp_netif_t *ap  = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
         esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
         if (ap) (void)esp_netif_napt_enable(ap);
         if (ap && sta) softap_set_dns_addr(ap, sta);
         ESP_LOGW(TAG_AP, "AP enabled (recovery/always-on policy)");
     } else {
-        if (mode == WIFI_MODE_STA) return;
+        if (mode == WIFI_MODE_STA) return true;
         esp_err_t err = esp_wifi_set_mode(WIFI_MODE_STA);
         if (err == ESP_OK) ESP_LOGW(TAG_AP, "AP disabled: uplink connected (recovery-only policy)");
         else ESP_LOGE(TAG_AP, "AP auto-disable failed: %s", esp_err_to_name(err));
+        if (err != ESP_OK) return false;
     }
-}
-
-static void ap_policy_worker(void *arg)
-{
-    uint32_t generation = (uint32_t)(uintptr_t)arg;
-    bool target = s_ap_target_on;
-    /* Give an AP-hosted browser enough time to receive the Save response;
-     * recovery enable is intentionally much faster. */
-    vTaskDelay(pdMS_TO_TICKS(target ? 100 : 1500));
-    if (generation == s_ap_policy_generation && target == s_ap_target_on) {
-        ap_policy_apply_runtime(target);
-    }
-    vTaskDelete(NULL);
-}
-
-static void ap_policy_request(bool on)
-{
-    s_ap_target_on = on;
-    uint32_t generation = ++s_ap_policy_generation;
-    /* esp_wifi_set_mode() synchronously fans out through the Wi-Fi/IP event
-     * handlers. On ESP-IDF 5.3 that path peaks well above 3 KB (the first
-     * recovery-only build reproducibly tripped the FreeRTOS stack canary just
-     * after the AP-down event). Keep this one-shot worker deliberately roomy;
-     * it exists for at most 1.5 s and is freed after the transition. */
-    if (xTaskCreate(ap_policy_worker, "ap_policy", 8192,
-                    (void *)(uintptr_t)generation, 5, NULL) != pdPASS) {
-        ESP_LOGE(TAG_AP, "could not create AP policy worker");
-    }
+    return true;
 }
 
 bool wifi_ap_policy_auto_off(void) { return s_ap_auto_off; }
@@ -438,7 +414,15 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             ESP_LOGI(TAG_STA, "Station started idle — waiting for uplink configuration");
         }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+        wifi_event_sta_disconnected_t *event = event_data;
+        bool shutting_down = ap_policy_is_shutdown();
+        ESP_LOGW(TAG_STA, "STA disconnected: reason=%u shutdown=%d scan=%d free=%u largest=%u",
+                 event ? (unsigned)event->reason : 0, (int)shutting_down,
+                 (int)s_manual_scan_active,
+                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
         ap_connect = 0;
+        if (shutting_down) return;
         if (s_ap_auto_off) ap_policy_request(true);
         if (s_manual_scan_active) {
             ESP_LOGI(TAG_STA, "STA reconnect paused for manual scan");
@@ -978,6 +962,7 @@ void app_main(void)
     /* Initialize STA */
     ESP_LOGI(TAG_STA, "ESP_WIFI_MODE_STA");
     esp_netif_t *esp_netif_sta = wifi_init_sta();
+    ESP_ERROR_CHECK(ap_policy_init(ap_policy_apply_runtime));
 
     /* Start WiFi */
     ESP_ERROR_CHECK(esp_wifi_start() );

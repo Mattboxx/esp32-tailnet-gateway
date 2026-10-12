@@ -274,7 +274,10 @@ esp_err_t log_capture_init(size_t bytes)
         s_precrash.count <= PRECRASH_RING_BYTES &&
         s_precrash.head < PRECRASH_RING_BYTES) {
         size_t cnt = s_precrash.count;
-        s_snapshot = malloc(cnt + 1);
+        /* Display-only data must not consume internal task/TLS memory on
+         * every soft restart. Retain the fallback on non-PSRAM boards. */
+        s_snapshot = heap_caps_malloc(cnt + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if (!s_snapshot) s_snapshot = malloc(cnt + 1);
         if (s_snapshot) {
             size_t start = (s_precrash.head + PRECRASH_RING_BYTES - cnt) % PRECRASH_RING_BYTES;
             size_t written = 0;

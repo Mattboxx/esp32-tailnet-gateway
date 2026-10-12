@@ -358,6 +358,8 @@ static esp_err_t status_handler(httpd_req_t *req)
     cJSON *ts = cJSON_CreateObject();
     cJSON_AddBoolToObject  (ts, "enabled",   tailscale_enabled != 0);
     cJSON_AddBoolToObject  (ts, "connected", ts_connected);
+    cJSON_AddStringToObject(ts, "startup_error", tailscale_start_error() == ESP_OK ? "" : esp_err_to_name(tailscale_start_error()));
+    cJSON_AddBoolToObject(ts, "startup_retrying", tailscale_start_retrying());
     cJSON_AddBoolToObject  (ts, "advertise_exit_node", tailscale_advertise_exit_node != 0);
     if (tailscale_hostname)         cJSON_AddStringToObject(ts, "hostname",         tailscale_hostname);
     cJSON_AddStringToObject(ts, "advertise_routes", tailscale_active_routes());
@@ -3028,6 +3030,8 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
             }
         }
     }
+    cJSON_AddStringToObject(runtime, "startup_error", tailscale_start_error() == ESP_OK ? "" : esp_err_to_name(tailscale_start_error()));
+    cJSON_AddBoolToObject(runtime, "startup_retrying", tailscale_start_retrying());
     cJSON_AddItemToObject(root, "runtime", runtime);
 
     /* MTU / MSS / PMTU manager — persisted fields (mode, fixed_mtu)
