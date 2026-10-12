@@ -143,7 +143,7 @@ static void ml_derp_tx_task(void *a){(void)a;}
 static void ml_derp_rx_task(void *a){(void)a;}
 static void ml_coord_task(void *a){(void)a;}
 static int calls,fail_at,stops;static bool ready,incomplete;
-static const char *expected[]={"ml_wg_mgr","ml_net_io","ml_derp_tx","ml_derp_rx","ml_coord"};
+static const char *expected[]={"ml_coord","ml_derp_tx","ml_derp_rx","ml_wg_mgr","ml_net_io"};
 static int xTaskCreatePinnedToCore(void(*fn)(void*),const char*n,unsigned s,void*a,int p,void**h,int c) {
     (void)fn;(void)s;(void)a;(void)p;(void)c;
     assert(!ready && !strcmp(n,expected[calls]));int index=calls++;
@@ -166,7 +166,7 @@ int main(void) {
     }
     calls=stops=0;ready=false;fail_at=2;incomplete=true;microlink_t node={0};
     assert(test_start(&node)==ESP_ERR_INVALID_STATE && !ready);
-    puts("Microlink startup: WG stack reserved first, coord last, ready barrier and rollback at all five allocation points; incomplete cleanup is not retryable");
+    puts("Microlink startup: descending stack sizes, ready barrier and rollback at all five allocation points; incomplete cleanup is not retryable");
 }
 '''
 run('Microlink startup allocation rollback and registration barrier', headers + ml_fixture + 'static int test_start(microlink_t *ml) {\n' + start + ml_tests)
