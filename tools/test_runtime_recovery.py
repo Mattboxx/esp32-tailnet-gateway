@@ -242,3 +242,33 @@ int main(void){
 run('One-time JSON allocator initialization, external allocation and internal fallback', headers + json_fixture + allocate + allocator + json_tests)
 boot = (ROOT / 'main/main.c').read_text()
 assert boot.index('microlink_json_memory_init();') < boot.index('ota_remote_init();') < boot.index('web_ui_init();')
+
+wg_backend = (ROOT / 'external/microlink/components/microlink/components/wireguard_lwip/src/wireguardif.c').read_text()
+endpoint = 'static void update_peer_addr' + wg_backend.split('static void update_peer_addr', 1)[1].split('/* Count contiguous', 1)[0]
+endpoint_fixture = r'''
+typedef uint32_t ip_addr_t;
+typedef uint16_t u16_t;
+struct wireguard_peer {ip_addr_t ip;u16_t port;uint32_t last_direct_rx;};
+static uint32_t now;
+static uint32_t wireguard_sys_now(void){return now;}
+static bool ip_addr_isany(const ip_addr_t *ip){return *ip==0;}
+static void ip_addr_set_any(bool ipv6,ip_addr_t *ip){(void)ipv6;*ip=0;}
+#define WG_DEBUG(...) ((void)0)
+'''
+endpoint_tests = r'''
+int main(void){
+    ip_addr_t direct=0xc0000201,relay=0;struct wireguard_peer p={.ip=direct,.port=41641};
+    now=1000;update_peer_addr(&p,&relay,0);assert(p.ip==0 && p.port==0);
+    now=2000;update_peer_addr(&p,&direct,41642);assert(p.ip==direct && p.port==41642 && p.last_direct_rx==2000);
+    now=31999;update_peer_addr(&p,&relay,0);assert(p.ip==direct && p.port==41642);
+    now=32000;update_peer_addr(&p,&relay,0);assert(!p.ip && !p.port && p.last_direct_rx==2000);
+    now=40000;update_peer_addr(&p,&direct,41643);assert(p.ip==direct && p.port==41643);
+    now=0xfffffff0;update_peer_addr(&p,&direct,41644);
+    now=100;update_peer_addr(&p,&relay,0);assert(p.ip==direct && p.port==41644);
+    now=30000;update_peer_addr(&p,&relay,0);assert(!p.ip && !p.port);
+}
+'''
+run('Actual authenticated endpoint selection: relay recovery, healthy direct retention, upgrade and clock wrap',
+    headers + endpoint_fixture + endpoint + endpoint_tests)
+assert 'uint32_t age = now_wg - wp->last_direct_rx;' in (
+    ROOT / 'external/microlink/components/microlink/src/ml_wg_mgr.c').read_text()
