@@ -89,3 +89,46 @@ assert '!(selected_exit && route_list_has_default_v4(manual))' in manager
 web = (ROOT / 'main/web_ui.c').read_text()
 assert 'cJSON_IsString(routes) ? route_list_has_default_v4(routes->valuestring)' in web
 print('PASS: logging, partial-init/shutdown guards, boot-frozen manual exit mode and client/server exclusion preserved')
+
+
+def run_fragment(name, program):
+    with tempfile.TemporaryDirectory(prefix='upstream-033-fragment-') as directory:
+        path = Path(directory)
+        (path / 'test.c').write_text(base + program)
+        binary = path / ('test.exe' if os.name == 'nt' else 'test')
+        subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary)], check=True)
+        subprocess.run([str(binary)], check=True)
+    print('PASS:', name)
+
+
+drain = re.search(r'while \(ml->derp_tx_queue && xQueueReceive\(.*?\n    \}', derp, re.S).group()
+run_fragment('actual DERP drain accepts missing queue and frees queued payloads exactly once', r'''
+typedef struct {void *data;} ml_derp_tx_item_t;
+typedef struct {void *derp_tx_queue;} microlink_t;
+static unsigned calls;
+static int xQueueReceive(void *q,ml_derp_tx_item_t *item,int timeout){
+ assert(q&&timeout==0);if(++calls>2)return pdFALSE;item->data=malloc(16);assert(item->data);return pdTRUE;
+}
+static void drain_queue(microlink_t *ml){ml_derp_tx_item_t item;
+''' + drain + r'''
+}
+int main(void){microlink_t ml={0};drain_queue(&ml);assert(!calls);
+ ml.derp_tx_queue=&ml;drain_queue(&ml);assert(calls==3);}
+''')
+
+wait = re.search(r'EventBits_t derp_wb = xEventGroupWaitBits\(.*?if \(derp_wb & ML_EVT_SHUTDOWN_REQUEST\) \{.*?\n                    \}', coord, re.S).group()
+run_fragment('actual DERP wait/branch handles connected, shutdown and simultaneous events', r'''
+typedef unsigned EventBits_t;
+#define ML_EVT_DERP_CONNECTED 1u
+#define ML_EVT_SHUTDOWN_REQUEST 2u
+typedef struct {void *events;} microlink_t;
+static unsigned response;
+static EventBits_t xEventGroupWaitBits(void *e,unsigned bits,int clear,int all,int ticks){
+ assert(e&&bits==3&&!clear&&!all&&ticks==15000);return response;
+}
+static int exercise(unsigned bits){microlink_t obj={.events=&obj};microlink_t *ml=&obj;
+ response=bits;int proceeded=0;for(int n=0;n<1;n++){
+''' + wait + r'''
+ proceeded++;}return proceeded;}
+int main(void){assert(exercise(0)==1);assert(exercise(1)==1);assert(!exercise(2));assert(!exercise(3));}
+''')

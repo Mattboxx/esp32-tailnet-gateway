@@ -70,7 +70,38 @@ upload, forced update polling or public speed-test service is reintroduced.
 
 ## Verification and limits
 
-Validation results and the exact tested OTA hash are recorded before release.
+The exact ESP32-S3 image was installed via authenticated Tailnet OTA, booting
+in 229 seconds. The upload response was unavailable, so the image was not
+repeated; the new version and eight unchanged saved-setting groups were
+verified afterwards.
+
+On the reference board, strict boolean input, live driver/saved policy changes,
+and persistence through two controlled software restarts passed. Actual
+authenticated Tailnet HTTP, WiFi and MQTT recovered after each restart; other
+saved settings were unchanged. The original WiFi policy was restored OFF.
+
+Twenty-nine browser scenarios passed, including WiFi saved/runtime/unknown
+states, legacy manual exit-mode labeling, popup-blocker handling with no
+duplicate payment window, responsive support and all previous automation
+controls. Actual-C regressions cover the WiFi driver/NVS rollback paths,
+exact default-route matching, missing DERP queue cleanup and all connection/
+shutdown wait-bit combinations. Existing lifecycle, AP recovery, relay reply,
+session and SNMP-hook regressions pass, as do feature-preservation checks for
+all existing UI/HTTP/MQTT/HA controls. Exact linked ntfy stack budgets pass.
+
+GitHub regression/history scanning and CodeQL passed for the runtime changes.
+Packaging checks the exact tested image, blank factory NVS, ZIP CRC, hashes
+and credential patterns. The Windows serial script is not physically exercised;
+board updates and persistence checks use OTA.
+
+The live served UI was byte-checked against the tested embedded page. Fifteen
+protected GET endpoints rejected anonymous access and all loaded after login.
+A bounded 60-second smoke test completed eleven integration samples with no
+observed reboot, uplink/tunnel loss or MQTT disconnect; minimum internal free
+heap was 16,815 B. SNMP remained OFF. The live Tailscale API rejected a manual
+default-route/selected-exit conflict with HTTP 400 before changing saved
+settings. WiFi power save was confirmed OFF after the tests.
+
 Physical Ethernet, arbitrary remote services, the Home Assistant frontend,
 every provider's checkout and Internet exit-node throughput are not fully
 revalidated here. In particular, an end-to-end donation is not simulated.
@@ -87,3 +118,12 @@ Pattern checks and bounded tests do not guarantee absence of all possible bugs.
 - `FIRMWARE-LICENSES.txt`: original firmware/component license notices.
 
 ESP32-S3 N16R8 with 8MB octal PSRAM and the existing 4MB partition layout.
+
+Application use: 1,702,780 / 1,966,080 B; static RAM: 85,652 B.
+
+Exact OTA SHA-256:
+
+`4e899a6965f929dc825201a679522d60f959d1a6744279a8dc8b8645a199023c`
+
+The release checksum file also covers the factory image, Windows ZIP and
+firmware/component license notices.
