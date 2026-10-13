@@ -11,6 +11,7 @@ import json
 import os
 import random
 import socket
+import time
 import urllib.error
 import urllib.request
 
@@ -33,9 +34,15 @@ def oid_encode(arcs):
     return tlv(6, result)
 
 
+_request_sequence = 0
+
+
 def request(community, oid, version=1, tag=0xa0):
+    global _request_sequence
+    _request_sequence = (_request_sequence % 0x7fffffff) + 1
+    identifier = _request_sequence.to_bytes((_request_sequence.bit_length()+8)//8, 'big')
     vb = tlv(0x30, oid_encode(oid) + tlv(5, b''))
-    pdu = tlv(tag, tlv(2, b'\x01') + tlv(2, b'\x00') * 2 + tlv(0x30, vb))
+    pdu = tlv(tag, tlv(2, identifier) + tlv(2, b'\x00') * 2 + tlv(0x30, vb))
     return tlv(0x30, tlv(2, bytes([version])) + tlv(4, community.encode()) + pdu)
 
 
@@ -53,6 +60,28 @@ def children(data):
         result.append((tag, data[pos:pos + size]))
         data = data[pos + size:]
     return result
+
+
+def packet_identifier(data):
+    message = children(children(data)[0][1])
+    return int.from_bytes(children(message[2][1])[0][1], 'big')
+
+
+def receive_matching(udp, packet, address, timeout):
+    identifier = packet_identifier(packet)
+    deadline = time.monotonic() + timeout
+    expected_source = socket.gethostbyname(address)
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise socket.timeout('No matching SNMP reply')
+        udp.settimeout(remaining)
+        reply, sender = udp.recvfrom(4096)
+        assert sender[0] == expected_source
+        # Retransmitted UDP replies may arrive after the next walk request.
+        # They must not be mistaken for that request's response.
+        if packet_identifier(reply) == identifier:
+            return reply, sender
 
 
 def decode_reply(data):
@@ -142,8 +171,7 @@ def main():
         for attempt in range(3 if expect else 1):
             udp.sendto(packet, (args.host, 161))
             try:
-                reply, sender = udp.recvfrom(4096)
-                assert sender[0] == socket.gethostbyname(args.host)
+                reply, sender = receive_matching(udp, packet, args.host, 1)
             except socket.timeout:
                 if not expect:
                     return None
@@ -179,10 +207,11 @@ def main():
                 import time
                 # Span several independent 3-second forwarding / 5-second SNMP ticks.
                 for sample in range(12):
+                    packet = request(comm, system_oid, sample % 2)
                     for attempt in range(3):
-                        tailnet.sendto(request(comm, system_oid, sample % 2), (args.tailnet_host, 161))
+                        tailnet.sendto(packet, (args.tailnet_host, 161))
                         try:
-                            reply, sender = tailnet.recvfrom(4096)
+                            reply, sender = receive_matching(tailnet, packet, args.tailnet_host, 5)
                             break
                         except socket.timeout:
                             if attempt == 2:

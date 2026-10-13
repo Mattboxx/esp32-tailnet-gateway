@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
-from test_snmp_device import login
+from test_snmp_device import login, request, packet_identifier, receive_matching
 
 
 class Client:
@@ -58,6 +58,29 @@ class Sessions(unittest.TestCase):
     def test_second_401_does_not_loop(self):
         c = self.exercise([HTTPError('', 401, 'fixture', {}, None)]*2, HTTPError)
         self.assertEqual((c.authentications, c.requests), (2, 2))
+
+    def test_udp_ids_are_distinct_and_positive(self):
+        with patch('test_snmp_device._request_sequence', 126):
+            first = request('fixture', [1, 3, 6, 1])
+            second = request('fixture', [1, 3, 6, 1])
+        self.assertEqual(packet_identifier(first), 127)
+        self.assertEqual(packet_identifier(second), 128)
+
+    def test_late_udp_reply_is_not_the_next_walk_response(self):
+        old = request('fixture', [1, 3, 6, 1])
+        current = request('fixture', [1, 3, 6, 1])
+
+        class UDP:
+            replies = [old, current]
+            def settimeout(self, timeout):
+                assert 0 < timeout <= 1
+            def recvfrom(self, size):
+                assert size == 4096
+                return self.replies.pop(0), ('192.0.2.1', 161)
+
+        with patch('socket.gethostbyname', return_value='192.0.2.1'):
+            data, _ = receive_matching(UDP(), current, 'board.invalid', 1)
+        self.assertEqual(data, current)
 
 
 if __name__ == '__main__':
