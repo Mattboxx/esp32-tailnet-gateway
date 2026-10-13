@@ -42,23 +42,25 @@ enable switch, counters and live status. This is completely independent from
 the existing AP-side port forwarding.
 
 **[Download the ready-to-flash release](../../releases/latest)** ·
-**[Download the 1.10 beta candidate](../../releases/tag/v0.1.31-Mattboxx-1.10-dev.11)** ·
+**[Download the 1.10 beta candidate](../../releases/tag/v0.1.31-Mattboxx-1.10-dev.18)** ·
 **[See every change from upstream](CUSTOM_BRANCH.md)** ·
 **[Read the security model](SECURITY.md)**
 
 ## Why the Mattboxx edition is different
 
-**Beta candidate: 0.1.31-Mattboxx-1.10-dev.11.** Fixes the reported SNMP/Tailnet
-watchdog/panic: periodic input wrappers could capture each other and recurse.
-The redundant tunnel shim is removed; forwarding policy, SNMP counters and
-all existing features remain. Upgrade from dev.10 rather than enabling SNMP
-on that build. Includes upstream v0.1.31,
-all Mattboxx additions, ntfy reliability improvements, safe forwarding packet
-handling, transactional rule saves and live/next-boot Web UI port protection.
-The exact image was flashed and tested on an ESP32-S3 WiFi board, including
-three ntfy `info` replies and preserved saved settings. Download the OTA binary
-or the Windows ZIP with esptool and a double-click update script; see
-[tested scope and limitations](docs/RELEASE-1.10-dev.11.md).
+**Beta candidate: 0.1.31-Mattboxx-1.10-dev.18.** Fixes startup stuck on
+**Registering**, runtime AP-worker allocation failures and missing replies
+over a stale direct Tailscale endpoint. Worker stacks are reserved largest
+first; AP control uses a reserved stack; relay reception can restore relay
+replies while healthy direct connections are retained. Startup errors are
+visible instead of hidden behind Registering. Active logins are no longer
+repeatedly evicted when the session timer is disabled. Retains the dev.11 SNMP/Tailnet
+recursion fix, upstream v0.1.31 and **every Mattboxx feature**: separate
+forwarding paths, MQTT/Home Assistant, ntfy, WOL, Ethernet, route/exit controls,
+SNMP and stable/beta/manual/automatic updates. The exact OTA image was flashed
+on the reference ESP32-S3 without erasing settings. Download the OTA binary or
+the Windows ZIP with esptool and a double-click update script; see
+[tested scope and limitations](docs/RELEASE-1.10-dev.18.md).
 
 New in the 1.10 line: opt-in update checks,
 automatic install with an optional local-time window, stable/beta channels,

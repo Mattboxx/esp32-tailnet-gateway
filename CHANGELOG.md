@@ -6,6 +6,33 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.31-Mattboxx-1.10-dev.18 — recover startup, AP control, relay replies and logins
+
+- Create Microlink worker stacks largest first and hold coordination/cache
+  work behind an all-workers-ready barrier. Clean up partial startup before
+  bounded retries; show an explicit startup error instead of endless Registering.
+- Reserve one static 8KB AP-policy worker at boot. Coalesce repeated requests,
+  retain grace periods and retry mode changes without allocating new stacks.
+  Suppress AP recovery during intentional restart/shutdown.
+- Prefer PSRAM for the previous-boot log and ordinary buffers above 1KB;
+  initialize the process-wide JSON allocator once before application workers.
+  Keep DMA/task stacks internal and retain their original stack sizes.
+- Separate authenticated direct-path activity from DERP activity. Receiving
+  relay traffic no longer preserves a stale direct endpoint indefinitely:
+  nonempty relay-delivered packets select relay replies immediately. Empty
+  relay keepalives retain a recently healthy direct path. No session is discarded.
+- Treat an unknown zero STUN baseline port as uninitialized, not symmetric NAT.
+  Label the retained log Previous-boot log: a normal software restart is not
+  evidence of a panic. Log numeric WiFi disconnect reasons and memory budgets.
+- Add actual-C allocation/retry/endpoint regressions, two-restart device checks
+  and opt-in private tunnel-counter diagnostics. Preserve every existing custom
+  feature, upstream v0.1.31 alignment and saved settings. Dev.12–17 were local
+  test candidates, not published releases; see the dev.18 validation record.
+- Fix session eviction with the idle timer OFF: all expiries were identical,
+  so every additional login replaced slot zero, even immediately after use.
+  Track activity independently; prefer empty/expired slots, then true LRU.
+  Keep four sessions, token validation, optional timeout and password unchanged.
+
 ### 0.1.31-Mattboxx-1.10-dev.11 — fix SNMP/Tailnet input recursion
 
 - Resolve the reported alternating `ts_input_hook` / `wg_input_hook` crash.
