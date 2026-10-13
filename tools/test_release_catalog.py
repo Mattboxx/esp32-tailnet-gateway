@@ -28,7 +28,7 @@ static size_t strlcpy(char *d,const char *s,size_t z) {
 '''
 tests = r'''
 int main(int argc,char **argv) {
-    assert(argc==7);FILE *f=fopen(argv[1],"rb");assert(f);
+    assert(argc==8);FILE *f=fopen(argv[1],"rb");assert(f);
     assert(!fseek(f,0,SEEK_END));long length=ftell(f);assert(length>0&&length<=262144);rewind(f);
     char *body=calloc(1,length+1);assert(body&&fread(body,1,length,f)==(size_t)length);fclose(f);
     cJSON *releases=cJSON_Parse(body);assert(releases);free(body);
@@ -37,10 +37,12 @@ int main(int argc,char **argv) {
     uint32_t partition=(uint32_t)strtoul(argv[6],NULL,10);
     assert(ota_remote_select_release(releases,argv[2],true,partition,tag,&size,hash));
     assert(!strcmp(tag,argv[4])&&!memcmp(hash,expected,32)&&size>288);
-    assert(!ota_remote_select_release(releases,argv[2],false,partition,tag,&size,hash));
+    bool stable = !strcmp(argv[7],"stable");
+    assert(ota_remote_select_release(releases,argv[2],false,partition,tag,&size,hash)==stable);
+    if(stable)assert(!strcmp(tag,argv[4])&&!memcmp(hash,expected,32));
     assert(!ota_remote_select_release(releases,argv[3],true,partition,tag,&size,hash));
     cJSON_Delete(releases);
-    puts("PASS: real published beta asset/digest selected from older development version; stable-only excludes it; installed identical version has no update");
+    puts("PASS: real published asset/digest selected from the older version; stable-only channel matches release classification; identical installed version has no update");
 }
 '''
 
@@ -52,6 +54,7 @@ def main():
     parser.add_argument('--installed-version', required=True)
     parser.add_argument('--expected-tag', required=True)
     parser.add_argument('--expected-sha256', required=True)
+    parser.add_argument('--stable-release', action='store_true')
     args = parser.parse_args()
     req = urllib.request.Request('https://api.github.com/repos/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases?per_page=10',
                                  headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'Mattboxx-release-validation'})
@@ -69,7 +72,8 @@ def main():
         subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'),
                         *([cjson] if cjson else ['-lcjson']), '-o', str(binary)], check=True)
         subprocess.run([str(binary), str(path / 'catalog.json'), args.older_version,
-                        args.installed_version, args.expected_tag, args.expected_sha256, '1966080'], check=True)
+                        args.installed_version, args.expected_tag, args.expected_sha256, '1966080',
+                        'stable' if args.stable_release else 'beta'], check=True)
 
 
 if __name__ == '__main__':
