@@ -133,17 +133,26 @@ def main():
     assert config['community']
     udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     udp.settimeout(1)
+    lan_retries = 0
 
     def exchange(packet, expect=True):
-        udp.sendto(packet, (args.host, 161))
-        try:
-            reply, sender = udp.recvfrom(4096)
-            assert sender[0] == socket.gethostbyname(args.host)
-        except socket.timeout:
-            assert not expect, 'SNMP response timed out'
-            return None
-        assert expect, 'A rejected SNMP request received a reply'
-        return decode_reply(reply)
+        nonlocal lan_retries
+        # UDP delivery is not guaranteed, especially during concurrent TLS.
+        # Retry only valid read-only requests, at most three transmissions.
+        for attempt in range(3 if expect else 1):
+            udp.sendto(packet, (args.host, 161))
+            try:
+                reply, sender = udp.recvfrom(4096)
+                assert sender[0] == socket.gethostbyname(args.host)
+            except socket.timeout:
+                if not expect:
+                    return None
+                if attempt == 2:
+                    raise AssertionError('SNMP response timed out after three transmissions')
+                lan_retries += 1
+                continue
+            assert expect, 'A rejected SNMP request received a reply'
+            return decode_reply(reply)
 
     def wait_running(expected):
         import time
@@ -243,6 +252,7 @@ def main():
         restored = api('/api/snmp')
         assert all(restored[key] == value for key, value in config.items())
         print('PASS: SNMP restored OFF with community/name/contact/location unchanged')
+        print(f'LAN UDP retransmissions during checks: {lan_retries}', flush=True)
 
 
 if __name__ == '__main__':
