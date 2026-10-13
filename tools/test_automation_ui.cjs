@@ -15,10 +15,14 @@ const updates = { enabled: false, auto_install: false, beta_channel: false,
   status: 'Periodic checks disabled', latest_version: '' };
 
 async function fixture(browser, options = {}) {
-  const context = await browser.newContext();
+  const context = await browser.newContext({ viewport: options.viewport || { width: 1280, height: 800 } });
   const page = await context.newPage();
   const calls = [];
   const errors = [];
+  const externalRequests = [];
+  page.on('request', request => {
+    if (!request.url().startsWith('http://esp32.test/')) externalRequests.push(request.url());
+  });
   const state = { authenticated: options.authenticated !== false, ...options };
   page.on('pageerror', error => errors.push(error.message));
   await page.route('http://esp32.test/**', async route => {
@@ -65,7 +69,7 @@ async function fixture(browser, options = {}) {
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
   });
   await page.goto('http://esp32.test/#' + (options.page || 'automation'));
-  return { context, page, calls, errors, state };
+  return { context, page, calls, errors, state, externalRequests };
 }
 
 async function loaded(page) {
@@ -79,6 +83,39 @@ async function main() {
   const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || 'chrome' });
   let count = 0;
   try {
+    // Optional support must be visible, responsive and fully local until a
+    // deliberate click. Never visit a payment checkout or send a test tip.
+    for (const width of [1280, 1000, 800, 390, 320]) {
+      const f = await fixture(browser, { page: 'system', viewport: { width, height: 800 } });
+      await f.page.waitForFunction(() => !document.getElementById('sys-updates-check').disabled);
+      for (const id of ['nav-support-link', 'mod-support-link']) {
+        const link = f.page.locator('#' + id);
+        assert.equal(await link.getAttribute('href'), 'https://ko-fi.com/mattboxx');
+        assert.equal(await link.getAttribute('target'), '_blank');
+        assert.equal(await link.getAttribute('rel'), 'noopener noreferrer');
+        assert.equal(await link.getAttribute('referrerpolicy'), 'no-referrer');
+        assert.match(await link.getAttribute('aria-label'), /Mattboxx.*new tab/);
+        await link.scrollIntoViewIfNeeded();
+        const box = await link.boundingBox();
+        assert(box && box.x >= 0 && box.x + box.width <= width && box.height >= 40);
+        await link.focus();
+        assert.equal(await link.evaluate(el => el === document.activeElement), true);
+      }
+      assert.equal(await f.page.locator('#mod-support').evaluate(el => getComputedStyle(el).position), 'static');
+      assert.match(await f.page.locator('#mod-support').textContent(), /Always optional.*stay free/s);
+      assert.equal(await f.page.locator('a[href="https://www.buymeacoffee.com/csontikka"]').count(), 1);
+      assert.equal(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      assert.deepEqual(f.externalRequests, []);
+      assert.deepEqual(f.errors, []);
+      if (process.env.TEST_SUPPORT_SCREENSHOTS && [1280, 390].includes(width)) {
+        const folder = process.env.TEST_SUPPORT_SCREENSHOTS;
+        fs.mkdirSync(folder, { recursive: true });
+        await f.page.locator('#mod-support').screenshot({ path: path.join(folder, `support-footer-${width}.png`) });
+        await f.page.evaluate(() => scrollTo(0, 0));
+        await f.page.screenshot({ path: path.join(folder, `support-nav-${width}.png`), clip: { x: 0, y: 0, width, height: 90 } });
+      }
+      await f.context.close(); count++;
+    }
     // Deep link while logged out: no protected requests until login. A WOL
     // transport failure must not block MQTT or ntfy configuration rendering.
     let f = await fixture(browser, { authenticated: false, wolFails: true });
@@ -342,7 +379,7 @@ async function main() {
     await f.page.waitForFunction(() => document.getElementById('ts-page-badge').textContent.includes('Connected'));
     assert.equal(await f.page.locator('#ts-page-badge').getAttribute('title'), '');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
-    console.log(`PASS: ${count} browser scenarios (automation, SNMP/session labels, startup error/retry/recovery, exit DNS and GitHub updates)`);
+    console.log(`PASS: ${count} browser scenarios (local-only responsive support, automation, SNMP/session labels, startup error/retry/recovery, exit DNS and GitHub updates)`);
   } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

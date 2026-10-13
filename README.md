@@ -21,6 +21,7 @@ forwarding, privacy hardening and a ready-to-flash release.
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-5.5.3-e7352c.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![CodeQL](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/actions/workflows/codeql.yml)
 [![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailscale-gateway-NAS-recovery?label=stable)](../../releases/latest)
+[![Support the Mattboxx mod on Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20the%20Mattboxx%20mod-374151?logo=kofi&logoColor=ffffff)](https://ko-fi.com/mattboxx)
 [![Support upstream on GitHub](https://img.shields.io/badge/Upstream-GitHub%20Sponsors-ea4aaa.svg?style=plastic&logo=githubsponsors)](https://github.com/sponsors/Csontikka)
 [![Support upstream on Buy Me a Coffee](https://img.shields.io/badge/Upstream-Buy%20Me%20a%20Coffee-yellow.svg?style=plastic)](https://buymeacoffee.com/csontikka)
 
@@ -42,13 +43,15 @@ enable switch, counters and live status. This is completely independent from
 the existing AP-side port forwarding.
 
 **[Download the ready-to-flash release](../../releases/latest)** ·
-**[What's new in stable 1.10](docs/RELEASE-1.10.md)** ·
+**[What's new in stable 1.11](docs/RELEASE-1.11.md)** ·
 **[See every change from upstream](CUSTOM_BRANCH.md)** ·
 **[Read the security model](SECURITY.md)**
 
 ## Why the Mattboxx edition is different
 
-**Latest stable: 0.1.31-Mattboxx-1.10.** Fixes startup stuck on
+**Latest stable: 0.1.31-Mattboxx-1.11.** Adds an optional, quiet Ko-fi support
+button for the Mattboxx mod, without widgets or background tracking. Retains
+the fixes for startup stuck on
 **Registering**, runtime AP-worker allocation failures and missing replies
 over a stale direct Tailscale endpoint. Worker stacks are reserved largest
 first; AP control uses a reserved stack; relay reception can restore relay
@@ -60,7 +63,7 @@ forwarding paths, MQTT/Home Assistant, ntfy, WOL, Ethernet, route/exit controls,
 SNMP and stable/beta/manual/automatic updates. The exact OTA image was flashed
 on the reference ESP32-S3 without erasing settings. Download the OTA binary or
 the Windows ZIP with esptool and a double-click update script; see
-[tested scope and limitations](docs/RELEASE-1.10.md).
+[tested scope and limitations](docs/RELEASE-1.11.md).
 
 New in the 1.10 line: opt-in update checks,
 automatic install with an optional local-time window, stable/beta channels,
@@ -86,8 +89,9 @@ DNS service. All Mattboxx controls and the 1.8 ntfy hotfix are retained.
 The firmware uses **31 sockets** and adds DNS runtime status to the
 UI, MQTT/Home Assistant and ntfy `info`. See the
 [complete integration and validation record](docs/UPSTREAM-0.1.31.md).
-The tested 1.10 candidate is now promoted to **stable**. Beta enrollment is
-not required to receive this update. Future previews remain opt-in.
+The tested 1.10 runtime is retained in **stable 1.11**. The earlier 1.10 release
+was withdrawn before adding the mod's support button; its source tag is kept
+for traceability. Beta enrollment is not required. Future previews remain opt-in.
 
 **[Previous stable: 0.1.29-Mattboxx-1.8](../../releases/tag/v0.1.29-Mattboxx-1.8)**
 combines upstream **v0.1.29** with the
@@ -130,11 +134,11 @@ available unchanged for rollback.
 | **ntfy remote operations** | Optional connectivity outage alerts, `info` replies and WOL commands with durable polling and replay protection. Local logs are not uploaded; private info details stay hidden unless explicitly enabled. |
 | **Tailscale 4via6** | Optional bidirectional TCP/UDP/ICMP translation for overlapping IPv4 LANs, with calculated advertised prefix, flow counters and Home Assistant controls. |
 | **Exit-node server** | Advertise the ESP32 itself as a Tailscale exit node, with automatic IPv4 egress masquerading, admin-approval guidance, fail-closed IPv6 behavior and Home Assistant/ntfy visibility. Server mode cannot conflict with selecting another exit node. The 1.9 development branch adds upstream's separate DNS PeerAPI for native Tailscale exit-node clients. |
-| **Web administration** | Responsive dark UI, graphical feature switches, clear disabled cards, configurable web port, optional password gate and session timeout, local OTA and encrypted backup/restore. The 1.10 development branch adds opt-in fork-only GitHub updates, stable/beta channels and one-click latest install. |
+| **Web administration** | Responsive dark UI, graphical feature switches, clear disabled cards, configurable web port, optional password gate and session timeout, local OTA and encrypted backup/restore. Opt-in fork-only GitHub updates, stable/beta channels and one-click latest install. |
 | **SNMP monitoring** | Optional read-only v1/v2c agent for LibreNMS, Zabbix or Observium; standard interface/CPU/memory/temperature MIBs, disabled by default, with a graphical System switch. Enabled/running state and socket budget also appear in MQTT/Home Assistant and ntfy info. |
 | **Fast, safer login** | Salted 60,000-round PBKDF2-HMAC-SHA256 verifier plus a one-time browser challenge; no plaintext password for modern records and no multi-second ESP-side unlock delay. |
 | **Reliability fixes** | Repairs WiFi scan/save and HTTP 431 failures, ntfy reboot loops and missed commands, false post-login offline state, forwarding-table startup counts and web/Tailscale socket starvation. |
-| **Privacy cleanup** | Removes anonymous telemetry, external crash/log uploads, forced GitHub polling, Cloudflare speed tests and the hard-coded public DNS fallback. GitHub checks/downloads return only as explicit opt-in or user-triggered actions in 1.10 development. |
+| **Privacy cleanup** | Removes anonymous telemetry, external crash/log uploads, forced GitHub polling, Cloudflare speed tests and the hard-coded public DNS fallback. GitHub checks/downloads run only as explicit opt-in or user-triggered actions. The Ko-fi support link makes no request until clicked. |
 | **Easy installation** | Releases include one factory image, one update image and a Windows ZIP with Espressif `esptool` plus guided clean-install/update batch files. No toolchain required. |
 
 The complete technical comparison is in [`CUSTOM_BRANCH.md`](CUSTOM_BRANCH.md).
@@ -661,7 +665,12 @@ Found a bug or have an idea? Open an
 [issue](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/issues).
 Star the repository, share it or help test new versions to support the custom
 edition's development. Financial support is optional; the firmware and all
-features remain freely available. A Mattboxx donation link is not configured yet.
+features remain freely available.
+
+Enjoying the Mattboxx edition? A small tip helps keep this mod moving — fixes,
+new features and testing. No subscription or payment is needed to use anything.
+
+[![Leave a small tip for the Mattboxx mod](https://img.shields.io/badge/Ko--fi-Leave%20a%20small%20tip-374151?style=for-the-badge&logo=kofi&logoColor=ffffff)](https://ko-fi.com/mattboxx)
 
 ### Support the original upstream project
 

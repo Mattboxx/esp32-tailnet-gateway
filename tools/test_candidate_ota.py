@@ -8,6 +8,7 @@ import argparse
 import hashlib
 from pathlib import Path
 import time
+import urllib.error
 from test_snmp_device import login
 
 
@@ -50,6 +51,9 @@ def main():
         result = api('/api/system/ota', image, raw=True, timeout=180)
         assert result.get('ok') and result.get('reboot_required'), 'OTA was not accepted'
         print('OTA accepted; waiting for its automatic reboot', flush=True)
+    except urllib.error.HTTPError as error:
+        print(f'OTA rejected with HTTP {error.code}; upload was not repeated', flush=True)
+        raise RuntimeError(f'OTA request rejected with HTTP {error.code}') from None
     except (OSError, TimeoutError):
         print('Upload response unavailable; checking version without resubmitting', flush=True)
     deadline = time.monotonic() + 180

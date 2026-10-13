@@ -1,5 +1,9 @@
 # ESP32 Tailscale Gateway 0.1.31-Mattboxx-1.10 — stable
 
+Historical validation record: this release was withdrawn at the maintainer's
+request on October 13, 2026. Its source tag is retained. Use the replacement
+[stable 1.11 release](RELEASE-1.11.md), including the optional Mattboxx support link.
+
 Stable release, October 13, 2026. Replaces stable 1.8 and the older 1.10 betas.
 Beta enrollment is **not required**. All saved settings are retained by OTA
 and the keep-settings Windows update script.

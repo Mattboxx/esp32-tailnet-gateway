@@ -6,6 +6,7 @@ import shutil
 import subprocess
 import zipfile
 import re
+import json
 from check_sensitive_data import credential_findings
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -19,6 +20,38 @@ def validate_release_version(version, current, prerelease):
     suffix = r'-dev(?:\.\d+)?' if prerelease else ''
     assert version == current and re.fullmatch(r'0\.1\.\d+-Mattboxx-\d+\.\d+' + suffix, version), \
         'Version must match the current project and the explicitly selected release channel'
+
+
+def collect_release_notices(root, sdkbuild):
+    """Carry original notices into binary distributions without local paths."""
+    root = root.resolve()
+    description = json.loads((sdkbuild / 'project_description.json').read_text(encoding='utf-8'))
+    idf = Path(description['idf_path']).resolve()
+    files = {root / 'LICENSE', root / 'NOTICE.md', idf / 'LICENSE',
+             root / 'external/microlink/LICENSE', root / 'external/microlink/x25519-license.txt',
+             root / 'external/microlink/components/microlink/components/wireguard_lwip/LICENSE'}
+    assert all(path.is_file() for path in files), 'Required upstream license missing'
+    for directory in description['build_component_paths']:
+        if not directory:
+            continue
+        component = Path(directory).resolve()
+        assert component.is_relative_to(root) or component.is_relative_to(idf), 'Unknown component origin'
+        for path in component.rglob('*'):
+            if path.is_file() and path.suffix.lower() in ('', '.txt', '.md', '.rst') and \
+                    path.name.upper().startswith(('LICENSE', 'COPYING', 'NOTICE')):
+                files.add(path.resolve())
+    records = []
+    for path in files:
+        if path.is_relative_to(idf):
+            label = 'ESP-IDF/' + path.relative_to(idf).as_posix()
+        else:
+            label = 'project/' + path.relative_to(root).as_posix()
+        records.append((label, path.read_text(encoding='utf-8')))
+    header = ('Original authors retain their copyrights. This is the Mattboxx custom edition.\n'
+              'Optional tips support the mod; they do not purchase features or imply upstream endorsement.\n'
+              'Source: https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery\n'
+              'The following unmodified license/notice texts accompany the firmware distribution.\n')
+    return header + ''.join('\n\n===== ' + label + ' =====\n\n' + content for label, content in sorted(records))
 
 
 def main():
@@ -48,6 +81,7 @@ def main():
         shutil.copyfile(sdkbuild / name, out / name)
     shutil.copyfile(args.esptool, out / 'esptool.exe')
     shutil.copyfile(args.esptool_license, out / 'ESPTOOL-LICENSE.txt')
+    (out / 'FIRMWARE-LICENSES.txt').write_text(collect_release_notices(ROOT, sdkbuild), encoding='utf-8')
     for path in (ROOT / 'tools/flashing').iterdir():
         # Windows double-click scripts must carry CRLF, also in Linux builds.
         (out / path.name).write_bytes(path.read_text(encoding='utf-8').replace('\r\n','\n').replace('\n','\r\n').encode('utf-8'))
@@ -100,6 +134,9 @@ A release channel is not a guarantee that every configuration has been tested.
 Hardware coverage and known limitations:
 https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/blob/Main/docs/RELEASE-{version.split('-Mattboxx-', 1)[1]}.md
 Original credits: Csontikka/router, Csontikka/microlink and their contributors.
+Original copyright and component notices: FIRMWARE-LICENSES.txt.
+Optional support for the Mattboxx mod: https://ko-fi.com/mattboxx
+The original upstream support links remain separate. All features stay free.
 
 esptool.exe: Espressif esptool v5.3.1 Windows amd64, GPL-2.0-or-later.
 Source: https://github.com/espressif/esptool/tree/v5.3.1
@@ -122,7 +159,7 @@ Included license: ESPTOOL-LICENSE.txt. No user configuration or NVS is included.
         for line in z.read('SHA256SUMS.txt').decode().splitlines():
             digest, name = line.split('  ', 1)
             assert hashlib.sha256(z.read(name)).hexdigest() == digest
-    assets = [out / 'firmware.bin', out / 'firmware-factory.bin', archive]
+    assets = [out / 'firmware.bin', out / 'firmware-factory.bin', archive, out / 'FIRMWARE-LICENSES.txt']
     (out / 'RELEASE-SHA256SUMS.txt').write_text(''.join(f'{sha(path)}  {path.name}\n' for path in assets), encoding='ascii')
     print('PASS: exact tested image, blank NVS, factory application, ZIP CRC, payload hashes and credential patterns')
     for path in assets:

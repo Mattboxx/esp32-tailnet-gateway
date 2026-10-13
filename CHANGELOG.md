@@ -6,7 +6,23 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [0.1.31-Mattboxx-1.11] - 2026-10-13
+
+- Add a quiet, optional Mattboxx Ko-fi tip button in the Web UI footer, README
+  and GitHub funding menu. Keep all features free and original upstream credits
+  and support links clearly separate.
+- Use a plain outbound link with no embedded widget, remote assets, tracking,
+  popups or background calls. Keep the existing dark theme; include mobile,
+  keyboard and touch-friendly styling and suppress the device-page referrer.
+- Retain all upstream v0.1.30/v0.1.31 and Mattboxx features and the verified
+  1.10 startup/AP, relay-reply, SNMP and login fixes. The withdrawn 1.10 tag is
+  preserved; the new version lets previously installed 1.10 devices update.
+See [release notes and verified scope](docs/RELEASE-1.11.md).
+
 ## [0.1.31-Mattboxx-1.10] - 2026-10-13
+
+Withdrawn on October 13 before adding the Mattboxx support link. Source tag
+retained; replaced by 1.11. This section records its runtime verification.
 
 Stable promotion of the verified dev.18 runtime, with a stable version/tag and
 no functional code change. Includes upstream v0.1.30/v0.1.31, opt-in GitHub
