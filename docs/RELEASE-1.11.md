@@ -49,7 +49,27 @@ automation/update controls. The support UI was visually checked on desktop
 and mobile. Feature-preservation tests confirm existing UI controls, HTTP
 endpoints, Home Assistant entities and MQTT commands are retained.
 
-Hardware verification and exact asset hashes are recorded below before release.
+The exact `1.11` image was installed by authenticated Tailnet OTA and booted in
+72 seconds, with eight saved-settings groups unchanged. The first attempt via
+the LAN address, reached through a Tailscale subnet route rather than a direct
+local link, did not complete; the image was not silently retried. Direct Tailnet
+installation completed successfully after verifying the old version remained.
+
+The live Tailnet Web UI was byte-checked against the exact tested embedded
+HTML, including the locally bundled backup-crypto library. Fifteen protected
+GET endpoints rejected anonymous access and all loaded after authentication.
+A bounded 60-second integration smoke test completed ten samples with no
+observed reset, WiFi/Tailscale loss or MQTT disconnection; minimum observed
+internal free heap was 17,291 B. SNMP remained OFF.
+
+An ntfy HTTPS notification and exact-version `info` reply passed during a
+66-second test, without an observed reset; minimum ntfy stack headroom was
+4,636 B and internal free heap 17,135 B. Original command policy was restored.
+Runtime-recovery regressions and exact linked ntfy stack-budget checks passed.
+GitHub regression/history scanning and CodeQL passed for the source changes.
+Release packaging verifies the exact tested image, blank factory NVS, ZIP CRC,
+all manifest hashes and no credential-pattern findings in its payloads/notices.
+
 The existing ESP32-S3 N16R8 / 8MB octal PSRAM target and 4MB partition layout
 are unchanged. Physical Ethernet, arbitrary remote services, full exit-node
 throughput and the Home Assistant frontend are not newly revalidated here.
@@ -68,3 +88,14 @@ not the Windows serial script. Stable does not guarantee unlimited uptime.
 - `FIRMWARE-LICENSES.txt`: original licenses/notices accompanying the firmware.
 
 Optional tips never unlock features or replace the original authors' credit.
+
+Application use: 1,699,120 / 1,966,080 B; static RAM: 85,548 B.
+
+Exact OTA SHA-256:
+
+`d20b71eb347efb5b0edec8c7b8040e1dd2cd02e5ac6f5aee1c13df73bb93591a`
+
+The `RELEASE-SHA256SUMS.txt` asset lists the hashes of the OTA image, factory
+image, Windows ZIP and firmware license notices. Pattern checks and bounded
+tests do not guarantee that every possible issue has been found. No test
+payment was made and no end-to-end donation transaction is claimed.

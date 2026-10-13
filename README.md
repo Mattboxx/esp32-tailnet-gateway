@@ -339,7 +339,7 @@ Real-world results from the field (see [#9](../../issues/9) and
 ### 1. Flash it — no build tools required
 
 Download the latest
-[`ESP32-S3-router-0.1.19-Mattboxx-1.4-windows.zip`](../../releases/latest),
+[Windows flashing ZIP from the latest stable release](../../releases/latest),
 connect the ESP32-S3 over USB and run one of the included guided batch files:
 
 - `UPDATE_KEEP_SETTINGS.bat` updates an existing installation without erasing its configuration;
@@ -351,7 +351,7 @@ The release also provides `firmware-factory.bin` for other flashing tools and
 ### Build from source instead
 
 ```bash
-git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailscale-gateway
+git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery
 cd esp32-tailscale-gateway
 
 # PlatformIO (recommended)
