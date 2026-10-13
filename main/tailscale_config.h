@@ -63,6 +63,8 @@ uint32_t tailscale_lifecycle_generation(void); /* read while leased */
 
 /* Actual boot policy, not the editable/saved switch. Changes need restart. */
 bool tailscale_exit_server_active(void);
+bool tailscale_manual_exit_configured(void);
+bool tailscale_exit_server_configured(void);
 #define TAILSCALE_PEERAPI_PORT 41180
 uint16_t tailscale_peerapi_port(void);
 

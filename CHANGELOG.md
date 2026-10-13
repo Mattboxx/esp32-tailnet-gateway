@@ -6,6 +6,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.33-Mattboxx-1.12-dev.1 — upstream fixes and optional WiFi policy (beta)
+
+- Integrate all published v0.1.32/v0.1.33 runtime changes: reduce WireGuard
+  logging overhead, support legacy manual exit-node DNS/NAT, guard partial
+  DERP queue initialization and make the DERP connection wait interruptible.
+- Add live/persistent WiFi modem-sleep control, preserving the fork's OFF
+  default. Expose saved/runtime policy in UI, MQTT/HA and ntfy info, retain
+  it in backups and report driver/persistence failures honestly.
+- Offer a one-click, user-initiated Ko-fi payment window on desktop and
+  a normal tab on mobile. No embedded payment form or third-party preloading.
+- Preserve all Mattboxx features, upstream credits and the stable 1.11 release.
+See [beta release notes and limits](docs/RELEASE-1.12-dev.1.md).
+
 ## [0.1.31-Mattboxx-1.11] - 2026-10-13
 
 - Add a quiet, optional Mattboxx Ko-fi tip button in the Web UI footer, README

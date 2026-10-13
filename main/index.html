@@ -1589,7 +1589,7 @@
       <a id="nav-support-link" class="btn btn-md mod-support-button nav-support" href="https://ko-fi.com/mattboxx"
          target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"
          title="Optional tips support the Mattboxx mod — all features stay free"
-         aria-label="Support the Mattboxx firmware mod on Ko-fi (opens in a new tab)">
+         aria-label="Support the Mattboxx firmware mod on Ko-fi (opens in a new tab or payment window)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>
         <span class="nav-support-label">Support mod</span><span class="nav-support-compact">Ko-fi</span>
       </a>
@@ -2330,7 +2330,8 @@
             <label class="feature-switch">
               <input type="checkbox" id="ts-advertise-exit"><span class="feature-switch-track" aria-hidden="true"></span><span>Advertise this ESP32 as an exit node</span>
             </label>
-            <span class="form-hint">Offers this uplink as an IPv4 Internet exit to permitted tailnet devices. After saving and rebooting, approve the exit node in the Tailscale admin console. Internet egress is automatically masqueraded. IPv6 is advertised to prevent traffic leaks but currently fails closed on this IPv4 data plane.</span>
+            <span class="form-hint">Offers this uplink as an IPv4 Internet exit to permitted tailnet devices. After saving and rebooting, approve it in the Tailscale admin console. A manual <code class="mono">0.0.0.0/0</code> route also enables exit-node DNS and NAT; remove that route to stop offering an exit node. Cannot be combined with using another exit node. Throughput depends on WiFi, relay path and log level; keep console logging at WARN for normal use. IPv6 currently fails closed.</span>
+            <span class="form-hint" id="ts-manual-exit-state"></span>
           </div>
 
           <div class="form-group" style="padding-top:0.75rem; border-top:1px solid var(--border);">
@@ -2904,6 +2905,11 @@
             <span class="form-hint">Lower values cut interference at the cost of AP range. <strong>80 ≈ 20 dBm</strong> is the IDF default. Applied live + at next boot.</span>
           </div>
           <div class="form-group" style="margin:.5rem 0;">
+            <label class="feature-switch"><input type="checkbox" id="sys-wifi-ps" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>WiFi power save (modem sleep)</span></label>
+            <span class="form-hint">OFF by default in the Mattboxx edition for lower latency. ON uses less power but can delay incoming traffic until a WiFi beacon. Saved and applied live; throughput is not guaranteed to change.</span>
+            <span class="form-hint" id="sys-wifi-ps-state" role="status">Loading WiFi policy…</span>
+          </div>
+          <div class="form-group" style="margin:.5rem 0;">
             <label class="form-label" for="sys-web-port">Web UI TCP port</label>
             <input class="input mono" type="number" id="sys-web-port" min="1" max="65535" style="width:9rem;" value="80">
             <span class="form-hint">Requires a restart. A TCP forwarding rule cannot use the same port.</span>
@@ -3210,10 +3216,13 @@
       </div>
       <a id="mod-support-link" class="btn btn-md mod-support-button" href="https://ko-fi.com/mattboxx"
          target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"
-         aria-label="Support the Mattboxx firmware mod on Ko-fi (opens in a new tab)">
+         aria-label="Support the Mattboxx firmware mod on Ko-fi (opens in a new tab or payment window)">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>
         <span>Leave a small tip</span><span class="mod-support-provider">Ko-fi ↗</span>
       </a>
+      <span id="mod-support-fallback" class="form-hint" hidden>
+        Didn't open? <a href="https://ko-fi.com/mattboxx" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Open Ko-fi in a new tab</a>.
+      </span>
     </footer>
   </div><!-- /page-container -->
 
@@ -3288,6 +3297,24 @@
        JAVASCRIPT
        =================================================================== -->
   <script>
+    // One explicit click, no intermediate prompt or third-party embed.
+    // A top-level HTTPS page keeps provider wallets/browser authentication
+    // available. Never collect card details or report an assumed payment.
+    (function () {
+      ['nav-support-link', 'mod-support-link'].forEach(function (id) {
+        document.getElementById(id).addEventListener('click', function (event) {
+          if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
+              || window.matchMedia('(max-width: 640px)').matches) return;
+          event.preventDefault();
+          var height = Math.min(760, window.screen.availHeight || 760);
+          window.open('https://ko-fi.com/mattboxx', '_blank',
+                      'popup=yes,width=540,height=' + height + ',noopener,noreferrer');
+          // noopener can return null even for a successful popup, so do not
+          // automatically open a second window. Offer a quiet fallback link.
+          document.getElementById('mod-support-fallback').hidden = false;
+        });
+      });
+    })();
     var s_ui_authenticated = false;
     var s_automation_loads = {};
     // =====================================================================
@@ -5961,6 +5988,8 @@
           document.getElementById('ts-lan-bypass').checked    = !!s.lan_bypass;
           document.getElementById('ts-snat').checked          = !!s.snat_subnet_routes;
           document.getElementById('ts-advertise-exit').checked = !!s.advertise_exit_node;
+          document.getElementById('ts-manual-exit-state').textContent = s.manual_exit_advertisement === true
+            ? 'Exit-node mode is also requested by a manual default route.' : '';
           var v6 = s.fourvia6 || {};
           document.getElementById('ts-4via6-enabled').checked = !!v6.enabled;
           document.getElementById('ts-4via6-lan').value = v6.lan_cidr || '';
@@ -7138,8 +7167,9 @@
     });
 
     function loadSystem() {
+      document.getElementById('sys-wifi-ps').disabled = true;
       apiFetch('/api/system')
-        .then(function (r) { return r.json(); })
+        .then(function (r) { if (!r.ok) throw new Error('System unavailable'); return r.json(); })
         .then(function (d) {
           document.getElementById('sys-device-name').value   = d.device_name || '';
           /* Preserve any custom POSIX TZ string the operator may have
@@ -7170,6 +7200,15 @@
           document.getElementById('sys-tx-power').value      = txShown || 0;
           document.getElementById('sys-web-port').value      = d.web_port || 80;
           updateTxPowerDbm(txShown);
+          var ps = document.getElementById('sys-wifi-ps');
+          var psKnown = typeof d.wifi_power_save === 'boolean';
+          if (psKnown) ps.checked = d.wifi_power_save;
+          ps.disabled = !psKnown;
+          document.getElementById('sys-wifi-ps-state').textContent = psKnown
+            ? (d.wifi_power_save ? 'Configured: ON' : 'Configured: OFF') + ' · Runtime: '
+              + (d.wifi_power_save_known === true && typeof d.wifi_power_save_active === 'boolean'
+                 ? (d.wifi_power_save_active ? 'ON' : 'OFF') : 'unknown')
+            : 'WiFi policy unavailable — refresh before changing it.';
           document.getElementById('sys-device-name-save').disabled = true;
           document.getElementById('sys-version').textContent = d.version || '—';
           var builtStr = ((d.build_date || '') + ' ' + (d.build_time || '')).trim() || '—';
@@ -7229,7 +7268,10 @@
 
           /* Reset history table — last 10 boots, hist[0] is current. */
           renderResetHistory(d.reset_history || []);
-        }).catch(function () {});
+        }).catch(function () {
+          document.getElementById('sys-wifi-ps').disabled = true;
+          document.getElementById('sys-wifi-ps-state').textContent = 'WiFi policy unavailable — refresh before changing it.';
+        });
     }
 
     function _resetReasonClass(reason) {
@@ -7410,8 +7452,8 @@
 
     /* Device-card dirty-track + save — covers Friendly name, Timezone
      * and TX power since they share one Save button. */
-    ['sys-device-name', 'sys-tz', 'sys-tx-power', 'sys-web-port'].forEach(function (id) {
-      document.getElementById(id).addEventListener('input', function () {
+    ['sys-device-name', 'sys-tz', 'sys-tx-power', 'sys-web-port', 'sys-wifi-ps'].forEach(function (id) {
+      document.getElementById(id).addEventListener(id === 'sys-wifi-ps' ? 'change' : 'input', function () {
         document.getElementById('sys-device-name-save').disabled = false;
         if (id === 'sys-tx-power') updateTxPowerDbm(this.value);
       });
@@ -7773,6 +7815,7 @@
         if (typeof data.system.tz          === 'string') sb.tz          = data.system.tz;
         if (typeof data.system.tx_power_nvs === 'number') sb.tx_power = data.system.tx_power_nvs;
         if (typeof data.system.web_port === 'number') sb.web_port = data.system.web_port;
+        if (typeof data.system.wifi_power_save === 'boolean') sb.wifi_power_save = data.system.wifi_power_save;
         if (Object.keys(sb).length) steps.push({ name: 'system', url: '/api/system', body: sb });
       }
       if (data.tailscale && data.tailscale.settings) {
@@ -7866,6 +7909,10 @@
     }
 
     document.getElementById('sys-device-name-save').addEventListener('click', function () {
+      if (document.getElementById('sys-wifi-ps').disabled) {
+        showToast('error', 'Refresh required', 'WiFi policy is unavailable. Reload System before saving.', 5000);
+        return;
+      }
       var name     = document.getElementById('sys-device-name').value.trim();
       var tz       = document.getElementById('sys-tz').value.trim();
       var tx_power = parseInt(document.getElementById('sys-tx-power').value, 10) || 0;
@@ -7875,16 +7922,19 @@
       apiFetch('/api/system', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ device_name: name, tz: tz, tx_power: tx_power, web_port: web_port })
+        body:    JSON.stringify({ device_name: name, tz: tz, tx_power: tx_power, web_port: web_port,
+                                 wifi_power_save: document.getElementById('sys-wifi-ps').checked })
       })
         .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
         .then(function (resp) {
+          if (!resp || resp.ok !== true) throw new Error('Settings were not fully saved. Refresh and retry.');
           updateBrandName(name);
           showToast('success', 'Saved', 'Name "' + (name || 'ESP32 Router') + '"' + (tz ? ' · TZ ' + tz : '') + '.', 3500);
           /* Backend flips restart_required when the TZ actually changed —
            * the IDF log subsystem caches TZ at boot, so the new rule
            * only governs log timestamps after a reboot. */
           if (resp && resp.restart_required) setPendingReboot(true);
+          loadSystem();
         })
         .catch(function () { btn.disabled = false; showToast('error', 'Save failed', '', 5000); });
     });

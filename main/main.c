@@ -51,6 +51,7 @@
 #include "sdlog.h"
 #include "remote_console.h"
 #include "nvs_params.h"
+#include "wifi_power_save.h"
 #include "esp_core_dump.h"
 #include "nvs.h"
 #include "dns_relay.h"
@@ -968,11 +969,11 @@ void app_main(void)
 
     /* Start WiFi */
     ESP_ERROR_CHECK(esp_wifi_start() );
-    /* A router is normally mains-powered. Disable modem sleep so forwarded
+    /* A router is normally mains-powered. Default to disabled modem sleep so forwarded
      * packets are not held until a DTIM wake-up; this improves latency and
      * sustained LAN/AP-to-Tailnet throughput at the cost of higher power
-     * consumption. */
-    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+     * consumption. A saved wifi_ps setting can opt into modem sleep. */
+    ESP_ERROR_CHECK(wifi_power_save_init());
 
 
     /* Optional TX-power override. NVS "tx_pwr" is a u8 in 0.25 dBm

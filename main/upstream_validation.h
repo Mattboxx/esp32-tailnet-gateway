@@ -4,6 +4,21 @@
 #include <stdint.h>
 #include <string.h>
 
+/* Exact default-route membership, not a substring or a different prefix. */
+static inline bool route_list_has_default_v4(const char *list)
+{
+    if (!list) return false;
+    for (const char *p = list; *p;) {
+        const char *end = p + strcspn(p, "\r\n");
+        const char *next = end + strspn(end, "\r\n");
+        while (p < end && (*p == ' ' || *p == '\t')) ++p;
+        while (end > p && (end[-1] == ' ' || end[-1] == '\t')) --end;
+        if ((size_t)(end - p) == 9 && !memcmp(p, "0.0.0.0/0", 9)) return true;
+        p = next;
+    }
+    return false;
+}
+
 /* Append trimmed, exact-deduplicated route lines without silent truncation. */
 static inline bool route_list_add(char *out, size_t capacity, const char *list)
 {

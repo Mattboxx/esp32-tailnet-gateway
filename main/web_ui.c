@@ -25,6 +25,7 @@
 #include "peer_dns.h"
 #include "tailscale_mtu.h"
 #include "nvs_params.h"
+#include "wifi_power_save.h"
 #include "microlink.h"
 #include "dns_relay.h"
 #include "snmp_agent.h"
@@ -2959,6 +2960,8 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     cJSON_AddBoolToObject  (settings, "snat_subnet_routes",      tailscale_snat_subnet_routes != 0);
     cJSON_AddBoolToObject  (settings, "advertise_exit_node",     tailscale_advertise_exit_node != 0);
     cJSON_AddBoolToObject(settings, "exit_server_active", tailscale_exit_server_active());
+    cJSON_AddBoolToObject(settings, "exit_server_configured", tailscale_exit_server_configured());
+    cJSON_AddBoolToObject(settings, "manual_exit_advertisement", tailscale_manual_exit_configured());
     cJSON_AddBoolToObject(settings, "exit_dns_running", peer_dns_is_running());
     cJSON_AddNumberToObject(settings, "peerapi_port", tailscale_peerapi_port());
     {
@@ -3186,6 +3189,9 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
         bool want_advertise_exit = cJSON_IsBool(advertise_exit)
                                    ? cJSON_IsTrue(advertise_exit)
                                    : tailscale_advertise_exit_node != 0;
+        want_advertise_exit = want_advertise_exit ||
+            (cJSON_IsString(routes) ? route_list_has_default_v4(routes->valuestring)
+                                   : tailscale_manual_exit_configured());
         int32_t saved_exit = 0;
         (void)nvs_param_get_int("ts_exit_node", &saved_exit);
         bool want_selected_exit = saved_exit != 0;
@@ -3459,6 +3465,11 @@ static esp_err_t system_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "web_auth_enabled", s_web_auth_enabled);
     cJSON_AddBoolToObject(root, "web_password_set", is_web_password_set());
     cJSON_AddNumberToObject(root, "web_port", web_ui_configured_port());
+    cJSON_AddBoolToObject(root, "wifi_power_save", wifi_power_save_configured());
+    bool wifi_ps_active = false;
+    bool wifi_ps_known = wifi_power_save_runtime(&wifi_ps_active);
+    cJSON_AddBoolToObject(root, "wifi_power_save_known", wifi_ps_known);
+    if (wifi_ps_known) cJSON_AddBoolToObject(root, "wifi_power_save_active", wifi_ps_active);
 
     /* TX-power override (0 = IDF default ≈ 20 dBm, 8..84 = custom in
      * 0.25 dBm steps). Reading via the live API gives whatever was
@@ -3547,6 +3558,12 @@ static esp_err_t system_save_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
+    const cJSON *ps_j = cJSON_GetObjectItem(root, "wifi_power_save");
+    if (ps_j && !cJSON_IsBool(ps_j)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "wifi_power_save must be a boolean");
+        return ESP_FAIL;
+    }
     bool web_port_changed = false;
     const cJSON *wp = cJSON_GetObjectItem(root, "web_port");
     if (wp) {
@@ -3633,6 +3650,7 @@ static esp_err_t system_save_handler(httpd_req_t *req)
         if (v >= 8) esp_wifi_set_max_tx_power((int8_t)v);
     }
 
+    if (ps_j) nvs_save_record_err("wifi_ps", wifi_power_save_set(cJSON_IsTrue(ps_j)));
     cJSON_Delete(root);
     /* Surface any NVS write failures from the save path — see the
      * twin block in tailscale_save_handler. */

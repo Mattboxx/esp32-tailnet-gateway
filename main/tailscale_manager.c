@@ -113,6 +113,21 @@ bool tailscale_lifecycle_try_acquire(void)
 void tailscale_lifecycle_release(void) { xSemaphoreGive(s_lifecycle); }
 uint32_t tailscale_lifecycle_generation(void) { return s_lifecycle_generation; }
 bool tailscale_exit_server_active(void) { return s_exit_server_active; }
+bool tailscale_manual_exit_configured(void)
+{
+    char *routes = nvs_param_get_str("ts_routes");
+    bool enabled = route_list_has_default_v4(routes);
+    free(routes);
+    return enabled;
+}
+bool tailscale_exit_server_configured(void)
+{
+    int32_t enabled = 0, offer = 0, selected = 0;
+    (void)nvs_param_get_int("ts_enabled", &enabled);
+    (void)nvs_param_get_int("ts_adv_exit", &offer);
+    (void)nvs_param_get_int("ts_exit_node", &selected);
+    return enabled && !selected && (offer || tailscale_manual_exit_configured());
+}
 uint16_t tailscale_peerapi_port(void) { return s_peerapi_port; }
 
 /* Read saved settings into caller-owned storage: no mutable static preview
@@ -144,7 +159,11 @@ bool tailscale_routes_preview(char *out, size_t capacity)
     }
     char *manual = nvs_str_or_empty("ts_routes");
     if (!manual) return false;
-    bool ok = strlen(manual) <= 400 && route_list_add(out, capacity, manual);
+    int32_t selected_exit = 0;
+    (void)nvs_param_get_int("ts_exit_node", &selected_exit);
+    bool ok = strlen(manual) <= 400 &&
+              !(selected_exit && route_list_has_default_v4(manual)) &&
+              route_list_add(out, capacity, manual);
     free(manual);
     if (!ok) return false;
     fourvia6_status_t v6;
@@ -227,7 +246,10 @@ void tailscale_init(void)
         tailscale_advertise_exit_node = 0;
         (void)nvs_param_set_int("ts_adv_exit", 0);
     }
-    s_exit_server_active = tailscale_enabled && tailscale_advertise_exit_node && !tailscale_exit_node_ip;
+    /* Freeze DNS/NAT mode for this boot. Web saves never toggle a live
+     * listener under concurrent packet tasks or alter the operator's routes. */
+    s_exit_server_active = tailscale_enabled && !tailscale_exit_node_ip &&
+        (tailscale_advertise_exit_node || route_list_has_default_v4(s_active_advertise_routes));
     /* Preserve every existing custom admin port, including 41180. PeerAPI
      * advertises its actual boot-selected port rather than assuming port 80. */
     s_peerapi_port = web_ui_configured_port() == TAILSCALE_PEERAPI_PORT

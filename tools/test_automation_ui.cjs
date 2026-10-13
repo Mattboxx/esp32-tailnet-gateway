@@ -45,7 +45,16 @@ async function fixture(browser, options = {}) {
       if (state.snmpFailures) { state.snmpFailures--; status = 503; }
       body = state.snmpBody || { enabled: false, running: false, community: 'fixture' };
     } else if (url.pathname === '/api/system') {
-      body = state.systemBody || { web_auth_enabled: true, session_timeout_s: 0 };
+      if (route.request().method() === 'POST') {
+        state.savedSystem = route.request().postDataJSON();
+        state.systemBody = {...(state.systemBody || {}), ...state.savedSystem,
+          wifi_power_save_known: true, wifi_power_save_active: state.savedSystem.wifi_power_save};
+        body = {ok: !state.systemSaveFails};
+      } else {
+        if (state.systemFailures) { state.systemFailures--; status = 503; }
+        body = state.systemBody || { web_auth_enabled: true, session_timeout_s: 0,
+          wifi_power_save: false, wifi_power_save_active: false, wifi_power_save_known: true };
+      }
     } else if (url.pathname === '/api/system/updates') {
       if (route.request().method() === 'POST') {
         state.savedUpdates = route.request().postDataJSON();
@@ -83,6 +92,41 @@ async function main() {
   const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || 'chrome' });
   let count = 0;
   try {
+    // A single deliberate click opens the provider directly. Simulate a
+    // popup blocker/nullable noopener result: no duplicate window, no payment.
+    let tip = await fixture(browser, {page: 'system'});
+    await tip.page.evaluate(() => {window.tipCalls = []; window.open = (...args) => {window.tipCalls.push(args); return null;};});
+    assert.deepEqual(tip.externalRequests, []);
+    assert.equal(await tip.page.locator('#mod-support-fallback').isVisible(), false);
+    await tip.page.locator('#nav-support-link').click();
+    const tipCalls = await tip.page.evaluate(() => window.tipCalls);
+    assert.equal(tipCalls.length, 1);
+    assert.equal(tipCalls[0][0], 'https://ko-fi.com/mattboxx');
+    assert.match(tipCalls[0][2], /popup=yes.*noopener,noreferrer/);
+    assert.equal(await tip.page.locator('#mod-support-fallback').isVisible(), true);
+    assert.deepEqual(tip.errors, []); await tip.context.close(); count++;
+    // Saved WiFi policy, driver state and failed reads must stay distinct.
+    let wifi = await fixture(browser, {page: 'system'});
+    await wifi.page.waitForFunction(() => !document.getElementById('sys-wifi-ps').disabled);
+    assert.equal(await wifi.page.locator('#sys-wifi-ps').isChecked(), false);
+    await wifi.page.locator('#sys-wifi-ps').locator('..').click();
+    await wifi.page.locator('#sys-device-name-save').click();
+    await wifi.page.waitForFunction(() => document.getElementById('sys-wifi-ps-state').textContent === 'Configured: ON · Runtime: ON');
+    assert.equal(wifi.state.savedSystem.wifi_power_save, true);
+    wifi.state.systemFailures = 1;
+    await wifi.page.locator('#sys-reload').click();
+    await wifi.page.waitForFunction(() => document.getElementById('sys-wifi-ps-state').textContent.includes('unavailable'));
+    assert.equal(await wifi.page.locator('#sys-wifi-ps').isChecked(), true);
+    assert.equal(await wifi.page.locator('#sys-wifi-ps').isDisabled(), true);
+    await wifi.page.locator('#sys-reload').click();
+    await wifi.page.waitForFunction(() => !document.getElementById('sys-wifi-ps').disabled);
+    assert.equal(await wifi.page.locator('#sys-wifi-ps').isChecked(), true);
+    assert.deepEqual(wifi.errors, []); await wifi.context.close(); count++;
+    wifi = await fixture(browser, {page: 'tailscale', tailscaleSettings: {
+      manual_exit_advertisement: true, advertise_exit_node: false, exit_server_active: true}});
+    await wifi.page.waitForFunction(() => document.getElementById('ts-manual-exit-state').textContent.includes('manual default route'));
+    assert.equal(await wifi.page.locator('#ts-advertise-exit').isChecked(), false);
+    assert.deepEqual(wifi.errors, []); await wifi.context.close(); count++;
     // Optional support must be visible, responsive and fully local until a
     // deliberate click. Never visit a payment checkout or send a test tip.
     for (const width of [1280, 1000, 800, 390, 320]) {

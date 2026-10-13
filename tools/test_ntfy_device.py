@@ -18,6 +18,7 @@ def main():
     parser.add_argument('host')
     parser.add_argument('--seconds', type=int, default=600)
     parser.add_argument('--commands', type=int, default=5)
+    parser.add_argument('--expect-network-policy', action='store_true')
     args = parser.parse_args()
     api = login(args.host)
     version = api('/api/system')['version']
@@ -81,8 +82,12 @@ def main():
             lines = response.read(1024 * 1024).splitlines()
         replies = [json.loads(line) for line in lines if line]
         version_pattern = re.compile(r'(?<![A-Za-z0-9.-])' + re.escape(version) + r'(?![A-Za-z0-9.-])')
-        assert any(e.get('title', '').startswith('ESP32 router info') and
-                   version_pattern.search(e.get('message', '')) for e in replies)
+        matching = [e for e in replies if e.get('title', '').startswith('ESP32 router info')
+                    and version_pattern.search(e.get('message', ''))]
+        assert matching
+        if args.expect_network_policy:
+            assert any('WiFi power save:' in e.get('message', '') and
+                       'manual default route:' in e.get('message', '') for e in matching)
         print(f'PASS: {sent} info commands/replies; {time.monotonic()-start:.0f}s without restart; '
               f'minimum stack {minimum_stack} B, internal heap {minimum_heap} B', flush=True)
     finally:

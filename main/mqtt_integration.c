@@ -26,6 +26,7 @@
 #include "mqtt_client.h"
 #include "microlink.h"
 #include "nvs_params.h"
+#include "wifi_power_save.h"
 #include "tailscale_config.h"
 #include "peer_dns.h"
 #include "ota_remote.h"
@@ -287,6 +288,15 @@ static void publish_discovery(void)
                              "{{ value_json.advertise_exit_node }}", command, NULL, NULL);
     discovery_publish_entity("binary_sensor", "exit_server_active", "Exit-node server active",
                              s_state_topic, "{{ value_json.exit_server_active }}", NULL, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "exit_server_configured", "Exit-node server configured",
+                             s_state_topic, "{{ value_json.exit_server_configured }}", NULL, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "manual_exit_advertisement", "Manual exit-node route",
+                             s_state_topic, "{{ value_json.manual_exit_advertisement }}", NULL, NULL, NULL);
+    snprintf(command, sizeof command, "%s/command/wifi_power_save", cfg.base_topic);
+    discovery_publish_entity("switch", "wifi_power_save", "WiFi power save",
+                             s_state_topic, "{{ value_json.wifi_power_save }}", command, NULL, NULL);
+    discovery_publish_entity("sensor", "wifi_power_save_runtime", "WiFi power-save runtime",
+                             s_state_topic, "{{ value_json.wifi_power_save_runtime }}", NULL, NULL, NULL);
     discovery_publish_entity("binary_sensor", "exit_dns_running", "Exit-node DNS running",
                              s_state_topic, "{{ value_json.exit_dns_running }}", NULL, NULL, NULL);
     discovery_publish_entity("sensor", "exit_dns_port", "Exit-node DNS port",
@@ -413,6 +423,13 @@ static void publish_state(void)
     cJSON_AddStringToObject(root, "advertise_exit_node",
                             tailscale_advertise_exit_node ? "ON" : "OFF");
     cJSON_AddStringToObject(root, "exit_server_active", tailscale_exit_server_active() ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "exit_server_configured", tailscale_exit_server_configured() ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "manual_exit_advertisement", tailscale_manual_exit_configured() ? "ON" : "OFF");
+    cJSON_AddStringToObject(root, "wifi_power_save", wifi_power_save_configured() ? "ON" : "OFF");
+    bool wifi_ps_active = false;
+    bool wifi_ps_known = wifi_power_save_runtime(&wifi_ps_active);
+    cJSON_AddStringToObject(root, "wifi_power_save_runtime", wifi_ps_known ?
+                           (wifi_ps_active ? "ON" : "OFF") : "Unknown");
     cJSON_AddStringToObject(root, "exit_dns_running", peer_dns_is_running() ? "ON" : "OFF");
     cJSON_AddNumberToObject(root, "exit_dns_port", tailscale_peerapi_port());
     cJSON_AddStringToObject(root, "exit_node_lan_bypass",
@@ -512,6 +529,7 @@ static void handle_command(const char *topic, const char *payload)
     const char *command = topic + strlen(prefix);
     bool enabled = false;
     bool is_switch = !strcmp(command, "ap_always_on")
+        || !strcmp(command, "wifi_power_save")
         || !strcmp(command, "tailscale_enabled") || !strcmp(command, "accept_routes")
         || !strcmp(command, "snat_subnet_routes") || !strcmp(command, "advertise_exit_node")
         || !strcmp(command, "advertise_ap")
@@ -532,6 +550,10 @@ static void handle_command(const char *topic, const char *payload)
             wifi_ap_policy_set_auto_off(!enabled);
             s_publish_requested = true;
         }
+    } else if (!strcmp(command, "wifi_power_save")) {
+        esp_err_t err = wifi_power_save_set(enabled);
+        if (err != ESP_OK) ESP_LOGW(TAG, "WiFi power-save change failed: %s", esp_err_to_name(err));
+        s_publish_requested = true;
     } else if (!strcmp(command, "tailscale_enabled")) {
         if (set_tailscale_flag("ts_enabled", &tailscale_enabled, enabled))
             schedule_restart();

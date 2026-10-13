@@ -31,6 +31,7 @@
 #include "microlink.h"
 #include "mqtt_integration.h"
 #include "nvs_params.h"
+#include "wifi_power_save.h"
 #include "nvs.h"
 #include "tailscale_config.h"
 #include "peer_dns.h"
@@ -339,6 +340,11 @@ static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
     bool have_ap = esp_wifi_sta_get_ap_info(&ap) == ESP_OK;
     appendf(text, 8192, "\nUplink: %s\nRSSI: %d dBm\n",
             uplink ? "connected" : "disconnected", have_ap ? ap.rssi : 0);
+    bool wifi_ps_active = false;
+    bool wifi_ps_known = wifi_power_save_runtime(&wifi_ps_active);
+    appendf(text, 8192, "WiFi power save: %s (runtime: %s)\n",
+            wifi_power_save_configured() ? "on" : "off",
+            wifi_ps_known ? (wifi_ps_active ? "on" : "off") : "unknown");
     if (c->info_include_details) {
         appendf(text, 8192, "WiFi SSID: %s\nLocal IP: " IPSTR
                 "\nNetmask: " IPSTR "\nGateway: " IPSTR "\n",
@@ -360,6 +366,9 @@ static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
     appendf(text, 8192, "Exit-node server (this boot): %s\nExit-node DNS: %s (port %u)\n",
             tailscale_exit_server_active() ? "active" : "inactive",
             peer_dns_is_running() ? "running" : "stopped", (unsigned)tailscale_peerapi_port());
+    appendf(text, 8192, "Exit-node server configured: %s (manual default route: %s)\n",
+            tailscale_exit_server_configured() ? "yes" : "no",
+            tailscale_manual_exit_configured() ? "yes" : "no");
     appendf(text, 8192, "Automatic AP advertisement (configured): %s\n",
             tailscale_advertise_ap ? "yes" : "no");
     int peers = ml ? microlink_get_peer_count(ml) : 0;

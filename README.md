@@ -49,6 +49,14 @@ the existing AP-side port forwarding.
 
 ## Why the Mattboxx edition is different
 
+**New beta: 0.1.33-Mattboxx-1.12-dev.1.** Integrates upstream logging/throughput,
+legacy manual exit-node DNS/NAT and startup/shutdown fixes. Adds optional live
+WiFi power-save control (OFF remains the low-latency default), MQTT/HA and ntfy
+visibility, and a user-initiated Ko-fi payment window with no background embed.
+All custom features and original credits remain. See
+[beta notes and validation scope](docs/RELEASE-1.12-dev.1.md).
+Stable 1.11 below remains available while the candidate is evaluated.
+
 **Latest stable: 0.1.31-Mattboxx-1.11.** Adds an optional, quiet Ko-fi support
 button for the Mattboxx mod, without widgets or background tracking. Retains
 the fixes for startup stuck on
