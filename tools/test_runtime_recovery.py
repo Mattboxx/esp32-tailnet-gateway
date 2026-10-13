@@ -275,3 +275,45 @@ run('Actual authenticated endpoint selection: relay recovery, healthy direct ret
 assert 'update_peer_addr(peer, addr, port, pbuf->tot_len > 0);' in wg_backend
 assert 'uint32_t age = now_wg - wp->last_direct_rx;' in (
     ROOT / 'external/microlink/components/microlink/src/ml_wg_mgr.c').read_text()
+
+web = (ROOT / 'main/web_ui.c').read_text()
+if os.environ.get('SESSION_BASELINE_REF'):
+    web = subprocess.check_output(['git', 'show', os.environ['SESSION_BASELINE_REF'] + ':main/web_ui.c'], cwd=ROOT).decode()
+sessions = 'static int session_pick_new_slot' + web.split('static int session_pick_new_slot', 1)[1].split('/* Remaining seconds', 1)[0]
+auth = 'static bool request_authenticated' + web.split('static bool request_authenticated', 1)[1].split('/* Read the operator-defined', 1)[0]
+clear = 'static void session_clear_all' + web.split('static void session_clear_all', 1)[1].split('/* Locate the slot', 1)[0]
+session_fixture = r'''
+#define WEB_UI_SESSION_MAX 4
+#define WEB_UI_SESSION_TOKEN_LEN 32
+typedef struct {char token[65];uint64_t expires_us,last_used_order;} web_session_t;
+static web_session_t s_sessions[4];static uint64_t s_session_activity_order,clock_us=100000;
+static uint32_t s_session_timeout_s;static bool s_web_auth_enabled=true,password_set=true;
+typedef struct {int slot;char token[65];} httpd_req_t;
+static int64_t esp_timer_get_time(void){return clock_us;}
+static void esp_fill_random(void *p,size_t n){static unsigned value;memset(p,++value,n);}
+static void hex_encode(const uint8_t *p,size_t n,char *out){(void)n;memset(out,'a'+p[0]%26,64);out[64]=0;}
+static bool is_web_password_set(void){return password_set;}
+static int session_find_for_req(httpd_req_t *req){int i=req->slot;return i>=0&&i<4&&s_sessions[i].token[0]&&
+    clock_us<s_sessions[i].expires_us&&!strcmp(req->token,s_sessions[i].token)?i:-1;}
+'''
+session_tests = r'''
+int main(void){
+    for(int i=0;i<4;i++){session_create();assert(s_sessions[i].expires_us==UINT64_MAX);}
+    httpd_req_t req={.slot=0};strcpy(req.token,s_sessions[0].token);
+    assert(request_authenticated(&req));assert(session_pick_new_slot()==1);
+    session_create();assert(!strcmp(req.token,s_sessions[0].token));assert(session_pick_new_slot()==2);
+    for(int n=0;n<10000;n++){int expected=(n+2)%4;assert(session_pick_new_slot()==expected);session_create();}
+    s_sessions[3].expires_us=clock_us;assert(session_pick_new_slot()==3);
+    session_clear_slot(2);assert(!s_sessions[2].token[0]&&!s_sessions[2].last_used_order);
+    assert(session_pick_new_slot()==2);session_create();
+    req.slot=2;strcpy(req.token,s_sessions[2].token);s_session_timeout_s=60;
+    assert(request_authenticated(&req));assert(s_sessions[2].expires_us==clock_us+60000000);
+    uint64_t order=s_sessions[2].last_used_order;req.token[0]='!';
+    assert(!request_authenticated(&req)&&s_sessions[2].last_used_order==order);
+    s_session_timeout_s=0;session_extend_all_alive();assert(s_sessions[2].expires_us==UINT64_MAX);
+    assert(s_sessions[2].last_used_order==order);session_clear_all();
+    for(int i=0;i<4;i++)assert(!s_sessions[i].token[0]&&!s_sessions[i].expires_us&&!s_sessions[i].last_used_order);
+    puts("Session eviction: no-timeout LRU, active-session preservation, 10000 creations, expired/cleared slots and timed-window changes");
+}
+'''
+run('Actual Web UI session eviction with disabled timeout', headers + session_fixture + sessions + auth + clear + session_tests)

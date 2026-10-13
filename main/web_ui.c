@@ -4244,9 +4244,11 @@ static const httpd_uri_t uri_system_diag = {
 typedef struct {
     char     token[WEB_UI_SESSION_TOKEN_LEN * 2 + 1];   /* hex; "" = unused */
     uint64_t expires_us;
+    uint64_t last_used_order;
 } web_session_t;
 
 static web_session_t s_sessions[WEB_UI_SESSION_MAX] = {0};
+static uint64_t s_session_activity_order;
 static uint32_t      s_session_timeout_s = WEB_UI_SESSION_TIMEOUT_DEF_S;
 static bool          s_web_auth_enabled = true;
 
@@ -4341,6 +4343,7 @@ static void session_clear_all(void)
     for (int i = 0; i < WEB_UI_SESSION_MAX; i++) {
         s_sessions[i].token[0]   = '\0';
         s_sessions[i].expires_us = 0;
+        s_sessions[i].last_used_order = 0;
     }
 }
 
@@ -4369,16 +4372,18 @@ static int session_find_for_req(httpd_req_t *req)
     return -1;
 }
 
-/* Pick a slot for a fresh session: prefer an empty one; otherwise
- * recycle the slot whose expiry is the oldest (LRU). */
+/* Prefer an empty/expired slot; otherwise evict the least recently used.
+ * Expiry is not activity: with timeout disabled every expiry is UINT64_MAX,
+ * and selecting by expiry repeatedly evicted slot zero, even just after use. */
 static int session_pick_new_slot(void)
 {
     int      oldest_idx = 0;
-    uint64_t oldest_exp = UINT64_MAX;
+    uint64_t oldest_order = UINT64_MAX;
+    uint64_t now = (uint64_t)esp_timer_get_time();
     for (int i = 0; i < WEB_UI_SESSION_MAX; i++) {
-        if (!s_sessions[i].token[0]) return i;
-        if (s_sessions[i].expires_us < oldest_exp) {
-            oldest_exp  = s_sessions[i].expires_us;
+        if (!s_sessions[i].token[0] || now >= s_sessions[i].expires_us) return i;
+        if (s_sessions[i].last_used_order < oldest_order) {
+            oldest_order = s_sessions[i].last_used_order;
             oldest_idx  = i;
         }
     }
@@ -4393,6 +4398,7 @@ static const char *session_create(void)
     uint8_t raw[WEB_UI_SESSION_TOKEN_LEN];
     esp_fill_random(raw, sizeof raw);
     hex_encode(raw, sizeof raw, s_sessions[idx].token);
+    s_sessions[idx].last_used_order = ++s_session_activity_order;
     s_sessions[idx].expires_us = s_session_timeout_s == 0
                                ? UINT64_MAX
                                : (uint64_t)esp_timer_get_time()
@@ -4405,6 +4411,7 @@ static void session_clear_slot(int idx)
     if (idx < 0 || idx >= WEB_UI_SESSION_MAX) return;
     s_sessions[idx].token[0]   = '\0';
     s_sessions[idx].expires_us = 0;
+    s_sessions[idx].last_used_order = 0;
 }
 
 /* Push every alive slot's expiry to (now + current timeout). Hooked
@@ -4444,6 +4451,7 @@ static bool request_authenticated(httpd_req_t *req)
     if (idx < 0) return false;
     /* Sliding window: every authenticated hit pushes the matching slot's
      * expiry out, so a tab the operator is actively poking never times out. */
+    s_sessions[idx].last_used_order = ++s_session_activity_order;
     s_sessions[idx].expires_us = s_session_timeout_s == 0
                                ? UINT64_MAX
                                : (uint64_t)esp_timer_get_time()
