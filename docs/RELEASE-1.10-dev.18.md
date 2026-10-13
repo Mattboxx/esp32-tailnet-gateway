@@ -1,7 +1,7 @@
 # ESP32 Tailscale Gateway 0.1.31-Mattboxx-1.10-dev.18
 
-Beta hotfix, October 13, 2026. Supersedes dev.11; stable 1.8 remains unchanged.
-Enable beta updates to discover this compatible newer custom build.
+Unpublished candidate validation record, October 13, 2026. This runtime was
+promoted to [stable 1.10](RELEASE-1.10.md); dev.18 was not published as a release.
 
 ## Original credits
 
@@ -108,8 +108,8 @@ remaining problems were caught before release; they were not published.
 
 ## Assets and updating
 
-Use `firmware.bin` for **System → Firmware update**, or **Install latest update**
-with the beta channel enabled. The Windows ZIP includes esptool, its license,
+Use the [stable release assets](RELEASE-1.10.md), not these local candidate
+assets. The Windows ZIP includes esptool, its license,
 hashes and `UPDATE_KEEP_SETTINGS.bat`. These update paths preserve settings.
 `firmware-factory.bin` / `CLEAN_INSTALL_ERASE_ALL.bat` are for a fresh install
 and erase saved settings only after explicit confirmation.

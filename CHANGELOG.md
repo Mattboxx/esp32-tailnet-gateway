@@ -6,7 +6,15 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### 0.1.31-Mattboxx-1.10-dev.18 — recover startup, AP control, relay replies and logins
+## [0.1.31-Mattboxx-1.10] - 2026-10-13
+
+Stable promotion of the verified dev.18 runtime, with a stable version/tag and
+no functional code change. Includes upstream v0.1.30/v0.1.31, opt-in GitHub
+stable/beta/manual/automatic updates, ntfy transport/streaming improvements,
+forwarding packet/configuration fixes and all earlier Mattboxx additions.
+See [release notes and verified scope](docs/RELEASE-1.10.md).
+
+### Startup, AP control, relay replies and logins
 
 - Create Microlink worker stacks largest first and hold coordination/cache
   work behind an all-workers-ready barrier. Clean up partial startup before

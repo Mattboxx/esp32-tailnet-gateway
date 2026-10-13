@@ -21,8 +21,8 @@ forwarding, privacy hardening and a ready-to-flash release.
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-5.5.3-e7352c.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![CodeQL](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/actions/workflows/codeql.yml)
 [![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailscale-gateway-NAS-recovery?label=stable)](../../releases/latest)
-[![GitHub Sponsors](https://img.shields.io/badge/GitHub-Sponsor-ea4aaa.svg?style=plastic&logo=githubsponsors)](https://github.com/sponsors/Csontikka)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-donate-yellow.svg?style=plastic)](https://buymeacoffee.com/csontikka)
+[![Support upstream on GitHub](https://img.shields.io/badge/Upstream-GitHub%20Sponsors-ea4aaa.svg?style=plastic&logo=githubsponsors)](https://github.com/sponsors/Csontikka)
+[![Support upstream on Buy Me a Coffee](https://img.shields.io/badge/Upstream-Buy%20Me%20a%20Coffee-yellow.svg?style=plastic)](https://buymeacoffee.com/csontikka)
 
 </div>
 
@@ -42,13 +42,13 @@ enable switch, counters and live status. This is completely independent from
 the existing AP-side port forwarding.
 
 **[Download the ready-to-flash release](../../releases/latest)** ·
-**[Download the 1.10 beta candidate](../../releases/tag/v0.1.31-Mattboxx-1.10-dev.18)** ·
+**[What's new in stable 1.10](docs/RELEASE-1.10.md)** ·
 **[See every change from upstream](CUSTOM_BRANCH.md)** ·
 **[Read the security model](SECURITY.md)**
 
 ## Why the Mattboxx edition is different
 
-**Beta candidate: 0.1.31-Mattboxx-1.10-dev.18.** Fixes startup stuck on
+**Latest stable: 0.1.31-Mattboxx-1.10.** Fixes startup stuck on
 **Registering**, runtime AP-worker allocation failures and missing replies
 over a stale direct Tailscale endpoint. Worker stacks are reserved largest
 first; AP control uses a reserved stack; relay reception can restore relay
@@ -60,7 +60,7 @@ forwarding paths, MQTT/Home Assistant, ntfy, WOL, Ethernet, route/exit controls,
 SNMP and stable/beta/manual/automatic updates. The exact OTA image was flashed
 on the reference ESP32-S3 without erasing settings. Download the OTA binary or
 the Windows ZIP with esptool and a double-click update script; see
-[tested scope and limitations](docs/RELEASE-1.10-dev.18.md).
+[tested scope and limitations](docs/RELEASE-1.10.md).
 
 New in the 1.10 line: opt-in update checks,
 automatic install with an optional local-time window, stable/beta channels,
@@ -69,7 +69,7 @@ with periodic checks OFF. Only this fork's compatible newer releases qualify;
 HTTPS, GitHub SHA-256, ESP32-S3/project/version checks and exclusive OTA writing
 are required. All switches default OFF. See [update policy and release requirements](docs/UPDATES.md).
 
-The same development branch hardens ntfy transport: no redirect replay of
+The same release hardens ntfy transport: no redirect replay of
 tokens or private notifications, no unauthenticated fallback after a header
 allocation failure, and strict token-header validation. Configure the final
 server URL. It also rejects obsolete command replies after settings changes,
@@ -83,14 +83,13 @@ Upstream v0.1.30 and v0.1.31
 are integrated, with CGNAT uplink exceptions, lifecycle-safe route supervision,
 PSRAM-backed received tunnel packets and a separate, peer-restricted exit-node
 DNS service. All Mattboxx controls and the 1.8 ntfy hotfix are retained.
-The development build uses **31 sockets** and adds DNS runtime status to the
+The firmware uses **31 sockets** and adds DNS runtime status to the
 UI, MQTT/Home Assistant and ntfy `info`. See the
 [complete integration and validation record](docs/UPSTREAM-0.1.31.md).
-The 1.10 candidate is a GitHub **pre-release**, not a promotion to stable.
-Enable beta updates to discover it from an older compatible custom version.
-The stable download below remains the previously tested 1.8 image.
+The tested 1.10 candidate is now promoted to **stable**. Beta enrollment is
+not required to receive this update. Future previews remain opt-in.
 
-**[Stable release: 0.1.29-Mattboxx-1.8](../../releases/tag/v0.1.29-Mattboxx-1.8)**
+**[Previous stable: 0.1.29-Mattboxx-1.8](../../releases/tag/v0.1.29-Mattboxx-1.8)**
 combines upstream **v0.1.29** with the
 Mattboxx additions. It keeps your existing settings and introduces no automatic
 telemetry, external crash upload or firmware polling. Original credits remain
@@ -656,13 +655,19 @@ the firmware by `main/CMakeLists.txt` at build time.
 See **[CONTRIBUTING.md](CONTRIBUTING.md)** for build/flash setup and pull-request
 guidelines, and **[docs/TESTING.md](docs/TESTING.md)** for the test harness.
 
-## Support
+## Support the Mattboxx edition
 
 Found a bug or have an idea? Open an
-[issue](https://github.com/Mattboxx/esp32-tailscale-gateway/issues).
-If this firmware saved you a router purchase or an afternoon of
-debugging, you can chip in:
-[buy me a coffee](https://buymeacoffee.com/csontikka) ☕ or [sponsor me on GitHub](https://github.com/sponsors/Csontikka)
+[issue](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/issues).
+Star the repository, share it or help test new versions to support the custom
+edition's development. Financial support is optional; the firmware and all
+features remain freely available. A Mattboxx donation link is not configured yet.
+
+### Support the original upstream project
+
+These links support **Csontikka**, the original author, not the Mattboxx edition:
+[Buy Me a Coffee](https://buymeacoffee.com/csontikka) or
+[GitHub Sponsors](https://github.com/sponsors/Csontikka).
 
 <p align="center">
   <picture>

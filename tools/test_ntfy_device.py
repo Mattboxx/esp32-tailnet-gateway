@@ -7,6 +7,7 @@ Does not send WOL or deliberately disconnect WiFi/Tailscale.
 """
 import argparse
 import json
+import re
 import time
 import urllib.request
 from test_snmp_device import login
@@ -79,8 +80,9 @@ def main():
         with client.open(query, timeout=20) as response:
             lines = response.read(1024 * 1024).splitlines()
         replies = [json.loads(line) for line in lines if line]
+        version_pattern = re.compile(r'(?<![A-Za-z0-9.-])' + re.escape(version) + r'(?![A-Za-z0-9.-])')
         assert any(e.get('title', '').startswith('ESP32 router info') and
-                   version in e.get('message', '') for e in replies)
+                   version_pattern.search(e.get('message', '')) for e in replies)
         print(f'PASS: {sent} info commands/replies; {time.monotonic()-start:.0f}s without restart; '
               f'minimum stack {minimum_stack} B, internal heap {minimum_heap} B', flush=True)
     finally:
