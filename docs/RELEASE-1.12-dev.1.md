@@ -102,6 +102,13 @@ heap was 16,815 B. SNMP remained OFF. The live Tailscale API rejected a manual
 default-route/selected-exit conflict with HTTP 400 before changing saved
 settings. WiFi power save was confirmed OFF after the tests.
 
+The ntfy HTTPS notification/info soak completed three commands and three
+exact-version replies over 306 seconds without an observed reset or
+WiFi/Tailscale/MQTT disconnection. Replies included the new WiFi and manual
+exit-mode policy fields. Minimum observed ntfy stack headroom was 4,612 B;
+internal free heap was 16,815 B. Original command-availability policy was
+restored. Historical reset-log entries were not erased.
+
 Physical Ethernet, arbitrary remote services, the Home Assistant frontend,
 every provider's checkout and Internet exit-node throughput are not fully
 revalidated here. In particular, an end-to-end donation is not simulated.
