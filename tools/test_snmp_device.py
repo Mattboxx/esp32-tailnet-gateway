@@ -78,7 +78,7 @@ def login(host):
     client = urllib.request.build_opener(urllib.request.ProxyHandler({}),
         urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
-    def api(path, payload=None, *, raw=False, timeout=12):
+    def send(path, payload=None, *, raw=False, timeout=12):
         if raw:
             assert isinstance(payload, bytes), 'Raw API bodies must be bytes'
         body = payload if raw else (None if payload is None else json.dumps(payload).encode())
@@ -87,13 +87,28 @@ def login(host):
         with client.open(req, timeout=timeout) as response:
             return json.load(response)
 
-    challenge = api('/api/auth/challenge')
-    assert challenge['supported']
-    key = hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(challenge['salt']),
-                             challenge['iterations'], 32)
-    proof = hmac.new(key, challenge['context'].encode() + bytes.fromhex(challenge['nonce']),
-                     hashlib.sha256).hexdigest()
-    assert api('/api/auth/login', {'nonce': challenge['nonce'], 'proof': proof})['ok']
+    def authenticate():
+        challenge = send('/api/auth/challenge')
+        assert challenge['supported']
+        key = hashlib.pbkdf2_hmac('sha256', password.encode(), bytes.fromhex(challenge['salt']),
+                                 challenge['iterations'], 32)
+        proof = hmac.new(key, challenge['context'].encode() + bytes.fromhex(challenge['nonce']),
+                         hashlib.sha256).hexdigest()
+        assert send('/api/auth/login', {'nonce': challenge['nonce'], 'proof': proof})['ok']
+
+    def api(path, payload=None, *, raw=False, timeout=12):
+        try:
+            return send(path, payload, raw=raw, timeout=timeout)
+        except urllib.error.HTTPError as error:
+            # An explicit 401 means require_auth rejected the request before
+            # mutation. Renew once; never retry ambiguous network/write errors.
+            # Callers retain their uptime/reset checks across reauthentication.
+            if error.code != 401 or path.startswith('/api/auth/'):
+                raise
+            authenticate()
+            return send(path, payload, raw=raw, timeout=timeout)
+
+    authenticate()
     return api
 
 
@@ -155,8 +170,15 @@ def main():
                 import time
                 # Span several independent 3-second forwarding / 5-second SNMP ticks.
                 for sample in range(12):
-                    tailnet.sendto(request(comm, system_oid, sample % 2), (args.tailnet_host, 161))
-                    reply, sender = tailnet.recvfrom(4096)
+                    for attempt in range(3):
+                        tailnet.sendto(request(comm, system_oid, sample % 2), (args.tailnet_host, 161))
+                        try:
+                            reply, sender = tailnet.recvfrom(4096)
+                            break
+                        except socket.timeout:
+                            if attempt == 2:
+                                raise
+                            print('Retrying a lost Tailnet UDP query (bounded)', flush=True)
                     assert sender[0] == socket.gethostbyname(args.tailnet_host)
                     result = decode_reply(reply)
                     assert result[0] == system_oid and args.expected_version.encode() in result[2]
