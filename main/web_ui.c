@@ -4219,7 +4219,7 @@ static const httpd_uri_t uri_system_diag = {
 };
 
 /* ---- Session management -------------------------------------------------
- * Single in-memory session, like the OLD repo. 32-byte random token hex-
+ * Four in-memory sessions. Each has a 32-byte random token hex-
  * encoded into a cookie. The token never touches NVS — reboot logs
  * everyone out, which is the intended fail-safe for a router that may
  * be repurposed. Timeout is an idle/sliding window: every authenticated
