@@ -14,6 +14,25 @@ Tests live under `tools/test_lib/`, the driver is `tools/run_tests.py`.
 
 ## Prerequisites
 
+### Upstream v0.1.34–v0.1.38 ports
+
+`python tools/test_upstream_038.py` executes real C fragments for WireGuard
+replay/lifetimes, X25519 masking, exact peer/Noise decoding, control EOF/stalls,
+DERP TLS policy, synchronous TCPIP callbacks and the privileged TX diagnostic.
+Like the ntfy parser tests, it uses `CJSON_SOURCE` on Windows or libcjson-dev
+on Linux. `UPSTREAM_SANITIZE=1` enables the CI sanitizer build. These fixtures
+are not a live certificate/roam/throughput benchmark.
+
+If Windows Controlled Folder Access blocks intermediate compiler files under
+Documents, use an allowed build directory through `PLATFORMIO_BUILD_DIR`;
+do not disable Defender as part of a build script. Release packaging accepts
+`--build-dir <exact-environment-directory>` and still validates project/version,
+tested image hash, socket configuration, blank factory NVS and package hashes.
+
+The exact ELF ntfy stack check can read the actual Xtensa ENTRY instructions
+if the local objdump emits undecoded words. Missing functions, a different
+entry opcode or an excessive frame still fail; budgets are never skipped.
+
 ### ntfy reboot regression (1.8 and later)
 
 `python tools/test_ntfy_stack.py` checks the no-inlining/heap-buffer guards.

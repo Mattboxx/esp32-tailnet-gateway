@@ -1,5 +1,30 @@
 # Custom ESP32-S3 router branch
 
+## New source alignment: 0.1.38-Mattboxx-1.13-dev.1
+
+All published v0.1.34–v0.1.38 changes are merged/adapted without replacing
+custom microlink hooks or application services. Includes relay TLS verification,
+WireGuard state/nonce/Noise fixes, corrected relay measurement/reporting,
+silent-peer recovery, bounded control stalls, synchronized TCPIP teardown and
+copy-free TX. Retain restart-based published-instance lifetime and add guarded
+local SD snapshots. [Full change mapping and limits](docs/UPSTREAM-0.1.38.md).
+
+## Current stable: 0.1.33-Mattboxx-1.12-dev.1
+
+The existing release was marked stable/latest on October 20 without changing
+the tag or assets. Its retained development-form tag requires manual download/
+OTA with the current updater. An installed identical build needs no flash.
+
+Integrates the published upstream v0.1.32/v0.1.33 fixes and optional live WiFi
+power-save policy, preserving this fork's low-latency OFF default. Includes
+MQTT/HA and ntfy policy visibility and the optional one-click Ko-fi window.
+All custom forwarding, AP, automation, routing, privacy and update controls
+are retained. See [release validation and limits](docs/RELEASE-1.12.md) and
+the [upstream integration record](docs/UPSTREAM-0.1.33.md).
+
+The [NAS recovery checklist](docs/NAS-RECOVERY.md) explains independent power,
+WoL requirements and why this is not a hard-reset/data-recovery appliance.
+
 ## New in 1.10 development: operator-controlled GitHub updates
 
 User-requested replacement for the removed always-on upstream poller:

@@ -8,7 +8,8 @@ labels: bug
 <!--
 ⚠️ Before posting: scrub anything identifying. Do NOT paste Tailscale auth
 keys (tskey-…), real tailnet names (…​.ts.net), public IPs, or WiFi
-passwords. The Diagnostics page log export already avoids secrets.
+passwords. Review the whole Diagnostics export before sharing: logs can
+still contain identifying network addresses or device information.
 -->
 
 ## Description

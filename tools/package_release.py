@@ -22,6 +22,19 @@ def validate_release_version(version, current, prerelease):
         'Version must match the current project and the explicitly selected release channel'
 
 
+def upstream_release_reference(version):
+    base = version.split('-Mattboxx-', 1)[0]
+    assert re.fullmatch(r'0\.1\.\d+', base), 'Invalid upstream release version'
+    return f'Based on Csontikka/esp32-tailscale-subnet-router v{base}.'
+
+
+def validate_build_description(description, root, version):
+    assert description.get('project_name') == 'esp32_tsr', 'Unrelated project'
+    assert description.get('project_version') == version, 'Stale build version'
+    project = description.get('project_path') or description.get('project_dir')
+    assert project and Path(project).resolve() == root.resolve(), 'Unrelated build directory'
+
+
 def collect_release_notices(root, sdkbuild):
     """Carry original notices into binary distributions without local paths."""
     root = root.resolve()
@@ -63,11 +76,15 @@ def main():
     parser.add_argument('--tested-sha256', required=True)
     parser.add_argument('--esptool', type=Path, required=True)
     parser.add_argument('--esptool-license', type=Path, required=True)
+    parser.add_argument('--build-dir', type=Path,
+                        help='Exact PlatformIO environment directory, if built outside .pio')
     args = parser.parse_args()
     version = args.version
     project_version = re.search(r'set\(PROJECT_VER "([^"]+)"\)', (ROOT / 'CMakeLists.txt').read_text())[1]
     validate_release_version(version, project_version, args.prerelease)
-    sdkbuild = ROOT / '.pio/build/esp32-s3'
+    sdkbuild = (args.build_dir or ROOT / '.pio/build/esp32-s3').resolve()
+    description = json.loads((sdkbuild / 'project_description.json').read_text(encoding='utf-8'))
+    validate_build_description(description, ROOT, version)
     assert sha(args.tested_image) == args.tested_sha256.lower()
     assert sha(sdkbuild / 'firmware.bin') == args.tested_sha256.lower(), 'Build changed after hardware validation'
     assert version.encode() in args.tested_image.read_bytes()
@@ -111,7 +128,7 @@ firmware-factory.bin is the merged fresh-board image, NOT a web OTA image.
 Do not unplug during flashing. Use a USB DATA cable, not a charge-only cable.
 If detection fails: hold BOOT, tap RESET, release BOOT and retry.
 
-Based on Csontikka/esp32-tailscale-subnet-router v0.1.31. Includes CGNAT uplink
+{upstream_release_reference(version)} Includes CGNAT uplink
 exceptions, lifecycle-leased TCP/IP routing and synchronized route snapshots.
 Exit-node server mode adds a separate, known-peer-only DNS PeerAPI and
 PSRAM-backed received tunnel packets. Custom admin ports are preserved.

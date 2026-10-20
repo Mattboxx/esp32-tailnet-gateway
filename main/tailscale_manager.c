@@ -48,7 +48,7 @@ char* tailscale_advertise_routes = NULL;
 int32_t tailscale_advertise_exit_node = 0;
 int32_t tailscale_max_peers = 16;
 uint32_t tailscale_exit_node_ip = 0;
-int32_t tailscale_netcheck_override = 0;          /* default: OFF — netcheck mis-selects regions (garbage STUN RTTs: picked London #8 for a HU node, fra/nue sometimes missing because probes tunnel through the exit netif) which destabilises DERP. Stay on the configured/echoed home region until the netcheck STUN path is fixed. Runtime-overridable via NVS. */
+int32_t tailscale_netcheck_override = 1;          /* Upstream 0.1.34: corrected concurrent STUN measurements and sticky region selection. Existing explicit ts_nc_ovr policy is retained. */
 int32_t tailscale_netcheck_threshold_ms = 100;    /* default: 100 ms hysteresis (sticky — home routers rarely beat Frankfurt enough to be worth switching) */
 int32_t tailscale_default_derp_region = 0;        /* 0 = unset → Frankfurt fallback in microlink */
 int32_t tailscale_lan_bypass = 1;                  /* 1 = exit-node lets LAN egress via STA, like tailscale --exit-node-allow-lan-access */

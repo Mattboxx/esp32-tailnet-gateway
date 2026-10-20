@@ -11,19 +11,22 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "b22035c973a1137d512f24d5eae58ac96c557093"
+BASELINES = (BASE, "160bf04b866d4d28dd95437191660b85ec01c886")
 
 
-def baseline(path):
+def baseline(path, ref=BASE):
     return subprocess.check_output(
-        ["git", "show", f"{BASE}:{path}"], cwd=ROOT).decode("utf-8")
+        ["git", "show", f"{ref}:{path}"], cwd=ROOT).decode("utf-8")
 
 
 class FeaturePreservationTests(unittest.TestCase):
     def preserved(self, path, pattern):
-        old = set(re.findall(pattern, baseline(path), re.S))
         current = set(re.findall(pattern, (ROOT / path).read_text(encoding="utf-8"), re.S))
-        self.assertTrue(old, f"Empty baseline for {path}")
-        self.assertEqual(sorted(old - current), [], f"Removed controls in {path}")
+        for ref in BASELINES:
+            with self.subTest(baseline=ref, path=path):
+                old = set(re.findall(pattern, baseline(path, ref), re.S))
+                self.assertTrue(old, f"Empty baseline for {path}")
+                self.assertEqual(sorted(old - current), [], f"Removed controls in {path}")
 
     def test_http_paths_methods_and_handlers(self):
         self.preserved("main/web_ui.c",

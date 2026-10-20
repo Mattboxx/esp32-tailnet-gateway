@@ -3018,8 +3018,8 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
                  * bare number. NULL (region 0 / not in DERPMap yet) → omit. */
                 const char *_hrn = microlink_get_derp_region_name(mlh, diag.derp_home_region);
                 if (_hrn) cJSON_AddStringToObject(runtime, "derp_home_region_name", _hrn);
-                microlink_derp_rtt_t _rtts[16];
-                int _nr = microlink_get_derp_rtts(mlh, _rtts, 16);
+                microlink_derp_rtt_t _rtts[32];
+                int _nr = microlink_get_derp_rtts(mlh, _rtts, sizeof(_rtts) / sizeof(_rtts[0]));
                 cJSON *derp_rtts = cJSON_CreateArray();
                 for (int _i = 0; _i < _nr; _i++) {
                     cJSON *e = cJSON_CreateObject();
@@ -3708,6 +3708,51 @@ static const httpd_uri_t uri_system_debug_crash = {
     .uri = "/api/debug/crash", .method = HTTP_POST, .handler = system_debug_crash_handler,
 };
 
+/* Upstream 0.1.38 TX-path diagnostic. Never expose a mutation through a
+ * password-disabled session; reject malformed flags before changing state. */
+static esp_err_t system_debug_wg_tx_post_handler(httpd_req_t *req)
+{
+    if (require_password_session(req) != ESP_OK) return ESP_FAIL;
+    char buf[128];
+    if (recv_body(req, buf, sizeof buf, NULL) != ESP_OK) return ESP_FAIL;
+    cJSON *root = cJSON_Parse(buf);
+    const cJSON *cf = cJSON_GetObjectItemCaseSensitive(root, "copyfree");
+    const cJSON *rs = cJSON_GetObjectItemCaseSensitive(root, "reset");
+    if (!cJSON_IsObject(root) || (!cf && !rs) ||
+        (cf && !cJSON_IsBool(cf)) || (rs && !cJSON_IsBool(rs))) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "expected boolean copyfree/reset");
+        return ESP_FAIL;
+    }
+    if (!tailscale_lifecycle_try_acquire()) {
+        cJSON_Delete(root);
+        httpd_resp_set_status(req, "503 Service Unavailable");
+        return httpd_resp_sendstr(req, "Tailscale lifecycle busy");
+    }
+    struct microlink_s *ml = tailscale_get_microlink();
+    esp_err_t err = cf ? microlink_set_wg_tx_copyfree(ml, cJSON_IsTrue(cf)) : ESP_OK;
+    if (err == ESP_OK && cJSON_IsTrue(rs)) microlink_get_wg_tx_profile(NULL, NULL, true);
+    uint32_t packets = 0;
+    uint64_t us = 0;
+    microlink_get_wg_tx_profile(&packets, &us, false);
+    bool copyfree = microlink_get_wg_tx_copyfree(ml);
+    tailscale_lifecycle_release();
+    cJSON_Delete(root);
+    if (err != ESP_OK) {
+        httpd_resp_set_status(req, "409 Conflict");
+    }
+    httpd_resp_set_type(req, "application/json");
+    char response[160];
+    snprintf(response, sizeof response,
+             "{\"ok\":%s,\"copyfree\":%s,\"pkts\":%lu,\"us\":%llu}",
+             err == ESP_OK ? "true" : "false", copyfree ? "true" : "false",
+             (unsigned long)packets, (unsigned long long)us);
+    return httpd_resp_sendstr(req, response);
+}
+static const httpd_uri_t uri_system_debug_wg_tx_post = {
+    .uri = "/api/debug/wg-tx", .method = HTTP_POST, .handler = system_debug_wg_tx_post_handler,
+};
+
 static const httpd_uri_t uri_system_save = {
     .uri = "/api/system", .method = HTTP_POST, .handler = system_save_handler,
 };
@@ -4077,6 +4122,13 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(m, "spiram_free",       heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
         cJSON_AddNumberToObject(m, "spiram_min_free",   heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM));
         cJSON_AddNumberToObject(m, "spiram_largest",    heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+        uint32_t tx_packets = 0;
+        uint64_t tx_us = 0;
+        microlink_get_wg_tx_profile(&tx_packets, &tx_us, false);
+        cJSON_AddNumberToObject(m, "wg_tx_pkts", tx_packets);
+        cJSON_AddNumberToObject(m, "wg_tx_us", (double)tx_us);
+        cJSON_AddBoolToObject(m, "wg_tx_copyfree",
+                             microlink_get_wg_tx_copyfree(tailscale_get_microlink()));
         cJSON_AddItemToObject(root, "memory", m);
     }
 
@@ -5454,6 +5506,7 @@ void web_ui_init(void)
     reg_uri(server, &uri_system_secrets_post);
     reg_uri(server, &uri_system_diag);
     reg_uri(server, &uri_system_debug_crash);
+    reg_uri(server, &uri_system_debug_wg_tx_post);
     reg_uri(server, &uri_auth_status);
     reg_uri(server, &uri_auth_challenge);
     reg_uri(server, &uri_auth_login);

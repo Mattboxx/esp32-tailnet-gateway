@@ -6,9 +6,9 @@
 
 ### Subnet router · Exit node · LAN → Tailnet port forwarder · IoT WiFi gateway · MQTT/Home Assistant · Wake-on-LAN
 
-**Turn a single ESP32-S3 into a pocket-sized, privacy-first gateway between your
-LAN, isolated WiFi devices and an entire Tailscale or Headscale network — no
-Raspberry Pi, public port or client software on the connected devices.**
+**Keep a small management node online when your NAS is off. Wake compatible
+devices remotely, reach your LAN through Tailscale, and connect ordinary
+devices to selected tailnet services — all from one supported ESP32-S3.**
 
 Based on the original
 [Csontikka/esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)
@@ -29,6 +29,24 @@ forwarding, privacy hardening and a ready-to-flash release.
 
 ---
 
+## A recovery companion for your NAS and homelab
+
+If your only Tailscale node runs on the NAS, shutting that NAS down can also
+remove your remote management path. An independently powered ESP32 provides
+a separate node: reach its Web UI through your tailnet, send Wake-on-LAN to
+a saved compatible NAS/PC, or use subnet routing to reach other LAN devices.
+
+**[Download stable firmware and the guided Windows flashing ZIP](../../releases/latest)** ·
+**[NAS recovery checklist](docs/NAS-RECOVERY.md)** ·
+**[Supported hardware](#hardware)**
+
+WoL needs compatible hardware, configuration and standby power; it cannot
+hard-reset a frozen NAS, recover files or provide KVM/BIOS access. Power the
+ESP independently of the NAS and keep the router/Internet available. If your
+broker/Home Assistant runs on the NAS, keep direct tailnet access as a separate
+command path. This is a community microlink-based fork, not an official
+Tailscale client or fully out-of-band management.
+
 ## One board, three network gateways
 
 | Traffic path | What it unlocks |
@@ -43,95 +61,46 @@ enable switch, counters and live status. This is completely independent from
 the existing AP-side port forwarding.
 
 **[Download the ready-to-flash release](../../releases/latest)** ·
-**[What's new in stable 1.11](docs/RELEASE-1.11.md)** ·
+**[What's new in stable 1.12](docs/RELEASE-1.12.md)** ·
 **[See every change from upstream](CUSTOM_BRANCH.md)** ·
 **[Read the security model](SECURITY.md)**
 
 ## Why the Mattboxx edition is different
 
-**New beta: 0.1.33-Mattboxx-1.12-dev.1.** Integrates upstream logging/throughput,
+**New source candidate: 0.1.38-Mattboxx-1.13-dev.1.** Integrates all published
+upstream v0.1.34–v0.1.38 changes: verified relay TLS, WireGuard protocol/nonce
+fixes, correct sticky relay selection/reporting, faster silent-peer recovery,
+bounded control stalls and the v0.1.38 TCPIP teardown/copy-free TX fixes.
+Keeps every custom feature and privacy removal. See the
+[complete integration record](docs/UPSTREAM-0.1.38.md). This candidate is not
+automatically promoted stable; published 1.12 downloads remain unchanged.
+It was installed on the reference ESP32-S3 without erasing settings; see the
+[candidate's exact test results and initial reconnect observation](docs/RELEASE-1.13-dev.1.md).
+
+**Latest stable: 0.1.33-Mattboxx-1.12-dev.1.** The existing release was promoted
+on October 20 without changing its tag, binaries or settings. The internal
+`dev.1` suffix is retained; use the manual OTA/download path because the
+current automatic updater rejects development-form tags marked stable.
+Integrates upstream logging/throughput,
 legacy manual exit-node DNS/NAT and startup/shutdown fixes. Adds optional live
 WiFi power-save control (OFF remains the low-latency default), MQTT/HA and ntfy
 visibility, and a user-initiated Ko-fi payment window with no background embed.
 All custom features and original credits remain. See
-[beta notes and validation scope](docs/RELEASE-1.12-dev.1.md).
-Stable 1.11 below remains available while the candidate is evaluated.
+[stable release and validation scope](../../releases/tag/v0.1.33-Mattboxx-1.12-dev.1).
+The earlier [beta validation record](docs/RELEASE-1.12-dev.1.md) is retained;
+stable 1.11 remains available for rollback.
 
-**Latest stable: 0.1.31-Mattboxx-1.11.** Adds an optional, quiet Ko-fi support
-button for the Mattboxx mod, without widgets or background tracking. Retains
-the fixes for startup stuck on
-**Registering**, runtime AP-worker allocation failures and missing replies
-over a stale direct Tailscale endpoint. Worker stacks are reserved largest
-first; AP control uses a reserved stack; relay reception can restore relay
-replies while healthy direct connections are retained. Startup errors are
-visible instead of hidden behind Registering. Active logins are no longer
-repeatedly evicted when the session timer is disabled. Retains the dev.11 SNMP/Tailnet
-recursion fix, upstream v0.1.31 and **every Mattboxx feature**: separate
-forwarding paths, MQTT/Home Assistant, ntfy, WOL, Ethernet, route/exit controls,
-SNMP and stable/beta/manual/automatic updates. The exact OTA image was flashed
-on the reference ESP32-S3 without erasing settings. Download the OTA binary or
-the Windows ZIP with esptool and a double-click update script; see
-[tested scope and limitations](docs/RELEASE-1.11.md).
+Retained reliability fixes include ntfy command reboot loops, startup stuck
+on **Registering**, AP-worker allocation failures, SNMP/Tailnet recursion,
+stale direct-endpoint replies, login eviction with timeout disabled and false
+Automation disabled states. The build uses pinned ESP-IDF 5.5.3 and 31 sockets.
+No external log uploads or forced update polling are restored.
 
-New in the 1.10 line: opt-in update checks,
-automatic install with an optional local-time window, stable/beta channels,
-and **Install latest update** for a one-click GitHub download/install even
-with periodic checks OFF. Only this fork's compatible newer releases qualify;
-HTTPS, GitHub SHA-256, ESP32-S3/project/version checks and exclusive OTA writing
-are required. All switches default OFF. See [update policy and release requirements](docs/UPDATES.md).
-
-The same release hardens ntfy transport: no redirect replay of
-tokens or private notifications, no unauthenticated fallback after a header
-allocation failure, and strict token-header validation. Configure the final
-server URL. It also rejects obsolete command replies after settings changes,
-stores settings/cursor together and defers commands on cursor-write failure.
-Command polling now streams bounded batches rather than stalling on a large
-topic backlog; large notification text and metadata do not grow heap usage;
-ntfy outage alerts no longer read or upload local log contents;
-see [ntfy transport/state fixes and test coverage](docs/NTFY-TRANSPORT.md).
-
-Upstream v0.1.30 and v0.1.31
-are integrated, with CGNAT uplink exceptions, lifecycle-safe route supervision,
-PSRAM-backed received tunnel packets and a separate, peer-restricted exit-node
-DNS service. All Mattboxx controls and the 1.8 ntfy hotfix are retained.
-The firmware uses **31 sockets** and adds DNS runtime status to the
-UI, MQTT/Home Assistant and ntfy `info`. See the
-[complete integration and validation record](docs/UPSTREAM-0.1.31.md).
-The tested 1.10 runtime is retained in **stable 1.11**. The earlier 1.10 release
-was withdrawn before adding the mod's support button; its source tag is kept
-for traceability. Beta enrollment is not required. Future previews remain opt-in.
-
-**[Previous stable: 0.1.29-Mattboxx-1.8](../../releases/tag/v0.1.29-Mattboxx-1.8)**
-combines upstream **v0.1.29** with the
-Mattboxx additions. It keeps your existing settings and introduces no automatic
-telemetry, external crash upload or firmware polling. Original credits remain
-with Csontikka, microlink's authors and contributors, including gszigethy's SNMP
-agent contribution.
-
-**New in 1.8: ntfy reboot-loop hotfix.** HTTPS command reception could exhaust
-the worker stack and repeatedly restart 1.7. Reporting/polling now have separate
-compiler frames, alert logs live off-stack, and the TLS worker has a checked
-12 KiB stack. Failed `info` replies are reported honestly; oversized command
-responses are rejected. **Upgrade if you use ntfy command reception.**
-
-Retained from **1.7**: correct tunnel detection on CGNAT uplinks (e.g. LTE/Starlink),
-LAN bypass skips disconnected interfaces, and peer-route tables are published
-atomically instead of being changed underneath packet/UI readers. The Web
-Session badge now distinguishes a disabled idle timer from a disabled password.
-All 1.6 improvements remain: optional **read-only SNMP**, reliable Automation loading after login,
-honest Loading/Unavailable states instead of false Disabled switches, and a
-pinned **ESP-IDF 5.5.3 / 26-socket** build that avoids ntfy/web socket starvation.
-All HTTP endpoints now check their registration result, and a local favicon
-avoids unnecessary 404 log noise. SNMP uses the same temperature sensor as the
-dashboard, is **OFF by default**, and adds no background external reporting.
-
-See [release notes and validation](docs/RELEASE-1.8.md),
-[the v0.1.29 integration record](docs/UPSTREAM-0.1.29.md),
-[the previous 1.6 validation](docs/RELEASE-1.6.md), and
-[the previous upstream integration](docs/UPSTREAM-0.1.27.md).
-Stable is the project's release channel, not a security certification.
-The earlier [1.5 release](../../releases/tag/v0.1.19-Mattboxx-1.5) remains
-available unchanged for rollback.
+Updates stay opt-in; **Install latest update** also works as a one-off action
+with periodic checks OFF. Stable does not require beta enrollment. See
+[update policy](docs/UPDATES.md), [ntfy test coverage](docs/NTFY-TRANSPORT.md),
+[release history](CHANGELOG.md) and [previous stable validation](docs/RELEASE-1.11.md).
+Stable is a release channel, not a security certification.
 
 | Area | Added or improved in this edition |
 |---|---|
@@ -141,7 +110,7 @@ available unchanged for rollback.
 | **MQTT + Home Assistant** | Retained availability and device state, Last Will, broker watchdog, inbound commands and automatic discovery for AP, routes, SNAT, LAN bypass, Tailscale, 4via6, reconnect, restart, WOL and every LAN → Tailnet rule. |
 | **ntfy remote operations** | Optional connectivity outage alerts, `info` replies and WOL commands with durable polling and replay protection. Local logs are not uploaded; private info details stay hidden unless explicitly enabled. |
 | **Tailscale 4via6** | Optional bidirectional TCP/UDP/ICMP translation for overlapping IPv4 LANs, with calculated advertised prefix, flow counters and Home Assistant controls. |
-| **Exit-node server** | Advertise the ESP32 itself as a Tailscale exit node, with automatic IPv4 egress masquerading, admin-approval guidance, fail-closed IPv6 behavior and Home Assistant/ntfy visibility. Server mode cannot conflict with selecting another exit node. The 1.9 development branch adds upstream's separate DNS PeerAPI for native Tailscale exit-node clients. |
+| **Exit-node server** | Advertise the ESP32 itself as a Tailscale exit node, with automatic IPv4 egress masquerading, admin-approval guidance, fail-closed IPv6 behavior, a separate DNS PeerAPI and Home Assistant/ntfy visibility. Server mode cannot conflict with selecting another exit node. |
 | **Web administration** | Responsive dark UI, graphical feature switches, clear disabled cards, configurable web port, optional password gate and session timeout, local OTA and encrypted backup/restore. Opt-in fork-only GitHub updates, stable/beta channels and one-click latest install. |
 | **SNMP monitoring** | Optional read-only v1/v2c agent for LibreNMS, Zabbix or Observium; standard interface/CPU/memory/temperature MIBs, disabled by default, with a graphical System switch. Enabled/running state and socket budget also appear in MQTT/Home Assistant and ntfy info. |
 | **Fast, safer login** | Salted 60,000-round PBKDF2-HMAC-SHA256 verifier plus a one-time browser challenge; no plaintext password for modern records and no multi-second ESP-side unlock delay. |
@@ -185,7 +154,7 @@ flash.
 
 Most "put a sensor on Tailscale" setups need either a Raspberry Pi
 acting as a subnet router or per-device Tailscale clients. This project
-collapses that into a ~$10 board you can leave plugged into a USB
+collapses that into a small ESP32-S3 board you can leave plugged into a USB
 charger: it bridges a whole IoT subnet onto your tailnet *and* gives
 those devices internet through an exit node, while staying small enough
 to ignore.
@@ -312,19 +281,18 @@ traffic you route through it.)*
 | **Storage (optional)** | microSD for the log flight-recorder |
 | **Power** | USB-C; ~real-world draw of a small dev board |
 
-**Only the ESP32-S3 is supported.** It's the board this firmware is
-written for and tested on, and it's the only one I have. The PlatformIO
-config still lists a few other targets (`esp32`, `esp32-c3`,
-`wt32-eth01`) left over from earlier scaffolding, but I don't build or
-test against them and have no idea whether they work — so I can't support
-them. This is a free hobby project and I'm not planning to buy extra
-boards just to validate other hardware. If you get it running elsewhere,
-great — but you're on your own there, and PRs are welcome.
+**The published binary targets ESP32-S3 N16R8 with 8 MB octal PSRAM.**
+Other ESP32 families and Ethernet-specific boards are not drop-in targets.
+Ethernet needs compatible hardware, wiring and a matching build; it is not
+physically revalidated for this release. Community ports are welcome, but
+do not flash this image onto an unrelated board.
 
-### Board compatibility notes (community-tested)
+### Upstream board compatibility reports (not current fork certification)
 
-Real-world results from the field (see [#9](../../issues/9) and
-[#10](../../pull/10) — thanks @bobcroft and @markvovo):
+The following reports come from upstream, not a fresh test of this custom
+release on every listed board (see [upstream #9](https://github.com/Csontikka/esp32-tailscale-subnet-router/issues/9) and
+[upstream #10](https://github.com/Csontikka/esp32-tailscale-subnet-router/pull/10)
+— thanks @bobcroft and @markvovo):
 
 | Board | Result |
 |---|---|
@@ -360,7 +328,7 @@ The release also provides `firmware-factory.bin` for other flashing tools and
 
 ```bash
 git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery
-cd esp32-tailscale-gateway
+cd esp32-tailscale-gateway-NAS-recovery
 
 # PlatformIO (recommended)
 pio run -e esp32-s3 -t upload
@@ -638,8 +606,10 @@ connections. Diagnostic ping and traceroute run only when explicitly started.
 
 For the complete, explicit comparison with upstream `main`, see
 [`CUSTOM_BRANCH.md`](CUSTOM_BRANCH.md). A ready-to-use Windows flash package is
-available as [`ESP32-S3-router-0.1.19-Mattboxx-1.4-windows.zip`](flash-package/ESP32-S3-router-0.1.19-Mattboxx-1.4-windows.zip);
-instructions are in [`flash-package/README.txt`](flash-package/README.txt).
+available from the [latest stable release](../../releases/latest), alongside
+the OTA binary, factory image, checksums and original license notices.
+Instructions are included inside the ZIP; obsolete package names are not
+the recommended installation path.
 
 ## Security
 

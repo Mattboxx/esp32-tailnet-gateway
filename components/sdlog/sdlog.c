@@ -166,6 +166,11 @@ static vprintf_like_t s_original_vprintf = NULL;
 /* microlink handle for the Phase B SNAP line. Set by main once microlink
  * is initialised; NULL until then (SNAP degrades to heap/uptime only). */
 static microlink_t *s_ml = NULL;
+/* Wait out a recorder read before detaching an instance. The fork currently
+ * retains published instances until restart; keep this guard for safe future
+ * lifecycle changes too, rather than relying on a bare pointer assignment. */
+static StaticSemaphore_t s_ml_mutex_storage;
+static SemaphoreHandle_t s_ml_mutex;
 
 /* Per-task re-entrancy guard. Set in the writer around FAT ops so the
  * recorder's own log lines (and any FATFS/SDMMC warnings emitted during a
@@ -447,6 +452,7 @@ static void emit_snap(uint64_t now_ms, uint32_t hb_age_s, uint32_t coord_age_s)
 
     char coord = '-', derp = '-', wg = '-', netio = '-';
     int ml_st = -1, peers = 0, online = 0;
+    if (s_ml_mutex) xSemaphoreTake(s_ml_mutex, portMAX_DELAY);
     if (s_ml) {
         microlink_task_states_t ts;
         microlink_get_task_states(s_ml, &ts);
@@ -461,6 +467,8 @@ static void emit_snap(uint64_t now_ms, uint32_t hb_age_s, uint32_t coord_age_s)
             online = d.peer_online;
         }
     }
+
+    if (s_ml_mutex) xSemaphoreGive(s_ml_mutex);
 
     char line[256];
     int n = snprintf(line, sizeof line,
@@ -546,12 +554,14 @@ static void writer_task(void *arg)
          * anomaly threshold, capturing the wedge moment + the climbing age
          * even while coord/derp are blocked and emitting nothing. */
         uint64_t now_ms = (uint64_t)(now / 1000);
+        if (s_ml_mutex) xSemaphoreTake(s_ml_mutex, portMAX_DELAY);
         uint64_t hb = s_ml ? microlink_get_last_derp_heartbeat_ms(s_ml) : 0;
         uint32_t hb_age = (hb && now_ms > hb) ? (uint32_t)((now_ms - hb) / 1000) : 0;
         /* coord_age: seconds since the control plane last sent us a frame.
          * Climbs during the silent wedge even though derp_hb_age stays 0 and
          * microlink still reports CONNECTED — the divergence is the signature. */
         uint64_t cr = s_ml ? microlink_get_ctrl_last_rx_ms(s_ml) : 0;
+        if (s_ml_mutex) xSemaphoreGive(s_ml_mutex);
         uint32_t coord_age = (cr && now_ms > cr) ? (uint32_t)((now_ms - cr) / 1000) : 0;
         bool anomaly = (hb_age > SDLOG_DERP_HB_ANOMALY_S) ||
                        (coord_age > SDLOG_CTRL_RX_ANOMALY_S);
@@ -769,14 +779,17 @@ static void stop_writer(void)
 
 void sdlog_set_microlink(void *ml)
 {
+    if (s_ml_mutex) xSemaphoreTake(s_ml_mutex, portMAX_DELAY);
     s_ml = (microlink_t *)ml;
+    if (s_ml_mutex) xSemaphoreGive(s_ml_mutex);
 }
 
 esp_err_t sdlog_init(void)
 {
     s_state_mutex = xSemaphoreCreateMutex();
     s_file_mutex  = xSemaphoreCreateMutex();
-    if (!s_state_mutex || !s_file_mutex) return ESP_ERR_NO_MEM;
+    s_ml_mutex = xSemaphoreCreateMutexStatic(&s_ml_mutex_storage);
+    if (!s_state_mutex || !s_file_mutex || !s_ml_mutex) return ESP_ERR_NO_MEM;
 
     load_config();
     mount_card();   /* sets s_present; failure is non-fatal */

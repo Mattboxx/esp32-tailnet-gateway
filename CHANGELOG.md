@@ -6,6 +6,43 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.38-Mattboxx-1.13-dev.1 — upstream v0.1.34–v0.1.38
+
+- Integrate relay TLS certificate/hostname verification, WireGuard replay,
+  key/handshake lifetime, nonce serialization, strict key/Noise parsing and
+  monotonic timestamp corrections, retaining custom routing/reply hooks.
+- Correct STUN measurement and relay reporting, preserve explicit policy,
+  recover unanswered peer sessions and bound dead/stalled control sessions.
+- Import v0.1.38's completion-waiting TCPIP netif lifecycle and copy-free TX,
+  not the v0.1.37 teardown regression. Preserve custom startup/rollback and
+  restart-based published-instance lifetime; guard local SD snapshots.
+- Add authenticated WG TX profiling/diagnostic control with strict validation;
+  expand relay measurement visibility to 32 entries.
+- Add actual-C upstream integration regressions and keep existing feature,
+  browser, routing, ntfy, SNMP and updater coverage.
+
+See [source mapping, retained behavior and test scope](docs/UPSTREAM-0.1.38.md).
+
+## [0.1.33-Mattboxx-1.12-dev.1] - stable promotion, 2026-10-20
+
+- Mark the existing 1.12 beta GitHub release stable/latest at the maintainer's
+  request, without rebuilding, changing the tag/assets or flashing the board.
+  The retained dev.1 tag is intentionally ineligible for the current automatic
+  updater; use manual OTA/download. Installed identical builds need no flash.
+- A fresh authenticated Tailnet check observed 251,771 seconds of uptime;
+  32 samples over a bounded 180-second check observed no reboot or integration
+  disconnect. This is not a new multi-day continuous observation.
+- Retain upstream v0.1.32/v0.1.33 fixes, persistent optional WiFi power save
+  (OFF by default), all custom controls and original support/credit links.
+- Make the NAS recovery use case and its hardware, power, network and WoL
+  limitations explicit. Add a recovery checklist and community post drafts.
+- Correct stale build-directory/download links, distinguish upstream board
+  reports from current fork validation, and derive the flashing README's
+  upstream version from the release instead of hard-coding v0.1.31.
+- Remind reporters that logs still need manual redaction before publication.
+
+See [stable release notes and verification](docs/RELEASE-1.12.md).
+
 ### 0.1.33-Mattboxx-1.12-dev.1 — upstream fixes and optional WiFi policy (beta)
 
 - Integrate all published v0.1.32/v0.1.33 runtime changes: reduce WireGuard

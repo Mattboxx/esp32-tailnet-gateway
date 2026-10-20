@@ -3,10 +3,33 @@ import unittest
 import json
 import tempfile
 from pathlib import Path
-from package_release import validate_release_version, collect_release_notices
+from package_release import (validate_release_version, collect_release_notices,
+                             upstream_release_reference, validate_build_description)
 
 
 class PackagingVersionTests(unittest.TestCase):
+    def test_external_build_directory_has_exact_project_and_version(self):
+        root = Path(__file__).resolve().parents[1]
+        version = '0.1.38-Mattboxx-1.13-dev.1'
+        description = dict(project_name='esp32_tsr', project_version=version, project_path=str(root))
+        validate_build_description(description, root, version)
+        legacy = dict(description)
+        legacy['project_dir'] = legacy.pop('project_path')
+        validate_build_description(legacy, root, version)
+        for field, value in (('project_name', 'other'), ('project_version', '0.1.1'),
+                             ('project_path', str(root.parent)), ('project_path', '')):
+            with self.assertRaises(AssertionError):
+                validate_build_description({**description, field: value}, root, version)
+
+    def test_flashing_instructions_follow_upstream_base(self):
+        for version in ('0.1.31-Mattboxx-1.11', '0.1.33-Mattboxx-1.12',
+                        '0.1.33-Mattboxx-1.12-dev.1', '0.1.99-Mattboxx-2.0'):
+            base = version.split('-Mattboxx-', 1)[0]
+            self.assertEqual(upstream_release_reference(version),
+                             f'Based on Csontikka/esp32-tailscale-subnet-router v{base}.')
+        with self.assertRaises(AssertionError):
+            upstream_release_reference('not-a-release')
+
     def test_stable(self):
         validate_release_version('0.1.31-Mattboxx-1.10', '0.1.31-Mattboxx-1.10', False)
 

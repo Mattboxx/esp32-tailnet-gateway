@@ -44,6 +44,7 @@ jobs:
           python3 tools/test_device_session.py
           python3 tools/test_feature_preservation.py
           UPSTREAM_SANITIZE=1 python3 tools/test_upstream_033.py
+          UPSTREAM_SANITIZE=1 python3 tools/test_upstream_038.py
           python3 tools/test_ntfy_stack.py
           NTFY_SANITIZE=1 python3 tools/test_ntfy_logic.py
           NTFY_SANITIZE=1 python3 tools/test_ntfy_transport.py
