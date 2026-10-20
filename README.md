@@ -61,34 +61,29 @@ enable switch, counters and live status. This is completely independent from
 the existing AP-side port forwarding.
 
 **[Download the ready-to-flash release](../../releases/latest)** ·
-**[What's new in stable 1.12](docs/RELEASE-1.12.md)** ·
+**[What's new in stable 1.13](docs/RELEASE-1.13.md)** ·
 **[See every change from upstream](CUSTOM_BRANCH.md)** ·
 **[Read the security model](SECURITY.md)**
 
 ## Why the Mattboxx edition is different
 
-**New source candidate: 0.1.38-Mattboxx-1.13-dev.1.** Integrates all published
+**Latest stable: 0.1.38-Mattboxx-1.13.** Integrates all published
 upstream v0.1.34–v0.1.38 changes: verified relay TLS, WireGuard protocol/nonce
 fixes, correct sticky relay selection/reporting, faster silent-peer recovery,
 bounded control stalls and the v0.1.38 TCPIP teardown/copy-free TX fixes.
 Keeps every custom feature and privacy removal. See the
-[complete integration record](docs/UPSTREAM-0.1.38.md). This candidate is not
-automatically promoted stable; published 1.12 downloads remain unchanged.
-It was installed on the reference ESP32-S3 without erasing settings; see the
-[candidate's exact test results and initial reconnect observation](docs/RELEASE-1.13-dev.1.md).
+[complete integration record](docs/UPSTREAM-0.1.38.md) and
+[stable release notes](docs/RELEASE-1.13.md).
+The stable tag and embedded firmware version match, so the optional GitHub
+updater can offer 1.13 without beta enrollment. Existing settings are retained
+when updating with the application image. Update checking and installation
+remain opt-in; nothing is silently enabled.
 
-**Latest stable: 0.1.33-Mattboxx-1.12-dev.1.** The existing release was promoted
-on October 20 without changing its tag, binaries or settings. The internal
-`dev.1` suffix is retained; use the manual OTA/download path because the
-current automatic updater rejects development-form tags marked stable.
-Integrates upstream logging/throughput,
-legacy manual exit-node DNS/NAT and startup/shutdown fixes. Adds optional live
-WiFi power-save control (OFF remains the low-latency default), MQTT/HA and ntfy
-visibility, and a user-initiated Ko-fi payment window with no background embed.
-All custom features and original credits remain. See
-[stable release and validation scope](../../releases/tag/v0.1.33-Mattboxx-1.12-dev.1).
-The earlier [beta validation record](docs/RELEASE-1.12-dev.1.md) is retained;
-stable 1.11 remains available for rollback.
+Also retains upstream logging/throughput, legacy manual exit-node DNS/NAT,
+startup/shutdown fixes and optional live WiFi power-save control (OFF remains
+the low-latency default), MQTT/HA and ntfy visibility, and a user-initiated
+Ko-fi payment window with no background embed. All custom features and
+original credits remain. Previous releases stay available for manual rollback.
 
 Retained reliability fixes include ntfy command reboot loops, startup stuck
 on **Registering**, AP-worker allocation failures, SNMP/Tailnet recursion,

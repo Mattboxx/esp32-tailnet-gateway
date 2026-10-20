@@ -6,7 +6,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### 0.1.38-Mattboxx-1.13-dev.1 — upstream v0.1.34–v0.1.38
+## [0.1.38-Mattboxx-1.13] - 2026-10-20
+
+Stable release of the 1.13 integration, with matching firmware/tag version
+and eligibility for the opt-in stable update channel. Runtime source remains
+the same as 1.13-dev.1; only the embedded version/build metadata changes.
 
 - Integrate relay TLS certificate/hostname verification, WireGuard replay,
   key/handshake lifetime, nonce serialization, strict key/Noise parsing and
@@ -22,6 +26,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   browser, routing, ntfy, SNMP and updater coverage.
 
 See [source mapping, retained behavior and test scope](docs/UPSTREAM-0.1.38.md).
+User-facing changes and download instructions: [release notes](docs/RELEASE-1.13.md).
 
 ## [0.1.33-Mattboxx-1.12-dev.1] - stable promotion, 2026-10-20
 
