@@ -823,6 +823,15 @@ async function main() {
     await f.page.keyboard.press('Escape');
     await f.page.waitForFunction(()=>document.getElementById('wizard-panel').hidden&&document.activeElement.id==='sg-home-guide');
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Board without PSRAM: destination test and service watch are gated by the manifest.
+    f=await fixture(browser,{page:'network',forwardBody:{rules:[{index:0,rule_token:77,name:'NAS',enabled:false,installed:false,protocol:'tcp',listen_port:15000,tailnet_destination:'100.64.0.9',destination_port:5000,allowed_source_subnet:'192.168.1.20/32',accepted_packets:0,blocked_packets:0,error:''}],max:8},
+      capabilityBody:{schema:2,features:[{id:'smart-recovery',compiled:true,hardware_supported:false,configured:false,active:false,verified:false,experimental:true,evidence:'Fixture: no PSRAM'},
+        {id:'destination-test',compiled:true,hardware_supported:false,configured:true,active:null,verified:false,experimental:true,evidence:'Fixture: no PSRAM'},
+        {id:'service-watch',compiled:true,hardware_supported:false,configured:false,active:false,verified:false,experimental:true,evidence:'Fixture: no PSRAM'}]}});
+    await f.page.waitForFunction(()=>document.getElementById('sw-box').classList.contains('capability-unavailable'));
+    await f.page.waitForFunction(()=>document.querySelector('.tf-test')&&document.querySelector('.tf-test').disabled);
+    assert.match(await f.page.locator('.tf-test').getAttribute('title'),/no PSRAM/);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }
 }
