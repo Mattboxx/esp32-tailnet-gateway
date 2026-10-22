@@ -1,0 +1,45 @@
+<!--
+slug: remote-recovery/
+title: Remote recovery
+description: Wake a NAS or PC over Tailscale with an independently powered ESP32: Wake-on-LAN, bounded Smart Recovery checks and a recovery access point.
+nav: Recovery
+group: Guides
+order: 4
+-->
+<h1>Remote recovery</h1>
+<p><strong>Who it is for:</strong> homelab owners whose NAS or PC is sometimes off or asleep when they are away, and whose own Tailscale client is then unreachable.</p>
+
+<figure class="diagram">
+  <img src="{{root}}assets/diagrams/recovery.svg" alt="From the tailnet, the separately powered ESP32 prechecks a NAS port, sends a bounded Wake-on-LAN burst if needed and checks again." width="960" height="380">
+  <figcaption>The ESP32 is its own tailnet node, so it stays reachable while the NAS is off.</figcaption>
+</figure>
+
+<h2>Requirements</h2>
+<ul>
+  <li>A target that supports Wake-on-LAN, with WoL enabled in its firmware/OS and standby power.</li>
+  <li>The ESP32 powered independently of the target, on the same LAN broadcast domain.</li>
+  <li>A known TCP port on the target to check (SSH may be disabled on some NAS systems; pick a port that is really listening).</li>
+</ul>
+
+<h2>Procedure</h2>
+<ol>
+  <li>Add the device in <strong>Automation → Wake-on-LAN</strong> (name and MAC address).</li>
+  <li>Open <strong>Devices &amp; Recovery</strong>, choose the target, check port, optional service port and timeout.</li>
+  <li>Use <strong>Check now</strong> to observe, or <strong>Recover with WoL</strong> to precheck, wake if needed, wait and check again.</li>
+</ol>
+
+<h2>Verify</h2>
+<p>The result lists each step's evidence: precheck, whether a magic packet was sent, and the post-wake check. A sent packet is not proof of power-on; an open TCP port is not application health.</p>
+
+<h2>Recovery access point</h2>
+<p>If the saved WiFi is not seen for 60 seconds, the ESP32 brings its access point back for local administration and keeps it until the WiFi returns. Short reconnect retries do not postpone this timer.</p>
+
+<h2>Limits</h2>
+<ul>
+  <li>Cannot hard-reset a frozen machine, cut power, or provide KVM/BIOS access. Not out-of-band management.</li>
+  <li>Needs the router, Internet and tailnet infrastructure to be up for remote use.</li>
+  <li>One job at a time, MAC cooldown, cancellable; jobs never replay after a reboot.</li>
+</ul>
+
+<h2>Security</h2>
+<p>Remote recovery commands over MQTT or ntfy are off by default and need an extra permission. Use private topics, TLS and broker ACLs. Guides: <a href="{{repo}}/blob/Main/docs/SMART-RECOVERY.md">Smart Recovery</a>, <a href="{{repo}}/blob/Main/docs/NAS-RECOVERY.md">NAS recovery checklist</a>.</p>

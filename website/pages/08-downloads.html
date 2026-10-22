@@ -1,0 +1,33 @@
+<!--
+slug: downloads/
+title: Downloads
+description: Download ESP32 Tailnet Gateway firmware: factory image, OTA update image, guided Windows package and SHA-256 checksums for ESP32-S3.
+nav: Downloads
+group: Start
+order: 8
+-->
+<h1>Downloads</h1>
+<p>Firmware is published only on the GitHub releases page. Always check the SHA-256 checksum before flashing.</p>
+<p><a class="btn primary" href="{{repo}}/releases/latest">Latest stable release</a> <a class="btn" href="{{repo}}/releases">All releases</a></p>
+
+<h2>Release assets</h2>
+<table>
+  <thead><tr><th>File</th><th>When to use it</th></tr></thead>
+  <tbody>
+    <tr><td><code>firmware-factory.bin</code></td><td>First install with esptool at offset <code>0x0</code>. Erases all settings.</td></tr>
+    <tr><td><code>firmware.bin</code></td><td>Updates: Web UI upload, the opt-in GitHub updater, or keep-settings flashing.</td></tr>
+    <tr><td><code>ESP32-S3-router-&lt;version&gt;-windows.zip</code></td><td>Guided Windows package with esptool and batch files.</td></tr>
+    <tr><td><code>SHA256SUMS</code>, <code>FIRMWARE-LICENSES.txt</code></td><td>Checksums and third-party notices.</td></tr>
+  </tbody>
+</table>
+
+<h2>Verify a download</h2>
+<pre><code>sha256sum -c SHA256SUMS            # Linux
+shasum -a 256 -c SHA256SUMS        # macOS
+Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
+
+<h2>WiFi and Ethernet variants</h2>
+<p>The default images are the WiFi build. An Ethernet (W5500) variant, when published, has <code>eth</code> in its name and is only for boards with that module wired as documented. It is experimental.</p>
+
+<h2>Updating an existing device</h2>
+<p>Back up the configuration first (System → Backup). Upload <code>firmware.bin</code> in System → Firmware or use the opt-in updater; settings are kept and a failed boot returns to the previous image. Devices on 1.13 or older that cannot find updates after the repository rename: see the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">migration note</a>.</p>

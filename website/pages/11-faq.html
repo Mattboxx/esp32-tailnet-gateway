@@ -1,0 +1,42 @@
+<!--
+slug: faq/
+title: FAQ
+description: Frequently asked questions about ESP32 Tailnet Gateway: Tailscale and Headscale support, throughput, security, hardware and Wake-on-LAN.
+group: Project
+order: 11
+schema: faq
+-->
+<h1>Frequently asked questions</h1>
+
+<details><summary>Is this an official Tailscale client?</summary>
+<p>No. It is community firmware built on the microlink stack, compatible with Tailscale and Headscale coordination servers. It is not affiliated with Tailscale Inc.</p></details>
+
+<details><summary>Does it work with Headscale?</summary>
+<p>Yes, with Headscale 0.26 or newer. Set the login server and use a pre-auth key. HTTPS servers need a certificate from a public CA; self-signed certificates are not supported.</p></details>
+
+<details><summary>What is the difference between the Service Gateway and a subnet router?</summary>
+<p>The Service Gateway lets LAN devices reach one specific Tailnet service through the ESP32 (LAN → Tailnet). A subnet router lets tailnet clients reach LAN devices (Tailnet → LAN). You can use both.</p></details>
+
+<details><summary>How fast is it?</summary>
+<p>It is a microcontroller doing userspace WireGuard on a shared 2.4 GHz radio. Upstream measured roughly 0.3–1.4 Mbit/s through the tunnel; the current candidate has not been benchmarked. Use it for control, telemetry, dashboards and SSH, not video or bulk transfers.</p></details>
+
+<details><summary>Does the LAN client need any software?</summary>
+<p>No. It connects to the ESP32's LAN address and listen port like any other server.</p></details>
+
+<details><summary>Is the source filter enough security?</summary>
+<p>It limits which addresses can use a rule, but an address is not an identity. Restrict rules to single devices, keep the peer's ACL tight and set an admin password.</p></details>
+
+<details><summary>Can it turn on my NAS?</summary>
+<p>It can send Wake-on-LAN if the NAS supports it and has standby power, then check a port. It cannot hard-reset a frozen machine or provide KVM/BIOS access.</p></details>
+
+<details><summary>Which boards are supported?</summary>
+<p>ESP32-S3 with 16 MB flash and 8 MB octal PSRAM (N16R8). Other ESP32 families are not supported. W5500 Ethernet is experimental and only in a separate build.</p></details>
+
+<details><summary>Does it send telemetry?</summary>
+<p>No. There are no usage reports or crash uploads. GitHub update checks happen only when you enable them or press a button.</p></details>
+
+<details><summary>Do I need MQTT or Home Assistant?</summary>
+<p>No. Every integration is optional; the Service Gateway, Web UI and manual Wake-on-LAN work without them.</p></details>
+
+<details><summary>Is tailnet lock supported?</summary>
+<p>No. The device cannot sign its own node key; disable tailnet lock or pre-authorize the node.</p></details>
