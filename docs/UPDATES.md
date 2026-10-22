@@ -112,3 +112,10 @@ Primary API references:
 [GitHub release assets and digest](https://docs.github.com/en/rest/releases/assets),
 [Espressif HTTP client](https://docs.espressif.com/projects/esp-idf/en/v5.5.3/esp32s3/api-reference/protocols/esp_http_client.html)
 and [OTA validation/rollback](https://docs.espressif.com/projects/esp-idf/en/v5.5.3/esp32s3/api-reference/system/ota.html).
+
+## Downgrading from the 1.14 development line
+
+Stable 1.13 ignores the settings added in 1.14 development builds. **Disable
+or delete temporary LAN → Tailnet rules before downgrading**: 1.13 has no
+expiry engine and would keep such a rule enabled permanently. Details per key:
+[NVS-KEYS.md](NVS-KEYS.md).
