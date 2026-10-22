@@ -8,6 +8,7 @@
 #include "tailscale_config.h"
 #include "service_evidence.h"
 #include "service_lease.h"
+#include "health_monitor.h"
 #include "esp_system.h"
 #include <string.h>
 static void operational_metrics(snmp_operational_metrics_t *out) {
@@ -43,5 +44,7 @@ static void operational_metrics(snmp_operational_metrics_t *out) {
         if(ev.checked&&ev.check.state==SC_REACHABLE)out->value[SNMP_OPS_FORWARD_REACHABLE]++;
         if(ev.replied)out->value[SNMP_OPS_FORWARD_REPLIED]++;
     }
+    uint8_t health[4];health_monitor_codes(health);
+    for(unsigned i=0;i<4;i++)out->value[SNMP_OPS_HEALTH_GATEWAY+i]=health[i];
 }
 void homelab_snmp_register(void){snmp_agent_set_operational_provider(operational_metrics);}

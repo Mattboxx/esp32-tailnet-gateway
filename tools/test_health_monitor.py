@@ -94,6 +94,14 @@ int main(void){
     assert(!strstr(plain,c.dns_name)&&!strstr(plain,c.internet_ip)&&!strstr(plain,c.tailnet_target));
     assert(strstr(private,c.dns_name)&&strstr(private,c.internet_ip)&&strstr(private,c.tailnet_target));
     free(plain);free(private);cJSON_Delete(safe);cJSON_Delete(detail);
+    /* Numeric codes (SNMP) follow the snapshot's derivation. */
+    uint8_t codes[4];health_config_t off=c;off.enabled=0;assert(health_monitor_set(&off)==0);health_monitor_codes(codes);
+    for(unsigned i=0;i<4;i++)assert(codes[i]==0);
+    assert(health_monitor_set(&c)==0);memset(observations,0,sizeof observations);health_monitor_codes(codes);
+    for(unsigned i=0;i<4;i++)assert(codes[i]==(health_configured(&c,i)?2:1)); /* configured but not yet observed: unverified */
+    observations[0]=(health_result){.state=H_OK,.observed=fixture_now};observations[1]=(health_result){.state=H_DOWN,.observed=fixture_now};
+    health_monitor_codes(codes);if(health_configured(&c,0))assert(codes[0]==3);if(health_configured(&c,1))assert(codes[1]==5);
+    fixture_now+=((uint64_t)c.interval_s*16+31)*1000;health_monitor_codes(codes);if(health_configured(&c,0))assert(codes[0]==8); /* stale */
     puts("PASS: actual health bounds/persistence faults, worker refusal, cadence/admission/generation, failure/backoff evidence and sanitized snapshot (mock probes/platform)");
 }
 '''
@@ -102,7 +110,7 @@ with tempfile.TemporaryDirectory(prefix='health-monitor-') as folder:
         'static uint32_t health_checksum(','static bool health_name(','static bool health_public(',
         'static bool health_valid(','static esp_err_t health_save_locked(','esp_err_t health_monitor_set(',
         'esp_err_t health_monitor_set_enabled(','static bool health_configured(','static void health_observe(',
-        'static const char *health_reason(','static const char *health_next_step(','void health_monitor_poll(','cJSON *health_monitor_snapshot('))+tests)
+        'static const char *health_reason(','static const char *health_next_step(','void health_monitor_poll(','void health_monitor_codes(','cJSON *health_monitor_snapshot('))+tests)
     binary=p/('test.exe' if os.name=='nt' else 'test')
     flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-function','-Wno-unused-variable','-O1','-g']
     libs=['-lws2_32'] if os.name=='nt' else []

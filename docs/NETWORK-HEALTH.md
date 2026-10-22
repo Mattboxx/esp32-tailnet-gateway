@@ -44,3 +44,10 @@ prepared but not executed. Real DNS, TCP, router/DERP faults, resources and soak
 are still required. STA-only interface selection must be extended with the actual
 conditional Ethernet/uplink implementation. Full monitoring/integration controls,
 route-approval evidence and per-peer direct/DERP diagnosis remain roadmap work.
+
+## SNMP
+
+Read-only, private tree `1.3.6.1.4.1.99999.2.N.0` (Gauge32): N=24 gateway,
+25 DNS, 26 Internet, 27 Tailnet check. Values: 0 disabled, 1 not configured,
+2 unverified, 3 ok, 4 degraded, 5 down, 6 unknown, 7 resource-deferred,
+8 stale. Same derivation as the Web UI snapshot; no targets are exposed.

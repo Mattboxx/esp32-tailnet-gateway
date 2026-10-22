@@ -154,7 +154,7 @@ int main(void){
     assert(ops_metric(5)==0&&ops_metric(SNMP_OPS_RESET_REASON)==7&&calls==4);
     snmp_agent_set_operational_provider(NULL); fake_now=4000000;
     assert(ops_metric(SNMP_OPS_AVAILABLE)==0&&ops_metric(SNMP_OPS_RESET_REASON)==0&&calls==4);
-    puts("PASS: actual MIB order/walk/lookups, 23 operational Gauge32 rows, unavailable default, 1 s cache, clock regression, provider replacement");
+    puts("PASS: actual MIB order/walk/lookups, 27 operational Gauge32 rows, unavailable default, 1 s cache, clock regression, provider replacement");
 }
 '''
 mib_program = (HEADER + '#include <stdatomic.h>\n' + constants + operational_h + types + codec
@@ -199,6 +199,7 @@ static bool tailscale_is_connected(void){return false;}
 static int esp_reset_reason(void){return 3;}
 static snmp_operational_provider_t registered;
 void snmp_agent_set_operational_provider(snmp_operational_provider_t p){registered=p;}
+static void health_monitor_codes(uint8_t out[4]){out[0]=3;out[1]=5;out[2]=1;out[3]=8;}
 ''' + provider + r'''
 int main(void){
     for(int i=0;i<3;i++){rules[i]=(tailnet_forward_rule_t){.valid=1,.proto=6,.listen_port=(uint16_t)(1000+i)};rts[i]=(tailnet_forward_runtime_t){.resolved_ip=0x64400001u+i};}
@@ -209,6 +210,7 @@ int main(void){
     assert(m.value[SNMP_OPS_POLICY_PEERS]==4&&m.value[SNMP_OPS_FORWARD_ACCEPTED]==40&&m.value[SNMP_OPS_CONTROL_CONNECTED]==0&&m.value[SNMP_OPS_RESET_REASON]==3);
     assert(m.value[SNMP_OPS_FORWARD_REACHABLE]==1); /* rule 2 has no current test */
     assert(m.value[SNMP_OPS_FORWARD_REPLIED]==2);
+    assert(m.value[SNMP_OPS_HEALTH_GATEWAY]==3&&m.value[SNMP_OPS_HEALTH_DNS]==5&&m.value[SNMP_OPS_HEALTH_INTERNET]==1&&m.value[SNMP_OPS_HEALTH_TAILNET]==8);
     rts[2].resolved_ip=0;registered(&m);assert(m.value[SNMP_OPS_FORWARD_REPLIED]==1); /* unresolved: no reply query */
     rows=0;registered(&m);assert(!m.value[SNMP_OPS_FORWARD_REACHABLE]&&!m.value[SNMP_OPS_FORWARD_REPLIED]);
     puts("PASS: actual SNMP operational provider: resource/policy/forwarding values, not-running sentinel, Service Gateway reachable/replied counts (fixtures)");
