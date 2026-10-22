@@ -1,0 +1,83 @@
+# Quality gate — 0.1.38-Mattboxx-1.14-dev.6 (2026-10-22)
+
+## Verdict: NOT READY — BLOCKERS REMAIN
+
+The candidate builds, passes the offline campaign and runs on the reference
+board, but the features that define the product have not yet been verified
+end-to-end on hardware through an authenticated session. Nothing has been
+pushed, released, renamed or published.
+
+## Firmware
+
+| Check | Status | Evidence / reason |
+|---|---|---|
+| WiFi build | PASS | `aaf166ed…`, 1,875,760 B, 95.4 % of the app slot |
+| Ethernet build | PASS (build only) | `975e4d61…`, 98.2 % of the slot — 35 KB headroom |
+| Offline campaign | PASS | 58 checks; one scanner scope finding fixed and rerun clean |
+| Browser / layout / i18n | PASS | 73 scenarios; 8 sections × 20 viewport/mode/language runs |
+| Boot, WiFi, tailnet join, direct path | PASS (hardware) | ping 10–15 ms, tailnet HTTP 200, 5 flash iterations |
+| Web security without a session | PASS (hardware) | 401 on protected APIs, 403 cross-site login/logout |
+| Reboot, heap, stack | PASS (hardware, short) | 120 s: no panic, heap 7.8–13 KB, DERP stack ≥ 5.3 KB |
+| **Service Gateway TCP/UDP end-to-end via a LAN client** | **BLOCKED** | needs an authenticated session (owner sign-in) |
+| **Rule expiry, Service watch, profiles, NVS persistence** | **BLOCKED** | same |
+| **OTA via Web UI / updater and rollback on hardware** | **BLOCKED** | same; flashing so far used USB otatool |
+| MQTT/HA, ntfy, SNMP, WoL/recovery on hardware | BLOCKED | broker unreachable; no recovery target configured |
+| AP fallback after 60 s | BLOCKED | requires removing the saved WiFi |
+| Two real clients, direct + DERP policy matrix | PENDING | release blocker from the roadmap (F01–F07) |
+| Linux ASan/UBSan | BLOCKED | no WSL distribution / Docker on this host |
+| W5500 Ethernet | BLOCKED | no hardware; Ethernet package not produced |
+| Soak (hours) | PENDING | not run |
+
+## Repository
+
+| Check | Status |
+|---|---|
+| History, fork link, Csontikka credits, licences, NOTICE | PASS (preserved; no rewrite) |
+| microlink submodule | PASS — local commits on `mattboxx` need the parent gitlink pushed together |
+| README (20-section order), guides, changelog, release notes | PASS |
+| CI (build both variants, read-only), Pages (manual), CodeQL, sensitive scan | PASS (not yet run on GitHub) |
+| Credential/history scan | PASS (0 findings) |
+
+## Brand
+
+| Check | Status |
+|---|---|
+| Original mark, lockups, mono variants, avatar, favicon, banner, social preview | PASS (visually reviewed) |
+| Web UI identity and design system | PASS (desktop and phone screenshots reviewed) |
+| Authentic screenshots | PARTIAL — login screens from the real board; other screens need a signed-in session |
+
+## Website
+
+| Check | Status |
+|---|---|
+| 16 pages, nav, search, breadcrumbs, 404, redirects, sitemap, robots, canonical, OG, JSON-LD | PASS (`build_site.py --check`) |
+| Responsive 320–1920 px, touch targets, no console errors | PASS (`test_site_browser.cjs`) |
+| Lighthouse | PENDING — run on the deployed site |
+
+## Release
+
+| Check | Status |
+|---|---|
+| Pre-release package (WiFi) | PASS — `build/release-0.1.38-Mattboxx-1.14-dev.6/`, ZIP `8f922030…` |
+| Checksums, manifest, blank NVS, exact tested image | PASS |
+| OTA rename bridge | PASS (host tests) / PENDING (live GitHub) |
+| Backup and rollback path | PASS — private full-flash backup + previous slot; documented |
+
+## To reach READY
+
+1. Owner signs in once in the app's browser pane on the device's LAN address
+   (the agent never types the admin password on a non-local host).
+2. Run the authenticated list in `docs/HARDWARE-CAMPAIGN.md`: Service Gateway
+   TCP and UDP through a LAN client, source refusal, expiry, Service watch,
+   profiles, reboot persistence, Web UI OTA and rollback.
+3. Linux sanitizers on a machine with WSL/Docker; a longer soak.
+4. Decide whether the two-client policy matrix blocks this release or the next.
+
+## Operations awaiting authorization (one coordinated request)
+
+1. Push `mattboxx` and the microlink commits (parent gitlink included).
+2. Publish the **bridge** release under the current repository name.
+3. After the migration window, rename to `Mattboxx/esp32-tailnet-gateway`.
+4. Enable GitHub Pages and run the manual Pages workflow; set description,
+   topics, homepage and the social preview.
+5. Post the announcements in `docs/launch/`.
