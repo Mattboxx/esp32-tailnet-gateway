@@ -801,6 +801,16 @@ async function main() {
         const box=await f.page.locator('#wizard-panel').boundingBox();assert.ok(box&&box.x>=0&&box.x+box.width<=375,'guide panel exceeds phone width');}
       assert.deepEqual(f.errors,[]);await f.context.close();count++;
     }
+    // Every visible control on the main pages has an accessible name.
+    for(const page of ['status','network','tailscale','firewall','operations','automation','system','tools']){
+      f=await fixture(browser,{page});await f.page.waitForTimeout(300);
+      const unnamed=await f.page.evaluate(()=>[...document.querySelectorAll('.page-section.active input,.page-section.active select,.page-section.active button,.page-section.active textarea')]
+        .filter(e=>e.offsetParent!==null&&e.type!=='hidden').filter(e=>!((e.getAttribute('aria-label')||'').trim()
+          ||(e.labels&&[...e.labels].map(l=>l.textContent).join('').trim())||(e.tagName==='BUTTON'&&e.textContent.trim())||e.getAttribute('title')))
+        .map(e=>e.tagName+'#'+e.id));
+      assert.deepEqual(unnamed,[],`${page}: controls without an accessible name`);
+      await f.context.close();count++;
+    }
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }
 }
