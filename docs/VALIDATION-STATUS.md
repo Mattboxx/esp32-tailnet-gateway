@@ -109,6 +109,10 @@ over from the interrupted Codex session without resetting anything.
   map), web_port/upstream_038 lacked the json_guard include path. Rerun of the
   3 PASS (`build/validation-20261022-144747-357176/`). Linux sanitizers,
   device tests and hardware were NOT run.
+- Commits `d7bdab4`..`f148880`: stale-test fixes (offline suite 53/53),
+  hardware guide, per-rule peer path, 60 browser scenarios incl. 375 px phone
+  width on six pages, SNMP health rows 24-27, HA Service watch switch and
+  profile sensor. Builds PASS, latest 1,833,100 (93.2%).
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 
