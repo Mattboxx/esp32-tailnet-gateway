@@ -16,6 +16,8 @@ const updates = { enabled: false, auto_install: false, beta_channel: false,
 
 async function fixture(browser, options = {}) {
   const context = await browser.newContext({ viewport: options.viewport || { width: 1280, height: 800 } });
+  // Expert flows below use advanced sections; simple mode has its own scenario.
+  if (options.simpleMode !== true) await context.addInitScript(() => { try { localStorage.setItem('ui-advanced', '1'); } catch (e) {} });
   const page = await context.newPage();
   const calls = [];
   const errors = [];
@@ -656,7 +658,7 @@ async function main() {
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Guided setup: exposure confirmation, snapshot, focus, diff and restore.
     f=await fixture(browser,{page:'status',tailscaleSettings:{hostname:'fixture',advertise_routes:'',auth_key:'never-sent'}});
-    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===12);
+    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===13);
     assert.equal(await f.page.locator('#wizard-panel').isHidden(),true);
     await f.page.locator('#wizard-list button',{hasText:'Subnet router'}).click();
     await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&!document.getElementById('wizard-checks').textContent.includes('checking'));
@@ -721,7 +723,7 @@ async function main() {
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Primary guide runs one destination test inline from "Check result".
     f=await fixture(browser,{page:'status',forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
-    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===12);
+    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===13);
     await f.page.locator('#sg-home-guide').click();
     await f.page.waitForFunction(()=>!document.getElementById('wizard-checks').textContent.includes('checking'));
     assert.match(await f.page.locator('#wizard-checks').textContent(),/✓ A free service rule slot/);
@@ -733,10 +735,10 @@ async function main() {
     assert.match(await f.page.locator('#wizard-result').textContent(),/1 with a reachable destination test/);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     f=await fixture(browser,{page:'status'});
-    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===12);
+    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===13);
     const first=f.page.locator('#wizard-list button').first();
     assert.equal(await first.textContent(),'Publish a Tailnet service to the LAN');
-    assert.equal(await first.evaluate(e=>e.classList.contains('btn-primary')),true);
+    assert.match(await f.page.locator('#goal-grid .goal-tile.primary').textContent(),/Connect a LAN device to a Tailnet service/); // the killer feature leads the goal launcher
     await f.page.waitForFunction(()=>document.getElementById('sg-home-summary').textContent.startsWith('No service rules yet'));
     assert.equal(await f.page.locator('#sg-home-badge').textContent(),'0 / 8');
     await f.page.locator('#sg-home-guide').click();
@@ -819,7 +821,7 @@ async function main() {
     }
     // Keyboard only: open the primary guide, confirm exposure, start, Escape returns focus.
     f=await fixture(browser,{page:'status'});
-    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===12);
+    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===13);
     await f.page.locator('#sg-home-guide').focus();await f.page.keyboard.press('Enter');
     await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&document.activeElement.id==='wizard-close');
     await f.page.waitForFunction(()=>!document.getElementById('wizard-checks').textContent.includes('checking'));
@@ -838,6 +840,27 @@ async function main() {
     await f.page.waitForFunction(()=>document.querySelector('.tf-test')&&document.querySelector('.tf-test').disabled);
     assert.match(await f.page.locator('.tf-test').getAttribute('title'),/no PSRAM/);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Goal launcher and simple mode: advanced sections hidden but reachable, never disabled.
+    f = await fixture(browser, { page: 'status', simpleMode: true });
+    await f.page.waitForFunction(() => document.querySelectorAll('#goal-grid .goal-tile').length === 6);
+    assert.equal(await f.page.locator('body.ui-simple').count(), 1);
+    await f.page.locator('#goal-grid .goal-tile', { hasText: 'Connect a LAN device' }).click();
+    await f.page.waitForFunction(() => !document.getElementById('wizard-panel').hidden);
+    assert.equal(await f.page.locator('#wizard-title').textContent(), 'Publish a Tailnet service to the LAN');
+    await f.page.locator('#wizard-close').click();
+    await f.page.evaluate(() => { location.hash = 'firewall'; });
+    await f.page.waitForFunction(() => document.getElementById('page-firewall').classList.contains('active'));
+    assert.equal(await f.page.locator('#fw-lists').isHidden(), true);
+    assert.match(await f.page.locator('#page-firewall .adv-note').textContent(), /hidden in simple mode/);
+    await f.page.locator('#page-firewall .adv-note button').click();
+    assert.equal(await f.page.locator('body.ui-simple').count(), 0); assert.equal(await f.page.locator('#page-firewall .adv-note').isHidden(), true);
+    assert.equal(await f.page.evaluate(() => localStorage.getItem('ui-advanced')), '1');
+    await f.page.evaluate(() => { location.hash = 'system'; });
+    await f.page.waitForFunction(() => document.getElementById('page-system').classList.contains('active'));
+    assert.equal(await f.page.locator('#ui-advanced-toggle').isChecked(), true);
+    await f.page.locator('#ui-mode-card .feature-switch').click();
+    assert.equal(await f.page.locator('body.ui-simple').count(), 1);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }
 }

@@ -1541,8 +1541,18 @@
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     [hidden] { display: none !important; }
 
+    body.ui-simple [data-advanced] { display: none !important; }
+    .adv-note { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; justify-content: space-between;
+      border: 1px dashed var(--border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: var(--sp-4);
+      color: var(--fg-secondary); font-size: var(--text-md); }
+    .glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+    .glance-item { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; min-width: 0; }
+    .glance-item strong { display: block; font-size: var(--text-md); color: var(--fg-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .glance-label { font-size: 0.75rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; }
+    .glance-item.ok { border-left-color: var(--success); } .glance-item.bad { border-left-color: var(--danger); } .glance-item.warn { border-left-color: var(--warning); }
+    @media (max-width: 760px) { .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); } .goal-tile { min-height: auto; } }
     /* Goal launcher on the Status page */
-    .goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3); }
+    .goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-3); }
     .goal-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; width: 100%;
       background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg, 10px); padding: 14px 16px;
       color: var(--fg-primary); cursor: pointer; font: inherit; min-height: 88px;
@@ -1798,6 +1808,14 @@
       </div>
 
       <!-- Primary feature: Selective Tailnet Service Gateway -->
+      <!-- At-a-glance strip: the four facts that matter first, on every screen size -->
+      <div class="glance" id="status-glance" aria-label="Summary">
+        <div class="glance-item" id="glance-uplink"><span class="glance-label">Uplink</span><strong>—</strong></div>
+        <div class="glance-item" id="glance-tailnet"><span class="glance-label">Tailnet</span><strong>—</strong></div>
+        <div class="glance-item" id="glance-peers"><span class="glance-label">Peers online</span><strong>—</strong></div>
+        <div class="glance-item" id="glance-memory"><span class="glance-label">Free memory</span><strong>—</strong></div>
+      </div>
+
       <div class="card mb-4" id="sg-home-card" data-capability="lan-tailnet-forwarding">
         <div class="card-header"><div class="card-header-left"><span class="card-title">Selective Tailnet Service Gateway</span></div><span class="badge badge-neutral" id="sg-home-badge">—</span></div>
         <div class="card-body">
@@ -1808,12 +1826,14 @@
         </div>
       </div>
 
-      <!-- Guided setup -->
+      <!-- Goal launcher: guided setup by purpose -->
       <div class="card mb-4" id="wizard-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Guided setup</span></div></div>
+        <div class="card-header"><div class="card-header-left"><span class="card-title">What do you want to do?</span></div></div>
         <div class="card-body">
-          <p class="form-hint">Each guide explains the goal, checks prerequisites, lists risks and asks for explicit confirmation before anything that exposes a network or service. The usual settings forms do the saving, so their validation still applies.</p>
-          <div id="wizard-list"></div>
+          <p class="form-hint">Pick a goal. Each guide checks prerequisites, explains risks, asks before exposing anything and lets you restore the previous settings. Nothing changes until you save.</p>
+          <div class="goal-grid" id="goal-grid"></div>
+          <p class="form-hint" style="margin-top:var(--sp-4)">All guides</p>
+          <div id="wizard-list" class="btn-row" style="margin-top:var(--sp-2)"></div>
         </div>
       </div>
 
@@ -2230,7 +2250,7 @@
       <!-- ===== DHCP reservations ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">DHCP reservations</span>
           </div>
           <span class="badge badge-neutral" id="dhcp-res-badge">—</span>
@@ -2257,7 +2277,7 @@
       <!-- ===== Connected clients ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">Connected clients</span>
           </div>
           <button class="btn btn-secondary btn-sm" id="dhcp-clients-refresh">Refresh</button>
@@ -2270,7 +2290,7 @@
       <!-- ===== Active DHCP leases ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">Active DHCP leases</span>
           </div>
           <button class="btn btn-secondary btn-sm" id="dhcp-leases-refresh">Refresh</button>
@@ -2283,7 +2303,7 @@
       <!-- ===== Denied MAC addresses ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">Denied MAC addresses</span>
           </div>
           <span class="badge badge-neutral" id="deny-badge">—</span>
@@ -2303,7 +2323,7 @@
       <!-- ===== Port forwarding (uplink-side NAPT) ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">Port forwarding</span>
           </div>
           <span class="badge badge-neutral" id="portmap-badge">—</span>
@@ -2359,7 +2379,7 @@
 
       <!-- ===== Optional SPI Ethernet uplink (W5500) ===== -->
       <div class="card mt-4" id="eth-card" data-capability="ethernet">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Ethernet uplink (optional W5500 SPI module)</span></div><span class="badge badge-neutral" id="eth-badge">—</span></div>
+        <div class="card-header"><div data-advanced class="card-header-left"><span class="card-title">Ethernet uplink (optional W5500 SPI module)</span></div><span class="badge badge-neutral" id="eth-badge">—</span></div>
         <div class="card-body">
           <p class="form-hint">Only for boards with an explicitly wired W5500 module and the Ethernet firmware build. Most ESP32-S3 boards have no Ethernet. Changes apply after a restart. Not physically validated on this candidate; the LAN → Tailnet listener and health checks still use WiFi.</p>
           <p id="eth-status" role="status">Not loaded</p>
@@ -2559,7 +2579,7 @@
       <!-- ===== MTU / MSS / PMTU manager ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">Tunnel MTU</span>
           </div>
           <span class="badge badge-neutral mono" id="ts-mtu-badge">—</span>
@@ -2621,7 +2641,7 @@
           <button class="btn btn-secondary btn-md" id="fw-reload">Reload</button>
         </div>
       </div>
-      <div id="fw-lists">
+      <div id="fw-lists" data-advanced>
         <div style="padding:1.5rem; text-align:center; color:var(--text-muted);">Loading…</div>
       </div>
     </div>
@@ -2686,7 +2706,7 @@
       <!-- ===== Traceroute ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">Traceroute</span>
           </div>
         </div>
@@ -2758,7 +2778,7 @@
       <!-- ===== Pre-crash log (RTC slow-RAM, survives panic/WDT) ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">Previous-boot log</span>
           </div>
           <span class="badge badge-neutral" id="precrash-badge">—</span>
@@ -2787,7 +2807,7 @@
       <!-- ===== Reset history (moved here from System — it's a diagnostic) ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">Reset history</span>
           </div>
           <span class="badge badge-neutral" id="sys-hist-badge">—</span>
@@ -2808,7 +2828,7 @@
       <!-- ===== Hardware diagnostics ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">Hardware diagnostics</span>
           </div>
           <div class="card-header-right">
@@ -2871,7 +2891,7 @@
           <div class="form-group"><label class="form-label" for="ops-interval">Monitor interval (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600"></div></div>
         <button class="btn btn-primary" id="ops-settings-save" disabled>Save monitoring settings</button>
       </div></div>
-      <div class="card" data-capability="health"><div class="card-header"><span class="card-title">Layered connectivity checks</span></div><div class="card-body">
+      <div class="card" data-capability="health"><div data-advanced class="card-header"><span class="card-title">Layered connectivity checks</span></div><div class="card-body">
         <p class="form-hint">Optional, OFF by default. No built-in cloud target. One check every configured interval, sharing the recovery worker. A closed gateway port does not prove the router is down; a TCP connection does not verify application health. DNS answers may be cached.</p>
         <label class="feature-switch"><input type="checkbox" id="health-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable configured connectivity checks</span></label>
         <label class="feature-switch"><input type="checkbox" id="health-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify repeated failures through enabled ntfy</span></label>
@@ -3034,6 +3054,15 @@
         </div>
       </div>
 
+      <!-- ===== Interface mode ===== -->
+      <div class="card mb-4" id="ui-mode-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Interface mode</span></div></div>
+        <div class="card-body">
+          <label class="feature-switch"><input type="checkbox" id="ui-advanced-toggle"><span class="feature-switch-track" aria-hidden="true"></span><span>Show advanced settings</span></label>
+          <p class="form-hint">Simple mode hides expert sections (firewall chains, DHCP tables, MTU, SNMP, logging, hardware diagnostics). Nothing is disabled; hidden settings keep working. This choice is stored in this browser only.</p>
+        </div>
+      </div>
+
       <!-- ===== Configuration profile ===== -->
       <div class="card" id="profile-card">
         <div class="card-header"><div class="card-header-left"><span class="card-title">Configuration profile</span></div></div>
@@ -3147,7 +3176,7 @@
 
       <!-- ===== SNMP agent (upstream v0.1.28) ===== -->
       <div class="card feature-card mt-4" id="sys-snmp-card" data-capability="snmp" data-feature-state="unknown">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">SNMP agent</span></div><span class="badge badge-neutral" id="sys-snmp-badge">Loading…</span></div>
+        <div class="card-header"><div data-advanced class="card-header-left"><span class="card-title">SNMP agent</span></div><span class="badge badge-neutral" id="sys-snmp-badge">Loading…</span></div>
         <div class="card-body">
           <p class="form-hint" id="sys-snmp-load-status" role="status">Settings have not loaded yet.</p>
           <label class="feature-switch"><input type="checkbox" id="sys-snmp-en" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>Enable read-only SNMP agent</span></label>
@@ -3166,7 +3195,7 @@
       <!-- ===== SD flight-recorder ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
+          <div data-advanced class="card-header-left">
             <span class="card-title">SD card logging</span>
           </div>
           <span class="badge badge-neutral" id="sys-sdlog-badge">—</span>
@@ -3833,6 +3862,15 @@
     }
 
     function applyStatus(data) {
+      (function(){
+        function set(id,text,tone){var el=document.getElementById(id);if(!el)return;el.querySelector('strong').textContent=text;el.className='glance-item'+(tone?' '+tone:'');}
+        var sta=data&&data.sta||{},ts=data&&data.tailscale||{};
+        set('glance-uplink',sta.connected?(sta.ssid||'Connected'):'Not connected',sta.connected?'ok':'bad');
+        set('glance-tailnet',!ts.enabled?'Off':ts.connected?'Connected':(ts.startup_retrying?'Retrying':'Not connected'),!ts.enabled?'':ts.connected?'ok':'bad');
+        set('glance-peers',Number.isFinite(ts.peers_online)?ts.peers_online+' / '+(ts.peers_total||0):'—','');
+        var kb=Number.isFinite(data&&data.mem_internal_free)?Math.round(data.mem_internal_free/1024):null;
+        set('glance-memory',kb==null?'—':kb+' KB',kb!=null&&kb<10?'warn':'');
+      })();
       // STA (uplink)
       var ul = data.sta || {};
       document.getElementById('uplink-ssid').textContent    = ul.ssid || '—';
@@ -5584,6 +5622,8 @@
          var enabled=rules.filter(function(r){return r.enabled;}).length,installed=rules.filter(function(r){return r.installed;}).length,
            reachable=rules.filter(function(r){return r.destination_check&&r.destination_check.state==='reachable';}).length;
          return rules.length+' rule(s): '+enabled+' enabled, '+installed+' installed, '+reachable+' with a reachable destination test.'+note+' Connect from the allowed LAN client to confirm the application.';});}},
+      {id:'iot-ap',title:'IoT WiFi gateway',goal:'Give low-bandwidth devices their own WiFi: turn on the access point, set its name and a strong password, then optionally advertise its subnet to the tailnet.',page:'network',focus:['net-ap-uplink-enabled','net-ap-ssid','net-ap-pw'],checks:[WZ_UPLINK,WZ_PASSWORD],
+       risks:['Devices on the access point reach the Internet through this gateway; keep a strong WPA2 password.','One 2.4 GHz radio is shared with the uplink: meant for sensors and switches, not phones or video.'],sections:[]},
       {id:'first-boot',title:'First boot',goal:'Name the device, protect administration and join your network.',page:'system',focus:['sys-device-name'],checks:[WZ_PASSWORD,WZ_UPLINK],
        risks:['Without a web password anyone on the LAN or AP can change settings.'],sections:[]},
       {id:'tailscale',capability:'tailscale',title:'Tailscale / Headscale',goal:'Join your tailnet with an auth key; for Headscale set the login server URL.',page:'tailscale',focus:['ts-auth-key','ts-login','ts-hostname'],checks:[WZ_UPLINK],
@@ -5618,7 +5658,7 @@
     function wzClearFocus(){document.querySelectorAll('.wizard-focus').forEach(function(e){e.classList.remove('wizard-focus');});}
     function wzRenderList(){
       var list=document.getElementById('wizard-list');if(!list)return;list.replaceChildren();
-      WIZARDS.forEach(function(w){var b=wzEl('button',w.title),f=capabilityUnavailable(w.capability);b.className=w.primary?'btn btn-primary':'btn btn-secondary';b.type='button';
+      WIZARDS.forEach(function(w){var b=wzEl('button',w.title),f=capabilityUnavailable(w.capability);b.className='btn btn-secondary btn-sm';b.type='button';
         if(f){b.disabled=true;b.title=(f.compiled===false?'Not available in this firmware':'Not supported by this board')+' — '+f.evidence;}
         b.addEventListener('click',function(){wzOpen(w.id);});list.appendChild(b);});
     }
@@ -5653,6 +5693,7 @@
       try{for(var i=0;i<w.sections.length;i++){var sec=WZ_SECTIONS[w.sections[i]];snapshot[w.sections[i]]=sec.snap(await wzGet(sec.url));}}
       catch(e){document.getElementById('wizard-result').textContent='Could not snapshot current settings ('+e.message+'); nothing was changed.';return;}
       s_wz.snapshot=snapshot;s_wz.started=true;wzControls();
+      if(w.focus.some(function(id){var el=document.getElementById(id);return el&&el.closest('[data-advanced]');}))setUiAdvanced(true);
       var tab=document.querySelector('.nav-tab[data-page="'+w.page+'"]');if(tab)tab.click();
       wzClearFocus();
       setTimeout(function(){var first=null;w.focus.forEach(function(id){var el=document.getElementById(id);if(!el)return;var box=el.closest('.form-group,.feature-switch,.card')||el;box.classList.add('wizard-focus');if(!first)first=box;});
@@ -5693,6 +5734,42 @@
     document.getElementById('wizard-close').addEventListener('click',wzClose);
     document.addEventListener('keydown',function(e){if(e.key==='Escape'&&s_wz&&!wzPanel().hidden){e.preventDefault();wzClose();}});
     wzRenderList();
+    var GOALS=[
+      {wizard:'lan-tailnet',title:'Connect a LAN device to a Tailnet service',text:'A device without Tailscale uses one remote service through this gateway.',primary:true},
+      {wizard:'subnet-router',title:'Reach this network from anywhere',text:'Tailnet clients reach devices on this LAN through a subnet route.'},
+      {wizard:'iot-ap',title:'Set up a WiFi gateway for IoT devices',text:'Give sensors and switches their own access point.'},
+      {wizard:'wol',title:'Wake or recover a NAS or PC',text:'Save a device for Wake-on-LAN, then use bounded recovery checks.'},
+      {wizard:'home-assistant',title:'Connect Home Assistant',text:'MQTT state, switches and buttons through Discovery.'},
+      {wizard:null,title:'Configure everything manually',text:'Show advanced settings on every page.'}];
+    function renderGoals(){
+      var grid=document.getElementById('goal-grid');if(!grid)return;grid.replaceChildren();
+      GOALS.forEach(function(g){
+        var w=g.wizard&&WIZARDS.filter(function(x){return x.id===g.wizard;})[0],f=w&&capabilityUnavailable(w.capability);
+        var b=wzEl('button');b.type='button';b.className='goal-tile'+(g.primary?' primary':'');
+        b.appendChild(wzEl('strong',g.title));b.appendChild(wzEl('span',g.text));
+        if(f){b.disabled=true;b.title=(f.compiled===false?'Not available in this firmware':'Not supported by this board')+' — '+f.evidence;}
+        b.addEventListener('click',function(){if(g.wizard)wzOpen(g.wizard);else{setUiAdvanced(true);showToast('success','Advanced settings shown','Every page now shows all sections. Change this in System → Interface mode.',4000);}});
+        grid.appendChild(b);
+      });
+    }
+    /* Simple mode hides [data-advanced] sections; it never disables a feature. */
+    function uiAdvanced(){try{return localStorage.getItem('ui-advanced')==='1';}catch(e){return false;}}
+    function setUiAdvanced(on){try{localStorage.setItem('ui-advanced',on?'1':'0');}catch(e){}applyUiMode();}
+    function applyUiMode(){
+      var adv=uiAdvanced();document.body.classList.toggle('ui-simple',!adv);
+      var t=document.getElementById('ui-advanced-toggle');if(t)t.checked=adv;
+      document.querySelectorAll('.page-section').forEach(function(sec){
+        var n=sec.querySelectorAll('[data-advanced]').length,note=sec.querySelector('.adv-note');if(!n)return;
+        if(!note){note=document.createElement('div');note.className='adv-note';
+          note.appendChild(wzEl('span'));var b=wzEl('button','Show advanced settings');b.type='button';b.className='btn btn-secondary btn-sm';
+          b.addEventListener('click',function(){setUiAdvanced(true);});note.appendChild(b);
+          var head=sec.querySelector('.page-header');if(head&&head.nextSibling)sec.insertBefore(note,head.nextSibling);else sec.appendChild(note);}
+        note.firstChild.textContent=n+(n===1?' advanced section is':' advanced sections are')+' hidden in simple mode. Settings keep working.';
+        note.hidden=adv;
+      });
+    }
+    document.getElementById('ui-advanced-toggle').addEventListener('change',function(){setUiAdvanced(this.checked);});
+    renderGoals();applyUiMode();
     function loadServiceGatewaySummary(){
       var out=document.getElementById('sg-home-summary'),badge=document.getElementById('sg-home-badge'),loaded=false;
       return apiFetch('/api/tailnet-forward',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
@@ -5793,6 +5870,7 @@
         if(note){if(f)note.textContent=(f.compiled===false?'Not available in this firmware':'Not supported by this board')+' — '+f.evidence;else note.remove();}
       });
       if(typeof wzRenderList==='function')wzRenderList();
+      if(typeof renderGoals==='function')renderGoals();
       if(typeof renderTf==='function'&&s_tf_loaded&&!s_tf_dirty)renderTf(); /* re-gate Test destination */
     }
     function setCapabilities(features){var map=Object.create(null);features.forEach(function(f){map[f.id]=f;});s_capabilities=map;applyCapabilityGates();}
