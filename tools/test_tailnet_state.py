@@ -28,6 +28,21 @@ typedef int esp_err_t;
 #define ESP_ERR_INVALID_ARG -2
 #define ESP_ERR_INVALID_STATE -3
 #include "tailnet_forward.h"
+/* Permanent leases isolate the pre-existing table transaction tests. */
+static void service_lease_init(void){}
+static bool service_lease_tick(void){return false;}
+static bool service_lease_allowed(int i,const tailnet_forward_rule_t *r){(void)i;(void)r;return true;}
+/* Stable synthetic selectors; the real binding hash is tested in lease driver. */
+static uint32_t service_lease_token(const tailnet_forward_rule_t *r){return r->listen_port;}
+static void mqtt_integration_tailnet_forward_changed(void){}
+static uint16_t cleanup_port;
+static bool cleanup_oom;
+static uint64_t cleanup_clock=1000000;
+static bool service_lease_delete_requested(const tailnet_forward_rule_t *r){return cleanup_port&&r->listen_port==cleanup_port;}
+static int64_t esp_timer_get_time(void){return (int64_t)cleanup_clock*1000;}
+#define MALLOC_CAP_SPIRAM 1
+#define MALLOC_CAP_8BIT 2
+static void *heap_caps_malloc(size_t n,int caps){(void)caps;return cleanup_oom?NULL:malloc(n);}
 #include "control_validation.h"
 #define NVS_NAMESPACE "tsr"
 #define NVS_READONLY 0
@@ -153,6 +168,26 @@ int main(void) {
     tailnet_forward_runtime_t rt; assert(tailnet_forward_get(0,&out,&rt) && !out.enabled && !rt.installed);
     assert(!tailnet_forward_listen_conflicts(6,2222));
     assert(task_creations>=10 && installs>=2 && !lock_depth);
+    tailnet_forward_rule_t pair[2]={rule,rule};pair[1].listen_port=3333;
+    assert(tailnet_forward_set_all(pair,2,why,sizeof why)==ESP_OK);cleanup_port=2222;cleanup_oom=true;
+    assert(!remove_expired_rules()&&tailnet_forward_count()==2);cleanup_oom=false;cleanup_clock+=61000;
+    fail_phase=3;assert(!remove_expired_rules()&&tailnet_forward_count()==2);fail_phase=0;
+    cleanup_clock+=61000;assert(remove_expired_rules()&&tailnet_forward_count()==1);
+    assert(tailnet_forward_get(0,&out,NULL)&&out.listen_port==3333); /* Atomic compacted survivor. */
+    assert(tailnet_forward_set_enabled_bound(0,2222,false)==ESP_ERR_INVALID_STATE);
+    assert(tailnet_forward_set_enabled_bound(0,3333,false)==ESP_OK);
+    tailnet_forward_preview_t preview;changed=rule;changed.enabled=0;
+    unsigned writes_before=writes;
+    assert(tailnet_forward_replace_guarded(&changed,1,NULL,false,&preview,why,sizeof why)==ESP_OK&&writes==writes_before);
+    char expected[TAILNET_TABLE_GUARD_LEN];strcpy(expected,preview.guard);
+    assert(tailnet_forward_set_enabled(0,true)==ESP_OK);
+    writes_before=writes;
+    assert(tailnet_forward_replace_guarded(&changed,1,expected,true,&preview,why,sizeof why)==ESP_ERR_INVALID_STATE&&writes==writes_before);
+    assert(tailnet_forward_replace_guarded(&changed,1,NULL,false,&preview,why,sizeof why)==ESP_OK);strcpy(expected,preview.guard);
+    fail_phase=3;assert(tailnet_forward_replace_guarded(&changed,1,expected,true,&preview,why,sizeof why)==ESP_FAIL);
+    assert(tailnet_forward_get(0,&out,NULL)&&out.listen_port==3333);fail_phase=0;
+    assert(tailnet_forward_replace_guarded(&changed,1,expected,true,&preview,why,sizeof why)==ESP_OK);
+    store_t disk;memcpy(&disk,persisted,sizeof disk);assert(disk.rules[0].listen_port==2222&&!disk.rules[0].enabled&&!disk.rules[1].valid);
     puts("PASS: actual Tailnet NVS hole compaction, invalid prefix/strings/flags/protocol/network/destination/duplicates fail closed, bounded setter validation, NVS failure preservation, hostname and enable control");
 }
 '''

@@ -35,6 +35,22 @@ static inline bool control_parse_index(const char *text, unsigned limit, unsigne
     return true;
 }
 
+/* Binding/version selector, NOT authentication. Exactly eight hex digits. */
+static inline bool control_parse_hex32(const char *text,uint32_t *out)
+{
+    if(!text||!out||strlen(text)!=8)return false;
+    uint32_t n=0;
+    for(unsigned i=0;i<8;i++){
+        unsigned char c=(unsigned char)text[i];unsigned digit;
+        if(c>='0'&&c<='9')digit=c-'0';
+        else if(c>='a'&&c<='f')digit=c-'a'+10;
+        else if(c>='A'&&c<='F')digit=c-'A'+10;
+        else return false;
+        n=(n<<4)|digit;
+    }
+    *out=n;return true;
+}
+
 static inline uint8_t control_cpu_pct(uint64_t elapsed, uint64_t idle)
 {
     if (!elapsed || idle >= elapsed) return 0;

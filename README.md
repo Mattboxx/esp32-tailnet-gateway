@@ -1,20 +1,24 @@
 <div align="center">
 
-<img src="assets/logo/banner.png" alt="Tailscale Subnet Router for ESP32-S3" width="100%">
+<img src="assets/logo/homelab-gateway.svg" alt="ESP32 Homelab Gateway — Mattboxx Edition" width="100%">
 
-# ESP32 Tailscale Gateway & NAS Recovery
+# ESP32 Homelab Gateway
 
-### Subnet router · Exit node · LAN → Tailnet port forwarder · IoT WiFi gateway · MQTT/Home Assistant · Wake-on-LAN
+**Mattboxx Edition · Selective LAN → Tailnet service gateway for Tailscale and Headscale**
 
-**Keep a small management node online when your NAS is off. Wake compatible
-devices remotely, reach your LAN through Tailscale, and connect ordinary
-devices to selected tailnet services — all from one supported ESP32-S3.**
+### Selective Tailnet Service Gateway · Remote recovery & diagnostics · Subnet router · Exit node · MQTT/Home Assistant
+
+**Let an ordinary device on your existing LAN use one specific service on your
+Tailscale/Headscale tailnet — without installing Tailscale on it, without
+joining it to the ESP32 access point and without changing your main router or
+default gateway.**
 
 Based on the original
 [Csontikka/esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)
 and its [microlink](https://github.com/Csontikka/microlink) Tailscale stack.
-This Mattboxx edition expands the project with automation, selective service
-forwarding, privacy hardening and a ready-to-flash release.
+This Mattboxx edition adds a selective LAN → Tailnet service gateway, remote
+recovery and diagnostics, automation, privacy hardening and a ready-to-flash
+release. Tailscale, WireGuard, DERP and MagicDNS are not Mattboxx inventions.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-7c3aed.svg)](#hardware)
@@ -29,43 +33,144 @@ forwarding, privacy hardening and a ready-to-flash release.
 
 ---
 
-## A recovery companion for your NAS and homelab
+## The problem it solves
 
-If your only Tailscale node runs on the NAS, shutting that NAS down can also
-remove your remote management path. An independently powered ESP32 provides
-a separate node: reach its Web UI through your tailnet, send Wake-on-LAN to
-a saved compatible NAS/PC, or use subnet routing to reach other LAN devices.
+You have a device on your home or office LAN — an IoT controller, a printer
+dashboard, a backup client, an MQTT sensor hub, an old PC — that needs to reach
+**one** service at another site on your tailnet: a broker, a NAS share's web UI,
+an SSH host. You cannot or do not want to install Tailscale on it, you do not
+want to move it onto a separate WiFi network, and you do not want to replace
+the router or advertise whole subnets to everyone.
 
-**[Download stable firmware and the guided Windows flashing ZIP](../../releases/latest)** ·
-**[NAS recovery checklist](docs/NAS-RECOVERY.md)** ·
-**[Supported hardware](#hardware)**
+Put an ESP32-S3 on the same LAN. It joins your tailnet once, and you publish a
+single rule: *this LAN device may use this Tailnet service on this port.*
+
+```
+LAN client 192.168.1.20 ──TCP──▶ ESP32 192.168.1.50:18830 ══WireGuard══▶ broker.tailnet.ts.net:1883
+           (no Tailscale)              (rule: source 192.168.1.20/32)       (Tailnet peer, its ACL applies)
+```
+
+## Try it in a few minutes
+
+1. Flash the [stable release](../../releases/latest) and join the ESP32 to your
+   WiFi and tailnet (Web UI → Tailscale; Headscale: set the login server).
+2. Give the ESP32 a fixed LAN address (DHCP reservation on your router).
+3. Web UI → **Network → LAN → Tailnet**: add a rule — protocol TCP, listen port
+   `18830`, Tailnet destination `broker.your-tailnet.ts.net` (or `100.x.y.z`),
+   destination port `1883`, allowed source `192.168.1.20/32`. Rules start
+   disabled. Save.
+4. Make sure the destination peer's tailnet ACL allows the ESP32's identity.
+5. Enable the rule and point the LAN client at `192.168.1.50:18830`. The rule
+   shows installed state and accepted/rejected packet counters.
+
+In the current development line (not yet in a stable release) the same page
+also offers a **Test destination** button — the ESP32 performs one bounded TCP
+handshake with the Tailnet service, before you enable any LAN exposure — plus
+a guided setup, optional expiry for temporary access and service-rule
+export/import with preview. See the [Service Gateway guide](docs/SERVICE-GATEWAY.md).
+
+## How it compares
+
+| Approach | What LAN devices need | What it exposes | Best for |
+|---|---|---|---|
+| **Selective Service Gateway** (this firmware, LAN → Tailnet) | Nothing: they connect to `ESP-IP:port` | One TCP/UDP service per rule, only to the allowed source CIDR | A few LAN devices that must reach specific remote services |
+| Tailscale on each device | A Tailscale client | That device as a full tailnet node | Devices that can run a client |
+| Subnet router (also in this firmware) | Nothing, but reverse direction | Whole local subnets *to* the tailnet (after admin approval) | Reaching your LAN from tailnet clients |
+| AP gateway (also in this firmware) | Join the ESP32 WiFi network | AP-side devices routed via the ESP32 | Isolated IoT devices on their own WiFi |
+| Router/gateway replacement | Change of default gateway | Depends on the router | Whole-site routing |
+
+## Limits and security model, plainly
+
+- **Not unlimited routing.** IPv4 TCP/UDP only, up to 8 rules, one Tailnet
+  IPv4 destination (`100.64.0.0/10`, literal or MagicDNS name) per rule. LAN
+  clients connect to the ESP32's address and listen port; it is a port
+  forwarder, not transparent routing.
+- **ESP32 performance.** WiFi plus software WireGuard on a microcontroller:
+  suited to control, telemetry, dashboards and SSH, not bulk transfers or
+  video. Throughput has not been measured for the current candidate.
+- **Source filter is not identity.** A rule admits packets from its source
+  CIDR; prefer one device (`/32`). Anyone who can use that address can use the
+  service. Remote peers see the ESP32's tailnet identity, and their own ACLs
+  still decide what it may reach. Protect the Web UI with a password.
+- **Verification is evidence, not a guarantee.** "Installed" means a local
+  mapping exists; a destination test proves one TCP handshake from the ESP32
+  only; UDP cannot be verified without an application reply.
+- Community microlink-based firmware, not an official Tailscale client; no
+  claim of full official-client policy parity.
+
+## Three pillars
+
+1. **Selective Tailnet Service Gateway** — LAN → Tailnet rules with source
+   restriction, per-rule state and counters, guided setup, destination tests
+   and temporary access (development line), safe import/export.
+2. **Remote Recovery & Diagnostics** — an independently powered tailnet node:
+   reach its Web UI when your NAS (and its Tailscale) is off, send Wake-on-LAN,
+   run bounded Smart Recovery and layered health checks with honest evidence.
+   [NAS recovery checklist](docs/NAS-RECOVERY.md).
+3. **Automation, Monitoring & Management** — MQTT, Home Assistant Discovery,
+   ntfy, SNMP, profiles, subnet router, exit node and AP gateway. All optional:
+   direct Web UI access and manual WoL need none of them.
 
 WoL needs compatible hardware, configuration and standby power; it cannot
 hard-reset a frozen NAS, recover files or provide KVM/BIOS access. Power the
-ESP independently of the NAS and keep the router/Internet available. If your
-broker/Home Assistant runs on the NAS, keep direct tailnet access as a separate
-command path. This is a community microlink-based fork, not an official
-Tailscale client or fully out-of-band management.
+ESP independently of the NAS and keep the router/Internet available. This is
+not fully out-of-band management.
+
+**[Download stable firmware and the guided Windows flashing ZIP](../../releases/latest)** ·
+**[Supported hardware](#hardware)** ·
+**[What's new in stable 1.13](docs/RELEASE-1.13.md)** ·
+**[See every change from upstream](CUSTOM_BRANCH.md)** ·
+**[Read the security model](SECURITY.md)**
 
 ## One board, three network gateways
 
 | Traffic path | What it unlocks |
 |---|---|
+| **Uplink LAN → Tailnet service** | Let an ordinary LAN device reach a selected TCP/UDP service on a Tailnet peer through the ESP32 — no Tailscale client and no ESP access-point connection required. |
 | **Tailnet → LAN/AP subnet** | Reach sensors, switches and legacy devices remotely through the ESP32 subnet router. |
 | **AP-side device → Tailnet/Internet** | Give devices with no VPN client their own simple WiFi gateway, optionally through a Tailscale exit node. |
-| **Uplink LAN → Tailnet service** | Let an ordinary LAN device reach a selected TCP/UDP service on a Tailnet peer through the ESP32 — no Tailscale client and no ESP access-point connection required. |
 
-Example: forward `ESP-LAN-IP:2222` to `tailnet-server:22`, then SSH from any
-permitted local client. Each rule has its own source CIDR, protocol, ports,
-enable switch, counters and live status. This is completely independent from
-the existing AP-side port forwarding.
-
-**[Download the ready-to-flash release](../../releases/latest)** ·
-**[What's new in stable 1.13](docs/RELEASE-1.13.md)** ·
-**[See every change from upstream](CUSTOM_BRANCH.md)** ·
-**[Read the security model](SECURITY.md)**
+The LAN → Tailnet forwarder is completely independent from the AP-side port
+forwarding.
 
 ## Why the Mattboxx edition is different
+
+The networking protocol stack is upstream work; this edition's value is a
+standalone service gateway and operational UI around it, not a new VPN protocol.
+See the [code-backed comparison and positioning](docs/PRODUCT-AUDIT.md),
+[architecture](docs/ARCHITECTURE.md) and
+[permanent development roadmap](docs/DEVELOPMENT-ROADMAP.md).
+
+**Development source: 0.1.38-Mattboxx-1.14-dev.5.** Adds passive per-rule
+exposure/diagnostic guidance and transactional WoL address-book fixes.
+New UI rules start disabled; an installed mapping is not called a verified
+service. This source is not a new published binary. Stable downloads below
+remain 1.13. [Service gateway guide](docs/SERVICE-GATEWAY.md).
+
+Local development also includes bounded Smart Recovery, temporary service-rule
+leases and opt-in layered connectivity checks with MQTT/HA/ntfy evidence.
+See [health monitoring](docs/NETWORK-HEALTH.md) for the limits; neither a control
+connection nor one successful TCP check proves that the entire tunnel is healthy.
+
+The local 1.14 candidate also addresses a confirmed missing Tailnet service-
+authorization gate in the pinned MicroLink parent. It is **not hardware-
+qualified or fully policy-compatible**: conservative protocol/fragment limits
+and two-real-client tests remain release blockers. Read the
+[authorization findings and validation matrix](docs/TAILNET-AUTHORIZATION.md)
+before relying on fine-grained Tailnet permissions; peer visibility is not
+port authorization. The public 1.13 binary does not contain this local fix.
+Dev.3 additionally fixes at-capacity peer replacement, stale queued peer work
+and map/keepalive precedence. Development is tracked in the
+[goals](GOALS.md), [implementation/validation matrix](docs/FEATURE-IMPLEMENTATION-MATRIX.md)
+and [current checkpoint](docs/NEXT-STEPS-FOR-AGENT.md). Planned capabilities
+in those documents are not claims about the stable download. Dev.4 integrates
+experimental MAC-bound recovery/device checks, opt-in monitoring/resource
+admission, LAN→Tailnet exposure leases, capability/diagnostic APIs and their
+UI/MQTT/HA/ntfy integration. Related ICMP and bounded IPv6 header handling are
+expanded. These are **development source, not fully validated features**;
+non-atomic tunnel fragments, full policy compatibility, remaining roadmap
+features and consolidated/hardware qualification are still outstanding.
+See the [experimental Smart Recovery guide](docs/SMART-RECOVERY.md).
 
 **Latest stable: 0.1.38-Mattboxx-1.13.** Integrates all published
 upstream v0.1.34–v0.1.38 changes: verified relay TLS, WireGuard protocol/nonce
@@ -107,7 +212,7 @@ Stable is a release channel, not a security certification.
 | **Tailscale 4via6** | Optional bidirectional TCP/UDP/ICMP translation for overlapping IPv4 LANs, with calculated advertised prefix, flow counters and Home Assistant controls. |
 | **Exit-node server** | Advertise the ESP32 itself as a Tailscale exit node, with automatic IPv4 egress masquerading, admin-approval guidance, fail-closed IPv6 behavior, a separate DNS PeerAPI and Home Assistant/ntfy visibility. Server mode cannot conflict with selecting another exit node. |
 | **Web administration** | Responsive dark UI, graphical feature switches, clear disabled cards, configurable web port, optional password gate and session timeout, local OTA and encrypted backup/restore. Opt-in fork-only GitHub updates, stable/beta channels and one-click latest install. |
-| **SNMP monitoring** | Optional read-only v1/v2c agent for LibreNMS, Zabbix or Observium; standard interface/CPU/memory/temperature MIBs, disabled by default, with a graphical System switch. Enabled/running state and socket budget also appear in MQTT/Home Assistant and ntfy info. |
+| **SNMP monitoring** | Upstream read-only v1/v2c agent, hardened and integrated with System/MQTT/HA/ntfy in this edition; disabled by default. This is an improved shared capability, not a newly invented monitoring protocol. |
 | **Fast, safer login** | Salted 60,000-round PBKDF2-HMAC-SHA256 verifier plus a one-time browser challenge; no plaintext password for modern records and no multi-second ESP-side unlock delay. |
 | **Reliability fixes** | Repairs WiFi scan/save and HTTP 431 failures, ntfy reboot loops and missed commands, false post-login offline state, forwarding-table startup counts and web/Tailscale socket starvation. |
 | **Privacy cleanup** | Removes anonymous telemetry, external crash/log uploads, forced GitHub polling, Cloudflare speed tests and the hard-coded public DNS fallback. GitHub checks/downloads run only as explicit opt-in or user-triggered actions. The Ko-fi support link makes no request until clicked. |
@@ -116,6 +221,13 @@ Stable is a release channel, not a security certification.
 The complete technical comparison is in [`CUSTOM_BRANCH.md`](CUSTOM_BRANCH.md).
 This remains community firmware rather than a formally audited network
 appliance; read [Known limitations](#known-limitations) before deployment.
+
+| Product area | Operational purpose |
+|---|---|
+| Network Gateway | Selective LAN → Tailnet services, subnet routing, optional AP gateway and advanced routing. |
+| Recovery & Remote Management | Local saved WoL targets and direct management independent of managed servers. Verified boot/service recovery is still planned. |
+| Automation & Integrations | Optional MQTT/Home Assistant and ntfy; never prerequisites for the core local tools. |
+| Monitoring & Diagnostics | Evidence-based state, local logs and optional SNMP. Missing observations stay unknown, not “healthy”. |
 
 ## What it is
 
@@ -274,12 +386,14 @@ traffic you route through it.)*
 | **Reference board** | ESP32-S3-DevKitC-1 **N16R8** (16 MB flash / 8 MB PSRAM) |
 | **Radio** | Single 2.4 GHz — STA and AP share one radio (see [limitations](#known-limitations)) |
 | **Storage (optional)** | microSD for the log flight-recorder |
-| **Power** | USB-C; ~real-world draw of a small dev board |
+| **Power** | Reliable USB supply, independently powered from managed servers; no board power-consumption measurement is claimed here. |
 
 **The published binary targets ESP32-S3 N16R8 with 8 MB octal PSRAM.**
 Other ESP32 families and Ethernet-specific boards are not drop-in targets.
-Ethernet needs compatible hardware, wiring and a matching build; it is not
-physically revalidated for this release. Community ports are welcome, but
+Ethernet uplink is **not implemented in this application**: SNMP's generic
+ETH interface counters are not an Ethernet driver. Adding it needs hardware,
+driver initialization and routing/forwarding integration. No Ethernet-capable
+release is provided here. Community ports are welcome, but
 do not flash this image onto an unrelated board.
 
 ### Upstream board compatibility reports (not current fork certification)

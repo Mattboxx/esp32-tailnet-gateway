@@ -21,6 +21,10 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/sockets.h"
 #include "web_ui.h"
+#include "json_guard.h"
+#include "web_origin.h"
+#include "login_budget.h"
+#include "homelab_ops.h"
 #include "tailscale_config.h"
 #include "peer_dns.h"
 #include "tailscale_mtu.h"
@@ -42,6 +46,9 @@
 #include "dhcps_ext.h"
 #include "portmap.h"
 #include "tailnet_forward.h"
+#include "service_lease.h"
+#include "service_check.h"
+#include "service_diagnostics.h"
 #include "mac_deny.h"
 #include "reset_history.h"
 #include "ota.h"
@@ -151,12 +158,55 @@ static char *device_name_dup(void);
 static int   subnet_mask_prefix_len(uint32_t mask_nbo);
 static bool  s_web_auth_enabled;
 
+/* Browser-request screening shared by authenticated routes and the pre-auth
+ * account endpoints. A write needs a matching Origin when one is sent and
+ * never a cross-site fetch. Without a web password (or for initial setup)
+ * no cookie stands between a rebound attacker page and the device, so every
+ * method also needs a trusted Host and a non-cross-site fetch. Native
+ * clients that omit Origin/Sec-Fetch-Site/Host stay supported. */
+static bool browser_request_refused(httpd_req_t *req, bool open_access)
+{
+    bool write = req->method != HTTP_GET;
+    char origin[256], host[256], site[24];
+    bool have_host = httpd_req_get_hdr_value_len(req, "Host") > 0;
+    if (have_host && (httpd_req_get_hdr_value_len(req, "Host") >= sizeof host
+            || httpd_req_get_hdr_value_str(req, "Host", host, sizeof host) != ESP_OK)) {
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid Host");
+        return true;
+    }
+    if (write) {
+        size_t length = httpd_req_get_hdr_value_len(req, "Origin");
+        if (length && (length >= sizeof origin || !have_host
+                || httpd_req_get_hdr_value_str(req, "Origin", origin, sizeof origin) != ESP_OK
+                || !web_origin_matches(host, origin))) {
+            httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "cross-origin write refused");
+            return true;
+        }
+    }
+    if ((write || open_access)
+        && httpd_req_get_hdr_value_str(req, "Sec-Fetch-Site", site, sizeof site) == ESP_OK
+        && !strcmp(site, "cross-site")) {
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "cross-site request refused");
+        return true;
+    }
+    if (open_access && have_host && !web_host_trusted(host)) {
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
+            "untrusted Host without a web password: use the device IP address or "
+            "a .local name, or set a web password");
+        return true;
+    }
+    return false;
+}
+
 static esp_err_t require_auth(httpd_req_t *req)
 {
+    bool open_access = !s_web_auth_enabled || !is_web_password_set();
+    if (browser_request_refused(req, open_access)) return ESP_FAIL;
     if (request_authenticated(req)) return ESP_OK;
     httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "auth required");
     return ESP_FAIL;
 }
+esp_err_t web_ui_require_auth(httpd_req_t *req) {return require_auth(req);}
 
 /* Translate esp_reset_reason() into the short string the SPA renders.
  * IDF 5.5 added USB / JTAG / EFUSE / PWR_GLITCH / CPU_LOCKUP — without
@@ -582,6 +632,9 @@ static esp_err_t recv_body(httpd_req_t *req, char *buf, size_t buf_size, int *ou
         received += n;
     }
     buf[received] = '\0';
+    if(!json_guard_preflight(buf,(size_t)received)){
+        httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"invalid or excessively nested JSON body");return ESP_FAIL;
+    }
     if (out_len) *out_len = received;
     return ESP_OK;
 }
@@ -888,7 +941,7 @@ static esp_err_t network_save_handler(httpd_req_t *req)
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, buf_size, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
 
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
@@ -1521,7 +1574,7 @@ static esp_err_t firewall_add_handler(httpd_req_t *req)
     char body_buf[512];
     if (recv_body(req, body_buf, sizeof body_buf, NULL) != ESP_OK) return ESP_FAIL;
 
-    cJSON *body = cJSON_Parse(body_buf);
+    cJSON *body = json_guard_parse(body_buf);
     int acl_no = parse_acl_index(body);
     const cJSON *src_j   = body ? cJSON_GetObjectItem(body, "src")   : NULL;
     const cJSON *dest_j  = body ? cJSON_GetObjectItem(body, "dest")  : NULL;
@@ -1570,7 +1623,7 @@ static esp_err_t firewall_delete_handler(httpd_req_t *req)
     char body_buf[128];
     if (recv_body(req, body_buf, sizeof body_buf, NULL) != ESP_OK) return ESP_FAIL;
 
-    cJSON *body = cJSON_Parse(body_buf);
+    cJSON *body = json_guard_parse(body_buf);
     int acl_no = parse_acl_index(body);
     const cJSON *rule_j = body ? cJSON_GetObjectItem(body, "index") : NULL;
     if (acl_no < 0 || !cJSON_IsNumber(rule_j)) {
@@ -1599,7 +1652,7 @@ static esp_err_t firewall_clear_handler(httpd_req_t *req)
     char body_buf[128];
     if (recv_body(req, body_buf, sizeof body_buf, NULL) != ESP_OK) return ESP_FAIL;
 
-    cJSON *body = cJSON_Parse(body_buf);
+    cJSON *body = json_guard_parse(body_buf);
     int acl_no = parse_acl_index(body);
     cJSON_Delete(body);
     if (acl_no < 0) {
@@ -1692,6 +1745,7 @@ static esp_err_t wol_handler(httpd_req_t *req)
  * auth key must never become anonymously downloadable. */
 static esp_err_t require_password_session(httpd_req_t *req)
 {
+    if (browser_request_refused(req, false)) return ESP_FAIL;
     if (is_web_password_set() && session_find_for_req(req) >= 0) return ESP_OK;
     httpd_resp_send_err(req, HTTPD_403_FORBIDDEN,
                         "enable web authentication and sign in to access secrets");
@@ -1706,7 +1760,7 @@ static esp_err_t wol_save_handler(httpd_req_t *req)
     char *buf = malloc_body_buf(buf_size);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, buf_size, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
@@ -1740,6 +1794,13 @@ static esp_err_t wol_save_handler(httpd_req_t *req)
         cJSON *name_j = cJSON_GetObjectItem(entry, "name");
         cJSON *broadcast_j = cJSON_GetObjectItem(entry, "broadcast");
         cJSON *port_j = cJSON_GetObjectItem(entry, "port");
+        if ((name_j && (!cJSON_IsString(name_j) || strlen(name_j->valuestring) >= sizeof devices[count].name))
+            || (broadcast_j && (!cJSON_IsString(broadcast_j) || strlen(broadcast_j->valuestring) >= sizeof devices[count].broadcast))
+            || (port_j && (!cJSON_IsNumber(port_j) || port_j->valuedouble != (double)port_j->valueint))) {
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid WOL field type or length");
+            return ESP_FAIL;
+        }
         if (cJSON_IsString(name_j)) strlcpy(devices[count].name, name_j->valuestring,
                                            sizeof devices[count].name);
         if (cJSON_IsString(broadcast_j) && broadcast_j->valuestring[0]) {
@@ -1768,6 +1829,10 @@ static esp_err_t wol_save_handler(httpd_req_t *req)
     if (err == ESP_OK) mqtt_integration_wol_changed();
     httpd_resp_set_type(req, "application/json");
     if (err != ESP_OK) {
+        if (err == ESP_ERR_INVALID_ARG) {
+            httpd_resp_set_status(req, "400 Bad Request");
+            return httpd_resp_sendstr(req, "{\"ok\":false,\"error\":\"Invalid or duplicate WOL target\"}");
+        }
         httpd_resp_set_status(req, "500 Internal Server Error");
         return httpd_resp_sendstr(req, "{\"ok\":false,\"error\":\"NVS write failed\"}");
     }
@@ -1780,13 +1845,21 @@ static esp_err_t wol_send_handler(httpd_req_t *req)
     if (require_auth(req) != ESP_OK) return ESP_FAIL;
     char buf[160];
     if (recv_body(req, buf, sizeof buf, NULL) != ESP_OK) return ESP_FAIL;
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
         return ESP_FAIL;
     }
     cJSON *index_j = cJSON_GetObjectItem(root, "index");
     cJSON *mac_j = cJSON_GetObjectItem(root, "mac");
+    if (!cJSON_IsObject(root) || (!!index_j == !!mac_j)
+        || (index_j && (!cJSON_IsNumber(index_j) || index_j->valuedouble != (double)index_j->valueint
+                        || index_j->valueint < 0 || index_j->valueint >= WOL_MAX_DEVICES))
+        || (mac_j && !cJSON_IsString(mac_j))) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "provide one saved index or MAC");
+        return ESP_FAIL;
+    }
     esp_err_t err = ESP_ERR_INVALID_ARG;
     if (cJSON_IsNumber(index_j)) err = wol_send_index(index_j->valueint);
     else if (cJSON_IsString(mac_j)) err = wol_send_saved_mac_text(mac_j->valuestring);
@@ -1794,14 +1867,14 @@ static esp_err_t wol_send_handler(httpd_req_t *req)
 
     httpd_resp_set_type(req, "application/json");
     if (err != ESP_OK) {
-        httpd_resp_set_status(req, err == ESP_ERR_NOT_FOUND
-                                  ? "404 Not Found" : "503 Service Unavailable");
+        httpd_resp_set_status(req, err == ESP_ERR_NOT_FOUND ? "404 Not Found"
+                                  : err == ESP_ERR_INVALID_ARG ? "400 Bad Request" : "503 Service Unavailable");
         char response[96];
         snprintf(response, sizeof response,
                  "{\"ok\":false,\"error\":\"%s\"}", esp_err_to_name(err));
         return httpd_resp_sendstr(req, response);
     }
-    return httpd_resp_sendstr(req, "{\"ok\":true}");
+    return httpd_resp_sendstr(req, "{\"ok\":true,\"magic_packet_sent\":true,\"device_state\":\"not_verified\"}");
 }
 
 static const httpd_uri_t uri_wol = {
@@ -1824,6 +1897,17 @@ static esp_err_t mqtt_handler(httpd_req_t *req)
     if (!root) { httpd_resp_send_500(req); return ESP_FAIL; }
     cJSON_AddBoolToObject(root, "enabled", config.enabled);
     cJSON_AddBoolToObject(root, "connected", mqtt_integration_connected());
+    mqtt_integration_status_t mqtt_status;
+    mqtt_integration_get_status(&mqtt_status);
+    cJSON *status = cJSON_AddObjectToObject(root, "status");
+    if (status) {
+        cJSON_AddBoolToObject(status, "configured", mqtt_status.configured);
+        cJSON_AddBoolToObject(status, "connecting", mqtt_status.connecting);
+        cJSON_AddNumberToObject(status, "retry_level", mqtt_status.retry_level);
+        cJSON_AddNumberToObject(status, "retry_in_seconds", mqtt_status.retry_in_seconds);
+        cJSON_AddBoolToObject(status, "discovery_pending", mqtt_status.discovery_pending);
+        cJSON_AddNumberToObject(status, "discovery_entities", mqtt_status.discovery_entities);
+    }
     cJSON_AddStringToObject(root, "uri", config.uri);
     cJSON_AddStringToObject(root, "username", config.username);
     cJSON_AddBoolToObject(root, "has_password", config.password[0] != '\0');
@@ -1859,7 +1943,7 @@ static esp_err_t mqtt_save_handler(httpd_req_t *req)
     char *buf = malloc_body_buf(3072);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, 3072, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
@@ -1993,7 +2077,7 @@ static esp_err_t ntfy_save_handler(httpd_req_t *req)
     char *buf = malloc_body_buf(3072);
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, 3072, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) { httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON"); return ESP_FAIL; }
     ntfy_integration_config_t c;
@@ -2101,7 +2185,7 @@ static esp_err_t dhcp_reservations_save_handler(httpd_req_t *req)
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, buf_size, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
 
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
@@ -2289,7 +2373,7 @@ static esp_err_t dhcp_kick_handler(httpd_req_t *req)
     char body_buf[128];
     if (recv_body(req, body_buf, sizeof body_buf, NULL) != ESP_OK) return ESP_FAIL;
 
-    cJSON *root = cJSON_Parse(body_buf);
+    cJSON *root = json_guard_parse(body_buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
         return ESP_FAIL;
@@ -2414,6 +2498,7 @@ static esp_err_t portmap_handler(httpd_req_t *req)
     return err;
 }
 
+static bool json_port_value(const cJSON *item,uint16_t *out);
 static esp_err_t portmap_save_handler(httpd_req_t *req)
 {
     if (require_auth(req) != ESP_OK) return ESP_FAIL;
@@ -2423,7 +2508,7 @@ static esp_err_t portmap_save_handler(httpd_req_t *req)
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, buf_size, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
 
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
@@ -2440,11 +2525,11 @@ static esp_err_t portmap_save_handler(httpd_req_t *req)
     portmap_entry_t out[PORTMAP_MAX];
     memset(out, 0, sizeof out);
     int n_in  = cJSON_GetArraySize(arr);
-    int n_out = 0;
+    if(n_in>PORTMAP_MAX){cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"too many mappings");return ESP_FAIL;}
 
-    for (int i = 0; i < n_in && n_out < PORTMAP_MAX; i++) {
+    for (int i = 0; i < n_in; i++) {
         cJSON *e = cJSON_GetArrayItem(arr, i);
-        if (!cJSON_IsObject(e)) continue;
+        if (!cJSON_IsObject(e)) goto invalid_portmap;
 
         const cJSON *proto_j = cJSON_GetObjectItem(e, "proto");
         const cJSON *ep_j    = cJSON_GetObjectItem(e, "ext_port");
@@ -2453,35 +2538,31 @@ static esp_err_t portmap_save_handler(httpd_req_t *req)
         const cJSON *name_j  = cJSON_GetObjectItem(e, "name");
 
         if (!cJSON_IsString(proto_j) || !cJSON_IsNumber(ep_j)
-            || !cJSON_IsString(iip_j) || !cJSON_IsNumber(ip_j)) continue;
+            || !cJSON_IsString(iip_j) || !cJSON_IsNumber(ip_j)) goto invalid_portmap;
 
-        portmap_entry_t *r = &out[n_out];
+        portmap_entry_t *r = &out[i];
         r->proto = portmap_proto_from_str(proto_j->valuestring);
-        if (!r->proto) continue;
-
-        int ep = (int)ep_j->valuedouble;
-        int ip = (int)ip_j->valuedouble;
-        if (ep <= 0 || ep > 65535 || ip <= 0 || ip > 65535) continue;
-        r->ext_port = (uint16_t)ep;
-        r->int_port = (uint16_t)ip;
+        if (!r->proto||!json_port_value(ep_j,&r->ext_port)||!json_port_value(ip_j,&r->int_port)) goto invalid_portmap;
 
         ip4_addr_t a;
-        if (!ip4addr_aton(iip_j->valuestring, &a) || a.addr == 0) continue;
+        if (!ip4addr_aton(iip_j->valuestring, &a) || a.addr == 0) goto invalid_portmap;
         r->int_ip = a.addr;
 
+        if(name_j&&(!cJSON_IsString(name_j)||strlen(name_j->valuestring)>=sizeof r->name))goto invalid_portmap;
         if (cJSON_IsString(name_j)) {
             strlcpy(r->name, name_j->valuestring, sizeof r->name);
         }
         r->valid = 1;
-        n_out++;
     }
     cJSON_Delete(root);
 
-    esp_err_t err = portmap_set_all(out, n_out);
+    esp_err_t err = portmap_set_all(out, n_in);
 
     nvs_save_errors_reset();
     if (err != ESP_OK) nvs_save_record_err("portmap", err);
     return send_save_response(req);
+invalid_portmap:
+    cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"invalid mapping; no rules changed");return ESP_FAIL;
 }
 
 static const httpd_uri_t uri_portmap = {
@@ -2502,36 +2583,96 @@ static const httpd_uri_t uri_portmap_save = {
 static esp_err_t tailnet_forward_handler(httpd_req_t *req)
 {
     if (require_auth(req) != ESP_OK) return ESP_FAIL;
-    cJSON *root=cJSON_CreateObject(), *arr=cJSON_CreateArray();
-    if(!root||!arr){cJSON_Delete(root);cJSON_Delete(arr);httpd_resp_send_500(req);return ESP_FAIL;}
-    for(int i=0;i<TAILNET_FORWARD_MAX;i++){
-        tailnet_forward_rule_t r; tailnet_forward_runtime_t rt;
-        if(!tailnet_forward_get(i,&r,&rt))continue;
-        char cidr[32], resolved[16]=""; tailnet_forward_format_cidr(r.source_network,r.source_prefix,cidr,sizeof cidr);
-        if(rt.resolved_ip)snprintf(resolved,sizeof resolved,"%u.%u.%u.%u",(unsigned)(rt.resolved_ip>>24),(unsigned)((rt.resolved_ip>>16)&255),(unsigned)((rt.resolved_ip>>8)&255),(unsigned)(rt.resolved_ip&255));
-        cJSON *j=cJSON_CreateObject();
-        cJSON_AddStringToObject(j,"name",r.name);cJSON_AddBoolToObject(j,"enabled",r.enabled);
-        cJSON_AddStringToObject(j,"protocol",r.proto==TAILNET_FORWARD_PROTO_UDP?"udp":"tcp");
-        cJSON_AddNumberToObject(j,"listen_port",r.listen_port);cJSON_AddStringToObject(j,"tailnet_destination",r.destination);
-        cJSON_AddNumberToObject(j,"destination_port",r.destination_port);cJSON_AddStringToObject(j,"allowed_source_subnet",cidr);
-        cJSON_AddBoolToObject(j,"installed",rt.installed);cJSON_AddStringToObject(j,"resolved_ip",resolved);
-        cJSON_AddNumberToObject(j,"accepted_packets",rt.accepted_packets);cJSON_AddNumberToObject(j,"blocked_packets",rt.blocked_packets);
-        cJSON_AddStringToObject(j,"error",rt.error);cJSON_AddItemToArray(arr,j);
+    cJSON *root = cJSON_CreateObject(), *arr = cJSON_CreateArray();
+    if (!root || !arr || !cJSON_AddItemToObject(root, "rules", arr)) {
+        cJSON_Delete(root); cJSON_Delete(arr); httpd_resp_send_500(req); return ESP_FAIL;
     }
-    cJSON_AddItemToObject(root,"rules",arr);cJSON_AddNumberToObject(root,"max",TAILNET_FORWARD_MAX);
-    char *body=cJSON_PrintUnformatted(root);cJSON_Delete(root);if(!body){httpd_resp_send_500(req);return ESP_FAIL;}
-    httpd_resp_set_type(req,"application/json");esp_err_t e=httpd_resp_sendstr(req,body);free(body);return e;
+    /* Match the actual portmap binding, not a saved SSID or AP policy.
+     * An IPv4 address is not proof of router/Internet/tunnel availability. */
+    esp_netif_ip_info_t ip = {0};
+    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    bool uplink = sta && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr;
+    bool control = tailscale_is_connected();
+    char uplink_ip[16] = "";
+    if (uplink) snprintf(uplink_ip, sizeof uplink_ip, IPSTR, IP2STR(&ip.ip));
+    if (!cJSON_AddNumberToObject(root, "max", TAILNET_FORWARD_MAX)
+        || !cJSON_AddBoolToObject(root, "uplink_has_ipv4", uplink)
+        || !cJSON_AddStringToObject(root, "uplink_ip", uplink_ip)
+        || !cJSON_AddBoolToObject(root, "tailscale_control_connected", control)
+        || !cJSON_AddStringToObject(root, "observation", "passive_snapshot")) goto failed;
+    for (int i = 0; i < TAILNET_FORWARD_MAX; i++) {
+        tailnet_forward_rule_t r; tailnet_forward_runtime_t rt;
+        if (!tailnet_forward_get(i, &r, &rt)) continue;
+        char cidr[32], resolved[16] = "";
+        tailnet_forward_format_cidr(r.source_network, r.source_prefix, cidr, sizeof cidr);
+        if (rt.resolved_ip) snprintf(resolved, sizeof resolved, "%u.%u.%u.%u",
+            (unsigned)(rt.resolved_ip>>24), (unsigned)((rt.resolved_ip>>16)&255),
+            (unsigned)((rt.resolved_ip>>8)&255), (unsigned)(rt.resolved_ip&255));
+        service_diagnostic_t d = service_diagnose(r.enabled, uplink, control,
+                                                 rt.resolved_ip != 0, rt.installed, rt.error[0] != 0);
+        uint32_t token = service_lease_token(&r);
+        service_check_result_t check = {0};
+        bool checked = service_check_get(i, token, &check);
+        cJSON *j = cJSON_CreateObject(), *diagnostic = cJSON_CreateObject();
+        bool ok = j && diagnostic
+            && cJSON_AddNumberToObject(j, "index", i)
+            && cJSON_AddStringToObject(j, "name", r.name)
+            && cJSON_AddBoolToObject(j, "enabled", r.enabled)
+            && cJSON_AddStringToObject(j, "protocol", r.proto == TAILNET_FORWARD_PROTO_UDP ? "udp" : "tcp")
+            && cJSON_AddNumberToObject(j, "listen_port", r.listen_port)
+            && cJSON_AddStringToObject(j, "tailnet_destination", r.destination)
+            && cJSON_AddNumberToObject(j, "destination_port", r.destination_port)
+            && cJSON_AddStringToObject(j, "allowed_source_subnet", cidr)
+            && cJSON_AddBoolToObject(j, "installed", rt.installed)
+            && cJSON_AddStringToObject(j, "resolved_ip", resolved)
+            && cJSON_AddNumberToObject(j, "accepted_packets", rt.accepted_packets)
+            && cJSON_AddNumberToObject(j, "blocked_packets", rt.blocked_packets)
+            && cJSON_AddStringToObject(j, "error", rt.error)
+            && cJSON_AddStringToObject(diagnostic, "code", d.code)
+            && cJSON_AddStringToObject(diagnostic, "summary", d.summary)
+            && cJSON_AddStringToObject(diagnostic, "next_step", d.next_step)
+            && cJSON_AddNumberToObject(j, "rule_token", token)
+            && cJSON_AddStringToObject(diagnostic, "service_status", service_check_state_name(check.state))
+            && cJSON_AddStringToObject(diagnostic, "data_plane_status", "not_verified");
+        if (ok && checked) {
+            uint64_t now_ms = (uint64_t)esp_timer_get_time() / 1000;
+            char ip[16] = "";
+            if (check.resolved_ip) snprintf(ip, sizeof ip, "%u.%u.%u.%u", (unsigned)(check.resolved_ip >> 24),
+                (unsigned)((check.resolved_ip >> 16) & 255), (unsigned)((check.resolved_ip >> 8) & 255),
+                (unsigned)(check.resolved_ip & 255));
+            cJSON *c = cJSON_AddObjectToObject(j, "destination_check");
+            ok = c && cJSON_AddStringToObject(c, "state", service_check_state_name(check.state))
+                && cJSON_AddStringToObject(c, "summary", service_check_summary(check.state))
+                && cJSON_AddStringToObject(c, "next_step", service_check_next_step(check.state))
+                && cJSON_AddStringToObject(c, "checked_ip", ip)
+                && cJSON_AddNumberToObject(c, "latency_ms", check.latency_ms)
+                && cJSON_AddNumberToObject(c, "age_s", check.observed_ms && now_ms >= check.observed_ms
+                                                      ? (double)((now_ms - check.observed_ms) / 1000) : 0);
+        }
+        if (!ok || !cJSON_AddItemToObject(j, "diagnostic", diagnostic)) {
+            cJSON_Delete(j); cJSON_Delete(diagnostic); goto failed;
+        }
+        cJSON_AddItemToArray(arr, j);
+    }
+    char *body = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+    if (!body) { httpd_resp_send_500(req); return ESP_FAIL; }
+    httpd_resp_set_type(req, "application/json");
+    httpd_resp_set_hdr(req, "Cache-Control", "no-store");
+    esp_err_t e = httpd_resp_sendstr(req, body); free(body); return e;
+failed:
+    cJSON_Delete(root); httpd_resp_send_500(req); return ESP_FAIL;
 }
 static bool json_port_value(const cJSON *item, uint16_t *out)
 {
-    long value = 0;
+    unsigned value = 0;
     if (cJSON_IsNumber(item)) {
-        value = item->valueint;
-        if (item->valuedouble != (double)value) return false;
+        double d=item->valuedouble;
+        if(!(d>=1&&d<=65535))return false;
+        value=(unsigned)d;if(d!=(double)value)return false;
     } else if (cJSON_IsString(item) && item->valuestring) {
-        char *end = NULL;
-        value = strtol(item->valuestring, &end, 10);
-        if (end == item->valuestring || *end != '\0') return false;
+        const char *s=item->valuestring;size_t n=strlen(s);if(!n||n>5)return false;
+        for(size_t i=0;i<n;i++){if(s[i]<'0'||s[i]>'9')return false;value=value*10+(unsigned)(s[i]-'0');}
     } else {
         return false;
     }
@@ -2543,7 +2684,7 @@ static esp_err_t tailnet_forward_save_handler(httpd_req_t *req)
 {
     if(require_auth(req)!=ESP_OK)return ESP_FAIL;
     char *buf=malloc_body_buf(8192);if(!buf){httpd_resp_send_500(req);return ESP_FAIL;}
-    if(recv_body(req,buf,8192,NULL)!=ESP_OK){free(buf);return ESP_FAIL;}cJSON *root=cJSON_Parse(buf);free(buf);
+    if(recv_body(req,buf,8192,NULL)!=ESP_OK){free(buf);return ESP_FAIL;}cJSON *root=json_guard_parse(buf);free(buf);
     cJSON *arr=root?cJSON_GetObjectItem(root,"rules"):NULL;if(!cJSON_IsArray(arr)){cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"missing rules[]");return ESP_FAIL;}
     int count=cJSON_GetArraySize(arr);if(count>TAILNET_FORWARD_MAX){cJSON_Delete(root);httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"too many rules");return ESP_FAIL;}
     tailnet_forward_rule_t rules[TAILNET_FORWARD_MAX];memset(rules,0,sizeof rules);
@@ -2618,7 +2759,7 @@ static esp_err_t mac_deny_save_handler(httpd_req_t *req)
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, buf_size, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
 
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
@@ -3143,7 +3284,7 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, buf_size, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
 
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
@@ -3552,7 +3693,7 @@ static esp_err_t system_save_handler(httpd_req_t *req)
     char buf[512];
     if (recv_body(req, buf, sizeof buf, NULL) != ESP_OK) return ESP_FAIL;
 
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
         return ESP_FAIL;
@@ -3715,7 +3856,7 @@ static esp_err_t system_debug_wg_tx_post_handler(httpd_req_t *req)
     if (require_password_session(req) != ESP_OK) return ESP_FAIL;
     char buf[128];
     if (recv_body(req, buf, sizeof buf, NULL) != ESP_OK) return ESP_FAIL;
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     const cJSON *cf = cJSON_GetObjectItemCaseSensitive(root, "copyfree");
     const cJSON *rs = cJSON_GetObjectItemCaseSensitive(root, "reset");
     if (!cJSON_IsObject(root) || (!cf && !rs) ||
@@ -3825,7 +3966,7 @@ static esp_err_t updates_save_handler(httpd_req_t *req)
     if (require_password_session(req) != ESP_OK) return ESP_FAIL;
     char body[256];
     if (recv_body(req, body, sizeof body, NULL) != ESP_OK) return ESP_FAIL;
-    cJSON *json = cJSON_Parse(body);
+    cJSON *json = json_guard_parse(body);
     const cJSON *enabled = cJSON_GetObjectItemCaseSensitive(json, "enabled");
     const cJSON *automatic = cJSON_GetObjectItemCaseSensitive(json, "auto_install");
     const cJSON *beta = cJSON_GetObjectItemCaseSensitive(json, "beta_channel");
@@ -3939,7 +4080,7 @@ static esp_err_t system_secrets_post_handler(httpd_req_t *req)
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, buf_size, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
 
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
@@ -4530,13 +4671,13 @@ static bool request_authenticated(httpd_req_t *req)
 }
 
 /* Read the operator-defined device label out of NVS, falling back to a
- * generic 'ESP32 Router' name. Caller frees the returned buffer. */
+ * generic product name. Caller frees the returned buffer. */
 static char *device_name_dup(void)
 {
     char *s = nvs_param_get_str("dev_name");
     if (s && s[0]) return s;
     free(s);
-    return strdup("ESP32 Router");
+    return strdup("Homelab Gateway");
 }
 
 static esp_err_t auth_status_handler(httpd_req_t *req)
@@ -4577,6 +4718,7 @@ typedef struct {
 
 #define LOGIN_GUARD_SLOTS 16
 static login_guard_t s_login_guards[LOGIN_GUARD_SLOTS];
+static login_budget_t s_login_budget;
 
 static uint32_t request_peer_ipv4(httpd_req_t *req)
 {
@@ -4617,8 +4759,11 @@ static bool login_guard_reject(httpd_req_t *req, login_guard_t **out)
     uint64_t now = (uint64_t)esp_timer_get_time();
     guard->last_seen_us = now;
     if (out) *out = guard;
-    if (now >= guard->blocked_until_us) return false;
-    uint32_t retry_s = (uint32_t)((guard->blocked_until_us - now + 999999ULL) / 1000000ULL);
+    uint64_t wait_us = login_budget_wait_us(&s_login_budget, now);
+    if (now < guard->blocked_until_us && guard->blocked_until_us - now > wait_us)
+        wait_us = guard->blocked_until_us - now;
+    if (!wait_us) return false;
+    uint32_t retry_s = (uint32_t)((wait_us + 999999ULL) / 1000000ULL);
     char retry[12];
     snprintf(retry, sizeof retry, "%u", (unsigned)retry_s);
     httpd_resp_set_status(req, "429 Too Many Requests");
@@ -4631,6 +4776,7 @@ static bool login_guard_reject(httpd_req_t *req, login_guard_t **out)
 static void login_guard_failed(login_guard_t *guard)
 {
     if (!guard) return;
+    login_budget_failed(&s_login_budget, (uint64_t)esp_timer_get_time());
     if (guard->failures < UINT8_MAX) guard->failures++;
     if (guard->failures < 3) return;
     unsigned shift = guard->failures - 3;
@@ -4689,6 +4835,7 @@ static bool login_challenge_consume(httpd_req_t *req, const uint8_t *nonce)
 
 static esp_err_t auth_challenge_handler(httpd_req_t *req)
 {
+    if (browser_request_refused(req, false)) return ESP_FAIL;
     login_guard_t *guard = NULL;
     if (login_guard_reject(req, &guard)) return ESP_FAIL;
     (void)guard;
@@ -4735,7 +4882,7 @@ static esp_err_t auth_login_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    cJSON *body = cJSON_Parse(buf);
+    cJSON *body = json_guard_parse(buf);
     secure_wipe(buf, sizeof buf);
     cJSON *pw = body ? cJSON_GetObjectItem(body, "password") : NULL;
     cJSON *nonce_json = body ? cJSON_GetObjectItem(body, "nonce") : NULL;
@@ -4878,6 +5025,7 @@ static esp_err_t auth_setup_handler(httpd_req_t *req)
                             "initial password setup is only allowed through the device AP");
         return ESP_FAIL;
     }
+    if (browser_request_refused(req, true)) return ESP_FAIL;
 
     char buf[256];
     if (recv_body(req, buf, sizeof buf, NULL) != ESP_OK) {
@@ -4885,7 +5033,7 @@ static esp_err_t auth_setup_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    cJSON *body = cJSON_Parse(buf);
+    cJSON *body = json_guard_parse(buf);
     secure_wipe(buf, sizeof buf);
     cJSON *pw   = body ? cJSON_GetObjectItem(body, "password") : NULL;
     const char *pw_value = NULL;
@@ -4944,7 +5092,7 @@ static esp_err_t auth_change_password_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    cJSON *body = cJSON_Parse(buf);
+    cJSON *body = json_guard_parse(buf);
     secure_wipe(buf, sizeof buf);
     cJSON *old_pw = body ? cJSON_GetObjectItem(body, "old_password") : NULL;
     cJSON *new_pw = body ? cJSON_GetObjectItem(body, "new_password") : NULL;
@@ -5059,7 +5207,7 @@ static esp_err_t sdlog_status_post_handler(httpd_req_t *req)
 
     char buf[128];
     if (recv_body(req, buf, sizeof buf, NULL) != ESP_OK) return ESP_FAIL;
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
         return ESP_FAIL;
@@ -5332,7 +5480,7 @@ static esp_err_t snmp_post_handler(httpd_req_t *req)
     if (!buf) { httpd_resp_send_500(req); return ESP_FAIL; }
     if (recv_body(req, buf, buf_size, NULL) != ESP_OK) { free(buf); return ESP_FAIL; }
 
-    cJSON *root = cJSON_Parse(buf);
+    cJSON *root = json_guard_parse(buf);
     free(buf);
     if (!root) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
@@ -5421,7 +5569,7 @@ void web_ui_init(void)
      * instead of WebCrypto's ~100 ms. */
     httpd_config_t conf           = HTTPD_DEFAULT_CONFIG();
     conf.uri_match_fn             = httpd_uri_match_wildcard;
-    conf.max_uri_handlers         = 88;
+    conf.max_uri_handlers         = 104;
     conf.stack_size               = 12288;
     /* The HTTP server needs three lwIP sockets internally. Four client slots
      * are enough for this SPA's post-login burst while preserving descriptors
@@ -5452,6 +5600,7 @@ void web_ui_init(void)
      * records, but do not install a DNAT binding over the admin service. */
     portmap_install_all();
     reg_uri(server, &uri_index);
+    if(homelab_ops_register_http(server)!=ESP_OK)ESP_LOGE(TAG,"Operational API registration failed");
     reg_uri(server, &uri_favicon);
     reg_uri(server, &uri_status);
     reg_uri(server, &uri_network);

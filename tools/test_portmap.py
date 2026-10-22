@@ -150,6 +150,10 @@ int main(void) {
     }
     fail_phase=0;
     unsigned before_writes=writes;
+    assert(portmap_set_all(&changed,-1)==ESP_ERR_INVALID_ARG);
+    assert(portmap_set_all(&changed,PORTMAP_MAX+1)==ESP_ERR_INVALID_ARG);
+    portmap_entry_t invalid=changed;invalid.int_port=0;assert(portmap_set_all(&invalid,1)==ESP_ERR_INVALID_ARG);
+    invalid=changed;invalid.valid=2;assert(portmap_set_all(&invalid,1)==ESP_ERR_INVALID_ARG);
     changed.ext_port=8080; assert(portmap_set_all(&changed,1)==ESP_ERR_INVALID_STATE);
     changed.ext_port=80; assert(portmap_set_all(&changed,1)==ESP_ERR_INVALID_STATE);
     changed.ext_port=3333;memset(changed.name,'x',sizeof changed.name);

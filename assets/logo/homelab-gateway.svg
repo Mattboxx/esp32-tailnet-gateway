@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 220" role="img" aria-labelledby="title desc">
+  <title id="title">ESP32 Homelab Gateway — Mattboxx Edition</title>
+  <desc id="desc">Selective Tailnet access. Independent recovery. Local diagnostics.</desc>
+  <defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#0d0f12"/><stop offset="1" stop-color="#1e293b"/></linearGradient></defs>
+  <rect width="960" height="220" rx="18" fill="url(#bg)"/>
+  <g fill="none" stroke="#60a5fa" stroke-width="4" stroke-linecap="round">
+    <rect x="42" y="70" width="76" height="76" rx="15"/>
+    <path d="M61 58v12m20-12v12m20-12v12M61 146v12m20-12v12m20-12v12M30 89h12m-12 20h12m-12 20h12m76-40h12m-12 20h12m-12 20h12"/>
+    <path d="M63 112h17V91m0 21h19m-19 0v16" stroke="#65d5bc"/>
+  </g>
+  <g font-family="system-ui,Segoe UI,sans-serif">
+    <text x="165" y="91" font-size="42" font-weight="650" fill="#f2f1fa">ESP32 Homelab Gateway</text>
+    <text x="167" y="128" font-size="19" letter-spacing="2" fill="#93c5fd">MATTBOXX EDITION</text>
+    <text x="167" y="168" font-size="19" fill="#bac3d3">Selective Tailnet access · Independent recovery · Local diagnostics</text>
+  </g>
+</svg>

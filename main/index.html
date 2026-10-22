@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 Tailscale Router</title>
+  <title>ESP32 Homelab Gateway</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%230f172a'/%3E%3Cg fill='none' stroke='%2360a5fa' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M9.5 9.5a9.5 9.5 0 0 1 13 0'/%3E%3Cpath d='M12.2 12a5.6 5.6 0 0 1 7.6 0'/%3E%3C/g%3E%3Crect x='10.5' y='15' width='11' height='11' rx='2.2' fill='%231e293b' stroke='%233b82f6' stroke-width='1.6'/%3E%3Cpath d='M8 18.5h2.5M8 22.5h2.5M21.5 18.5H24M21.5 22.5H24M14 26v2M18 26v2' stroke='%233b82f6' stroke-width='1.4' stroke-linecap='round'/%3E%3Crect x='13.6' y='18.1' width='4.8' height='4.8' rx='.8' fill='%233b82f6'/%3E%3C/svg%3E">
   <style>
     /* =====================================================================
@@ -1508,6 +1508,15 @@
     }
     .auth-countdown.warn   { color: var(--warning, #d97706); opacity: 0.95; }
     .auth-countdown.danger { color: var(--danger,  #dc2626); opacity: 1; }
+    .wizard-focus { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 6px; }
+    #wizard-panel { position: fixed; right: 16px; bottom: 16px; z-index: 900; width: min(420px, calc(100vw - 32px));
+      max-height: 70vh; overflow: auto; background: var(--bg-elevated); border: 1px solid var(--accent-border);
+      border-radius: 10px; padding: 1rem; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
+    #wizard-panel ul { padding-left: 1.1rem; margin: 0.4rem 0; }
+    #wizard-panel [hidden], #profile-card [hidden] { display: none !important; }
+    #wizard-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .capability-unavailable > .card-body { opacity: 0.55; }
+    .capability-note { margin: 0.5rem 1rem 0; color: var(--warning); }
   </style>
 </head>
 <body>
@@ -1520,7 +1529,7 @@
     <div class="nav-brand">
       <div class="nav-brand-icon">
         <!-- Project mark: chip + WiFi (inline SVG, crisp at any size) -->
-        <svg class="brand-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-label="ESP32 Tailscale Router">
+        <svg class="brand-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-label="ESP32 Homelab Gateway">
           <g stroke="#3b82f6" stroke-width="2">
             <path d="M5 8.4a9.5 9.5 0 0 1 14 0"/>
             <path d="M8 11.2a5.5 5.5 0 0 1 8 0"/>
@@ -1533,7 +1542,7 @@
           <rect x="10.4" y="17.4" width="3.2" height="1.8" rx="0.4" fill="#3b82f6"/>
         </svg>
       </div>
-      <span class="nav-brand-name" id="brandName">ESP32 Router</span>
+      <span class="nav-brand-name" id="brandName">Homelab Gateway</span>
     </div>
 
     <div class="nav-tabs" role="tablist" id="navTabs">
@@ -1570,6 +1579,7 @@
         </svg>
         Diagnostics
       </a>
+      <a class="nav-tab" role="tab" data-page="operations" aria-selected="false" href="#operations">Devices &amp; Recovery</a>
       <a class="nav-tab" role="tab" data-page="automation" aria-selected="false" href="#automation">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M13 2L3 14h8l-1 8 10-12h-8z"/>
@@ -1616,6 +1626,19 @@
        AUTH OVERLAYS  (shown above everything; hidden once authenticated)
        =================================================================== -->
 
+    <div id="wizard-panel" role="dialog" aria-labelledby="wizard-title" hidden>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;"><strong id="wizard-title">Guide</strong>
+        <button class="btn btn-secondary btn-sm" id="wizard-close" type="button" aria-label="Close guide">Close</button></div>
+      <p id="wizard-goal"></p>
+      <p class="form-hint">Prerequisites</p><ul id="wizard-checks"></ul>
+      <p class="form-hint">Risks</p><ul id="wizard-risks"></ul>
+      <label id="wizard-exposure-row" hidden><input type="checkbox" id="wizard-exposure"> I understand this can expose networks or services to other tailnet or LAN clients.</label>
+      <div class="page-header-actions" style="margin-top:0.5rem;">
+        <button class="btn btn-primary" id="wizard-start" type="button" disabled>Start</button>
+        <button class="btn btn-secondary" id="wizard-verify" type="button" hidden>Check result</button>
+        <button class="btn btn-secondary" id="wizard-restore" type="button" hidden>Restore previous settings</button></div>
+      <div id="wizard-result" role="status" style="margin-top:0.5rem;"></div>
+    </div>
   <!-- First-boot setup wizard -->
   <div class="auth-overlay" id="authSetup" style="display:none" role="dialog" aria-modal="true" aria-labelledby="setup-title">
     <form class="auth-card" id="setupForm" autocomplete="on">
@@ -1626,7 +1649,7 @@
         </svg>
       </div>
       <div class="auth-title" id="setup-title">Set up admin password</div>
-      <div class="auth-subtitle">Protect the router web interface. You can change this later from the System tab.</div>
+      <div class="auth-subtitle">Protect the gateway web interface. Next: join your tailnet and publish your first LAN → Tailnet service. You can change the password later from the System tab.</div>
       <div class="auth-error" id="setup-error"></div>
       <!-- Hidden username so password managers anchor the credential to "admin". -->
       <input type="text" name="username" autocomplete="username" value="admin" hidden>
@@ -1652,7 +1675,7 @@
           <path d="M7 11V7a5 5 0 0110 0v4"/>
         </svg>
       </div>
-      <div class="auth-title" id="login-title">ESP32 Router</div>
+      <div class="auth-title" id="login-title">Homelab Gateway</div>
       <!-- updateBrandName() also rewrites #login-title with the operator label. -->
       <div class="auth-subtitle">Enter your admin password to continue.</div>
       <div class="auth-error" id="login-error"></div>
@@ -1707,6 +1730,26 @@
             <span class="badge-dot"></span>
             Loading…
           </span>
+        </div>
+      </div>
+
+      <!-- Primary feature: Selective Tailnet Service Gateway -->
+      <div class="card mb-4" id="sg-home-card" data-capability="lan-tailnet-forwarding">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Selective Tailnet Service Gateway</span></div><span class="badge badge-neutral" id="sg-home-badge">—</span></div>
+        <div class="card-body">
+          <p>Let existing LAN devices use specific Tailnet services through this gateway — no Tailscale client on them, no access-point change, no new default gateway. Each rule admits one TCP/UDP service to an allowed source address.</p>
+          <p class="form-hint" id="sg-home-summary" role="status">Loading service rules…</p>
+          <div class="page-header-actions"><button class="btn btn-primary" id="sg-home-guide" type="button">Publish a Tailnet service</button>
+            <a class="btn btn-secondary" href="#network" id="sg-home-open">Open service rules</a></div>
+        </div>
+      </div>
+
+      <!-- Guided setup -->
+      <div class="card mb-4" id="wizard-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Guided setup</span></div></div>
+        <div class="card-body">
+          <p class="form-hint">Each guide explains the goal, checks prerequisites, lists risks and asks for explicit confirmation before anything that exposes a network or service. The usual settings forms do the saving, so their validation still applies.</p>
+          <div id="wizard-list"></div>
         </div>
       </div>
 
@@ -2221,12 +2264,24 @@
       </div>
 
       <!-- ===== LAN -> Tailnet forwarding (independent of AP-side NAPT) ===== -->
-      <div class="card mt-4">
+      <div class="card mt-4" data-capability="lan-tailnet-forwarding">
         <div class="card-header"><div class="card-header-left"><span class="card-title">LAN → Tailnet Port Forwarding</span></div><span class="badge badge-neutral" id="tf-badge">—</span></div>
         <div class="card-body">
           <p class="form-hint" style="margin:0 0 0.75rem 0;">Expose selected Tailnet services on the ESP32 uplink-LAN address. LAN clients do not need Tailscale and do not need to join the ESP32 access point. This table is fully separate from AP-side port forwarding.</p>
+          <p class="form-hint">Source CIDRs filter addresses, not client identity. Use the narrowest subnet and keep authentication on the remote service. A mapping being installed does not prove the service is reachable.</p>
+          <p class="form-hint" id="tf-context" role="status">Loading saved rules and passive diagnostics…</p>
           <div id="tf-list"></div>
-          <div style="margin-top:0.75rem;"><button class="btn btn-secondary btn-md" id="tf-add" type="button">+ Add rule</button></div>
+          <div class="form-row" style="margin-top:0.75rem;"><div class="form-group"><label class="form-label" for="tf-template">Service template</label><select class="input" id="tf-template"><option value="custom">Custom service</option><option value="ssh">SSH</option><option value="https">HTTPS</option><option value="home-assistant">Home Assistant</option><option value="mqtt-tls">MQTT over TLS</option><option value="rdp">Remote Desktop</option></select></div><button class="btn btn-secondary btn-md" id="tf-add" type="button" disabled>+ Add disabled draft</button></div>
+          <p class="form-hint">Templates never enable a listener or save automatically. Enter the actual destination and a narrow source CIDR; verify service authentication and resolve any port conflict before enabling.</p>
+          <details style="margin-top:1rem"><summary>Back up or import saved service rules</summary>
+            <p class="form-hint">Exports contain destination addresses/hostnames and source subnets, not credentials. Keep the file private. Import replaces this LAN → Tailnet table only, never the separate AP-side mappings. All imported rules start OFF; review before confirming.</p>
+            <a class="btn btn-secondary" href="/api/tailnet-forward/export" download>Export saved rules</a>
+            <label class="btn btn-secondary" for="tf-import-file">Choose import file</label><input type="file" id="tf-import-file" accept="application/json,.json" style="max-width:100%;margin-top:0.5rem;">
+            <pre class="mono" id="tf-import-preview" style="white-space:pre-wrap" role="status">No import preview.</pre>
+            <label><input type="checkbox" id="tf-import-confirm" disabled> Replace the saved LAN → Tailnet rules with this disabled configuration</label>
+            <button class="btn btn-primary" id="tf-import-apply" type="button" disabled>Apply reviewed import</button>
+          </details>
+          <details style="margin-top:1rem"><summary>Temporary exposure and expiry</summary><p class="form-hint">Save the rules first. Timers require a synchronized clock, survive restart and do not enable a disabled rule. Reordering keeps the timer with its rule. After first timer use, new or edited bindings need explicit timer/permanent confirmation. Expired rules stay closed; optional deletion also releases their configured ports.</p><button class="btn btn-secondary" id="leases-refresh">Refresh timers</button><div id="service-leases" role="status">Not loaded</div></details>
         </div>
         <div class="form-footer"><span class="form-footer-hint">A source CIDR is mandatory. Up to 8 TCP/UDP rules; listen ports must be unique per protocol.</span><div class="form-footer-actions"><button class="btn btn-secondary btn-md" id="tf-reload">Reload</button><button class="btn btn-primary btn-md" id="tf-save" disabled>Save</button></div></div>
       </div>
@@ -2696,6 +2751,46 @@
     <!-- =================================================================
          AUTOMATION PAGE
          =============================================================== -->
+    <div class="page-section" id="page-operations">
+      <div class="page-header"><div class="page-header-left"><h1 class="page-title">Devices &amp; Recovery</h1><p class="page-subtitle">Verify a host and its service, not just a sent magic packet.</p></div>
+        <div class="page-header-actions"><button class="btn btn-secondary" id="ops-refresh">Refresh</button><a class="btn btn-secondary" href="/api/diagnostics/export" download>Sanitized export</a></div></div>
+      <div class="card"><div class="card-header"><span class="card-title">Health &amp; resources</span></div><div class="card-body">
+        <p id="ops-summary" role="status">Not loaded</p><p class="form-hint">Control connected does not prove the tunnel or a remote service works. No public Internet probe runs automatically.</p>
+        <details><summary>Actual firmware capabilities</summary><p id="ops-capability-status" role="status">Not loaded</p><ul id="ops-capabilities"></ul></details>
+        <label class="feature-switch"><input type="checkbox" id="ops-monitoring"><span class="feature-switch-track" aria-hidden="true"></span><span>Monitor configured devices</span></label>
+        <label class="feature-switch"><input type="checkbox" id="ops-guard"><span class="feature-switch-track" aria-hidden="true"></span><span>Resource admission guard</span></label>
+        <label class="feature-switch"><input type="checkbox" id="ops-remote"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow MQTT / ntfy recovery commands</span></label>
+        <label class="feature-switch"><input type="checkbox" id="ops-lease-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify via ntfy when temporary service access closes</span></label>
+        <p class="form-hint">OFF by default. Notifications are best-effort; local access closes even when ntfy is unavailable. No rule addresses or names are sent.</p>
+        <div class="form-hint">Guard thresholds are engineering defaults, not calibrated device limits. Remote commands require a trusted broker/topic and existing integration permissions.</div>
+        <div class="form-row"><div class="form-group"><label class="form-label" for="ops-min">Minimum internal free bytes</label><input class="input" id="ops-min" type="number" min="0" max="262144"></div>
+          <div class="form-group"><label class="form-label" for="ops-largest">Minimum largest block</label><input class="input" id="ops-largest" type="number" min="0" max="131072"></div>
+          <div class="form-group"><label class="form-label" for="ops-sockets">Reserved socket slots</label><input class="input" id="ops-sockets" type="number" min="0" max="31"></div>
+          <div class="form-group"><label class="form-label" for="ops-interval">Monitor interval (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600"></div></div>
+        <button class="btn btn-primary" id="ops-settings-save" disabled>Save monitoring settings</button>
+      </div></div>
+      <div class="card" data-capability="health"><div class="card-header"><span class="card-title">Layered connectivity checks</span></div><div class="card-body">
+        <p class="form-hint">Optional, OFF by default. No built-in cloud target. One check every configured interval, sharing the recovery worker. A closed gateway port does not prove the router is down; a TCP connection does not verify application health. DNS answers may be cached.</p>
+        <label class="feature-switch"><input type="checkbox" id="health-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable configured connectivity checks</span></label>
+        <label class="feature-switch"><input type="checkbox" id="health-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify repeated failures through enabled ntfy</span></label>
+        <div class="form-row">
+          <div class="form-group"><label class="form-label" for="health-interval">Interval between checks (30–3600 s)</label><input class="input" type="number" id="health-interval" min="30" max="3600"></div>
+          <div class="form-group"><label class="form-label" for="health-threshold">Failures before down (1–5)</label><input class="input" type="number" id="health-threshold" min="1" max="5"></div>
+          <div class="form-group"><label class="form-label" for="health-gateway-port">Uplink gateway TCP port (0 = skip)</label><input class="input" type="number" id="health-gateway-port" min="0" max="65535"></div>
+          <div class="form-group"><label class="form-label" for="health-dns">DNS lookup name (blank = skip)</label><input class="input" id="health-dns" maxlength="95" autocomplete="off"></div>
+          <div class="form-group"><label class="form-label" for="health-internet">Internet target IPv4 (blank = skip)</label><input class="input" id="health-internet" maxlength="15" autocomplete="off"></div>
+          <div class="form-group"><label class="form-label" for="health-internet-port">Internet target TCP port</label><input class="input" type="number" id="health-internet-port" min="0" max="65535"></div>
+          <div class="form-group"><label class="form-label" for="health-tailnet">Tailnet target / cached hostname (blank = skip)</label><input class="input" id="health-tailnet" maxlength="95" autocomplete="off"></div>
+          <div class="form-group"><label class="form-label" for="health-tailnet-port">Tailnet service TCP port</label><input class="input" type="number" id="health-tailnet-port" min="0" max="65535"></div>
+        </div><button class="btn btn-primary" id="health-save" disabled>Save connectivity checks</button>
+        <p id="health-status" role="status">Not loaded</p><pre class="mono" id="health-checks" style="white-space:pre-wrap"></pre>
+      </div></div>
+      <div class="card" data-capability="smart-recovery"><div class="card-header"><span class="card-title">Device registry</span></div><div class="card-body">
+        <p class="form-hint">Add or edit MAC addresses in <a href="#automation">Automation → Wake-on-LAN</a>. Profiles remain linked to the saved MAC, not its row number. Checks use IPv4 DNS or cached Tailnet names. TCP connection success proves the selected port answered, not application health.</p>
+        <p id="ops-job" role="status">No observation loaded</p><button class="btn btn-secondary" id="ops-cancel" disabled>Cancel active recovery</button><div id="ops-devices"></div>
+        <pre class="mono" id="ops-events" style="white-space:pre-wrap"></pre>
+      </div></div>
+    </div>
     <div class="page-section" id="page-automation">
       <div class="page-header">
         <div class="page-header-left">
@@ -2735,7 +2830,7 @@
       </div>
 
       <!-- ===== MQTT + Home Assistant ===== -->
-      <div class="card feature-card mt-4" id="mqtt-card" data-feature-state="unknown">
+      <div class="card feature-card mt-4" id="mqtt-card" data-feature-state="unknown" data-capability="mqtt">
         <div class="card-header">
           <div class="card-header-left"><span class="card-title">MQTT &amp; Home Assistant</span></div>
           <span class="badge badge-neutral" id="mqtt-badge">—</span>
@@ -2791,7 +2886,7 @@
       </div>
 
       <!-- ===== ntfy alerts and commands ===== -->
-      <div class="card feature-card mt-4" id="ntfy-card" data-feature-state="unknown">
+      <div class="card feature-card mt-4" id="ntfy-card" data-feature-state="unknown" data-capability="ntfy">
         <div class="card-header">
           <div class="card-header-left"><span class="card-title">ntfy alerts &amp; commands</span></div>
           <span class="badge badge-neutral" id="ntfy-badge">—</span>
@@ -2836,6 +2931,23 @@
         </div>
       </div>
 
+      <!-- ===== Configuration profile ===== -->
+      <div class="card" id="profile-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Configuration profile</span></div></div>
+        <div class="card-body">
+          <p id="profile-status" role="status">Not loaded</p>
+          <p class="form-hint">Profiles are presets of this same firmware. They only switch on low-risk optional settings after a preview, never disable or delete anything, and never open network access. Every setting stays available in every profile.</p>
+          <div class="form-row"><div class="form-group"><label class="form-label" for="profile-select">Profile</label><select class="input" id="profile-select"></select></div></div>
+          <p id="profile-summary" class="form-hint"></p>
+          <ul id="profile-changes"></ul>
+          <p class="form-hint" id="profile-steps-title" hidden>Manual steps (not applied automatically):</p>
+          <ul id="profile-steps"></ul>
+          <div class="page-header-actions"><button class="btn btn-secondary" id="profile-preview">Preview changes</button>
+            <button class="btn btn-primary" id="profile-apply" disabled>Apply previewed changes</button>
+            <button class="btn btn-secondary" id="profile-rollback" disabled>Roll back last profile change</button></div>
+        </div>
+      </div>
+
       <!-- ===== Device info ===== -->
       <div class="card">
         <div class="card-header">
@@ -2847,7 +2959,7 @@
           <div class="grid grid-cols-2">
             <div class="form-group">
               <label class="form-label" for="sys-device-name">Friendly name</label>
-              <input class="input" type="text" id="sys-device-name" placeholder="ESP32 Router" maxlength="32">
+              <input class="input" type="text" id="sys-device-name" placeholder="Homelab Gateway" maxlength="32">
               <span class="form-hint">Shown in the nav and on the login screen. Helps tell multiple routers apart.</span>
             </div>
             <div class="form-group">
@@ -2931,7 +3043,7 @@
       </div>
 
       <!-- ===== SNMP agent (upstream v0.1.28) ===== -->
-      <div class="card feature-card mt-4" id="sys-snmp-card" data-feature-state="unknown">
+      <div class="card feature-card mt-4" id="sys-snmp-card" data-capability="snmp" data-feature-state="unknown">
         <div class="card-header"><div class="card-header-left"><span class="card-title">SNMP agent</span></div><span class="badge badge-neutral" id="sys-snmp-badge">Loading…</span></div>
         <div class="card-body">
           <p class="form-hint" id="sys-snmp-load-status" role="status">Settings have not loaded yet.</p>
@@ -3145,7 +3257,7 @@
           <span class="badge badge-neutral mono">MIT</span>
         </div>
         <div class="card-body">
-          <p style="margin:0 0 0.5rem 0;"><strong>ESP32 Tailscale Gateway</strong> — a single-board subnet router, LAN-to-Tailnet service forwarder and IoT WiFi gateway with MQTT/Home Assistant, WOL and ntfy automation.</p>
+          <p style="margin:0 0 0.5rem 0;"><strong>ESP32 Homelab Gateway — Mattboxx Edition</strong> — selective Tailnet service access, independent Wake-on-LAN and local diagnostics, with optional MQTT/Home Assistant and ntfy automation. Independent of managed servers, not of power, the router, Internet or VPN infrastructure.</p>
           <div class="stat-row"><span class="stat-label">Firmware version</span><span class="stat-value mono" id="about-version">—</span></div>
           <div class="stat-row"><span class="stat-label">Build tag</span>       <span class="stat-value mono" id="about-build-tag" title="—">—</span></div>
           <div class="stat-row"><span class="stat-label">Source</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailscale-gateway" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Mattboxx/esp32-tailscale-gateway</a></span></div>
@@ -4584,16 +4696,18 @@
       s_ui_authenticated = true;
       var active = document.querySelector('.nav-tab.active');
       loadPageState(active ? active.dataset.page : 'status');
+      loadGlobalCapabilities();
       checkPanicAndWarn();
     }
 
     function loadPageState(page) {
-      if (page === 'status') fetchStatus();
-      if (page === 'network') loadNetwork();
+      if (page === 'status') { fetchStatus(); loadServiceGatewaySummary(); }
+      if (page === 'network') { loadNetwork(); loadServiceLeases(); }
       if (page === 'tailscale') loadTailscale();
       if (page === 'firewall') loadFirewall();
       if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); }
-      if (page === 'system') loadSystem();
+      if (page === 'operations') loadOperations();
+      if (page === 'system') { loadSystem(); loadProfiles(); }
       if (page === 'tools') { loadDiag(); loadPrecrashLog(); }
     }
 
@@ -5230,6 +5344,371 @@
     // =====================================================================
     // WAKE-ON-LAN ADDRESS BOOK
     // =====================================================================
+    async function loadServiceLeases() {
+      var list=document.getElementById('service-leases');
+      try {
+        var response=await fetch('/api/service-leases',{cache:'no-store'});if(!response.ok)throw new Error('Timer status unavailable');
+        var leases=await response.json();if(!Array.isArray(leases)||!leases.every(function(l){return l&&Number.isInteger(l.index)&&Number.isInteger(l.rule_token)&&Number.isFinite(l.remaining_s)&&typeof l.effective_enabled==='boolean'&&typeof l.status==='string';}))throw new Error('Invalid timer response');list.replaceChildren();
+        leases.forEach(function(lease){
+          var row=document.createElement('div');row.style.marginTop='0.75rem';
+          var title=document.createElement('p');title.textContent='Rule '+(lease.index+1)+': '+lease.status+' · effective forwarding '+(lease.effective_enabled?'ON':'OFF')+' · '+lease.remaining_s+' s remaining';row.appendChild(title);
+          var duration=document.createElement('input');duration.className='input';duration.type='number';duration.min=60;duration.max=604800;duration.value=3600;duration.setAttribute('aria-label','Duration in seconds for rule '+(lease.index+1));row.appendChild(duration);
+          var deleteLabel=document.createElement('label'),remove=document.createElement('input');remove.type='checkbox';remove.checked=lease.delete_on_expiry===true;deleteLabel.append(remove,document.createTextNode('Delete rule after expiry (otherwise retain closed)'));row.appendChild(deleteLabel);
+          if(lease.status==='binding-unconfirmed'){var warning=document.createElement('p');warning.className='form-hint';warning.textContent='New or edited binding is closed. Explicitly arm a timer or confirm permanent access; list reordering never removes a time limit.';row.appendChild(warning);}
+          [['Arm / renew timer',false],['Make permanent',true]].forEach(function(pair){var button=document.createElement('button');button.type='button';button.className='btn btn-secondary';button.textContent=pair[0];
+            button.onclick=async function(){if(!pair[1]&&!duration.checkValidity())return;if(pair[1]&&!confirm('Remove the time limit from this saved rule?'))return;
+              button.disabled=true;try{var r=await fetch('/api/operations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'lease',index:lease.index,rule_token:lease.rule_token,seconds:pair[1]?0:Number(duration.value),permanent:pair[1],delete_on_expiry:!pair[1]&&remove.checked})});var result=await r.json();if(!r.ok||!result.ok)throw new Error(result.error||'Timer rejected');await loadServiceLeases();}
+              catch(e){title.textContent=e.message;}finally{button.disabled=false;}
+            };row.appendChild(button);});list.appendChild(row);
+        });
+      }catch(e){list.textContent=e.message;}
+    }
+    document.getElementById('leases-refresh').onclick=loadServiceLeases;
+    var s_ops_state = null;
+    var s_ops_busy = false;
+    var s_ops_loading = false;
+    var s_ops_sequence = 0;
+    var s_ops_capabilities = null;
+    var s_health_state = null;
+    var s_health_sequence = 0;
+    function opsControls() {
+      var ready=!!s_ops_state&&!s_ops_busy&&!s_ops_loading;
+      var recovery=s_ops_capabilities&&s_ops_capabilities['smart-recovery'];
+      document.querySelectorAll('#ops-devices button').forEach(function(b){b.disabled=!ready||!recovery||!recovery.compiled||recovery.hardware_supported!==true;});
+      document.getElementById('ops-settings-save').disabled=!ready;
+      document.getElementById('ops-cancel').disabled=!ready||['precheck','sending-wol','waiting-for-host','checking-service'].indexOf(s_ops_state.recovery_state)<0;
+      document.getElementById('ops-refresh').disabled=s_ops_busy||s_ops_loading;
+      document.getElementById('health-save').disabled=!ready||!s_health_state;
+    }
+    var s_profiles=null,s_profile_preview=null,s_profile_busy=false;
+    var PROFILE_SETTING_LABELS={device_monitoring:'Monitor configured devices',service_expiry_notifications:'Notify when temporary service access closes',health_monitor:'Health Monitor worker'};
+    function profileLabel(k){return PROFILE_SETTING_LABELS[k]||k;}
+    function profileControls() {
+      var select=document.getElementById('profile-select');
+      var previewOk=!!(s_profile_preview&&s_profile_preview.profile===select.value);
+      document.getElementById('profile-preview').disabled=s_profile_busy||!s_profiles;
+      document.getElementById('profile-apply').disabled=s_profile_busy||!previewOk;
+      document.getElementById('profile-rollback').disabled=s_profile_busy||!s_profiles||!s_profiles.rollback_available;
+      select.disabled=s_profile_busy||!s_profiles;
+    }
+    function renderProfiles() {
+      var d=s_profiles,select=document.getElementById('profile-select'),keep=select.value;
+      var changes=document.getElementById('profile-changes'),steps=document.getElementById('profile-steps');
+      changes.replaceChildren();steps.replaceChildren();
+      document.getElementById('profile-steps-title').hidden=true;
+      if(!d){profileControls();return;}
+      if(!select.options.length){d.profiles.forEach(function(p){var o=document.createElement('option');o.value=p.id;o.textContent=p.title;select.appendChild(o);});}
+      if(keep&&d.profiles.some(function(p){return p.id===keep;}))select.value=keep;
+      var current=d.profiles.filter(function(p){return p.id===select.value;})[0];
+      var active=d.profiles.filter(function(p){return p.id===d.active;})[0];
+      document.getElementById('profile-status').textContent='Active: '+(active?active.title:'none')
+        +(d.rollback_available?' · rollback available (restores only settings the profile switched on and you have not changed since)':'');
+      document.getElementById('profile-summary').textContent=current?current.summary:'';
+      var pv=s_profile_preview&&s_profile_preview.profile===select.value?s_profile_preview:null;
+      if(pv){
+        if(!pv.changes.length){var none=document.createElement('li');none.textContent='No settings change; only the active profile label is recorded.';changes.appendChild(none);}
+        pv.changes.forEach(function(c){var li=document.createElement('li');
+          li.textContent=profileLabel(c.setting)+': '+(c.change==='enable'?'off → on':'already on (unchanged)');changes.appendChild(li);});
+        if(pv.manual_steps.length)document.getElementById('profile-steps-title').hidden=false;
+        pv.manual_steps.forEach(function(t){var li=document.createElement('li');li.textContent=t;steps.appendChild(li);});
+      }
+      profileControls();
+    }
+    async function loadProfiles(preview) {
+      s_profile_busy=true;profileControls();
+      try {
+        var r=await fetch('/api/profiles'+(preview?'?preview='+encodeURIComponent(preview):''),{cache:'no-store'});
+        var d=await r.json();
+        if(!r.ok||!d||d.schema!==1||!Array.isArray(d.profiles)||typeof d.active!=='string'||typeof d.rollback_available!=='boolean')throw new Error((d&&d.error)||'Profiles unavailable');
+        if(preview&&(!d.preview||d.preview.profile!==preview||!Number.isInteger(d.preview.token)||!Array.isArray(d.preview.changes)||!Array.isArray(d.preview.manual_steps)))throw new Error('Incomplete preview');
+        s_profiles=d;s_profile_preview=preview?d.preview:null;
+      } catch(e){s_profiles=null;s_profile_preview=null;document.getElementById('profile-status').textContent=e.message+' — refresh to retry';}
+      finally {s_profile_busy=false;renderProfiles();}
+    }
+    async function profileAction(body) {
+      s_profile_busy=true;profileControls();
+      var message='';
+      try {
+        var r=await fetch('/api/profiles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+        var d=await r.json();
+        if(!r.ok||!d.ok){message=(d&&d.error)||'Profile change rejected';
+          if(d&&d.rolled_back)message+=d.partial?' — some settings could not be restored: '+(d.left_changed||[]).map(profileLabel).join(', '):' — all changes were undone';}
+        else message=body.action==='apply'?'Applied. Changed: '+(d.changed.length?d.changed.map(profileLabel).join(', '):'nothing')
+          :'Rolled back.'+(d.kept.length?' Left as you changed them: '+d.kept.map(profileLabel).join(', '):'');
+      } catch(e){message=e.message;}
+      s_profile_busy=false;await loadProfiles();
+      document.getElementById('profile-status').textContent+=' · '+message;
+    }
+    document.getElementById('profile-select').addEventListener('change',function(){s_profile_preview=null;renderProfiles();});
+    document.getElementById('profile-preview').addEventListener('click',function(){loadProfiles(document.getElementById('profile-select').value);});
+    document.getElementById('profile-apply').addEventListener('click',function(){
+      if(!s_profile_preview)return;
+      profileAction({action:'apply',profile:s_profile_preview.profile,token:s_profile_preview.token});});
+    document.getElementById('profile-rollback').addEventListener('click',function(){
+      if(!window.confirm('Roll back the last profile change? Settings you changed since then are left as they are.'))return;
+      profileAction({action:'rollback'});});
+    /* Guided setup: goal, live prerequisites, risks, explicit exposure
+     * confirmation, then the existing validated form does the write. The
+     * wizard snapshots the touched settings first, shows what changed and can
+     * restore that snapshot (secrets are never read or rewritten here). */
+    function wzGet(url){return apiFetch(url,{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error(url+' HTTP '+r.status);return r.json();});}
+    var WZ_SECTIONS={
+      tailscale:{url:'/api/tailscale',snap:function(d){return d&&d.settings?{settings:Object.assign({},d.settings,{auth_key:undefined})}:null;}},
+      mqtt:{url:'/api/mqtt',snap:function(d){var c=Object.assign({},d);['connected','has_password','broker_watchdog_triggered','broker_watchdog_wake_count','broker_silence_seconds','status'].forEach(function(k){delete c[k];});return c;}},
+      ntfy:{url:'/api/ntfy',snap:function(d){var c=Object.assign({},d);['has_token','last_publish_ok','alerts_sent','commands_received','command_errors','task_running','stack_min_free_bytes','token'].forEach(function(k){delete c[k];});return c;}},
+      wol:{url:'/api/wol',snap:function(d){return {devices:(d&&d.devices)||[]};}}
+    };
+    function wzCheck(label,fn){return {label:label,fn:fn};}
+    var wzStatus=function(){return wzGet('/api/status');};
+    var WZ_UPLINK=wzCheck('Device has an uplink address',function(){return wzStatus().then(function(s){return s.sta&&s.sta.connected?true:'Join a WiFi network in Network first';});});
+    var WZ_TS=wzCheck('Connected to the Tailscale/Headscale control server',function(){return wzStatus().then(function(s){return s.tailscale&&s.tailscale.connected?true:'Complete the Tailscale/Headscale wizard first';});});
+    var WZ_PASSWORD=wzCheck('Web password protects administration',function(){return wzGet('/api/auth/status').then(function(a){return a.auth_required?true:'Recommended before exposing services: set a password in System';});});
+    var WZ_WOL=wzCheck('At least one saved Wake-on-LAN device',function(){return wzGet('/api/wol').then(function(d){return d.devices&&d.devices.length?true:'Run the Wake-on-LAN wizard first';});});
+    var WZ_MQTT=wzCheck('MQTT broker connection',function(){return wzGet('/api/mqtt').then(function(d){return d.connected?true:'Run the MQTT wizard first';});});
+    var WZ_PSRAM=wzCheck('Optional worker supported on this board',function(){return wzGet('/api/capabilities').then(function(c){var f=(c.features||[]).filter(function(x){return x.id==='smart-recovery';})[0];return f&&f.hardware_supported!==false?true:'This board lacks the PSRAM the optional worker needs';});});
+    var WIZARDS=[
+      {id:'lan-tailnet',capability:'lan-tailnet-forwarding',title:'Publish a Tailnet service to the LAN',primary:true,
+       goal:'Let an existing LAN device (no Tailscale client, no AP change, same router) reach one specific Tailnet service: pick a template or add a rule, set the Tailnet destination and port, restrict the source to that device (/32), Save, press Test destination, then enable it and optionally set an expiry.',
+       page:'network',focus:['tf-template','tf-list'],checks:[WZ_UPLINK,WZ_TS,WZ_PASSWORD,
+        wzCheck('A free service rule slot',function(){return wzGet('/api/tailnet-forward').then(function(d){return (d.rules||[]).length<d.max?true:'All '+d.max+' rules are in use; remove one first';});})],exposure:true,
+       risks:['Any device matching the source CIDR can use the service through this gateway; an address filter is not an identity.','Remote peers see the gateway’s Tailnet identity, so their ACLs must allow this gateway.','Throughput is limited by the ESP32 (WiFi plus WireGuard in software); suited to control and light traffic, not bulk transfers.','New rules start disabled; enable each one explicitly and prefer an expiry for temporary access.'],sections:[],
+       verify:function(){return wzGet('/api/tailnet-forward').then(function(d){var rules=d.rules||[];
+         var enabled=rules.filter(function(r){return r.enabled;}).length,installed=rules.filter(function(r){return r.installed;}).length,
+           reachable=rules.filter(function(r){return r.destination_check&&r.destination_check.state==='reachable';}).length;
+         return rules.length+' rule(s): '+enabled+' enabled, '+installed+' installed, '+reachable+' with a reachable destination test. Connect from the allowed LAN client to confirm the application.';});}},
+      {id:'first-boot',title:'First boot',goal:'Name the device, protect administration and join your network.',page:'system',focus:['sys-device-name'],checks:[WZ_PASSWORD,WZ_UPLINK],
+       risks:['Without a web password anyone on the LAN or AP can change settings.'],sections:[]},
+      {id:'tailscale',capability:'tailscale',title:'Tailscale / Headscale',goal:'Join your tailnet with an auth key; for Headscale set the login server URL.',page:'tailscale',focus:['ts-auth-key','ts-login','ts-hostname'],checks:[WZ_UPLINK],
+       risks:['The auth key grants this device tailnet membership; prefer a tagged, expiring key.'],sections:['tailscale'],
+       verify:function(){return wzStatus().then(function(s){return s.tailscale&&s.tailscale.connected?'Control connection established (does not prove data paths or peer access).':'Not connected yet; check the auth key, login server and clock.';});}},
+      {id:'subnet-router',capability:'subnet-routing',title:'Subnet router',goal:'Let tailnet clients reach local networks behind this device.',page:'tailscale',focus:['ts-routes','ts-adv-ap'],checks:[WZ_TS,WZ_PASSWORD],exposure:true,
+       risks:['Advertised routes expose those networks to every tailnet identity your policy allows.','Routes still need approval in the admin console; the device cannot verify approval.'],sections:['tailscale']},
+      {id:'exit-node',capability:'exit-node',title:'Exit node',goal:'Offer this device as an Internet exit for tailnet clients, or use one.',page:'tailscale',focus:['ts-advertise-exit','ts-exit-node'],checks:[WZ_TS],exposure:true,
+       risks:['Clients using this exit node send all their Internet traffic through your uplink.','Advertising requires approval in the admin console.'],sections:['tailscale']},
+      {id:'wol',capability:'wol',title:'Wake-on-LAN',goal:'Save a device by MAC address so it can be woken locally or remotely.',page:'automation',focus:['wol-add-btn'],checks:[WZ_UPLINK],
+       risks:['A sent magic packet never proves the device powered on.'],sections:['wol'],
+       verify:function(){return wzGet('/api/wol').then(function(d){return (d.devices||[]).length+' saved device(s).';});}},
+      {id:'smart-recovery',capability:'smart-recovery',title:'Smart Recovery',goal:'Wake a device and verify its host and service with bounded checks.',page:'operations',focus:['ops-devices','ops-monitoring'],checks:[WZ_WOL,WZ_PSRAM],
+       risks:['Recovery cannot help a hung host that ignores Wake-on-LAN; no power control is performed.'],sections:[]},
+      {id:'mqtt',capability:'mqtt',title:'MQTT',goal:'Connect to your broker for state and authorized commands.',page:'automation',focus:['mqtt-enabled','mqtt-uri','mqtt-topic','mqtt-user'],checks:[WZ_UPLINK],
+       risks:['mqtt:// sends credentials in clear text; prefer mqtts:// or a trusted LAN.','Commands are accepted only on the configured base topic; secure your broker ACLs.'],sections:['mqtt'],
+       verify:function(){return wzGet('/api/mqtt').then(function(d){var s=d.status||{};return d.connected?'Broker connected.':s.retry_in_seconds?'Not connected; next retry in '+s.retry_in_seconds+' s.':'Not connected yet.';});}},
+      {id:'home-assistant',capability:'home-assistant',title:'Home Assistant',goal:'Publish MQTT Discovery so Home Assistant creates entities.',page:'automation',focus:['mqtt-ha-enabled','mqtt-ha-prefix'],checks:[WZ_MQTT],
+       risks:['Discovery publishes controls; Home Assistant users with access can use them.'],sections:['mqtt'],
+       verify:function(){return wzGet('/api/mqtt').then(function(d){var s=d.status||{};return !d.home_assistant_discovery?'Discovery is off.':s.discovery_pending?'Discovery in progress ('+s.discovery_entities+' entities so far).':'Discovery published to the broker (Home Assistant receipt is not confirmed here).';});}},
+      {id:'ntfy',capability:'ntfy',title:'ntfy',goal:'Receive alerts and, optionally, authorized Wake-on-LAN commands.',page:'automation',focus:['ntfy-enabled','ntfy-server','ntfy-topic'],checks:[WZ_UPLINK],
+       risks:['Anyone who can publish to the topic can send commands if commands are enabled; use a token.'],sections:['ntfy']},
+      {id:'health',capability:'health',title:'Health Monitor',goal:'Run light checks of gateway, DNS, Internet and tailnet reachability.',page:'operations',focus:['health-enabled','health-interval','health-gateway-port'],checks:[WZ_UPLINK,WZ_PSRAM],
+       risks:['Checks are bounded TCP/DNS probes; they never change routing and are not full path diagnosis.'],sections:[]},
+      {id:'troubleshoot',title:'Connectivity troubleshooting',goal:'Walk the layers from WiFi to tailnet and stop at the first failing one.',page:'tools',focus:[],checks:[WZ_UPLINK,WZ_TS,
+        wzCheck('Tailnet policy authority received',function(){return wzGet('/api/operations').then(function(o){return o.authority_ready===true?true:o.authority_ready===false?'Policy incomplete or blocked; data stays closed until a complete map arrives':'Unknown';});}),
+        wzCheck('At least one peer online',function(){return wzStatus().then(function(s){return s.tailscale&&s.tailscale.peers_online>0?true:'No online peers seen; check the peer and its ACLs';});})],
+       risks:['A failed check is evidence about one layer; it does not prove where the fault is beyond it.'],sections:[]}
+    ];
+    var s_wz=null;
+    function wzEl(tag,text){var e=document.createElement(tag);if(text!=null)e.textContent=text;return e;}
+    function wzClearFocus(){document.querySelectorAll('.wizard-focus').forEach(function(e){e.classList.remove('wizard-focus');});}
+    function wzRenderList(){
+      var list=document.getElementById('wizard-list');if(!list)return;list.replaceChildren();
+      WIZARDS.forEach(function(w){var b=wzEl('button',w.title),f=capabilityUnavailable(w.capability);b.className=w.primary?'btn btn-primary':'btn btn-secondary';b.type='button';
+        if(f){b.disabled=true;b.title=(f.compiled===false?'Not available in this firmware':'Not supported by this board')+' — '+f.evidence;}
+        b.addEventListener('click',function(){wzOpen(w.id);});list.appendChild(b);});
+    }
+    function wzPanel(){return document.getElementById('wizard-panel');}
+    function wzClose(){wzClearFocus();s_wz=null;wzPanel().hidden=true;}
+    async function wzOpen(id){
+      var w=WIZARDS.filter(function(x){return x.id===id;})[0];if(!w)return;
+      s_wz={w:w,snapshot:null,started:false};
+      var p=wzPanel();p.hidden=false;
+      document.getElementById('wizard-title').textContent=w.title;
+      document.getElementById('wizard-goal').textContent=w.goal;
+      var risks=document.getElementById('wizard-risks');risks.replaceChildren();w.risks.forEach(function(r){risks.appendChild(wzEl('li',r));});
+      var confirm=document.getElementById('wizard-exposure');confirm.checked=false;
+      document.getElementById('wizard-exposure-row').hidden=!w.exposure;
+      document.getElementById('wizard-result').textContent='';
+      document.getElementById('wizard-restore').hidden=true;
+      document.getElementById('wizard-verify').hidden=true;
+      var checks=document.getElementById('wizard-checks');checks.replaceChildren();
+      var start=document.getElementById('wizard-start');start.disabled=true;
+      var rows=w.checks.map(function(c){var li=wzEl('li',c.label+': checking…');checks.appendChild(li);return li;});
+      await Promise.all(w.checks.map(function(c,i){return c.fn().then(function(ok){rows[i].textContent=(ok===true?'✓ ':'✗ ')+c.label+(ok===true?'':' — '+ok);},function(e){rows[i].textContent='? '+c.label+' — '+e.message;});}));
+      if(s_wz&&s_wz.w===w)wzControls();
+    }
+    function wzControls(){
+      if(!s_wz)return;
+      document.getElementById('wizard-start').disabled=s_wz.started||(s_wz.w.exposure&&!document.getElementById('wizard-exposure').checked);
+    }
+    async function wzStart(){
+      var w=s_wz.w,snapshot={};
+      try{for(var i=0;i<w.sections.length;i++){var sec=WZ_SECTIONS[w.sections[i]];snapshot[w.sections[i]]=sec.snap(await wzGet(sec.url));}}
+      catch(e){document.getElementById('wizard-result').textContent='Could not snapshot current settings ('+e.message+'); nothing was changed.';return;}
+      s_wz.snapshot=snapshot;s_wz.started=true;wzControls();
+      var tab=document.querySelector('.nav-tab[data-page="'+w.page+'"]');if(tab)tab.click();
+      wzClearFocus();
+      setTimeout(function(){var first=null;w.focus.forEach(function(id){var el=document.getElementById(id);if(!el)return;var box=el.closest('.form-group,.feature-switch,.card')||el;box.classList.add('wizard-focus');if(!first)first=box;});
+        if(first)first.scrollIntoView({behavior:'smooth',block:'center'});},300);
+      document.getElementById('wizard-result').textContent='Fill in the highlighted settings and press that card’s Save. Then check the result here.';
+      document.getElementById('wizard-verify').hidden=false;
+    }
+    function wzDiff(before,after,prefix,out){
+      Object.keys(Object.assign({},before,after)).forEach(function(k){
+        var a=before?before[k]:undefined,b=after?after[k]:undefined,name=prefix+k;
+        if(a&&b&&typeof a==='object'&&typeof b==='object'&&!Array.isArray(a))wzDiff(a,b,name+'.',out);
+        else if(JSON.stringify(a)!==JSON.stringify(b))out.push(name+(Array.isArray(a)||Array.isArray(b)?' changed':': '+JSON.stringify(a)+' → '+JSON.stringify(b)));
+      });
+      return out;
+    }
+    async function wzVerify(){
+      var w=s_wz.w,out=[],result=document.getElementById('wizard-result');
+      try{
+        for(var i=0;i<w.sections.length;i++){var name=w.sections[i],sec=WZ_SECTIONS[name];wzDiff(s_wz.snapshot[name],sec.snap(await wzGet(sec.url)),name+'.',out);}
+        var note=w.verify?await w.verify():'';
+        result.replaceChildren(wzEl('p',(out.length?'Changed since the wizard started:':'No saved setting changed yet.')+(note?' '+note:'')));
+        if(out.length){var ul=wzEl('ul');out.slice(0,12).forEach(function(t){ul.appendChild(wzEl('li',t));});result.appendChild(ul);}
+        document.getElementById('wizard-restore').hidden=!out.length;
+      }catch(e){result.textContent='Could not read the result: '+e.message;}
+    }
+    async function wzRestore(){
+      var w=s_wz.w,result=document.getElementById('wizard-result');
+      if(!window.confirm('Restore the settings this wizard snapshotted? Secrets you entered are kept.'))return;
+      var failed=[];
+      for(var i=w.sections.length-1;i>=0;i--){var name=w.sections[i];
+        try{var r=await apiFetch(WZ_SECTIONS[name].url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(s_wz.snapshot[name])});if(!r.ok)failed.push(name);}catch(e){failed.push(name);}}
+      result.textContent=failed.length?'Restore failed for: '+failed.join(', ')+'. Check those settings manually.':'Previous settings restored. Reload the page to see them.';
+    }
+    document.getElementById('wizard-exposure').addEventListener('change',wzControls);
+    document.getElementById('wizard-start').addEventListener('click',wzStart);
+    document.getElementById('wizard-verify').addEventListener('click',wzVerify);
+    document.getElementById('wizard-restore').addEventListener('click',wzRestore);
+    document.getElementById('wizard-close').addEventListener('click',wzClose);
+    wzRenderList();
+    function loadServiceGatewaySummary(){
+      var out=document.getElementById('sg-home-summary'),badge=document.getElementById('sg-home-badge');
+      return apiFetch('/api/tailnet-forward',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
+        var rules=Array.isArray(d.rules)?d.rules:[],enabled=rules.filter(function(r){return r.enabled;}).length,
+          installed=rules.filter(function(r){return r.installed;}).length,
+          tested=rules.filter(function(r){return r.destination_check&&r.destination_check.state==='reachable';}).length;
+        badge.textContent=rules.length+' / '+(d.max||8);
+        badge.className='badge '+(installed?'badge-success':'badge-neutral');
+        out.textContent=!rules.length?'No service rules yet. Start with the guide: it checks prerequisites, explains the exposure and helps you test the destination before enabling it.'
+          :rules.length+' rule(s) · '+enabled+' enabled · '+installed+' installed · '+tested+' with a reachable destination test'
+            +(d.tailscale_control_connected===false?' · Tailnet control offline':'')+'. Installed is a local mapping, not proof the remote application answers.';
+      }).catch(function(e){badge.textContent='—';out.textContent='Service rules unavailable ('+e.message+').';});
+    }
+    document.getElementById('sg-home-guide').addEventListener('click',function(){wzOpen('lan-tailnet');});
+    document.getElementById('sg-home-open').addEventListener('click',function(e){var tab=document.querySelector('.nav-tab[data-page="network"]');if(tab){e.preventDefault();tab.click();}});
+    var s_capabilities=null;
+    function capabilityUnavailable(id){var f=s_capabilities&&id?s_capabilities[id]:null;return f&&(f.compiled===false||f.hardware_supported===false)?f:null;}
+    /* Advisory UI gate from the one manifest; the firmware still refuses on its own. */
+    function applyCapabilityGates(){
+      document.querySelectorAll('[data-capability]').forEach(function(el){
+        var f=capabilityUnavailable(el.dataset.capability),body=el.querySelector('.card-body')||el,note=el.querySelector(':scope > .capability-note');
+        el.classList.toggle('capability-unavailable',!!f);body.inert=!!f;
+        if(f&&!note){note=document.createElement('p');note.className='capability-note';body.parentNode.insertBefore(note,body);}
+        if(note){if(f)note.textContent=(f.compiled===false?'Not available in this firmware':'Not supported by this board')+' — '+f.evidence;else note.remove();}
+      });
+      if(typeof wzRenderList==='function')wzRenderList();
+    }
+    function setCapabilities(features){var map=Object.create(null);features.forEach(function(f){map[f.id]=f;});s_capabilities=map;applyCapabilityGates();}
+    function loadGlobalCapabilities(){
+      return apiFetch('/api/capabilities',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+        .then(function(d){if(d&&d.schema===2&&Array.isArray(d.features))setCapabilities(d.features.filter(function(f){return f&&typeof f.id==='string';}));})
+        .catch(function(){/* keep controls usable; the firmware enforces availability itself */});
+    }
+    async function loadCapabilities(sequence) {
+      s_ops_capabilities=null;
+      try {
+        var response=await fetch('/api/capabilities',{cache:'no-store'});
+        if(!response.ok)throw new Error('Capabilities unavailable');
+        var data=await response.json();if(sequence!==s_ops_sequence)return;
+        if(!data||data.schema!==2||!Array.isArray(data.features)||!data.features.length)throw new Error('Incomplete capability manifest');
+        var map=Object.create(null);
+        data.features.forEach(function(f){
+          if(!f||typeof f.id!=='string'||map[f.id]||typeof f.compiled!=='boolean'||typeof f.evidence!=='string'
+            || !['hardware_supported','configured','active'].every(function(k){return f[k]===null||typeof f[k]==='boolean';})
+            || typeof f.verified!=='boolean'||typeof f.experimental!=='boolean')throw new Error('Invalid capability record');
+          map[f.id]=f;
+        });
+        if(!map['smart-recovery'])throw new Error('Recovery capability missing');
+        s_ops_capabilities=map;setCapabilities(data.features);
+        var list=document.getElementById('ops-capabilities');list.replaceChildren();
+        data.features.forEach(function(f){var li=document.createElement('li');
+          li.textContent=f.id+': '+(!f.compiled?'not compiled':f.hardware_supported===false?'hardware unavailable':f.hardware_supported===null?'hardware unknown':f.active===true?'active (not end-to-end verified)':f.active===false?'inactive':'runtime unobserved')+' — '+f.evidence;
+          list.appendChild(li);
+        });
+        document.getElementById('ops-capability-status').textContent='Runtime evidence, not certification. Configuration, activity and end-to-end verification are separate.';
+      }catch(e){if(sequence===s_ops_sequence){s_ops_capabilities=null;document.getElementById('ops-capabilities').replaceChildren();document.getElementById('ops-capability-status').textContent=e.message+'; optional recovery actions unavailable until refresh.';}}
+      finally{if(sequence===s_ops_sequence)opsControls();}
+    }
+    function opsNumber(id) { var input=document.getElementById(id); if(!input.checkValidity() || input.value==='') throw new Error('Invalid '+id); return Number(input.value); }
+    async function opsAction(payload) {
+      if(s_ops_busy||s_ops_loading||!s_ops_state) return;
+      s_ops_busy=true;
+      opsControls();
+      try {var r=await fetch('/api/operations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        var data=await r.json();if(!r.ok || !data.ok)throw new Error(data.error || 'Operation rejected');await loadOperations();
+      } catch(e){s_ops_state=null;document.getElementById('ops-job').textContent=e.message+' — refresh before another action';}
+      finally {s_ops_busy=false;opsControls();}
+    }
+    async function loadOperations() {
+      var sequence=++s_ops_sequence;s_ops_loading=true;opsControls();
+      try {
+        var response=await fetch('/api/operations',{cache:'no-store'});if(!response.ok)throw new Error('Operations unavailable: HTTP '+response.status);
+        var data=await response.json();if(sequence!==s_ops_sequence)return;
+        if(!data||!Array.isArray(data.devices)||typeof data.monitoring!=='boolean'||typeof data.guard!=='boolean'||typeof data.remote_commands!=='boolean'||!Array.isArray(data.events)
+          || !['minimum_internal','minimum_largest','socket_reserve','interval_s'].every(function(k){return typeof data[k]==='number'&&Number.isInteger(data[k])&&data[k]>=0;})
+          || !data.devices.every(function(d){return d&&typeof d.mac==='string'&&typeof d.name==='string'&&typeof d.target==='string'&&typeof d.monitor==='boolean'&&typeof d.notify==='boolean'
+            && ['index','host_port','service_port','timeout_s','interval_s','max_checks','kind','scope'].every(function(k){return Number.isInteger(d[k])&&d[k]>=0;});}))throw new Error('Incomplete operational response');
+        s_ops_state=data;
+        document.getElementById('ops-summary').textContent='Control: '+(data.control_connected?'connected':'not connected')+' · policy authority: '+(data.authority_ready==null?'unknown':data.authority_ready?'ready (not a port grant)':'blocked / incomplete')+' · sockets '+data.sockets_used+'/'+data.socket_limit+' · internal minimum '+data.internal_min+' B · largest block '+data.internal_largest+' B';
+        document.getElementById('ops-monitoring').checked=data.monitoring;document.getElementById('ops-guard').checked=data.guard;document.getElementById('ops-remote').checked=data.remote_commands;
+        document.getElementById('ops-lease-notify').checked=data.lease_notifications===true;
+        [['ops-min','minimum_internal'],['ops-largest','minimum_largest'],['ops-sockets','socket_reserve'],['ops-interval','interval_s']].forEach(function(pair){document.getElementById(pair[0]).value=data[pair[1]];});
+        document.getElementById('ops-job').textContent='Recovery: '+data.recovery_state+' · WoL send: '+(data.packet_sent===true?'confirmed locally (not proof of boot)':'not confirmed; a partial send may have occurred')+' · host verified: '+(data.host_verified===true?'yes':'not verified')+' · service verified: '+(data.service_verified===true?'yes':'not verified');
+        var list=document.getElementById('ops-devices');list.replaceChildren();
+        data.devices.forEach(function(d){
+          var row=document.createElement('div');row.className='card';row.style.marginTop='1rem';
+          var title=document.createElement('h3');title.textContent=(d.name||d.mac)+' — '+d.state;row.appendChild(title);
+          var fields={};
+          [['kind','Device type',['NAS','PC','Server','IoT','Network infrastructure','Tailnet service','Other']],['scope','Target scope',['Automatic routing','Local uplink subnet only','Tailnet address only']]].forEach(function(f){var label=document.createElement('label');label.className='form-group';label.textContent=f[1];var select=document.createElement('select');select.className='input';f[2].forEach(function(text,i){var option=document.createElement('option');option.value=i;option.textContent=text;select.appendChild(option);});select.value=d[f[0]]||0;fields[f[0]]=select;label.appendChild(select);row.appendChild(label);});
+          [['target','Check target','text'],['host_port','Host TCP port','number'],['service_port','Optional service TCP port (0 = none)','number'],['timeout_s','Recovery timeout (5–600 s)','number'],['interval_s','Device interval (30–3600 s)','number'],['max_checks','Maximum checks (1–60)','number']].forEach(function(f){
+            var label=document.createElement('label');label.className='form-group';label.textContent=f[1];var input=document.createElement('input');input.className='input';input.type=f[2];input.value=d[f[0]];input.maxLength=95;
+            if(f[2]==='number'){input.min=f[0]==='max_checks'?1:f[0]==='timeout_s'?5:f[0]==='interval_s'?30:0;input.max=f[0]==='max_checks'?60:f[0]==='timeout_s'?600:f[0]==='interval_s'?3600:65535;}label.appendChild(input);row.appendChild(label);fields[f[0]]=input;
+          });
+          var monitor=document.createElement('label');monitor.className='feature-switch';var checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=d.monitor;var track=document.createElement('span');track.className='feature-switch-track';track.setAttribute('aria-hidden','true');monitor.append(checkbox,track,document.createTextNode('Monitor this device'));row.appendChild(monitor);
+          var notify=document.createElement('label');var notification=document.createElement('input');notification.type='checkbox';notification.checked=d.notify;notify.append(notification,document.createTextNode('Notify result through enabled ntfy'));row.appendChild(notify);
+          [['Save profile','device'],['Check now','check'],['Recover with WoL','recover']].forEach(function(pair){var button=document.createElement('button');button.className='btn '+(pair[1]==='recover'?'btn-primary':'btn-secondary');button.textContent=pair[0];button.type='button';button.onclick=function(){
+            try {var payload={action:pair[1],index:d.index,mac:d.mac};if(pair[1]==='device'){
+              payload.monitor=checkbox.checked;payload.notify=notification.checked;
+              Object.keys(fields).forEach(function(k){if(!fields[k].checkValidity())throw new Error('Invalid '+k);payload[k]=k==='target'?fields[k].value:Number(fields[k].value);});
+            }else if(pair[1]==='recover'&&!confirm('Send WoL if the saved host check fails, then verify this device?'))return;
+            opsAction(payload);}catch(e){document.getElementById('ops-job').textContent=e.message;}
+          };row.appendChild(button);});list.appendChild(row);
+        });
+        document.getElementById('ops-events').textContent=data.events.slice().sort(function(a,b){return b.sequence-a.sequence;}).map(function(e){return '#'+e.sequence+' '+e.state+' ('+Math.round(e.uptime_ms/1000)+'s uptime)';}).join('\n');
+        await Promise.all([loadHealth(),loadCapabilities(sequence)]);
+      }catch(e){if(sequence===s_ops_sequence){document.getElementById('ops-summary').textContent=e.message+' — saved view is stale; refresh before actions';s_ops_state=null;}}
+      finally{if(sequence===s_ops_sequence){s_ops_loading=false;opsControls();}}
+    }
+    document.getElementById('ops-refresh').onclick=loadOperations;
+    document.getElementById('ops-cancel').onclick=function(){opsAction({action:'cancel'});};
+    document.getElementById('ops-settings-save').onclick=function(){try{if(!s_ops_state)return;opsAction({action:'settings',monitoring:document.getElementById('ops-monitoring').checked,guard:document.getElementById('ops-guard').checked,remote_commands:document.getElementById('ops-remote').checked,lease_notifications:document.getElementById('ops-lease-notify').checked,minimum_internal:opsNumber('ops-min'),minimum_largest:opsNumber('ops-largest'),socket_reserve:opsNumber('ops-sockets'),interval_s:opsNumber('ops-interval')});}catch(e){document.getElementById('ops-summary').textContent=e.message;}};
+    async function loadHealth(){
+      var sequence=++s_health_sequence;
+      try{var response=await fetch('/api/health',{cache:'no-store'});if(!response.ok)throw new Error('Connectivity checks unavailable');
+        var data=await response.json();if(sequence!==s_health_sequence)return;
+        if(!data||typeof data.enabled!=='boolean'||typeof data.notify!=='boolean'||!Array.isArray(data.checks)
+          ||!['interval_s','failure_threshold','gateway_port','internet_port','tailnet_port'].every(function(k){return Number.isInteger(data[k])&&data[k]>=0;})
+          ||!['dns_name','internet_ip','tailnet_target'].every(function(k){return typeof data[k]==='string';})
+          ||!data.checks.every(function(c){return c&&typeof c.role==='string'&&typeof c.state==='string'&&Number.isFinite(c.observed_uptime_ms)&&Number.isInteger(c.consecutive_failures);}))throw new Error('Incomplete connectivity response');
+        s_health_state=data;document.getElementById('health-enabled').checked=data.enabled;document.getElementById('health-notify').checked=data.notify;
+        [['interval_s','health-interval'],['failure_threshold','health-threshold'],['gateway_port','health-gateway-port'],['dns_name','health-dns'],['internet_ip','health-internet'],['internet_port','health-internet-port'],['tailnet_target','health-tailnet'],['tailnet_port','health-tailnet-port']].forEach(function(p){document.getElementById(p[1]).value=data[p[0]];});
+        document.getElementById('health-status').textContent=(data.enabled?'Configured checks enabled':'Active checks disabled')+' · WiFi association: '+(data.wifi_associated===true?'yes':'not observed')+' · uplink address: '+(data.uplink_address_available===true?'available':'not observed')+' · control: '+(data.control_connected===true?'connected':'not connected')+' · policy authority: '+(data.policy_authority_ready===true?'ready (not a service grant)':'not ready')+' · global tunnel: not verified';
+        document.getElementById('health-checks').textContent=data.checks.map(function(c){return c.role+': '+c.state+' · failures '+c.consecutive_failures+' · observed at '+Math.round(c.observed_uptime_ms/1000)+' s uptime\n'+(typeof c.reason==='string'?c.reason:'Evidence unavailable')+'\nNext: '+(typeof c.next_step==='string'?c.next_step:'Inspect diagnostics');}).join('\n\n');
+      }catch(e){if(sequence===s_health_sequence){s_health_state=null;document.getElementById('health-status').textContent=e.message+' — refresh before saving';}}
+      finally{if(sequence===s_health_sequence)opsControls();}
+    }
+    document.getElementById('health-save').onclick=function(){try{if(!s_health_state)return;opsAction({action:'health',enabled:document.getElementById('health-enabled').checked,notify:document.getElementById('health-notify').checked,interval_s:opsNumber('health-interval'),failure_threshold:opsNumber('health-threshold'),gateway_port:opsNumber('health-gateway-port'),dns_name:document.getElementById('health-dns').value,internet_ip:document.getElementById('health-internet').value,internet_port:opsNumber('health-internet-port'),tailnet_target:document.getElementById('health-tailnet').value,tailnet_port:opsNumber('health-tailnet-port')});}catch(e){document.getElementById('health-status').textContent=e.message;}};
     var s_wol_list = [];
     var s_wol_max = 12;
 
@@ -5902,14 +6381,148 @@
     });
 
     // Dedicated LAN -> Tailnet forwarding (not tied to AP/client WiFi).
-    var s_tf_list=[], s_tf_max=8;
-    function snapshotTf(){document.querySelectorAll('.tf-row').forEach(function(row){var r=s_tf_list[+row.dataset.idx];if(!r)return;r.name=row.querySelector('.tf-name').value.trim();r.enabled=row.querySelector('.tf-enabled').checked;r.protocol=row.querySelector('.tf-proto').value;r.listen_port=parseInt(row.querySelector('.tf-listen').value,10);r.tailnet_destination=row.querySelector('.tf-dest').value.trim();r.destination_port=parseInt(row.querySelector('.tf-dport').value,10);r.allowed_source_subnet=row.querySelector('.tf-cidr').value.trim();});}
-    function tfDirty(){document.getElementById('tf-save').disabled=false;}
-    function renderTf(){var box=document.getElementById('tf-list'),badge=document.getElementById('tf-badge');badge.textContent=s_tf_list.length+' / '+s_tf_max;badge.className='badge '+(s_tf_list.some(function(r){return r.installed;})?'badge-success':(s_tf_list.length?'badge-warning':'badge-neutral'));if(!s_tf_list.length){box.innerHTML='<div style="padding:1rem;color:var(--text-muted);border:1px dashed var(--border);border-radius:var(--radius-md);">No LAN → Tailnet rules.</div>';return;}box.innerHTML=s_tf_list.map(function(r,i){var state=r.installed?'Active':(r.enabled?(r.error||'Waiting'):'Disabled');return '<div class="tf-row" data-idx="'+i+'" style="border:1px solid var(--border);border-radius:var(--radius-md);padding:.75rem;margin-bottom:.5rem;">'+'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;"><span class="badge '+(r.installed?'badge-success':'badge-neutral')+'">'+escapeHtml(state)+'</span><button class="btn btn-ghost btn-sm text-danger tf-del" type="button">×</button></div>'+'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Name</label><input class="input tf-name" maxlength="31" value="'+escapeHtml(r.name||'')+'" placeholder="Remote SSH"></div><div class="form-group"><label class="feature-switch"><input type="checkbox" class="tf-enabled" '+(r.enabled?'checked':'')+'><span class="feature-switch-track" aria-hidden="true"></span><span>Enabled</span></label></div></div>'+'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Protocol</label><select class="select tf-proto"><option value="tcp" '+(r.protocol!=='udp'?'selected':'')+'>TCP</option><option value="udp" '+(r.protocol==='udp'?'selected':'')+'>UDP</option></select></div><div class="form-group"><label class="form-label">Listen port</label><input class="input mono tf-listen" type="number" min="1" max="65535" value="'+escapeHtml(r.listen_port||'')+'" placeholder="2222"></div></div>'+'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Tailnet destination</label><input class="input mono tf-dest" value="'+escapeHtml(r.tailnet_destination||'')+'" placeholder="100.80.70.60 or host.tailnet.ts.net"><span class="form-hint">Must resolve to 100.64.0.0/10.</span></div><div class="form-group"><label class="form-label">Destination port</label><input class="input mono tf-dport" type="number" min="1" max="65535" value="'+escapeHtml(r.destination_port||'')+'" placeholder="22"></div></div>'+'<div class="form-group"><label class="form-label">Allowed source subnet</label><input class="input mono tf-cidr" value="'+escapeHtml(r.allowed_source_subnet||'')+'" placeholder="192.168.1.0/24"><span class="form-hint">Only clients in this CIDR may use the rule.</span></div>'+(r.resolved_ip?'<div class="form-hint">Resolved peer: <code>'+escapeHtml(r.resolved_ip)+'</code> · accepted '+(r.accepted_packets||0)+' · blocked '+(r.blocked_packets||0)+'</div>':'')+'</div>';}).join('');document.querySelectorAll('.tf-row').forEach(function(row){row.querySelectorAll('input,select').forEach(function(el){el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',tfDirty);});row.querySelector('.tf-del').addEventListener('click',function(){snapshotTf();s_tf_list.splice(+row.dataset.idx,1);renderTf();tfDirty();});});}
-    function loadTailnetForward(){apiFetch('/api/tailnet-forward').then(function(r){return r.json();}).then(function(d){s_tf_list=(d.rules||[]).slice();s_tf_max=d.max||8;renderTf();document.getElementById('tf-save').disabled=true;}).catch(function(){});}
+    var s_tf_list=[], s_tf_max=8, s_tf_context={}, s_tf_loaded=false, s_tf_dirty=false, s_tf_epoch=0;
+    var s_tf_import=null,s_tf_transfer_epoch=0,s_tf_mutating=false;
+    function tfMutation(on){s_tf_mutating=on;document.getElementById('tf-reload').disabled=on;document.getElementById('tf-import-file').disabled=on||!s_tf_loaded;document.getElementById('tf-add').disabled=on||!s_tf_loaded;document.getElementById('tf-template').disabled=on||!s_tf_loaded;}
+    function resetTfImport(){s_tf_import=null;s_tf_transfer_epoch++;document.getElementById('tf-import-confirm').checked=false;document.getElementById('tf-import-confirm').disabled=true;document.getElementById('tf-import-apply').disabled=true;}
+    function validTfTransfer(data){return data&&data.ok===true&&data.format==='homelab-service-rules/v1'&&Array.isArray(data.rules)&&data.rules.length<=8&&data.rules.every(function(r){return r&&r.enabled===false&&typeof r.name==='string'&&typeof r.tailnet_destination==='string'&&typeof r.allowed_source_subnet==='string'&&(r.protocol==='tcp'||r.protocol==='udp')&&Number.isInteger(r.listen_port)&&r.listen_port>0&&r.listen_port<=65535&&Number.isInteger(r.destination_port)&&r.destination_port>0&&r.destination_port<=65535;})&&typeof data.expected_guard==='string'&&/^[0-9a-f]{16}-[0-9a-f]{16}$/.test(data.expected_guard)&&Number.isInteger(data.previous_count)&&Number.isInteger(data.previous_enabled)&&data.previous_count>=0&&data.previous_enabled>=0&&data.previous_enabled<=data.previous_count;}
+    document.getElementById('tf-import-file').addEventListener('change',async function(){
+      resetTfImport();var sequence=s_tf_transfer_epoch,file=this.files[0],message=document.getElementById('tf-import-preview');
+      try{if(!s_tf_loaded||s_tf_mutating)throw new Error('Reload the saved configuration first');if(!file||file.size>8192)throw new Error('Select a JSON file no larger than 8 KiB');
+        var input=JSON.parse(await file.text());if(!input||Object.keys(input).some(function(k){return k!=='format'&&k!=='rules';})||input.format!=='homelab-service-rules/v1'||!Array.isArray(input.rules))throw new Error('Unsupported rule file');
+        var response=await apiFetch('/api/tailnet-forward/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({format:input.format,rules:input.rules,action:'preview'})});var data=await response.json();
+        if(sequence!==s_tf_transfer_epoch)return;if(!response.ok||!validTfTransfer(data)||data.applied!==false)throw new Error(data.error||'Invalid import preview');
+        s_tf_import=data;document.getElementById('tf-import-confirm').disabled=false;
+        message.textContent='Replace '+data.previous_count+' saved rules ('+data.previous_enabled+' enabled) with '+data.rules.length+' DISABLED rules. Unsaved editor changes are not included. No setting has changed yet.\n'+JSON.stringify(data.rules,null,2);
+      }catch(e){if(sequence===s_tf_transfer_epoch){resetTfImport();message.textContent=e.message;}}
+    });
+    document.getElementById('tf-import-confirm').onchange=function(){document.getElementById('tf-import-apply').disabled=!s_tf_import||!this.checked;};
+    document.getElementById('tf-import-apply').onclick=async function(){
+      if(s_tf_mutating||!s_tf_import||!document.getElementById('tf-import-confirm').checked)return;
+      var data=s_tf_import;resetTfImport();s_tf_loaded=false;++s_tf_epoch;document.getElementById('tf-save').disabled=true;tfMutation(true);tfEditingDisabled(true);var message=document.getElementById('tf-import-preview');
+      try{var response=await apiFetch('/api/tailnet-forward/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({format:data.format,rules:data.rules,action:'apply',expected_guard:data.expected_guard,confirm_replace:true})});var result=await response.json();
+        if(!response.ok||!validTfTransfer(result)||result.applied!==true)throw new Error(result.error||'Import result unavailable; reload before retrying');
+        tfMutation(false);await loadTailnetForward();message.textContent='Imported saved rules are disabled. Review individual rules and timer bindings before enabling.';
+      }catch(e){message.textContent=e.message+' — reload and preview again; no automatic retry.';}
+      finally{tfMutation(false);tfEditingDisabled(false);}
+    };
+    function tfConfigRules(rules){return rules.map(function(r){return {name:r.name,enabled:r.enabled,protocol:r.protocol,listen_port:r.listen_port,tailnet_destination:r.tailnet_destination,destination_port:r.destination_port,allowed_source_subnet:r.allowed_source_subnet};});}
+    function tfEditingDisabled(on){document.querySelectorAll('#tf-list input,#tf-list select,#tf-list .tf-del').forEach(function(el){el.disabled=on;});}
+    function snapshotTf(){document.querySelectorAll('.tf-row').forEach(function(row){var r=s_tf_list[+row.dataset.idx];if(!r)return;r.name=row.querySelector('.tf-name').value.trim();r.enabled=row.querySelector('.tf-enabled').checked;r.protocol=row.querySelector('.tf-proto').value;r.listen_port=Number(row.querySelector('.tf-listen').value);r.tailnet_destination=row.querySelector('.tf-dest').value.trim();r.destination_port=Number(row.querySelector('.tf-dport').value);r.allowed_source_subnet=row.querySelector('.tf-cidr').value.trim();});}
+    function tfDirty(){
+      s_tf_dirty=true;
+      document.getElementById('tf-save').disabled=!s_tf_loaded;
+      document.getElementById('tf-context').textContent='Unsaved changes. Save applies the rules; previous runtime observations do not describe this draft.';
+      document.querySelectorAll('.tf-runtime-badge').forEach(function(el){el.textContent='Unsaved';el.className='badge badge-neutral tf-runtime-badge';});
+      document.querySelectorAll('.tf-diag-body').forEach(function(el){el.textContent='Save and reload to diagnose this configuration. No reachability check has run.';});
+      document.querySelectorAll('.tf-test').forEach(function(el){el.disabled=true;el.title='Save first: the test checks the saved rule';});
+      document.getElementById('tf-badge').className='badge badge-warning';
+    }
+    var TF_CHECK_BADGE={reachable:'badge-success',no_tcp_answer:'badge-danger',pending:'badge-neutral',rule_changed:'badge-warning'};
+    function tfCheckHtml(r){
+      if(!Number.isInteger(r.index)||!Number.isInteger(r.rule_token))return '';
+      var c=r.destination_check,label=!c?'Not tested':c.state==='reachable'?'Reachable from gateway ('+c.latency_ms+' ms)':c.state==='pending'?'Testing…':c.summary;
+      return '<div class="tf-check" style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.25rem 0 .5rem;">'
+        +'<button class="btn btn-secondary btn-sm tf-test" type="button"'+(c&&c.state==='pending'?' disabled':'')+'>Test destination</button>'
+        +'<span class="badge '+(c&&TF_CHECK_BADGE[c.state]||'badge-neutral')+' tf-check-state" style="white-space:normal;">'+escapeHtml(label)+'</span>'
+        +(c&&c.state!=='pending'?'<span class="form-hint tf-check-next">'+escapeHtml(c.next_step)+(c.age_s?' · checked '+escapeHtml(String(c.age_s))+' s ago':'')+'</span>':'')+'</div>';
+    }
+    async function tfTestDestination(i){
+      var r=s_tf_list[i];if(!r||s_tf_dirty)return;
+      var row=document.querySelector('.tf-row[data-idx="'+i+'"]'),state=row&&row.querySelector('.tf-check-state'),btn=row&&row.querySelector('.tf-test');
+      if(btn)btn.disabled=true;if(state)state.textContent='Testing…';
+      try{
+        var resp=await apiFetch('/api/tailnet-forward/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:r.index,rule_token:r.rule_token})});
+        var d=await resp.json();if(!resp.ok||!d.ok)throw new Error(d.error||('HTTP '+resp.status));
+        for(var attempt=0;attempt<4;attempt++){
+          await new Promise(function(res){setTimeout(res,attempt?1500:1000);});
+          await loadTailnetForward();
+          var now=s_tf_list.filter(function(x){return x.index===r.index;})[0];
+          if(!now||!now.destination_check||now.destination_check.state!=='pending')return;
+        }
+      }catch(e){if(state)state.textContent='Test not started: '+e.message;if(btn)btn.disabled=false;}
+    }
+    function tfDiagnosticHtml(r){
+      var d=r.diagnostic||{}, summary=d.summary||(r.installed?'Mapping installed; service not tested':(r.enabled?'Runtime diagnosis unavailable':'Rule disabled'));
+      var path=(s_tf_context.uplink_ip||'ESP uplink IP')+':'+r.listen_port+' → '+r.tailnet_destination+':'+r.destination_port+' ('+(r.protocol||'tcp').toUpperCase()+')';
+      return '<details class="tf-diagnostic"><summary style="cursor:pointer;">Explain status &amp; LAN exposure</summary><div class="tf-diag-body" style="overflow-wrap:anywhere;color:var(--text-secondary);font-size:.8125rem;line-height:1.6;">'
+        +'<p><strong>'+escapeHtml(summary)+'</strong></p>'
+        +'<p>'+escapeHtml(d.next_step||'Reload runtime status. A local mapping does not prove the remote service works.')+'</p>'
+        +'<p>Saved path: <code>'+escapeHtml(path)+'</code><br>Allowed sources: <code>'+escapeHtml(r.allowed_source_subnet||'not configured')+'</code></p>'
+        +(r.allowed_source_subnet&&/\/0$/.test(r.allowed_source_subnet)?'<p><strong>Broad exposure:</strong> /0 permits any IPv4 source on the allowed ingress interface. Prefer a narrower CIDR.</p>':'')
+        +'<p>Accepted packets: '+escapeHtml(String(r.accepted_packets||0))+' · rejected packets: '+escapeHtml(String(r.blocked_packets||0))+'. Historical counts are not proof of service replies or the cause of a current failure.</p>'
+        +(r.error?'<p>Runtime report: '+escapeHtml(r.error)+'</p>':'')
+        +'<p>'+(r.destination_check?'Destination check: '+escapeHtml(r.destination_check.summary)+'.':'Destination: not tested.')+' The gateway only probes when you press Test destination; LAN clients and the application itself are not verified. A source IP filter is not authentication.</p></div></details>';
+    }
+    function renderTf(){
+      var box=document.getElementById('tf-list'),badge=document.getElementById('tf-badge');
+      badge.textContent=s_tf_list.length+' / '+s_tf_max;
+      badge.className='badge '+(s_tf_list.length?'badge-neutral':'badge-neutral');
+      if(!s_tf_list.length){box.innerHTML='<div style="padding:1rem;color:var(--text-muted);border:1px dashed var(--border);border-radius:var(--radius-md);">No LAN → Tailnet rules. New rules start disabled.</div>';return;}
+      box.innerHTML=s_tf_list.map(function(r,i){
+        var state=!r.enabled?'Disabled':(r.diagnostic?r.diagnostic.summary:(r.installed?'Mapping installed; service not tested':'Waiting for runtime status'));
+        return '<div class="tf-row" data-idx="'+i+'" style="border:1px solid var(--border);border-radius:var(--radius-md);padding:.75rem;margin-bottom:.5rem;">'
+          +'<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.5rem;"><span class="badge badge-neutral tf-runtime-badge" style="white-space:normal;">'+escapeHtml(state)+'</span><button class="btn btn-ghost btn-sm text-danger tf-del" type="button" aria-label="Remove rule">×</button></div>'
+          +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Name</label><input class="input tf-name" maxlength="31" value="'+escapeHtml(r.name||'')+'" placeholder="Remote MQTT"></div><div class="form-group"><label class="feature-switch"><input type="checkbox" class="tf-enabled" '+(r.enabled?'checked':'')+'><span class="feature-switch-track" aria-hidden="true"></span><span>Enabled after Save</span></label></div></div>'
+          +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Protocol</label><select class="select tf-proto"><option value="tcp" '+(r.protocol!=='udp'?'selected':'')+'>TCP</option><option value="udp" '+(r.protocol==='udp'?'selected':'')+'>UDP</option></select></div><div class="form-group"><label class="form-label">Listen port</label><input class="input mono tf-listen" type="number" min="1" max="65535" value="'+escapeHtml(r.listen_port||'')+'" placeholder="18830"></div></div>'
+          +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Tailnet destination</label><input class="input mono tf-dest" maxlength="95" value="'+escapeHtml(r.tailnet_destination||'')+'" placeholder="100.64.0.2 or broker.tailnet.ts.net"><span class="form-hint">Must resolve to 100.64.0.0/10.</span></div><div class="form-group"><label class="form-label">Destination port</label><input class="input mono tf-dport" type="number" min="1" max="65535" value="'+escapeHtml(r.destination_port||'')+'" placeholder="1883"></div></div>'
+          +'<div class="form-group"><label class="form-label">Allowed source subnet</label><input class="input mono tf-cidr" value="'+escapeHtml(r.allowed_source_subnet||'')+'" placeholder="192.168.50.42/32"><span class="form-hint">Prefer a single client (/32) when possible. This is an address filter, not client identity.</span></div>'
+          +tfCheckHtml(r)+tfDiagnosticHtml(r)+'</div>';
+      }).join('');
+      document.querySelectorAll('.tf-row').forEach(function(row){
+        row.querySelectorAll('input,select').forEach(function(el){el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',tfDirty);});
+        row.querySelector('.tf-del').addEventListener('click',function(){snapshotTf();s_tf_list.splice(+row.dataset.idx,1);renderTf();tfDirty();});
+        var test=row.querySelector('.tf-test');if(test)test.addEventListener('click',function(){tfTestDestination(+row.dataset.idx);});
+      });
+      if(s_tf_dirty)tfDirty();
+    }
+    function loadTailnetForward(){
+      if(s_tf_mutating)return Promise.resolve();
+      resetTfImport();
+      var epoch=++s_tf_epoch;
+      s_tf_loaded=false;document.getElementById('tf-add').disabled=true;document.getElementById('tf-save').disabled=true;
+      tfEditingDisabled(true);
+      document.getElementById('tf-context').textContent='Loading saved configuration; no service probe is running…';
+      return apiFetch('/api/tailnet-forward').then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
+        if(epoch!==s_tf_epoch)return;
+        if(!d||!Array.isArray(d.rules)||!Number.isInteger(d.max)||d.max<1||d.max>8||d.rules.length>d.max
+          ||d.rules.some(function(r){return !r||typeof r.enabled!=='boolean'||typeof r.installed!=='boolean'||typeof r.tailnet_destination!=='string'
+            ||typeof r.allowed_source_subnet!=='string'||!Number.isInteger(r.listen_port)||!Number.isInteger(r.destination_port)
+            ||(r.diagnostic&&(typeof r.diagnostic.summary!=='string'||typeof r.diagnostic.next_step!=='string'));}))throw new Error('Invalid forwarding status');
+        s_tf_list=d.rules.slice();s_tf_max=d.max;s_tf_context=d;s_tf_dirty=false;s_tf_loaded=true;renderTf();
+        document.getElementById('tf-add').disabled=false;
+        document.getElementById('tf-context').textContent='Saved configuration · passive snapshot only. Expand a rule for evidence, exposure and the next step. Reload to refresh.';
+      }).catch(function(){
+        if(epoch!==s_tf_epoch)return;
+        var badge=document.getElementById('tf-badge');badge.textContent='Unavailable';badge.className='badge badge-warning';
+        document.getElementById('tf-context').textContent='Could not load forwarding status. Existing fields are retained but may be stale; Reload before saving.';
+        document.querySelectorAll('.tf-runtime-badge').forEach(function(el){el.textContent='Status unavailable';});
+        document.querySelectorAll('.tf-diag-body').forEach(function(el){el.textContent='Status unavailable. Reload; this is not evidence that the rule is disabled or the peer is offline.';});
+      }).finally(function(){if(epoch===s_tf_epoch){tfEditingDisabled(false);tfMutation(false);}});
+    }
     document.getElementById('tf-reload').addEventListener('click',loadTailnetForward);
-    document.getElementById('tf-add').addEventListener('click',function(){if(s_tf_list.length>=s_tf_max){showToast('error','List full','Maximum '+s_tf_max+' rules.',4000);return;}snapshotTf();s_tf_list.push({name:'',enabled:true,protocol:'tcp',listen_port:'',tailnet_destination:'',destination_port:'',allowed_source_subnet:''});renderTf();tfDirty();});
-    document.getElementById('tf-save').addEventListener('click',function(){snapshotTf();var seen={};for(var i=0;i<s_tf_list.length;i++){var r=s_tf_list[i],lp=+r.listen_port,dp=+r.destination_port,key=r.protocol+':'+lp;if(!r.tailnet_destination||!/^\d+\.\d+\.\d+\.\d+\/([0-9]|[12][0-9]|3[0-2])$/.test((r.allowed_source_subnet||'').trim())||lp<1||lp>65535||dp<1||dp>65535){showToast('error','Invalid rule','Check destination, ports and source CIDR in row #'+(i+1)+'.',5000);return;}if(r.enabled&&seen[key]){showToast('error','Port conflict','Duplicate '+key+'.',5000);return;}if(r.enabled)seen[key]=1;}var btn=this;btn.disabled=true;btn.textContent='Saving…';apiFetch('/api/tailnet-forward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rules:s_tf_list})}).then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error(t||('HTTP '+r.status));});return r.json();}).then(function(){btn.textContent='Save';showToast('success','Saved','LAN → Tailnet rules updated.',4000);loadTailnetForward();}).catch(function(e){btn.disabled=false;btn.textContent='Save';showToast('error','Save failed',e.message,6000);});});
+    document.getElementById('tf-add').addEventListener('click',function(){if(!s_tf_loaded||s_tf_mutating)return;if(s_tf_list.length>=s_tf_max){showToast('error','List full','Maximum '+s_tf_max+' rules.',4000);return;}snapshotTf();var templates={ssh:['Remote SSH',2222,22],https:['Remote HTTPS',8443,443],'home-assistant':['Remote Home Assistant',18123,8123],'mqtt-tls':['Remote MQTT TLS',18883,8883],rdp:['Remote Desktop',13389,3389]},t=templates[document.getElementById('tf-template').value];s_tf_list.push({name:t?t[0]:'',enabled:false,protocol:'tcp',listen_port:t?t[1]:'',tailnet_destination:'',destination_port:t?t[2]:'',allowed_source_subnet:''});resetTfImport();renderTf();tfDirty();});
+    document.getElementById('tf-save').addEventListener('click',function(){
+      if(!s_tf_loaded||s_tf_mutating)return;
+      snapshotTf();var seen={};
+      for(var i=0;i<s_tf_list.length;i++){
+        var r=s_tf_list[i],lp=+r.listen_port,dp=+r.destination_port,key=r.protocol+':'+lp;
+        if(!r.tailnet_destination||!/^\d+\.\d+\.\d+\.\d+\/([0-9]|[12][0-9]|3[0-2])$/.test((r.allowed_source_subnet||'').trim())
+          ||!Number.isInteger(lp)||!Number.isInteger(dp)||lp<1||lp>65535||dp<1||dp>65535){
+          showToast('error','Invalid rule','Check destination, ports and source CIDR in row #'+(i+1)+'.',5000);return;
+        }
+        if(r.enabled&&seen[key]){showToast('error','Port conflict','Duplicate '+key+'.',5000);return;}
+        if(r.enabled)seen[key]=1;
+      }
+      var btn=this;btn.disabled=true;btn.textContent='Saving…';resetTfImport();s_tf_loaded=false;++s_tf_epoch;tfMutation(true);tfEditingDisabled(true);
+      apiFetch('/api/tailnet-forward',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({rules:tfConfigRules(s_tf_list)})})
+        .then(function(r){if(!r.ok)return r.text().then(function(t){throw new Error(t||('HTTP '+r.status));});return r.json();})
+        .then(function(result){
+          if(!result||result.ok!==true)throw new Error('The device did not confirm saving the rules.');
+          btn.textContent='Save';showToast('success','Saved','LAN → Tailnet rules updated.',4000);tfMutation(false);return loadTailnetForward();
+        }).catch(function(e){btn.textContent='Save';showToast('error','Save not confirmed',e.message+' Reload before another save; drafts remain visible.',6000);})
+        .finally(function(){tfEditingDisabled(false);tfMutation(false);});
+    });
 
     // =====================================================================
     // TAILSCALE PAGE
@@ -6961,7 +7574,11 @@
       } else if (d.connected) {
         badge.className = 'badge badge-success'; badge.textContent = 'Connected';
       } else {
-        badge.className = 'badge badge-warning'; badge.textContent = 'Connecting…';
+        var st = d.status || {};
+        badge.className = 'badge badge-warning';
+        badge.textContent = st.configured === false ? 'Incomplete settings'
+          : st.retry_in_seconds ? 'Retry in ' + st.retry_in_seconds + ' s'
+          : 'Connecting…';
       }
       document.getElementById('mqtt-enabled').checked = !!d.enabled;
       setFeatureCardState('mqtt-card', !!d.enabled);
@@ -6987,7 +7604,8 @@
             : 'Armed after each successful MQTT connection · wake count: ' + (d.broker_watchdog_wake_count || 0));
       var topic = d.base_topic || '…';
       document.getElementById('mqtt-topics-help').textContent =
-        'State: ' + topic + '/state · all Home Assistant controls: ' + topic + '/command/#';
+        'State: ' + topic + '/state · all Home Assistant controls: ' + topic + '/command/#'
+        + (d.connected && d.status && d.status.discovery_pending ? ' · Home Assistant Discovery in progress' : '');
       document.getElementById('mqtt-publish').disabled = !d.enabled;
       document.getElementById('mqtt-save').disabled = true;
     }
@@ -7675,6 +8293,7 @@
         delete mqtt.broker_watchdog_triggered;
         delete mqtt.broker_watchdog_wake_count;
         delete mqtt.broker_silence_seconds;
+        delete mqtt.status;
         var ntfy = parts[8] || {};
         delete ntfy.has_token;
         delete ntfy.last_publish_ok;
@@ -7694,7 +8313,7 @@
           wol:           (parts[6] && parts[6].devices) || [],
           mqtt:          mqtt,
           ntfy:          ntfy,
-          tailnet_forward: (parts[9] && parts[9].rules) || []
+          tailnet_forward: tfConfigRules((parts[9] && parts[9].rules) || [])
         };
         var step = Promise.resolve();
         if (includeSecrets) {
@@ -7808,7 +8427,7 @@
       if (data.wol) steps.push({ name: 'Wake-on-LAN', url: '/api/wol', body: { devices: data.wol } });
       if (data.dhcp_reservations) steps.push({ name: 'reservations',    url: '/api/dhcp/reservations', body: { reservations: data.dhcp_reservations } });
       if (data.portmap)           steps.push({ name: 'portmap',         url: '/api/portmap',           body: { mappings:     data.portmap } });
-      if (data.tailnet_forward)   steps.push({ name: 'LAN to Tailnet',  url: '/api/tailnet-forward',   body: { rules: data.tailnet_forward } });
+      if (data.tailnet_forward)   steps.push({ name: 'LAN to Tailnet',  url: '/api/tailnet-forward',   body: { rules: tfConfigRules(data.tailnet_forward) } });
       if (data.system) {
         var sb = {};
         if (typeof data.system.device_name === 'string') sb.device_name = data.system.device_name;
@@ -7929,7 +8548,7 @@
         .then(function (resp) {
           if (!resp || resp.ok !== true) throw new Error('Settings were not fully saved. Refresh and retry.');
           updateBrandName(name);
-          showToast('success', 'Saved', 'Name "' + (name || 'ESP32 Router') + '"' + (tz ? ' · TZ ' + tz : '') + '.', 3500);
+          showToast('success', 'Saved', 'Name "' + (name || 'Homelab Gateway') + '"' + (tz ? ' · TZ ' + tz : '') + '.', 3500);
           /* Backend flips restart_required when the TZ actually changed —
            * the IDF log subsystem caches TZ at boot, so the new rule
            * only governs log timestamps after a reboot. */
@@ -8694,7 +9313,7 @@
     });
 
     function updateBrandName(name) {
-      var n = (name && name.length) ? name : 'ESP32 Router';
+      var n = (name && name.length) ? name : 'Homelab Gateway';
       document.title = n;
       var brand = document.getElementById('brandName');
       var login = document.getElementById('login-title');

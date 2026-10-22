@@ -35,6 +35,17 @@ typedef int esp_err_t;
 #define ESP_ERR_INVALID_STATE -3
 #include "portmap.h"
 #include "tailnet_forward.h"
+/* Actual lease persistence has its own driver; existing transactions use none. */
+static void service_lease_init(void){}
+static bool service_lease_tick(void){return false;}
+static bool service_lease_allowed(int i,const tailnet_forward_rule_t *r){(void)i;(void)r;return true;}
+static uint32_t service_lease_token(const tailnet_forward_rule_t *r){return r->listen_port;}
+static void mqtt_integration_tailnet_forward_changed(void){}
+static bool service_lease_delete_requested(const tailnet_forward_rule_t *r){(void)r;return false;}
+static int64_t esp_timer_get_time(void){return 0;}
+#define MALLOC_CAP_SPIRAM 1
+#define MALLOC_CAP_8BIT 2
+static void *heap_caps_malloc(size_t n,int caps){(void)caps;return malloc(n);}
 #include "control_validation.h"
 #include "web_ui.h"
 #define NVS_NAMESPACE "tsr"

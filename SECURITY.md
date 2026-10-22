@@ -1,5 +1,28 @@
 # Security Policy
 
+## Tailnet policy compatibility boundary
+
+This firmware uses third-party microlink, not official tailscaled. The pinned
+parent used by stable 1.13 and development dev.1 did not apply MapResponse
+`PacketFilter`/`PacketFilters` service permissions to decrypted traffic. IPv4
+AllowedIPs/peer pruning were not a substitute; IPv6 source ownership also
+lacked an equivalent check. These are confirmed source findings, not a claim
+of a successful live unauthorized-access experiment.
+
+Local **1.14-dev.2** adds a bounded, fail-closed authorization gate before
+translation/queueing, fresh-session peer/source/destination checks, named
+filter updates and exact outbound return flows. It has **not been published
+or installed on the reference ESP**. Its conservative protocol subset,
+fragment/ICMP limitations and required real-client tests are documented in
+[the authorization record](docs/TAILNET-AUTHORIZATION.md). Do not assume
+full official-client policy parity. Local STA/AP ACL tables and a LAN rule's
+source CIDR remain separate controls, not identity authentication.
+
+Use service authentication, controlled LAN access and destination-side policy;
+do not expose sensitive management services on the assumption that every
+tailnet grant is enforced by this client. Broader compatibility, two-real-client
+tests and hardware resource/soak qualification remain P0 release gates.
+
 ## LAN → Tailnet forwarding boundary
 
 Each enabled LAN → Tailnet rule deliberately exposes one Tailnet TCP/UDP
@@ -83,7 +106,7 @@ web-UI authentication bypass, or any other concern that affects the safety of a
 device running this code — please report it privately rather than opening a
 public issue.
 
-**Preferred channel:** use GitHub's [private vulnerability reporting](https://github.com/Mattboxx/esp32-tailscale-gateway/security/advisories/new)
+**Preferred channel:** use GitHub's [private vulnerability reporting](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/security/advisories/new)
 on this repository. This creates a private security advisory that only the
 maintainer and invited collaborators can see.
 

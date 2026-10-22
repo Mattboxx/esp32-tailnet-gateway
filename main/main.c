@@ -13,6 +13,7 @@
 */
 #include <string.h>
 #include "runtime_metrics.h"
+#include "homelab_ops.h"
 #include "microlink.h"
 #include "ap_policy.h"
 #include "esp_heap_caps.h"
@@ -56,6 +57,7 @@
 #include "nvs.h"
 #include "dns_relay.h"
 #include "snmp_agent.h"
+#include "snmp_ops.h"
 #include "wifi_networks.h"
 #include "wol.h"
 #include "mqtt_integration.h"
@@ -1030,6 +1032,8 @@ void app_main(void)
      * matching DHCP-server hook lives in components/dhcpserver/. */
     dhcp_reservations_init();
     wol_init();
+    homelab_ops_init();
+    homelab_snmp_register();
     runtime_metrics_init();
     mqtt_integration_init();
     ntfy_integration_init();

@@ -36,6 +36,8 @@ fixture = r'''
 #define ESP_ERR_INVALID_ARG 3
 #define ESP_ERR_NVS_NOT_FOUND 4
 #define ESP_ERR_INVALID_STATE 5
+/* Resource guard is OFF in this existing transport-boundary fixture. */
+static bool homelab_ops_admit(void){return true;}
 #define ESP_ERR_TIMEOUT 6
 #define NVS_NAMESPACE "tsr"
 #define NVS_READONLY 0

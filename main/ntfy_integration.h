@@ -34,3 +34,5 @@ void ntfy_integration_get_config(ntfy_integration_config_t *out);
 void ntfy_integration_get_status(ntfy_integration_status_t *out);
 esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *config);
 esp_err_t ntfy_integration_send_test(void);
+/* Bounded best-effort result event, handled by the existing worker. No I/O. */
+bool ntfy_integration_queue_event(const char *message);

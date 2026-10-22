@@ -20,29 +20,61 @@ static wol_device_t s_devices[WOL_MAX_DEVICES];
 static int s_count;
 static bool s_loaded;
 static SemaphoreHandle_t s_lock;
+static StaticSemaphore_t s_lock_storage;
+static portMUX_TYPE s_init_lock = portMUX_INITIALIZER_UNLOCKED;
 
 static void ensure_lock(void)
 {
-    if (!s_lock) s_lock = xSemaphoreCreateMutex();
+    portENTER_CRITICAL(&s_init_lock);
+    if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
+    portEXIT_CRITICAL(&s_init_lock);
+}
+
+/* Keep the original 60-byte NVS record layout; validate before publication.
+ * A MAC address is a target address, not proof of identity or reachability. */
+static bool normalize_device(const wol_device_t *in, wol_device_t *out)
+{
+    if (!in || !out || !memchr(in->name, 0, sizeof in->name)
+        || !memchr(in->broadcast, 0, sizeof in->broadcast)) return false;
+    bool nonzero = false;
+    for (int i = 0; i < 6; i++) nonzero |= in->mac[i] != 0;
+    if (!nonzero || (in->mac[0] & 1)) return false;
+    struct in_addr address;
+    if (in->broadcast[0] && inet_pton(AF_INET, in->broadcast, &address) != 1) return false;
+    memset(out, 0, sizeof *out);
+    memcpy(out->name, in->name, strlen(in->name));
+    memcpy(out->mac, in->mac, sizeof out->mac);
+    memcpy(out->broadcast, in->broadcast, strlen(in->broadcast));
+    out->port = in->port ? in->port : 9;
+    out->valid = 1;
+    return true;
 }
 
 bool wol_parse_mac(const char *text, uint8_t out[6])
 {
     if (!text || !out) return false;
-    unsigned v[6];
-    int consumed = 0;
-    int matched = sscanf(text, "%2x:%2x:%2x:%2x:%2x:%2x%n",
-                         &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &consumed);
-    if (matched != 6) {
-        consumed = 0;
-        matched = sscanf(text, "%2x-%2x-%2x-%2x-%2x-%2x%n",
-                         &v[0], &v[1], &v[2], &v[3], &v[4], &v[5], &consumed);
+    while (*text == ' ' || *text == '\t') text++;
+    uint8_t mac[6]; char separator = 0;
+    for (int i = 0; i < 6; i++) {
+        unsigned value = 0;
+        for (int digit = 0; digit < 2; digit++) {
+            unsigned char c = (unsigned char)*text;
+            if (c >= '0' && c <= '9') value = value * 16 + c - '0';
+            else if (c >= 'a' && c <= 'f') value = value * 16 + c - 'a' + 10;
+            else if (c >= 'A' && c <= 'F') value = value * 16 + c - 'A' + 10;
+            else return false; /* Includes NUL; never advance past it. */
+            text++;
+        }
+        mac[i] = (uint8_t)value;
+        if (i < 5) {
+            if (*text != ':' && *text != '-') return false;
+            if (separator && *text != separator) return false;
+            separator = *text++;
+        }
     }
-    while (text[consumed] == ' ' || text[consumed] == '\t') consumed++;
-    if (matched != 6 || text[consumed] != '\0') {
-        return false;
-    }
-    for (int i = 0; i < 6; i++) out[i] = (uint8_t)v[i];
+    while (*text == ' ' || *text == '\t') text++;
+    if (*text) return false;
+    memcpy(out, mac, sizeof mac);
     return true;
 }
 
@@ -56,6 +88,7 @@ void wol_init(void)
 {
     ensure_lock();
     xSemaphoreTake(s_lock, portMAX_DELAY);
+    if (s_loaded) { xSemaphoreGive(s_lock); return; }
     memset(s_devices, 0, sizeof s_devices);
     s_count = 0;
 
@@ -66,26 +99,40 @@ void wol_init(void)
             && size == sizeof s_devices) {
             for (int i = 0; i < WOL_MAX_DEVICES; i++) {
                 if (!s_devices[i].valid) continue;
-                if (s_devices[i].port == 0) s_devices[i].port = 9;
-                s_count++;
+                wol_device_t checked;
+                if (!normalize_device(&s_devices[i], &checked)) {
+                    memset(s_devices, 0, sizeof s_devices);
+                    s_count = 0;
+                    ESP_LOGE(TAG, "Invalid stored Wake-on-LAN table; ignoring it");
+                    break;
+                }
+                s_devices[s_count++] = checked;
             }
+            memset(s_devices + s_count, 0, (WOL_MAX_DEVICES - s_count) * sizeof s_devices[0]);
+        } else {
+            /* A failed/partial read is never a usable address book. */
+            memset(s_devices, 0, sizeof s_devices);
         }
         nvs_close(nvs);
     }
     s_loaded = true;
+    int loaded_count = s_count;
     xSemaphoreGive(s_lock);
-    ESP_LOGI(TAG, "loaded %d Wake-on-LAN target(s)", s_count);
+    ESP_LOGI(TAG, "loaded %d Wake-on-LAN target(s)", loaded_count);
 }
 
 static void ensure_loaded(void)
 {
-    if (!s_loaded) wol_init();
+    wol_init(); /* Idempotent; the mutex also orders the loaded-state read. */
 }
 
 int wol_count(void)
 {
     ensure_loaded();
-    return s_count;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    int count = s_count;
+    xSemaphoreGive(s_lock);
+    return count;
 }
 
 bool wol_get(int index, wol_device_t *out)
@@ -110,33 +157,29 @@ bool wol_get(int index, wol_device_t *out)
 
 esp_err_t wol_set_all(const wol_device_t *devices, int count)
 {
-    if (!devices && count > 0) return ESP_ERR_INVALID_ARG;
-    if (count < 0) count = 0;
-    if (count > WOL_MAX_DEVICES) count = WOL_MAX_DEVICES;
-    ensure_lock();
-    xSemaphoreTake(s_lock, portMAX_DELAY);
-    memset(s_devices, 0, sizeof s_devices);
-    s_count = 0;
+    if ((!devices && count > 0) || count < 0 || count > WOL_MAX_DEVICES)
+        return ESP_ERR_INVALID_ARG;
+    wol_device_t candidate[WOL_MAX_DEVICES] = {0};
     for (int i = 0; i < count; i++) {
-        bool nonzero = false;
-        for (int b = 0; b < 6; b++) nonzero |= devices[i].mac[b] != 0;
-        if (!nonzero) continue;
-        s_devices[s_count] = devices[i];
-        s_devices[s_count].valid = 1;
-        if (s_devices[s_count].port == 0) s_devices[s_count].port = 9;
-        s_count++;
+        if (!normalize_device(&devices[i], &candidate[i])) return ESP_ERR_INVALID_ARG;
+        for (int j = 0; j < i; j++)
+            if (!memcmp(candidate[j].mac, candidate[i].mac, 6)) return ESP_ERR_INVALID_ARG;
     }
-
+    ensure_loaded();
+    xSemaphoreTake(s_lock, portMAX_DELAY);
     nvs_handle_t nvs;
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
     if (err == ESP_OK) {
-        err = nvs_set_blob(nvs, WOL_NVS_KEY, s_devices, sizeof s_devices);
+        err = nvs_set_blob(nvs, WOL_NVS_KEY, candidate, sizeof candidate);
         if (err == ESP_OK) err = nvs_commit(nvs);
         nvs_close(nvs);
     }
-    s_loaded = true;
+    if (err == ESP_OK) {
+        memcpy(s_devices, candidate, sizeof s_devices);
+        s_count = count;
+    }
     xSemaphoreGive(s_lock);
-    if (err == ESP_OK) ESP_LOGI(TAG, "saved %d Wake-on-LAN target(s)", s_count);
+    if (err == ESP_OK) ESP_LOGI(TAG, "saved %d Wake-on-LAN target(s)", count);
     else ESP_LOGE(TAG, "save failed: %s", esp_err_to_name(err));
     return err;
 }

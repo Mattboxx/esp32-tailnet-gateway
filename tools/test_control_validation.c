@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include "../main/control_validation.h"
+#include "../main/web_origin.h"
 #include "../components/dhcpserver/include/dhcps_validation.h"
 
 static void test_dhcp(void)
@@ -35,6 +36,12 @@ static void test_dhcp(void)
 int main(void)
 {
     test_dhcp();
+    assert(web_origin_matches("192.0.2.1:8080","http://192.0.2.1:8080"));
+    assert(web_origin_matches("router.example","https://ROUTER.example/"));
+    assert(!web_origin_matches("router.example","https://router.example.evil"));
+    assert(!web_origin_matches("router.example","https://router.example@evil"));
+    assert(!web_origin_matches("router.example","null"));
+    assert(!web_origin_matches("router.example","http://router.example/path"));
     const char *on[] = {"ON", "on", "1", "true", "TrUe"};
     const char *off[] = {"OFF", "off", "0", "false", "FaLsE"};
     const char *bad[] = {"", "typo", "2", "ON ", " OFF", "true\n", "PRESS", "null"};
@@ -60,6 +67,11 @@ int main(void)
     assert(control_parse_index("32", 33, &index) && index == 32);
     assert(!control_parse_index("33", 33, &index));
     assert(!control_parse_index("0", 0, &index));
+    uint32_t token=7;
+    assert(control_parse_hex32("0123aBcD",&token)&&token==0x0123abcd);
+    assert(control_parse_hex32("ffffffff",&token)&&token==UINT32_MAX);
+    const char *bad_token[]={"","1","000000000","0000000g"," 0000001","+0000001","0000001/"};
+    for(unsigned i=0;i<sizeof bad_token/sizeof bad_token[0];i++)assert(!control_parse_hex32(bad_token[i],&token));
     assert(control_cpu_pct(2000000, 2000000) == 0);
     assert(control_cpu_pct(2000000, 0) == 100);
     assert(control_cpu_pct(4000000, 2000000) == 50); /* one busy core */

@@ -25,6 +25,9 @@ fixture = r'''
 #include <stdlib.h>
 typedef int esp_err_t;
 #include "tailnet_forward.h"
+/* Explicit lease boundary fixture; actual expiry is in test_service_lease.py. */
+static bool lease_fixture_denied;
+static bool service_lease_allowed(int i,const tailnet_forward_rule_t *r){(void)i;(void)r;return !lease_fixture_denied;}
 static uint64_t s_generation=1;
 typedef struct { bool installed; tailnet_forward_mapping_t mapping; } active_mapping_t;
 static active_mapping_t s_active[TAILNET_FORWARD_MAX];
@@ -85,6 +88,7 @@ int main(void) {
     packet(bytes,true,6,0xc6336402,local_hbo,2222); assert(!ALLOW_UP(&p));
     packet(bytes,true,6,0xc0000263,local_hbo,2222); assert(ALLOW_UP(&p));
     assert(s_runtime[0].blocked_packets==1 && s_runtime[0].accepted_packets==1);
+    lease_fixture_denied=true;assert(!ALLOW_UP(&p));lease_fixture_denied=false;assert(ALLOW_UP(&p));
     tailnet_forward_prepare_install(); assert(ALLOW_UP(&p)); install();
     for(unsigned prefix=0;prefix<=32;prefix++) {
         uint32_t mask=prefix==0?0:(prefix==32?UINT32_MAX:UINT32_MAX<<(32-prefix));

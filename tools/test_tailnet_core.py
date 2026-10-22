@@ -32,6 +32,8 @@ fixture=r'''
 #include <string.h>
 typedef int esp_err_t;
 #include "tailnet_forward.h"
+/* Permanent-lease fixture; standalone actual lease engine has separate tests. */
+static bool service_lease_allowed(int i,const tailnet_forward_rule_t *r){(void)i;(void)r;return true;}
 typedef int err_t;
 #define ERR_OK 0
 static int core_depth, lock_depth;

@@ -77,6 +77,8 @@ fixture=r'''
 #include "tailnet_reassembly.h"
 typedef int esp_err_t;
 #include "tailnet_forward.h"
+/* Permanent-lease fixture; not a real expiry/NVS timing test. */
+static bool service_lease_allowed(int i,const tailnet_forward_rule_t *r){(void)i;(void)r;return true;}
 static int lock_depth;
 #define LOCK() do { assert(!lock_depth);++lock_depth; } while(0)
 #define UNLOCK() do { assert(lock_depth==1);--lock_depth; } while(0)

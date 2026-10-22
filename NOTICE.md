@@ -1,6 +1,7 @@
 # Third-party notices
 
-This project (`esp32-tailscale-gateway`, forked from
+This project (ESP32 Homelab Gateway — Mattboxx Edition, repository
+`esp32-tailscale-gateway-NAS-recovery`, forked from
 `esp32-tailscale-subnet-router`) is licensed under the
 [MIT License](LICENSE), Copyright (c) 2026 Csontikka.
 
