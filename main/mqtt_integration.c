@@ -33,6 +33,7 @@
 #include "wol.h"
 #include "homelab_ops.h"
 #include "service_lease.h"
+#include "service_evidence.h"
 #include "service_retry.h"
 #include "discovery_budget.h"
 #include "health_monitor.h"
@@ -387,6 +388,9 @@ static void publish_discovery(void)
         snprintf(object_id,sizeof object_id,"tailnet_expiry_%d",i+1);
         snprintf(state_template,sizeof state_template,"{{ value_json.forwarding_leases[%d].remaining_s }}",i);
         discovery_publish_entity("sensor",object_id,"Tailnet rule time remaining",s_state_topic,state_template,NULL,NULL,"s");
+        snprintf(object_id,sizeof object_id,"tailnet_status_%d",i+1);
+        snprintf(state_template,sizeof state_template,"{{ value_json.tailnet_forward_rules[%d].status }}",i);
+        discovery_publish_entity("sensor",object_id,"Tailnet rule status",s_state_topic,state_template,NULL,NULL,NULL);
     }
     /* Retained discovery records survive rule deletion and reboot. Clear every
      * unused slot so Home Assistant does not keep orphaned rule switches. */
@@ -397,6 +401,8 @@ static void publish_discovery(void)
                  cfg.discovery_prefix, s_device_id, object_id);
         if(discovery_visit(&s_discovery))discovery_result(&s_discovery,publish(topic,"",1)>=0);
         snprintf(topic,sizeof topic,"%s/sensor/%s/tailnet_expiry_%d/config",cfg.discovery_prefix,s_device_id,i+1);
+        if(discovery_visit(&s_discovery))discovery_result(&s_discovery,publish(topic,"",1)>=0);
+        snprintf(topic,sizeof topic,"%s/sensor/%s/tailnet_status_%d/config",cfg.discovery_prefix,s_device_id,i+1);
         if(discovery_visit(&s_discovery))discovery_result(&s_discovery,publish(topic,"",1)>=0);
     }
 
@@ -549,7 +555,12 @@ static void publish_state(void)
     cJSON *tf_rules=cJSON_AddArrayToObject(root,"tailnet_forward_rules");
     for(int i=0;i<tailnet_forward_count();i++){
         tailnet_forward_rule_t rule;tailnet_forward_runtime_t rt;if(!tailnet_forward_get(i,&rule,&rt))continue;
-        cJSON *j=cJSON_CreateObject();cJSON_AddStringToObject(j,"name",rule.name);cJSON_AddStringToObject(j,"enabled",rule.enabled?"ON":"OFF");cJSON_AddStringToObject(j,"protocol",rule.proto==17?"udp":"tcp");cJSON_AddNumberToObject(j,"listen_port",rule.listen_port);cJSON_AddStringToObject(j,"destination",rule.destination);cJSON_AddNumberToObject(j,"destination_port",rule.destination_port);cJSON_AddStringToObject(j,"installed",rt.installed?"ON":"OFF");cJSON_AddItemToArray(tf_rules,j);
+        cJSON *j=cJSON_CreateObject();cJSON_AddStringToObject(j,"name",rule.name);cJSON_AddStringToObject(j,"enabled",rule.enabled?"ON":"OFF");cJSON_AddStringToObject(j,"protocol",rule.proto==17?"udp":"tcp");cJSON_AddNumberToObject(j,"listen_port",rule.listen_port);cJSON_AddStringToObject(j,"destination",rule.destination);cJSON_AddNumberToObject(j,"destination_port",rule.destination_port);cJSON_AddStringToObject(j,"installed",rt.installed?"ON":"OFF");
+        /* Same evidence as the Web API; uplink/control are published separately. */
+        service_evidence_t ev;service_evidence_collect(i,service_lease_token(&rule),&rule,&rt,true,true,&ev);
+        cJSON_AddStringToObject(j,"status",ev.diag.code);cJSON_AddStringToObject(j,"destination_check",service_check_state_name(ev.checked?ev.check.state:SC_NONE));
+        if(ev.replied)cJSON_AddNumberToObject(j,"service_reply_age_s",ev.reply_ms/1000);else cJSON_AddNullToObject(j,"service_reply_age_s");
+        cJSON_AddItemToArray(tf_rules,j);
     }
 
     cJSON *operations=homelab_ops_snapshot(false);

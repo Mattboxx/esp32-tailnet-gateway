@@ -49,6 +49,14 @@ over from the interrupted Codex session without resetting anything.
   failure). ops_api + gateway_operations PASS; build PASS **1,816,232 (92.4%)**;
   browser 50/50. Snapshot `.../service-templates-export/`: BIN `f318c6a558b2f8081ff854443509547e26bc0c2c474c302bae11e857403b6571`,
   ELF `b5b9d510e9f832c5abd00bc91a87bcf13f867f2f3e2f7bbf40f41b82c6285208`.
+- Commit root `ccf32ab` (microlink unchanged). Then: shared
+  `service_evidence.h` used by Web API, export and MQTT (one diagnosis);
+  MQTT state per rule `status`/`destination_check`/`service_reply_age_s` and an
+  HA "Tailnet rule status" sensor per rule with orphan cleanup. gateway_operations,
+  ops_api, mqtt_discovery, service_retry PASS; build PASS **1,818,068 (92.5%)**.
+  Snapshot `.../service-mqtt-evidence/`: BIN `004d703b47cd44291c25cdbac9dc0ad9e6a8c3ef8c650d46f1e2319a3774f1e6`, ELF `328d1b76a12abc2cba1a80370650f1cd2877b10f197bbddb47f345b608e0f2bf`. SPA
+  unchanged in this block (browser not rerun). MQTT state payload content and
+  worst-case size against the 8 KiB QoS1 outbox are NOT covered by a driver.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 
