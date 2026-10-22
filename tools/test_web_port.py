@@ -131,7 +131,7 @@ int main(void) {
 with tempfile.TemporaryDirectory(prefix='web-port-') as directory:
     path = Path(directory)
     cjson = os.environ.get('CJSON_SOURCE')
-    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror']
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-I', str(ROOT / 'main')]
     if os.environ.get('WEB_PORT_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined,float-cast-overflow', '-fno-omit-frame-pointer']
     if cjson:

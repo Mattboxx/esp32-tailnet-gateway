@@ -12,6 +12,10 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "b22035c973a1137d512f24d5eae58ac96c557093"
 BASELINES = (BASE, "160bf04b866d4d28dd95437191660b85ec01c886")
+# Deliberate security replacements: a baseline item may disappear only when its
+# documented successor is present. Index-only rule topics could toggle another
+# rule after compaction (dev.5 reindex bypass); see SERVICE-GATEWAY.md.
+REPLACED = {"%s/command/tailnet_forward/%d": "%s/command/tailnet_forward/%d/%08lx"}
 
 
 def baseline(path, ref=BASE):
@@ -26,7 +30,9 @@ class FeaturePreservationTests(unittest.TestCase):
             with self.subTest(baseline=ref, path=path):
                 old = set(re.findall(pattern, baseline(path, ref), re.S))
                 self.assertTrue(old, f"Empty baseline for {path}")
-                self.assertEqual(sorted(old - current), [], f"Removed controls in {path}")
+                removed = {item for item in old - current
+                           if not (isinstance(item, str) and REPLACED.get(item) in current)}
+                self.assertEqual(sorted(removed), [], f"Removed controls in {path}")
 
     def test_http_paths_methods_and_handlers(self):
         self.preserved("main/web_ui.c",

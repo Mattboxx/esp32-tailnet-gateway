@@ -102,6 +102,13 @@ over from the interrupted Codex session without resetting anything.
 - Commits `563b0cb`..`4bf99e1` (supervisor, guides). Then F26 export system
   summary: ops_api (+exclusion/OOM of the summary) and config_profiles PASS;
   build PASS 1,831,900 (93.2%). Whole export handler not host-tested end-to-end.
+- Consolidated offline run (Windows, no `--build`, `--browser`): 53 checks,
+  50 PASS (`build/validation-20261022-144509-119100/`). The 3 failures were
+  stale tests from earlier Codex work: feature_preservation did not know the
+  deliberate index-only MQTT topic replacement (now an explicit successor
+  map), web_port/upstream_038 lacked the json_guard include path. Rerun of the
+  3 PASS (`build/validation-20261022-144747-357176/`). Linux sanitizers,
+  device tests and hardware were NOT run.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 
