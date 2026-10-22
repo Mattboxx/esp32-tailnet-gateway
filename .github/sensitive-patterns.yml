@@ -34,6 +34,13 @@ blocked_files:
   - ".claude/**"
   - ".omc/**"
 
+# Exact paths exempt from blocked_files only. Their content is still scanned
+# by every blocked_content rule. Keep this list minimal and reviewed.
+allowed_files:
+  # Publishing handoff written for this repository: no addresses, names,
+  # passwords or tokens; lab specifics stay in git-ignored build/private-device/.
+  - "docs/CODEX-PUBLISH-HANDOFF.md"
+
 # ─── Blocked content patterns (regex) ────────────────────────────────
 # File contents are scanned for these. 'allow' whitelists exact full matches;
 # 'exclude_files' skips scanning in specific globs.
@@ -79,16 +86,19 @@ blocked_content:
     allow:
       - "192.168.4.1"
       - "192.168.32.1"
+      # Synthetic example LAN used by the website and diagrams (documented in
+      # README.md); any other private address there is still reported.
+      - "192.168.1.0"
+      - "192.168.1.20"
+      - "192.168.1.30"
+      - "192.168.1.50"
+      - "192.168.4.0"
     exclude_files:
       - "main/**"
       - "components/**"
       - "external/**"
       - "web/**"
       - "docs/**"
-      # Website pages and diagrams are documentation too: they show the same
-      # synthetic example LAN (192.168.1.x) as README.md and docs/.
-      - "website/**"
-      - "assets/diagrams/**"
       - "examples/**"
       - "tools/**"
       - "README.md"

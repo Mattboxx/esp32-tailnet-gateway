@@ -49,6 +49,13 @@ def credential_findings(data: bytes, artifact: bool = False) -> set[str]:
     return found
 
 
+def blocked_file(filename: str, config: dict) -> bool:
+    """Blocked by name unless listed exactly in allowed_files (content is still scanned)."""
+    if filename in config.get("allowed_files", []):
+        return False
+    return any(fnmatch.fnmatchcase(filename, pattern) for pattern in config.get("blocked_files", []))
+
+
 def git(*args: str, repository: pathlib.Path = ROOT) -> bytes:
     return subprocess.check_output(["git", *args], cwd=repository)
 
@@ -99,9 +106,8 @@ def main() -> int:
     findings = []
     artifacts = 0
     for filename in files:
-        for pattern in config.get("blocked_files", []):
-            if fnmatch.fnmatchcase(filename, pattern):
-                findings.append(("Blocked file", filename))
+        if blocked_file(filename, config):
+            findings.append(("Blocked file", filename))
         path = repository / filename
         if not path.is_file():
             continue  # submodule or tracked deletion
