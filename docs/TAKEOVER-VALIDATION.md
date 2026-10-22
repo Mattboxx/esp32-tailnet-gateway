@@ -1,6 +1,6 @@
 # Takeover validation — 2026-10-22 evening
 
-Current evidence supersedes older missing-session/Linux statements in the
+Final capture update: 23:08 local, 2026-10-22. Current evidence supersedes older missing-session/Linux statements in the
 historical ledgers. Verdict remains **NOT READY**. No external publication,
 push, flash, reboot or OTA installation performed during this takeover.
 
@@ -69,10 +69,14 @@ DERP stack minimum 5,296 B; no panic/WDT/allocation-failure/brownout lines;
 one boot marker with attribution not independently proven. This is not a
 60-minute PASS. Largest block was not measured by that capture.
 
-New no-reset COM3 serial capture started around 22:07 local for 60 minutes.
-At this checkpoint it is RUNNING, not PASS. Exact timing/result must come from
-its final private summary. Only one process may own COM3. Do not reboot during
-this continuity capture. Soak tool now refuses overwrite, restricts private
+New no-reset COM3 capture **completed 3600.22 s**, requested 3600 s, no requested
+reset. Final summary: panic 0, watchdog 0, reboot 0, allocation failure 0,
+brownout 0; **360 serial heap samples: 7,019–12,243 B, last 11,623 B**; DERP
+reported stack minimum 5,300; maximum log-marker gap 2.6 s. Last marker
+3598.7 s does not replace the capture's monotonic completion metadata. This is
+completed collection with no observed crash/reset, **not an availability PASS**:
+the five-minute authority outage below occurred during this run. Reader exited;
+COM3 no longer held. Soak tool now refuses overwrite, restricts private
 output paths, records completion/elapsed time and can analyze old logs offline.
 Host drivers `soak_serial` and `lab_echo` PASS; they do not qualify hardware.
 
@@ -98,11 +102,15 @@ failure then PASS: `build/validation-20261022-223539-220577/` (before),
 coordinator + authorization + convergence **3/3 PASS**:
 `build/linux-validation-20261022-223638/`.
 
-Authenticated read-only resource capture started around 22:37 for 30 minutes,
-password entered through hidden prompt only. Initial samples: internal free
-13,027 B, lifetime minimum 5,435 B, largest block 4,864–5,120 B, sockets 9/31,
-28 tasks, minimum task HWM raw 484 (not a calibrated safe margin). This is
-tight headroom, not a stability certificate or full-hour largest-block history.
+Authenticated read-only capture **completed 1800 s**, 30/30 matching samples,
+six detailed snapshots, no failed/version-mismatched sample, no observed uptime
+decrease or control-state transition in that later window. Minimum status
+internal-free 10,071 B, lifetime minimum 5,435 B, largest block 4,864–5,120 B;
+sockets 9–11/31; 28 tasks, minimum task HWM raw 484. Status request latency
+16.06–156.24 ms. Password entered through hidden prompt only. This later window
+does not erase the earlier outage or imply full-hour largest-block history.
+Serial/API heap providers are separately labelled, not merged into one sample
+population. Tight headroom remains a gate, not a stability certificate.
 
 ## Linux ASan/UBSan
 
@@ -158,7 +166,8 @@ Exact dev.7 installation permission requested; **pending owner answer**.
 
 ## Local source preservation and privacy scope
 
-MicroLink correction committed locally as `fa3153b`; parent `99548da`, no push.
+MicroLink correction committed locally as `fa3153b`; firmware parent `99548da`,
+device-tool guards/final offline ledger `df8a420`, no push.
 Current root/history and nested working-tree scans found zero at
 their recorded scope. A newly expanded **nested full-history** scan reports
 nine matches in upstream example blobs (458 blobs inspected). Each match was
@@ -190,9 +199,9 @@ Final reruns including all device-tool guards:
 
 ## Exact continuation / temporary live state
 
-1. Keep uninterrupted captures running to completion (about 23:07 local),
-   record actual elapsed/completion/resource summaries. Profile rollback fields
-   and SNMP OFF have been verified.
+1. All owned echo/test/serial/sampler jobs have exited. Collection summaries
+   recorded above. Profile none, monitoring/Health OFF and SNMP OFF verified.
+   COM3 available; no reboot/flash performed in this takeover.
 2. **Cleanup completed around 22:58:** both disposable lab rules removed with
    exact original owner configuration compared before/after. Browser reload:
    one saved rule, no lab names. Echo service has ended. First lease opt-in

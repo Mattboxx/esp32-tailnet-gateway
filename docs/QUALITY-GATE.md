@@ -35,7 +35,7 @@ two-client/OTA/recovery/resource gates remain. Nothing was pushed or published.
 | Two real clients, direct + DERP policy matrix | PENDING | release blocker from the roadmap (F01–F07) |
 | Linux ASan/UBSan | PASS, offline only | Isolated Docker: 58/58 after two fixture corrections; no sanitizer suppression |
 | W5500 Ethernet | BLOCKED | no hardware; Ethernet package not produced |
-| Soak / resources | RUNNING, dev.6 | Old capture interrupted at 42m50s; new 60 min serial + 30 min numeric sampler running; tight heap/largest block |
+| Soak / resources | COMPLETED collection, dev.6; availability finding | 3600.22 s serial, no observed panic/WDT/reset; 30/30 later API samples; serial heap min 7019 B, API lifetime min 5435 B, largest min 4864 B; five-minute authority interruption means no availability PASS |
 
 ## Repository
 
