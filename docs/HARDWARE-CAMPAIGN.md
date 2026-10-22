@@ -1,4 +1,4 @@
-# Final hardware campaign procedure (prepared, NOT executed)
+# Final hardware campaign procedure (partly executed — see VALIDATION-STATUS.md and CODEX-PUBLISH-HANDOFF.md)
 
 Nothing here may run without fresh, explicit authorization for the exact
 candidate image. The stable physical ESP stays untouched unless the owner
@@ -65,3 +65,40 @@ the selected uplink, ACL hooks effective on Ethernet.
 
 Record every result with the image hash in VALIDATION-STATUS.md; failures stay
 open items, never re-labelled as passes.
+
+## 7. Bench lab recipe (authenticated part, ready to run)
+
+Executed so far without a session: boot, tailnet join, direct path, 401/403
+checks, reboots, a 60-minute serial soak and unauthenticated HTTP load. The
+steps below need the owner's single sign-in in the app's browser pane; the
+agent then calls the API from that page (same-origin `fetch`, the session
+cookie never leaves the browser and is never written anywhere).
+
+1. Echo service on the bench PC, bound to its **tailnet** address only:
+   `python tools/lab_echo.py --bind <pc-tailnet-ip> --port 47001 --seconds 1800`.
+2. In the UI (or `POST /api/tailnet-forward` with the full rule list): rule
+   `lab-tcp` TCP listen `18830` → `<pc-tailnet-ip>:47001`, source
+   `<pc-lan-ip>/32`, enabled; rule `lab-udp` UDP listen `18831` → same port.
+   Press **Test destination** on `lab-tcp`.
+3. From the PC: `python tools/lab_echo.py --probe <board-lan-ip>:18830 --proto tcp --count 20`
+   and `--probe <board-lan-ip>:18831 --proto udp --count 20`; expect 20/20 exact
+   echoes and growing accepted counters; the echo log shows the board's
+   tailnet address as the peer (proof the traffic went through the board).
+4. Source refusal: change `lab-tcp` source to an unused `/32` (for example
+   `<pc-lan-ip with last octet +1>`), save, probe again → 0/20 and a growing
+   rejected counter. Restore the source.
+5. Expiry: give `lab-tcp` a 2-minute timer; confirm it closes and probes fail.
+6. Service watch: enable with a 60 s interval; stop the echo; confirm the
+   "stopped answering" event; restart it; confirm recovery.
+7. Profiles: preview → apply `monitoring` → rollback; confirm the listed
+   changes only.
+8. Reboot (System → Restart); after reconnect confirm rules, timers and
+   settings are unchanged (NVS persistence).
+9. Clean up: delete the `lab-*` rules, disable Service watch, stop the echo.
+10. OTA (never overwrite ota_1 for a test): `otatool switch_ota_partition --name ota_1`
+    to boot stable 1.13, sign in, upload the candidate `firmware.bin` (1.13
+    writes ota_0), confirm the candidate boots with settings intact. 1.13 stays
+    in ota_1.
+
+If Windows Firewall drops the echo port on the tailnet interface, record the
+test as BLOCKED; do not change host firewall settings for the test.
