@@ -28,8 +28,8 @@ Release verdict: **NOT READY FOR RELEASE** (see section D and
 | Working tree | clean except the owner's untracked `docs/COMMUNITY-POSTS.md` — **never commit it** |
 | Remotes | `fork` = `https://github.com/Mattboxx/esp32-tailscale-gateway.git` (GitHub redirects to the current repo `Mattboxx/esp32-tailscale-gateway-NAS-recovery`); `origin` = upstream `Csontikka/esp32-tailscale-subnet-router` |
 | Local vs fork | ~105 local commits ahead of the last fetched `fork/mattboxx` (fetch first; refs may be stale) |
-| Submodule | `external/microlink` @ `2e2e96c` on local branch `mattboxx`, 3 commits ahead of fetched `fork/mattboxx` (`Mattboxx/microlink`). Push the submodule **before** the parent so the gitlink resolves |
-| Firmware version | `0.1.38-Mattboxx-1.14-dev.6` (`PROJECT_VER` in `CMakeLists.txt`) |
+| Submodule | `external/microlink` @ `fa3153b` on local branch `mattboxx`, 4 commits ahead of fetched `fork/mattboxx` (`Mattboxx/microlink`). Push the submodule **before** the parent after authorization |
+| Firmware version | Source `0.1.38-Mattboxx-1.14-dev.7`; board still installed dev.6 (`aaf166ed…`). New image not authorized/installed yet |
 | App identity | `esp32_tsr` (unchanged; NVS and updater identity unchanged) |
 | Board | ESP32-S3 QFN56 rev 0.2, 16 MB flash, 8 MB PSRAM, USB-Serial/JTAG on **COM3**. LAN address and tailnet name: private file `build/private-device/LOCAL-ENV.md` (git-ignored) |
 | Installed image | **ota_0 = candidate `aaf166ed…` (active)**, written with ESP-IDF `otatool.py write_ota_partition`, otadata selects ota_0 (seq 29) |

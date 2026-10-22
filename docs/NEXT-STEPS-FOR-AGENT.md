@@ -6,14 +6,32 @@
 > soak is running and two temporary lab rules require cleanup. Older tasks below
 > are historical, not an instruction to repeat already completed work.
 
-Latest: dev.7 fixes initial-map recovery plus truthful rule/policy diagnostics.
-Linux final 58/58 PASS; Windows final build/browser and Ethernet build running.
+Latest: parent `99548da`, MicroLink `fa3153b`, local only. Dev.7 fixes initial-map
+recovery plus truthful rule/policy diagnostics. WiFi/Ethernet builds PASS;
+Windows 62/62 and Linux 58/58 PASS before final device-tool guards. A final
+full Windows offline/browser + Linux sanitizer rerun is now running.
 SNMP 27 operational OIDs (v1/v2c forced LAN) + 12 Tailnet replies PASS; restored
 OFF unchanged. COM3 serial soak and authenticated read-only sampler still run.
 Do not flash dev.7 using old dev.6 authority. Stable ota_1 must remain untouched.
-Next: finish captures, remove only lab rules, record final test/build results,
-scan/review and commit locally. Request exact installation authority only after
+Lab cleanup completed: two disposable rules removed, owner rule exactly
+unchanged; browser reload one rule/no lab names. Do not rerun cleanup blindly.
+Next: finish captures, record final test/build results, scan/review and commit
+the remaining device-tool guards locally. Request exact installation authority only after
 offline checks; two real clients/OTA/recovery and optional-service gates remain.
+
+Current running jobs (22:57 local): COM3 serial session 64798 (60 min, expected
+completion about 23:07), read-only numeric sampler session 29617 (30 min,
+about 23:07); final Windows 75800, Linux 81784. Echo session 19535 completed.
+Do not add another COM3 reader. Exact dev.7 WiFi hash/artifacts in takeover
+ledger; installation question is pending, no permission inferred. New uncommitted
+device-only OTA tool guards protect ota_1: require starting version/slot and
+protected slot; host guard tests PASS. Do not run an OTA helper on active ota_0.
+
+23:00 update: final Windows offline/browser **63/63 PASS**, 75 synthetic browser
+scenarios. Linux final still running. Physical dev.7 permission still pending;
+no reboot/flash so far. Temporary SNMP/profile/lab exposure cleaned; strict
+lease ledger intentionally retained. Root firmware inputs unchanged since
+`99548da`; exact private dev.7 artifacts/hashes preserved.
 
 > **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
 

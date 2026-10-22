@@ -5,11 +5,28 @@ version; never retry an ambiguous upload or print/save private API responses.
 This test reboots the board but does not erase its NVS or change configuration.
 """
 import argparse
+import getpass
 import hashlib
 from pathlib import Path
 import time
 import urllib.error
 from test_snmp_device import login
+
+
+def ota_target(diag, expected_running, protected, image_size):
+    """Reference two-slot layout guard; never guess on an unknown layout."""
+    rows = [p for p in diag.get('partitions', []) if p.get('name', '').startswith('ota_')]
+    assert len(rows) == 2 and {p['name'] for p in rows} == {'ota_0','ota_1'}, 'Unknown OTA layout'
+    for row in rows:
+        assert row['offset'] == {'ota_0':0x20000,'ota_1':0x200000}[row['name']]
+        assert row['size'] == 0x1e0000 and 0 < image_size <= row['size']
+    running = [p for p in rows if p.get('running')]
+    boot = [p for p in rows if p.get('bootnext')]
+    assert len(running) == len(boot) == 1 and running[0] == boot[0], 'Pending/unknown boot selection'
+    assert running[0]['name'] == expected_running, 'Unexpected running partition'
+    target = next(p['name'] for p in rows if not p.get('running'))
+    assert target != protected, 'Refusing to overwrite the protected stable slot'
+    return target
 
 
 def snapshot(api):
@@ -37,13 +54,20 @@ def main():
     parser.add_argument('--image', type=Path, required=True)
     parser.add_argument('--sha256', required=True)
     parser.add_argument('--expected-version', required=True)
+    parser.add_argument('--expected-running-version', required=True)
+    parser.add_argument('--expected-running-slot', choices=('ota_0','ota_1'), required=True)
+    parser.add_argument('--protected-slot', choices=('ota_0','ota_1'), required=True)
+    parser.add_argument('--prompt-password', action='store_true')
     args = parser.parse_args()
     image = args.image.read_bytes()
     assert hashlib.sha256(image).hexdigest() == args.sha256.lower(), 'Image hash changed'
     assert args.expected_version.encode() in image, 'Wrong candidate version'
-    api = login(args.host)
+    password = getpass.getpass('Device password (not saved): ') if args.prompt_password else None
+    api = login(args.host, password=password)
     before = api('/api/system')['version']
+    assert before == args.expected_running_version, 'Unexpected starting firmware'
     assert before != args.expected_version, 'Candidate already installed; refusing duplicate OTA'
+    ota_target(api('/api/system/diag'), args.expected_running_slot, args.protected_slot, len(image))
     original = snapshot(api)
     started = time.monotonic()
     print('Uploading the pinned candidate once; settings remain on the board', flush=True)
@@ -60,7 +84,7 @@ def main():
     while time.monotonic() < deadline:
         time.sleep(5)
         try:
-            candidate = login(args.host)
+            candidate = login(args.host, password=password)
             if candidate('/api/system')['version'] != args.expected_version:
                 continue
             api = candidate
@@ -80,7 +104,7 @@ def main():
             if time.monotonic() >= verify_until:
                 raise
             time.sleep(3)
-            api = login(args.host)
+            api = login(args.host, password=password)
     assert api('/api/system')['reset_history'][0]['reason'] in ('FLASH', 'SW'), \
         'Candidate suffered an unexpected reset after OTA'
     assert current == original, 'Saved settings changed; private values are not displayed'
