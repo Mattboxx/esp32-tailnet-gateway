@@ -25,6 +25,13 @@ class API:
                         free_psram=1000000, cpu_load_pct=None,
                         sta=dict(connected=True, ssid='PRIVATE', ip='192.168.123.45'),
                         tailscale=dict(connected=True, hostname='PRIVATE'), password='PRIVATE')
+        if path == '/api/operations':
+            return dict(sockets_used=9, authority_ready=True, module_restarts=0, devices=[dict(name='PRIVATE', target='PRIVATE')])
+        if path == '/api/tailnet-forward':
+            return dict(rules=[dict(name='PRIVATE', tailnet_destination='PRIVATE', enabled=True, installed=True,
+                                    destination_check=dict(state='reachable', checked_ip='PRIVATE'),
+                                    activity=dict(service_reply_age_s=3)),
+                               dict(name='PRIVATE', enabled=False, installed=False, activity=dict(service_reply_age_s=None))])
         assert path == '/api/system/diag'
         return dict(memory={k: 1000 for k in ('internal_total','internal_free','internal_min_free',
                          'internal_largest','spiram_total','spiram_free','spiram_min_free','spiram_largest')},
@@ -33,13 +40,15 @@ class API:
 
 
 class ObserverTests(unittest.TestCase):
-    def test_read_only_allowlist_and_no_socket_usage_invention(self):
+    def test_read_only_allowlist_and_counts_only(self):
         api = API(); row = sample(api, VERSION, 0)
         self.assertTrue(row['status_ok'] and row['diag_ok'])
-        self.assertEqual(api.paths, ['/api/status', '/api/system/diag'])
+        self.assertEqual(api.paths, ['/api/status', '/api/system/diag', '/api/operations', '/api/tailnet-forward'])
         self.assertNotIn('PRIVATE', json.dumps(row))
         self.assertNotIn('192.168.123.45', json.dumps(row))
-        self.assertIsNone(row['socket_usage'])
+        self.assertEqual(row['socket_usage'], 9)
+        self.assertEqual((row['sg_rules'], row['sg_enabled'], row['sg_installed'], row['sg_destination_reachable'], row['sg_service_replied']), (2, 1, 1, 1, 1))
+        self.assertTrue(row['evidence_ok'] and row['policy_authority_ready'])
         self.assertIsNone(row['cpu_load_pct'])
         self.assertEqual(row['socket_limit'], 31)
         self.assertEqual(row['stack_hwm_min_raw'], 200)
