@@ -82,6 +82,7 @@ def main():
         if runtime.is_dir():env.setdefault('NODE_PATH',str(runtime))
         run('browser',['node','tools/test_automation_ui.cjs'])
         run('site-browser',['node','tools/test_site_browser.cjs'],600)
+        run('ui-layout',['node','tools/test_ui_layout.cjs'],1200)
     summary=dict(results=results,build_requested=args.build,browser_requested=args.browser,
                  sanitizers_requested=args.sanitizers,targeted_only=bool(args.only),
                  hardware_executed=False,release_qualified=False)
