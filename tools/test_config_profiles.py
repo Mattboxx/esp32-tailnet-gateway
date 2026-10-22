@@ -159,3 +159,75 @@ with tempfile.TemporaryDirectory(prefix='config-profiles-') as folder:
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary)], check=True)
     subprocess.run([str(binary)], check=True, timeout=30)
+
+# Second program: actual POST /api/profiles parser and error mapping.
+def function(signature):
+    at = source.index(signature); return source[at:source.index('\n}', at) + 2] + '\n'
+HTTP = r'''
+#include <assert.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "cJSON.h"
+#include "json_guard.h"
+#include "config_profiles.h"
+#define ESP_ERR_NO_MEM 0x101
+#define ESP_ERR_NOT_FOUND 0x105
+struct httpd_req {int content_len,offset,status;const char *body;bool authorized;char reply[300];};
+static const char *const key_names[PK_COUNT]={"device_monitoring","service_expiry_notifications","health_monitor"};
+static const char *const profile_names[PROFILE_COUNT]={"none","gateway","recovery","iot","monitoring","advanced"};
+const char *config_profile_name(profile_id_t p){return p<PROFILE_COUNT?profile_names[p]:"unknown";}
+bool config_profile_parse(const char *n,profile_id_t *o){for(unsigned i=1;n&&i<PROFILE_COUNT;i++)if(!strcmp(n,profile_names[i])){*o=(profile_id_t)i;return true;}return false;}
+static int applies,rollbacks;static uint32_t last_token;static profile_id_t last_profile;static esp_err_t apply_result,rollback_result;static profile_result_t canned;
+esp_err_t config_profiles_apply(profile_id_t p,uint32_t t,profile_result_t *o){applies++;last_profile=p;last_token=t;*o=canned;return apply_result;}
+esp_err_t config_profiles_rollback(profile_result_t *o){rollbacks++;*o=canned;return rollback_result;}
+static const char *esp_err_to_name(esp_err_t e){(void)e;return "ERR";}
+static int web_ui_require_auth(httpd_req_t *r){if(r->authorized)return ESP_OK;r->status=401;return ESP_FAIL;}
+static void httpd_resp_set_status(httpd_req_t *r,const char *s){r->status=atoi(s);}
+static void httpd_resp_set_type(httpd_req_t *r,const char *s){(void)r;(void)s;}
+static void httpd_resp_set_hdr(httpd_req_t *r,const char *k,const char *v){(void)r;(void)k;(void)v;}
+static void httpd_resp_send_500(httpd_req_t *r){r->status=500;}
+static int httpd_resp_sendstr(httpd_req_t *r,const char *s){snprintf(r->reply,sizeof r->reply,"%s",s);if(!r->status)r->status=200;return ESP_OK;}
+static int httpd_req_recv(httpd_req_t *r,char *out,int n){memcpy(out,r->body+r->offset,n);r->offset+=n;return n;}
+''' + ''.join(function(s) for s in ('static esp_err_t send_json(', 'static bool add_keys(', 'static esp_err_t send_error(', 'static esp_err_t post_profiles(')) + r'''
+static httpd_req_t post(const char *body){httpd_req_t r={.content_len=(int)strlen(body),.body=body,.authorized=true};post_profiles(&r);return r;}
+int main(void){
+    canned=(profile_result_t){.applied=true,.changed_mask=1u<<PK_HEALTH};
+    httpd_req_t r=post("{\"action\":\"apply\",\"profile\":\"monitoring\",\"token\":4294967295}");
+    assert(r.status==200&&applies==1&&last_profile==PROFILE_MONITORING&&last_token==4294967295u&&strstr(r.reply,"\"changed\":[\"health_monitor\"]"));
+    const char *bad[]={"{\"action\":\"apply\",\"profile\":\"none\",\"token\":5}","{\"action\":\"apply\",\"profile\":\"monitoring\",\"token\":0}",
+        "{\"action\":\"apply\",\"profile\":\"monitoring\",\"token\":4294967296}","{\"action\":\"apply\",\"profile\":\"monitoring\",\"token\":1.5}",
+        "{\"action\":\"apply\",\"profile\":\"monitoring\",\"token\":\"5\"}","{\"action\":\"apply\",\"profile\":\"monitoring\"}",
+        "{\"action\":\"apply\",\"profile\":\"monitoring\",\"token\":5,\"x\":1}","{\"action\":\"rollback\",\"profile\":\"gateway\"}",
+        "{\"action\":\"delete\"}","{\"action\":\"apply\",\"action\":\"rollback\"}","[]","{"};
+    for(unsigned i=0;i<sizeof bad/sizeof *bad;i++){r=post(bad[i]);assert(r.status==400);}
+    assert(applies==1&&!rollbacks);
+    char big[200];memset(big,' ',sizeof big-1);big[sizeof big-1]=0;r=post(big);assert(r.status==400);
+    apply_result=ESP_ERR_INVALID_STATE;r=post("{\"action\":\"apply\",\"profile\":\"gateway\",\"token\":7}");assert(r.status==409&&strstr(r.reply,"preview again"));
+    canned=(profile_result_t){.rolled_back=true,.partial=true,.changed_mask=1u<<PK_OPS_MONITORING};apply_result=ESP_ERR_NO_MEM;
+    r=post("{\"action\":\"apply\",\"profile\":\"gateway\",\"token\":7}");assert(r.status==503&&strstr(r.reply,"\"partial\":true")&&strstr(r.reply,"device_monitoring"));
+    rollback_result=ESP_ERR_NOT_FOUND;r=post("{\"action\":\"rollback\"}");assert(r.status==404&&rollbacks==1);
+    rollback_result=ESP_OK;canned=(profile_result_t){.rolled_back=true,.kept_mask=1u<<PK_HEALTH};r=post("{\"action\":\"rollback\"}");assert(r.status==200&&strstr(r.reply,"\"kept\":[\"health_monitor\"]"));
+    httpd_req_t denied={.content_len=2,.body="{}",.authorized=false};int before=applies;post_profiles(&denied);assert(denied.status==401&&applies==before);
+    puts("PASS: actual profiles POST: strict action/profile/token, 400/409/503/404 mapping with partial/left-changed detail, auth (fixtures)");
+}
+'''
+STUBS2 = {'esp_err.h': STUBS['esp_err.h'], 'esp_http_server.h': '#pragma once\ntypedef struct httpd_req httpd_req_t;\ntypedef void *httpd_handle_t;\n'}
+with tempfile.TemporaryDirectory(prefix='config-profiles-http-') as folder:
+    path = Path(folder)
+    for name, text in STUBS2.items(): (path / name).write_text(text, encoding='utf-8')
+    (path / 'http.c').write_text(HTTP, encoding='utf-8')
+    binary = path / ('http.exe' if os.name == 'nt' else 'http')
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-I', str(path), '-I', str(ROOT / 'main')]
+    libs = ['-lm']; dep = os.environ.get('CJSON_SOURCE')
+    if dep: flags += ['-I', str(Path(dep).parent), dep]
+    else:
+        flags += subprocess.check_output(['pkg-config', '--cflags', 'libcjson'], text=True).split()
+        libs += subprocess.check_output(['pkg-config', '--libs', 'libcjson'], text=True).split()
+    if os.environ.get('PROFILE_SANITIZE') == '1':
+        flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'http.c'), '-o', str(binary), *libs], check=True)
+    subprocess.run([str(binary)], check=True, timeout=30)
