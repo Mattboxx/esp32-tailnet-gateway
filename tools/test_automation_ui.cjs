@@ -788,6 +788,19 @@ async function main() {
     await f.page.locator('#sw-interval').fill('30');await f.page.locator('#sw-save').click();
     assert.match(await f.page.locator('#sw-status').textContent(),/60–86400/);assert.equal(f.state.savedWatch.interval_s,300); /* refused client-side */
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Phone width: no page may scroll horizontally (375 px), guide panel fits.
+    for(const page of ['status','network','tailscale','operations','automation','system']){
+      f=await fixture(browser,{page,viewport:{width:375,height:812}});
+      await f.page.waitForTimeout(400);
+      const overflow=await f.page.evaluate(()=>{const w=document.documentElement.clientWidth;
+        const wide=[...document.querySelectorAll('.page-section.active *')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.right>w+1&&getComputedStyle(e).position!=='fixed';})
+          .filter(e=>!e.closest('pre,code,.mono,table'));
+        return {scroll:document.documentElement.scrollWidth-w,wide:wide.slice(0,3).map(e=>e.tagName+'#'+e.id+'.'+e.className)};});
+      assert.ok(overflow.scroll<=1,`${page}: page scrolls horizontally by ${overflow.scroll}px: ${JSON.stringify(overflow.wide)}`);
+      if(page==='status'){await f.page.locator('#wizard-list button').first().click();
+        const box=await f.page.locator('#wizard-panel').boundingBox();assert.ok(box&&box.x>=0&&box.x+box.width<=375,'guide panel exceeds phone width');}
+      assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    }
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }
 }
