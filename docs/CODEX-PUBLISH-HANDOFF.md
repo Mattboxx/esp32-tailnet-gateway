@@ -145,7 +145,7 @@ deployed site.
 
 | Area | Result | Evidence |
 |---|---|---|
-| Offline campaign (`validate_all.py --browser`) | PASS 57/58 + rerun | 58th was the sensitive-scan scope (fixed, rerun 0 findings). Log: `build/validation-20261022-204617-583805/` |
+| Offline campaign (`validate_all.py --browser`) | **PASS 58/58** at `438ff77`+ (log `build/validation-20261022-212248-437288/`); earlier run 57/58 + rerun | 58th was the sensitive-scan scope (fixed, rerun 0 findings). Log: `build/validation-20261022-204617-583805/` |
 | Browser scenarios (built page) | PASS 73 | `tools/test_automation_ui.cjs` |
 | UI layout | PASS | `tools/test_ui_layout.cjs`: 8 sections × 20 runs (320–1920 px, simple/advanced, it/es/zh) |
 | Website | PASS | `build_site.py --check`, `test_site_browser.cjs` 16 pages × 9 viewports |
