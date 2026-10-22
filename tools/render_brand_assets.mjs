@@ -23,6 +23,7 @@ const jobs = [
   ['logo-mark.svg', 'favicon-32.png', 32, 32, 0, null],
   ['logo-horizontal-dark.svg', 'logo-horizontal-dark.png', 1120, 192, 0, '#0D1117'],
   ['logo-horizontal-light.svg', 'logo-horizontal-light.png', 1120, 192, 0, '#FFFFFF'],
+  ['logo-compact.svg', 'logo-compact-400.png', 400, 400, 0, null],
 ];
 
 const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || 'chrome' });
