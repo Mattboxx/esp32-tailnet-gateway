@@ -2114,7 +2114,7 @@
           <div class="grid grid-cols-2">
             <div class="form-group">
               <label class="form-label">Channel</label>
-              <input class="input mono" type="text" id="net-ap-channel-info" value="Auto" readonly>
+              <input class="input mono" type="text" id="net-ap-channel-info" value="Auto" readonly aria-label="AP channel (follows the uplink)">
               <span class="form-hint">Automatic — the AP follows the uplink WiFi channel. The ESP32-S3 has a single 2.4&nbsp;GHz radio, so the access point and the uplink must share a channel.</span>
             </div>
           </div>
@@ -2583,11 +2583,11 @@
         <div class="card-body">
           <p class="form-hint" style="margin:0 0 0.75rem 0;">Ask the router which interface (and rule) a packet for a given destination would take. Same code path real packets exercise. <strong>Source</strong> picks between the ESP's own outbound socket (self-origin: chicken-and-egg STA bypass applies) and an AP client (forwarded path: exit-node WG steering applies).</p>
           <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <select class="input" id="tool-route-src-mode" style="width:11rem;">
+            <select class="input" id="tool-route-src-mode" style="width:11rem;" aria-label="Route lookup source">
               <option value="self" selected>From: Self (ESP)</option>
               <option value="ap">From: AP client</option>
             </select>
-            <input class="input mono" type="text" id="tool-route-dst" placeholder="8.8.8.8 or 100.64.0.1" style="flex:1; min-width:0;">
+            <input class="input mono" type="text" id="tool-route-dst" aria-label="Route lookup destination" placeholder="8.8.8.8 or 100.64.0.1" style="flex:1; min-width:0;">
             <button class="btn btn-primary btn-md" id="tool-route-run">Trace</button>
           </div>
           <div id="tool-route-result" style="margin-top:0.75rem; display:none;">
@@ -2609,8 +2609,8 @@
         <div class="card-body">
           <p class="form-hint" style="margin:0 0 0.75rem 0;">Send ICMP echo requests. Tailnet targets (100.64.0.0/10) go through the WG tunnel, everything else through STA.</p>
           <div style="display:flex; gap:0.5rem;">
-            <input class="input mono" type="text" id="tool-ping-target" placeholder="8.8.8.8 or homeassistant" style="flex:1; min-width:0;">
-            <input class="input" type="number" id="tool-ping-count" value="4" min="1" max="10" style="width:5rem;">
+            <input class="input mono" type="text" id="tool-ping-target" aria-label="Ping target" placeholder="8.8.8.8 or homeassistant" style="flex:1; min-width:0;">
+            <input class="input" type="number" id="tool-ping-count" value="4" min="1" max="10" style="width:5rem;" aria-label="Ping count">
             <button class="btn btn-primary btn-md" id="tool-ping-run">Ping</button>
           </div>
         </div>
@@ -2629,8 +2629,8 @@
         <div class="card-body">
           <p class="form-hint" style="margin:0 0 0.75rem 0;">TTL-incrementing ICMP probes. One per hop; stops at the destination or after max_hops.</p>
           <div style="display:flex; gap:0.5rem;">
-            <input class="input mono" type="text" id="tool-trace-target" placeholder="8.8.8.8 or homeassistant" style="flex:1; min-width:0;">
-            <input class="input" type="number" id="tool-trace-hops" value="16" min="1" max="30" style="width:5rem;">
+            <input class="input mono" type="text" id="tool-trace-target" aria-label="Traceroute target" placeholder="8.8.8.8 or homeassistant" style="flex:1; min-width:0;">
+            <input class="input" type="number" id="tool-trace-hops" value="16" min="1" max="30" style="width:5rem;" aria-label="Traceroute maximum hops">
             <button class="btn btn-primary btn-md" id="tool-trace-run">Trace</button>
           </div>
         </div>
@@ -5703,6 +5703,18 @@
         var d=await r.json();if(!r.ok||d.ok===false)throw new Error(d.error||('HTTP '+r.status));await loadServiceWatch();}
       catch(e){document.getElementById('sw-status').textContent='Not saved: '+e.message;btn.disabled=false;}
     });
+    /* Dynamically rendered rows use a visible .form-label without for=;
+     * give such controls the same accessible name screen readers need. */
+    function nameOrphanControls(scope){
+      (scope.querySelectorAll?scope:document).querySelectorAll('.form-group').forEach(function(g){
+        var label=g.querySelector(':scope > label.form-label:not([for])');if(!label)return;
+        var control=g.querySelector(':scope > input, :scope > select, :scope > textarea');
+        if(control&&!control.getAttribute('aria-label')&&!(control.labels&&control.labels.length))control.setAttribute('aria-label',label.textContent.trim());
+      });
+    }
+    nameOrphanControls(document);
+    new MutationObserver(function(records){records.forEach(function(r){r.addedNodes.forEach(function(n){if(n.nodeType===1)nameOrphanControls(n.parentNode||n);});});})
+      .observe(document.body,{childList:true,subtree:true});
     var s_capabilities=null;
     function capabilityUnavailable(id){var f=s_capabilities&&id?s_capabilities[id]:null;return f&&(f.compiled===false||f.hardware_supported===false)?f:null;}
     /* Advisory UI gate from the one manifest; the firmware still refuses on its own. */
