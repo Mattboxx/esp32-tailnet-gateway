@@ -22,6 +22,7 @@
 #define ETH_MANIFEST_SUMMARY "not-compiled"
 #endif
 #include "service_check.h"
+#include "config_profiles.h"
 #include "module_supervisor.h"
 #include "dns_relay.h"
 #include "esp_heap_caps.h"
@@ -472,7 +473,10 @@ cJSON *homelab_ops_capabilities(void) {
     const char *capabilities[]={"tailscale","headscale","direct","derp","wifi-uplink","ethernet","ipv6",
         "subnet-routing","exit-node","ap-gateway","lan-tailnet-forwarding","temporary-services",
         "service-rule-transfer","4via6","dns-relay","firewall","wol","smart-recovery","health",
-        "resource-guard","mqtt","home-assistant","ntfy","snmp","ota","diagnostic-export","web-ui"};
+        "resource-guard","mqtt","home-assistant","ntfy","snmp","ota","diagnostic-export","web-ui",
+        "destination-test","service-watch","profiles"};
+    service_watch_config_t watch;service_watch_get(&watch);
+    profile_id_t profile;bool profile_rollback;config_profiles_status(&profile,&profile_rollback);
     for(unsigned i=0;i<sizeof capabilities/sizeof capabilities[0];i++){
         const char *id=capabilities[i],*reason="Compiled; runtime path has not been observed.";
         bool compiled=true,experimental=false;int hardware=1,configured=-1,running=-1;
@@ -511,6 +515,9 @@ cJSON *homelab_ops_capabilities(void) {
         else if(!strcmp(id,"ota")){configured=1;reason="Manual OTA support; automated checks/install remain explicit opt-in; no publisher-signing claim.";}
         else if(!strcmp(id,"diagnostic-export")){configured=1;reason="Local on-request allowlisted operational subset; never uploaded automatically.";}
         else if(!strcmp(id,"web-ui")){configured=1;reason="Compiled administration UI; session/access checks remain independent.";}
+        else if(!strcmp(id,"destination-test")){hardware=psram>0;configured=1;experimental=true;reason="On-request TCP handshake from this gateway; not application, UDP or LAN-client verification.";}
+        else if(!strcmp(id,"service-watch")){hardware=psram>0;configured=watch.enabled;running=watch.enabled&&worker_running;experimental=true;reason="Periodic destination tests of enabled TCP rules; notifies, never changes rules.";}
+        else if(!strcmp(id,"profiles")){configured=profile!=PROFILE_NONE;reason="Enable-only presets with token-bound preview and one rollback level.";}
         if(!capability_add(arr,id,compiled,hardware,configured,running,experimental,reason)){cJSON_Delete(root);return NULL;}
     }
     ok=cJSON_AddBoolToObject(root,"authority_ready",policy.authority_ready)

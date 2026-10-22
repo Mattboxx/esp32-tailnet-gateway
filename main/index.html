@@ -2270,7 +2270,7 @@
           <p class="form-hint" style="margin:0 0 0.75rem 0;">Expose selected Tailnet services on the ESP32 uplink-LAN address. LAN clients do not need Tailscale and do not need to join the ESP32 access point. This table is fully separate from AP-side port forwarding.</p>
           <p class="form-hint">Source CIDRs filter addresses, not client identity. Use the narrowest subnet and keep authentication on the remote service. A mapping being installed does not prove the service is reachable.</p>
           <p class="form-hint" id="tf-context" role="status">Loading saved rules and passive diagnostics…</p>
-          <details id="sw-box"><summary style="cursor:pointer;">Service watch (optional periodic destination tests)</summary>
+          <details id="sw-box" data-capability="service-watch"><summary style="cursor:pointer;">Service watch (optional periodic destination tests)</summary>
             <p class="form-hint">Off by default. Tests one enabled TCP rule per interval through this gateway, using the same bounded handshake as Test destination. Two misses in a row send one ntfy/MQTT notice; the next answer sends a recovery notice. It never changes rules.</p>
             <label class="feature-switch"><input type="checkbox" id="sw-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Watch enabled TCP rules</span></label>
             <label class="feature-switch"><input type="checkbox" id="sw-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify via ntfy when a service stops or resumes answering</span></label>
@@ -5729,6 +5729,7 @@
         if(note){if(f)note.textContent=(f.compiled===false?'Not available in this firmware':'Not supported by this board')+' — '+f.evidence;else note.remove();}
       });
       if(typeof wzRenderList==='function')wzRenderList();
+      if(typeof renderTf==='function'&&s_tf_loaded&&!s_tf_dirty)renderTf(); /* re-gate Test destination */
     }
     function setCapabilities(features){var map=Object.create(null);features.forEach(function(f){map[f.id]=f;});s_capabilities=map;applyCapabilityGates();}
     function loadGlobalCapabilities(){
@@ -6553,7 +6554,7 @@
       if(!Number.isInteger(r.index)||!Number.isInteger(r.rule_token))return '';
       var c=r.destination_check,label=!c?'Not tested':c.state==='reachable'?'Reachable from gateway ('+c.latency_ms+' ms)':c.state==='pending'?'Testing…':c.summary;
       return '<div class="tf-check" style="display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.25rem 0 .5rem;">'
-        +'<button class="btn btn-secondary btn-sm tf-test" type="button"'+(c&&c.state==='pending'?' disabled':'')+'>Test destination</button>'
+        +(function(){var u=capabilityUnavailable('destination-test');return '<button class="btn btn-secondary btn-sm tf-test" type="button"'+(c&&c.state==='pending'||u?' disabled':'')+(u?' title="'+escapeHtml('Not supported by this board — '+u.evidence)+'"':'')+'>Test destination</button>';})()
         +'<span class="badge '+(c&&TF_CHECK_BADGE[c.state]||'badge-neutral')+' tf-check-state" style="white-space:normal;">'+escapeHtml(label)+'</span>'
         +(c&&c.state!=='pending'?'<span class="form-hint tf-check-next">'+escapeHtml(c.next_step)+(c.age_s?' · checked '+escapeHtml(String(c.age_s))+' s ago':'')+'</span>':'')+'</div>';
     }

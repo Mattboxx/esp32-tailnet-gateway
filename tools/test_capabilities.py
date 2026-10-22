@@ -48,6 +48,10 @@ typedef struct {bool compiled,enabled_at_boot,driver_started,link_up,has_ip,sele
 static eth_status_t eth_fixture;
 #define ETH_MANIFEST_SUMMARY "w5500-spi-conditional"
 static void eth_uplink_get_status(eth_status_t *o){*o=eth_fixture;}
+typedef struct {bool enabled,notify;uint32_t interval_s;} service_watch_config_t;static bool watch_on;
+static void service_watch_get(service_watch_config_t *o){*o=(service_watch_config_t){.enabled=watch_on,.interval_s=900};}
+typedef enum {PROFILE_NONE,PROFILE_GATEWAY} profile_id_t;static profile_id_t active_profile;
+static void config_profiles_status(profile_id_t *a,bool *r){*a=active_profile;*r=false;}
 static bool active(int state){(void)state;return false;}
 static esp_netif_t *esp_netif_get_handle_from_ifkey(const char *s){(void)s;static int n;return &n;}
 static int esp_netif_get_ip_info(void *n,esp_netif_ip_info_t *ip){(void)n;ip->ip.addr=1;return 0;}
@@ -70,7 +74,9 @@ static cJSON *feature(cJSON *root,const char *id){cJSON *a=cJSON_GetObjectItem(r
 int main(void){
     cJSON_Hooks hooks={allocate,release};cJSON_InitHooks(&hooks);
     cJSON *r=homelab_ops_capabilities();assert(r);unsigned total=allocations;
-    assert(cJSON_GetArraySize(cJSON_GetObjectItem(r,"features"))==27);
+    assert(cJSON_GetArraySize(cJSON_GetObjectItem(r,"features"))==30);
+    assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"service-watch"),"configured"))&&cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"profiles"),"configured")));
+    assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(r,"destination-test"),"experimental")));
     assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(r,"tailscale"),"active")));
     assert(cJSON_IsFalse(cJSON_GetObjectItem(r,"authority_ready")));
     assert(cJSON_IsNull(cJSON_GetObjectItem(feature(r,"direct"),"active")));
@@ -86,7 +92,10 @@ int main(void){
       assert(cJSON_IsTrue(cJSON_GetObjectItem(f,"hardware_supported"))&&cJSON_IsTrue(cJSON_GetObjectItem(f,"active"))&&cJSON_IsTrue(cJSON_GetObjectItem(f,"experimental")));cJSON_Delete(e);
       eth_fixture=(eth_status_t){.compiled=true,.enabled_at_boot=true,.error="driver start failed"};e=homelab_ops_capabilities();f=feature(e,"ethernet");
       assert(cJSON_IsFalse(cJSON_GetObjectItem(f,"hardware_supported"))&&cJSON_IsFalse(cJSON_GetObjectItem(f,"active")));cJSON_Delete(e);
-      eth_fixture=(eth_status_t){0}; }
+      eth_fixture=(eth_status_t){0};
+      watch_on=true;active_profile=PROFILE_GATEWAY;e=homelab_ops_capabilities();
+      assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(e,"service-watch"),"configured"))&&cJSON_IsTrue(cJSON_GetObjectItem(feature(e,"profiles"),"configured")));
+      cJSON_Delete(e);watch_on=false;active_profile=PROFILE_NONE; }
     char *s=cJSON_PrintUnformatted(r);assert(s&&!strstr(s,"PRIVATE_"));cJSON_free(s);cJSON_Delete(r);assert(!live);
     for(unsigned i=1;i<=total;i++){allocations=0;fail_at=i;r=homelab_ops_capabilities();assert(!r);assert(!live);}
     fail_at=0;psram=features=0;broker=healthy=connected=false;r=homelab_ops_capabilities();assert(r);
@@ -94,7 +103,7 @@ int main(void){
     assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"wifi-uplink"),"hardware_supported")));
     assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"mqtt"),"active")));
     cJSON_Delete(r);assert(!live);cJSON_InitHooks(NULL);
-    puts("PASS: actual 27-capability manifest, unknown/runtime distinctions, private input exclusion and every JSON-allocation failure (mock platform)");
+    puts("PASS: actual 30-capability manifest, unknown/runtime distinctions, private input exclusion and every JSON-allocation failure (mock platform)");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='capabilities-') as folder:
