@@ -482,6 +482,7 @@ assert 'ml_fragment_tx_result(q,peer->public_key,result==ERR_OK)' in wg
 assert 'q && result == ERR_OK && ml_policy_sent' in wg
 close=coord[coord.index('static void ml_conn_close'):].split('\n}',1)[0]
 assert 'ml_policy_suspend()' in close
-assert 'ml_policy_suspend()' in coord[coord.index('static int do_start_long_poll'):].split('\n}',1)[0]
+# Stream start keeps authority only if a complete map of this connection exists.
+assert 'if (!ml_policy_authority_active()) ml_policy_suspend();' in coord[coord.index('static int do_start_long_poll'):].split('\n}',1)[0]
 assert 'ml_policy_reset(); /* Explicit disconnect' in coord
 print('PASS: source wiring: both map paths, RX post-decrypt/pre-translation, TX and sent-success hooks, reconnect suspension/full-map barrier (not end-to-end proof)')

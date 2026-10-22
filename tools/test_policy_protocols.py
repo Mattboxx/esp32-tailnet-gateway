@@ -68,6 +68,16 @@ int main(void){
     extended[42]=0;extended[6]=44;assert(ml_policy_rx(&p,key_a)); /* Atomic. */
     extended[43]=1;assert(!ml_policy_rx(&p,key_a)); /* Fragment needs reassembly. */
     extended[43]=0;extended[6]=43;assert(!ml_policy_rx(&p,key_a)); /* Routing hdr. */
+    /* Session continuity (hardware finding 2026-10-22): authority established
+     * by a complete map is "active" until suspension; a Tailscale stream then
+     * continues with deltas. After a transport loss it is not active, so the
+     * stream must deliver its own complete map first. */
+    ml_policy_reset();assert(!ml_policy_authority_active());
+    standard();assert(ml_policy_authority_active());
+    assert(apply("{\"PeersChanged\":[]}")&&ml_policy_authority_active()); /* delta in the same session */
+    ml_policy_suspend();assert(!ml_policy_authority_active());
+    assert(!apply("{\"PeersChanged\":[]}")&&!ml_policy_authority_active()); /* delta cannot resume */
+    standard();assert(ml_policy_authority_active());
     /* Reply evidence: only an ADMITTED reply on a flow this node sent counts. */
     ml_policy_reset();standard();
     const uint8_t svc[4]={100,64,0,1},other[4]={100,64,0,2};uint32_t age=0;
