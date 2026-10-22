@@ -811,6 +811,18 @@ async function main() {
       assert.deepEqual(unnamed,[],`${page}: controls without an accessible name`);
       await f.context.close();count++;
     }
+    // Keyboard only: open the primary guide, confirm exposure, start, Escape returns focus.
+    f=await fixture(browser,{page:'status'});
+    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===12);
+    await f.page.locator('#sg-home-guide').focus();await f.page.keyboard.press('Enter');
+    await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&document.activeElement.id==='wizard-close');
+    await f.page.waitForFunction(()=>!document.getElementById('wizard-checks').textContent.includes('checking'));
+    await f.page.locator('#wizard-exposure').focus();await f.page.keyboard.press('Space');
+    assert.equal(await f.page.locator('#wizard-exposure').isChecked(),true);
+    await f.page.keyboard.press('Tab');assert.equal(await f.page.evaluate(()=>document.activeElement.id),'wizard-start');
+    await f.page.keyboard.press('Escape');
+    await f.page.waitForFunction(()=>document.getElementById('wizard-panel').hidden&&document.activeElement.id==='sg-home-guide');
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }
 }
