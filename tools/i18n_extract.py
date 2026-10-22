@@ -53,7 +53,7 @@ def _wordy(text):
     return bool(re.search(r'[A-Za-z]{2}', text)) and not re.fullmatch(r'[\w.:/-]+\.(?:json|bin|html)|https?://\S+|[\d./:]+', text)
 
 
-_CODEY = re.compile(r'[<>{};=$\\`]|^\s|\s$|\b(?:function|var|return|document|querySelector)\b|^[#.\[]|^[a-z0-9_-]+$|^/api/')
+_CODEY = re.compile(r'[<>{}=$\\`]|;(?! )|^\s|\s$|\b(?:function|var|return|document|querySelector)\b|^[#.\[]|^[a-z0-9_-]+$|^/api/')
 
 
 def _js_strings(source):

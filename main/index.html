@@ -3572,7 +3572,7 @@
         /* Sentences assembled at run time: "{}" marks a value copied unchanged. */
         ((data.p||{})[code]||[]).forEach(function(e){pats.push([new RegExp('^'+e[0].split('{}').map(esc).join('(.+?)')+'$'),e[1]]);});}
       function tr(s){if(!map||typeof s!=='string')return s;var k=s.trim();if(!k)return s;var v=map.get(hash(k));
-        if(v===undefined){for(var i=0;i<pats.length;i++){var m=pats[i][0].exec(k);if(m){var n=1;v=pats[i][1].replace(/\{\}/g,function(){return m[n++];});break;}}}
+        if(v===undefined){for(var i=0;i<pats.length;i++){var m=pats[i][0].exec(k);if(m){var n=1;v=pats[i][1].replace(/\{\}/g,function(){var g=m[n++],t=map.get(hash(g.trim()));return t===undefined?g:t;});break;}}}
         return v===undefined?s:s.replace(k,v);}
       function skipped(el){for(var e=el;e;e=e.parentElement){if(SKIP[e.tagName]||e.hasAttribute&&e.hasAttribute('data-no-i18n'))return true;}return false;}
       function text(n){
