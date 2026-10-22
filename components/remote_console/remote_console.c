@@ -39,6 +39,12 @@
  * (i.e. "no address") when the netif isn't present or hasn't received
  * an address yet. Used at connection-accept time to figure out which
  * bind-filter group the incoming socket should be charged against. */
+/* Pure: the local address of an accepted socket identifies the ingress path. */
+static bool rc_tunnel_destination(uint32_t local_ip_hbo, bool is_physical_address)
+{
+    return (local_ip_hbo & 0xFFC00000u) == 0x64400000u && !is_physical_address;
+}
+
 static uint32_t netif_ip_by_key(const char *if_key)
 {
     esp_netif_t *nif = esp_netif_get_handle_from_ifkey(if_key);
@@ -613,8 +619,20 @@ static bool authenticate_client(int client_fd) {
             return false;
         }
 
+        /* Shared with the web login: refuse before verifying when the
+         * device-wide budget is exhausted, and charge every failure to it. */
+        uint64_t wait_us = web_password_attempt_wait_us((uint64_t)esp_timer_get_time());
+        if (wait_us) {
+            secure_wipe(password_input, sizeof password_input);
+            char text[80];
+            snprintf(text, sizeof text, "\r\nToo many failed logins on this device; retry in %u s.\r\n",
+                     (unsigned)((wait_us + 999999ULL) / 1000000ULL));
+            send_string(client_fd, text);
+            return false;
+        }
         bool authenticated = verify_web_password(password_input);
         secure_wipe(password_input, sizeof password_input);
+        if (!authenticated) web_password_attempt_failed((uint64_t)esp_timer_get_time());
         if (authenticated) {
             send_string(client_fd, RC_AUTH_OK);
             ESP_LOGI(TAG, "Remote console login successful from %s", rc_state.client_ip);
@@ -822,11 +840,13 @@ static void remote_console_task(void *arg) {
                 socklen_t addr_len = sizeof(local_addr);
                 getsockname(rc_state.client_socket, (struct sockaddr *)&local_addr, &addr_len);
                 uint32_t local_ip = local_addr.sin_addr.s_addr;
-                uint32_t client_ip_hbo = ntohl(client_addr.sin_addr.s_addr);
-                bool from_tailnet = ((client_ip_hbo & 0xFFC00000u) == 0x64400000u);
-
                 uint32_t ap_ip  = netif_ip_by_key("WIFI_AP_DEF");
                 uint32_t sta_ip = netif_ip_by_key("WIFI_STA_DEF");
+                uint32_t eth_ip = netif_ip_by_key("ETH_DEF");
+                /* VPN means "arrived on this node's own tunnel address", not
+                 * "client address looks like 100.64/10": CGNAT-addressed LANs
+                 * (LTE/Starlink) would otherwise pass as Tailnet. */
+                bool from_tailnet = rc_tunnel_destination(ntohl(local_ip), local_ip == sta_ip || local_ip == ap_ip || local_ip == eth_ip);
                 bool allowed = false;
                 if ((rc_config.bind & RC_BIND_AP)  && ap_ip  && local_ip == ap_ip)  allowed = true;
                 if ((rc_config.bind & RC_BIND_STA) && sta_ip && local_ip == sta_ip) allowed = true;

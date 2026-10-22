@@ -14,6 +14,7 @@
 #include "nvs.h"
 
 #include "web_password.h"
+#include "login_budget.h"
 
 /* Must match the NVS_NAMESPACE define in main/nvs_params.h. Duplicated
  * here so web_password can live as its own component and be required
@@ -36,6 +37,23 @@
  * PBKDF2, preserving the cost of wrong guesses in addition to endpoint rate
  * limiting. */
 static portMUX_TYPE s_fast_cache_mux = portMUX_INITIALIZER_UNLOCKED;
+static portMUX_TYPE s_budget_mux = portMUX_INITIALIZER_UNLOCKED;
+static login_budget_t s_budget;
+
+uint64_t web_password_attempt_wait_us(uint64_t now_us)
+{
+    portENTER_CRITICAL(&s_budget_mux);
+    uint64_t wait = login_budget_wait_us(&s_budget, now_us);
+    portEXIT_CRITICAL(&s_budget_mux);
+    return wait;
+}
+
+void web_password_attempt_failed(uint64_t now_us)
+{
+    portENTER_CRITICAL(&s_budget_mux);
+    login_budget_failed(&s_budget, now_us);
+    portEXIT_CRITICAL(&s_budget_mux);
+}
 static bool    s_fast_cache_valid;
 static uint8_t s_fast_cache_salt[PW_SALT_LEN];
 static uint8_t s_fast_cache_hash[PW_HASH_LEN];

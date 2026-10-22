@@ -222,3 +222,13 @@ disabled, otherwise WiFi-first or Ethernet-first with a three-sample stability
 window. While creating the second environment we found the shipped sdkconfig
 diverged from `sdkconfig.defaults` in four options inherited from IDF 5.3.1;
 they are now pinned so fresh checkouts build the same image.
+
+## ADR-020 — One password-guessing budget for every channel (2026-10-22)
+
+The failed-login budget now lives in the shared `web_password` component and is
+charged by the web login, password change and the TCP remote console; an
+exhausted budget refuses the console before any password check. The console's
+"VPN" binding now means the connection arrived on this node's tunnel address
+(a 100.64/10 local address that is not the STA, AP or Ethernet address), not
+that the client address looks like 100.64/10, which CGNAT-addressed LANs
+(LTE/Starlink) would satisfy.
