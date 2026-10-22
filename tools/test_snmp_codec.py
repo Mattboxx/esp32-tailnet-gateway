@@ -170,3 +170,66 @@ with tempfile.TemporaryDirectory(prefix="snmp-codec-") as directory:
         binary = path / (stem + ('.exe' if os.name == 'nt' else ''))
         subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path/(stem + '.c')), '-o', str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
+
+# Third program: the actual operational provider (main/snmp_ops.c) against
+# fixture modules, including Service Gateway evidence counting.
+ops_header = (ROOT / 'main/homelab_ops.h').read_text(encoding='utf-8')
+resources = 'typedef struct {\n    uint32_t internal_free' + ops_header.split('typedef struct {\n    uint32_t internal_free', 1)[1].split('} ops_resources_t;', 1)[0] + '} ops_resources_t;\n'
+provider = (ROOT / 'main/snmp_ops.c').read_text(encoding='utf-8')
+provider = 'static void operational_metrics' + provider.split('static void operational_metrics', 1)[1]
+PROVIDER_TEST = r'''
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdint.h>
+#include "snmp_operational.h"
+#include "service_evidence.h"
+''' + resources + r'''
+static int rows=3;static tailnet_forward_rule_t rules[3];static tailnet_forward_runtime_t rts[3];
+static uint8_t check_state[3]={SC_REACHABLE,SC_NO_ANSWER,SC_REACHABLE};static bool check_present[3]={true,true,false};static bool reply[3]={true,false,true};
+static void homelab_ops_resources(ops_resources_t *r){memset(r,0,sizeof *r);r->internal_free=1000;r->internal_largest=900;r->sockets_used=5;r->socket_limit=16;r->worker_running=false;r->worker_stack_min=77;}
+void ml_policy_get_status(ml_policy_status_t *p){memset(p,0,sizeof *p);p->authority_ready=true;p->peers=4;p->return_flows=2;}
+void tailnet_forward_totals(uint32_t *e,uint32_t *n,uint32_t *a,uint32_t *b){*e=2;*n=1;*a=40;*b=3;}
+bool tailnet_forward_get(int i,tailnet_forward_rule_t *r,tailnet_forward_runtime_t *rt){if(i<0||i>=rows)return false;*r=rules[i];*rt=rts[i];return true;}
+static uint32_t service_lease_token(const tailnet_forward_rule_t *r){return r->listen_port+1u;}
+bool service_check_get(int i,uint32_t t,service_check_result_t *out){if(!check_present[i])return false;*out=(service_check_result_t){.state=check_state[i],.token=t};return true;}
+bool ml_policy_reply_age(uint8_t p,const uint8_t ip[4],uint16_t port,uint32_t *age){(void)p;(void)port;*age=1000;return reply[ip[3]-1];}
+static bool mqtt_integration_connected(void){return true;}
+static bool tailscale_is_connected(void){return false;}
+static int esp_reset_reason(void){return 3;}
+static snmp_operational_provider_t registered;
+void snmp_agent_set_operational_provider(snmp_operational_provider_t p){registered=p;}
+''' + provider + r'''
+int main(void){
+    for(int i=0;i<3;i++){rules[i]=(tailnet_forward_rule_t){.valid=1,.proto=6,.listen_port=(uint16_t)(1000+i)};rts[i]=(tailnet_forward_runtime_t){.resolved_ip=0x64400001u+i};}
+    homelab_snmp_register();assert(registered);
+    snmp_operational_metrics_t m;memset(&m,0xa5,sizeof m);registered(&m);
+    assert(m.value[0]==0&&m.value[SNMP_OPS_AVAILABLE]==1&&m.value[SNMP_OPS_INTERNAL_FREE]==1000&&m.value[SNMP_OPS_SOCKETS_USED]==5);
+    assert(m.value[SNMP_OPS_WORKER_STACK_RAW]==UINT32_MAX); /* not running: not-applicable sentinel, never a fake 0 */
+    assert(m.value[SNMP_OPS_POLICY_PEERS]==4&&m.value[SNMP_OPS_FORWARD_ACCEPTED]==40&&m.value[SNMP_OPS_CONTROL_CONNECTED]==0&&m.value[SNMP_OPS_RESET_REASON]==3);
+    assert(m.value[SNMP_OPS_FORWARD_REACHABLE]==1); /* rule 2 has no current test */
+    assert(m.value[SNMP_OPS_FORWARD_REPLIED]==2);
+    rts[2].resolved_ip=0;registered(&m);assert(m.value[SNMP_OPS_FORWARD_REPLIED]==1); /* unresolved: no reply query */
+    rows=0;registered(&m);assert(!m.value[SNMP_OPS_FORWARD_REACHABLE]&&!m.value[SNMP_OPS_FORWARD_REPLIED]);
+    puts("PASS: actual SNMP operational provider: resource/policy/forwarding values, not-running sentinel, Service Gateway reachable/replied counts (fixtures)");
+}
+'''
+PSTUBS = {'esp_err.h': '#pragma once\ntypedef int esp_err_t;\n#define ESP_OK 0\n', 'lwip/pbuf.h': '#pragma once\nstruct pbuf;\n', 'lwip/netif.h': '#pragma once\nstruct netif;\n'}
+with tempfile.TemporaryDirectory(prefix="snmp-provider-") as directory:
+    path = Path(directory); (path / 'lwip').mkdir()
+    for name, text in PSTUBS.items(): (path / name).write_text(text)
+    (path / 'provider.c').write_text(PROVIDER_TEST.replace('#include "snmp_ops.h"\n', '').replace('#include "homelab_ops.h"\n', '')
+        .replace('#include "mqtt_integration.h"\n', '').replace('#include "tailscale_config.h"\n', '').replace('#include "service_lease.h"\n', '')
+        .replace('#include "esp_system.h"\n', ''), encoding='utf-8')
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-I', str(path), '-I', str(ROOT / 'main'),
+             '-I', str(ROOT / 'components/snmp_agent/include'), '-I', str(ROOT / 'external/microlink/components/microlink/include')]
+    dep = os.environ.get('CJSON_SOURCE'); libs = []
+    if dep: flags += ['-I', str(Path(dep).parent), dep]
+    else:
+        flags += subprocess.check_output(['pkg-config', '--cflags', 'libcjson'], text=True).split()
+        libs += subprocess.check_output(['pkg-config', '--libs', 'libcjson'], text=True).split()
+    if os.environ.get("SNMP_SANITIZE") == '1':
+        flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+    binary = path / ('provider.exe' if os.name == 'nt' else 'provider')
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'provider.c'), '-o', str(binary), *libs], check=True)
+    subprocess.run([str(binary)], check=True)
