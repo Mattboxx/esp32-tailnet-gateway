@@ -1,5 +1,7 @@
 # Continuation — dev.6 local checkpoint (2026-10-22)
 
+> **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
+
 ## Latest session (Claude Code, took over interrupted Codex work)
 
 **Latest checkpoint (2026-10-22 evening):** rebrand (ESP32 Tailnet Gateway),

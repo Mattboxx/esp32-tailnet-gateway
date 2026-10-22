@@ -1,5 +1,7 @@
 # Validation ledger
 
+> **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
+
 ## Current checkpoint — dev.6 continuation (2026-10-22, Claude Code session)
 
 Source **0.1.38-Mattboxx-1.14-dev.6**, uncommitted root/dependency work, taken

@@ -1,5 +1,7 @@
 # Repository rename and OTA migration plan
 
+> **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
+
 From `Mattboxx/esp32-tailscale-gateway-NAS-recovery` to
 `Mattboxx/esp32-tailnet-gateway` (product: ESP32 Tailnet Gateway — Mattboxx
 Edition). Nothing here has been executed on GitHub; every public step needs
@@ -68,3 +70,18 @@ works again.
 The rename can be reverted in GitHub settings while the old name is unused.
 Firmware rollback uses the previous OTA slot (bootloader app rollback) or the
 previous release's `firmware.bin`.
+
+## Bridge release checklist (for the publishing agent)
+
+- The bridge must be published **under the current (old) repository name**
+  while 1.13 devices can still reach it; its `firmware.bin` asset must carry
+  the GitHub `digest` the 1.13 updater requires (GitHub adds it to uploaded
+  release assets).
+- A 1.13 device only installs a release whose tag version is newer and whose
+  channel matches its setting (stable unless beta is enabled): publish the
+  bridge as a **stable** `v0.1.38-Mattboxx-1.14` (or the agreed number), not
+  only as a pre-release, or most devices will not see it.
+- Keep the old-name download URL valid for the window; do not delete the
+  1.13 release.
+- After the rename, verify from one bridge device: *Check now* reports the
+  repository `Mattboxx/esp32-tailnet-gateway`.
