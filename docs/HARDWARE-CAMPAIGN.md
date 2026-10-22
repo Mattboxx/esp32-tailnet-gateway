@@ -68,11 +68,11 @@ open items, never re-labelled as passes.
 
 ## 7. Bench lab recipe (authenticated part, ready to run)
 
-Executed so far without a session: boot, tailnet join, direct path, 401/403
-checks, reboots, a 60-minute serial soak and unauthenticated HTTP load. The
-steps below need the owner's single sign-in in the app's browser pane; the
-agent then calls the API from that page (same-origin `fetch`, the session
-cookie never leaves the browser and is never written anywhere).
+Newest executed results are in TAKEOVER-VALIDATION.md. The earlier nominal
+60-minute capture was interrupted after 42m50s; do not call it a completed
+soak. Use visible browser controls or an explicitly scoped device API driver;
+never use browser page evaluation for network requests or export its cookies.
+Credentials and sessions stay in memory and out of reports.
 
 1. Echo service on the bench PC, bound to its **tailnet** address only:
    `python tools/lab_echo.py --bind <pc-tailnet-ip> --port 47001 --seconds 1800`.
@@ -80,16 +80,24 @@ cookie never leaves the browser and is never written anywhere).
    `lab-tcp` TCP listen `18830` → `<pc-tailnet-ip>:47001`, source
    `<pc-lan-ip>/32`, enabled; rule `lab-udp` UDP listen `18831` → same port.
    Press **Test destination** on `lab-tcp`.
-3. From the PC: `python tools/lab_echo.py --probe <board-lan-ip>:18830 --proto tcp --count 20`
+3. Verify the PC's actual selected egress first: a LAN destination IP can be
+   routed through Tailscale. On Windows force this probe socket to WiFi using
+   `--source-ip <pc-lan-ip> --interface-index <wifi-index>` (network-byte-order
+   `IP_UNICAST_IF`), without changing routes/firewall. Other platforms must
+   independently establish LAN egress; source binding alone is not proof.
+   From the PC: `python tools/lab_echo.py --probe <board-lan-ip>:18830 --proto tcp --count 20`
    and `--probe <board-lan-ip>:18831 --proto udp --count 20`; expect 20/20 exact
    echoes and growing accepted counters; the echo log shows the board's
    tailnet address as the peer (proof the traffic went through the board).
-4. Source refusal: change `lab-tcp` source to an unused `/32` (for example
-   `<pc-lan-ip with last octet +1>`), save, probe again → 0/20 and a growing
-   rejected counter. Restore the source.
+4. Source refusal: change only the disposable lab rule's source to synthetic
+   `192.0.2.123/32`, save, force the same LAN ingress and probe again → 0/20
+   and a growing rejected counter. Restore the source. This single-client
+   restriction test is not two-client/Tailnet-identity authorization coverage.
 5. Expiry: give `lab-tcp` a 2-minute timer; confirm it closes and probes fail.
-6. Service watch: enable with a 60 s interval; stop the echo; confirm the
-   "stopped answering" event; restart it; confirm recovery.
+6. Service watch: it probes every enabled TCP rule, including existing owner
+   rules. Do not enable unless every target is approved for probing. In an
+   isolated approved table, enable with a 60 s interval; stop the echo; confirm
+   the "stopped answering" event; restart it; confirm recovery. Restore OFF.
 7. Profiles: preview → apply `monitoring` → rollback; confirm the listed
    changes only.
 8. Reboot (System → Restart); after reconnect confirm rules, timers and

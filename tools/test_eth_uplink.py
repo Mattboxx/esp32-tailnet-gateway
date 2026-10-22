@@ -31,7 +31,7 @@ typedef int esp_err_t;
 #define NVS_NAMESPACE "tsr"
 typedef int nvs_handle_t;typedef void *SemaphoreHandle_t;typedef int StaticSemaphore_t;typedef struct esp_netif esp_netif_t;struct netif;
 static uint32_t ntohl(uint32_t x){return __builtin_bswap32(x);}
-static uint32_t ip4(int a,int b,int c,int d){return __builtin_bswap32((uint32_t)(a<<24|b<<16|c<<8|d));}
+static uint32_t ip4(int a,int b,int c,int d){return __builtin_bswap32((uint32_t)a<<24|(uint32_t)b<<16|(uint32_t)c<<8|(uint32_t)d);}
 ''' + types + 'bool eth_config_valid(const eth_config_t *c, char *why, size_t why_size);\n' + core + r'''
 static unsigned char blob[256];static size_t blob_size;static int open_fail;
 static esp_err_t nvs_open(const char *ns,int mode,nvs_handle_t *h){(void)ns;(void)mode;*h=1;return open_fail?ESP_FAIL:ESP_OK;}

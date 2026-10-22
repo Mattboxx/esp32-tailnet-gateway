@@ -48,15 +48,17 @@ static inline service_diagnostic_t service_diagnose_evidence(service_diagnostic_
         "ready_to_enable", "Rule disabled; destination test reachable",
         "Enable the rule when this LAN exposure is intended; prefer an expiry for temporary access."};
     if (strcmp(base.code, "mapping_installed")) return base;
-    if (replied) return (service_diagnostic_t){
-        "service_replied", "Mapping installed; the Tailnet service replied recently",
-        "Traffic flows both ways for this destination. Application correctness and each LAN client are not verified."};
-    if (check == SERVICE_EVIDENCE_NO_ANSWER) return (service_diagnostic_t){
-        "destination_no_answer", "Mapping installed; destination test got no TCP answer",
-        "Check that the peer is online, the service listens on that port and the Tailnet ACL allows this gateway."};
+    /* The remote tuple is shared by destination tests and other rules. Its
+     * reply evidence cannot override rejected-only ingress for THIS binding. */
     if (rejected_seen && !accepted_seen) return (service_diagnostic_t){
         "source_rejected", "Mapping installed; only rejected LAN packets seen",
         "LAN packets reached the listener but did not match the allowed source or an active expiry. Compare the client address with the source CIDR."};
+    if (replied) return (service_diagnostic_t){
+        "service_replied", "Mapping installed; the Tailnet service replied recently",
+        "A reply was admitted for this remote service tuple, possibly from a destination test or another rule. Delivery through this rule to a LAN client and application correctness are not verified."};
+    if (check == SERVICE_EVIDENCE_NO_ANSWER) return (service_diagnostic_t){
+        "destination_no_answer", "Mapping installed; destination test got no TCP answer",
+        "Check that the peer is online, the service listens on that port and the Tailnet ACL allows this gateway."};
     if (check == SERVICE_EVIDENCE_REACHABLE) return (service_diagnostic_t){
         "destination_reachable", "Mapping installed; destination test reachable",
         "Connect from the allowed LAN client using the ESP uplink IP and listen port."};

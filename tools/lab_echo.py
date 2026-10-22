@@ -14,8 +14,12 @@ so a reply proves the payload travelled LAN client -> board -> WireGuard ->
 echo service -> back. Counts are printed; payloads are random, not logged.
 """
 import argparse
+import ipaddress
+import math
 import os
 import socket
+import struct
+import sys
 import threading
 import time
 
@@ -60,22 +64,39 @@ def udp_server(bind, port, stop):
     srv.close()
 
 
-def probe(target, proto, count):
+def client_socket(proto, source_ip=None, interface_index=None, timeout=6):
+    s=socket.socket(socket.AF_INET,socket.SOCK_STREAM if proto=='tcp' else socket.SOCK_DGRAM)
+    try:
+        s.settimeout(timeout)
+        if interface_index is not None:
+            if sys.platform!='win32':raise ValueError('--interface-index currently requires Windows')
+            # IP_UNICAST_IF uses a DWORD interface index in network byte order:
+            # https://learn.microsoft.com/windows/win32/winsock/ipproto-ip-socket-options
+            s.setsockopt(socket.IPPROTO_IP,getattr(socket,'IP_UNICAST_IF',31),struct.pack('!I',interface_index))
+        if source_ip:s.bind((source_ip,0))
+        return s
+    except BaseException:
+        s.close();raise
+
+
+def probe(target, proto, count, source_ip=None, interface_index=None, timeout=6):
     host, port = target.rsplit(':', 1)
     ok = 0
     for _ in range(count):
         token = os.urandom(24)
         try:
-            if proto == 'tcp':
-                with socket.create_connection((host, int(port)), timeout=6) as s:
+            with client_socket(proto,source_ip,interface_index,timeout) as s:
+                s.connect((host,int(port)))
+                if proto == 'tcp':
                     s.sendall(token)
-                    s.settimeout(6)
-                    reply = s.recv(4096)
-            else:
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                    s.settimeout(6)
-                    s.sendto(token, (host, int(port)))
-                    reply, _ = s.recvfrom(4096)
+                    reply=b''
+                    while len(reply)<len(token):
+                        part=s.recv(len(token)-len(reply))
+                        if not part:break
+                        reply+=part
+                else:
+                    # Connected UDP accepts only this exact destination tuple.
+                    s.send(token);reply=s.recv(4096)
             ok += reply == token
         except OSError as e:
             print(f'{proto} probe error: {e.__class__.__name__}', flush=True)
@@ -92,9 +113,18 @@ def main():
     parser.add_argument('--probe', help='host:port to probe through the board')
     parser.add_argument('--proto', choices=['tcp', 'udp'], default='tcp')
     parser.add_argument('--count', type=int, default=10)
+    parser.add_argument('--source-ip',help='Bind the existing local LAN address; never creates an address/route')
+    parser.add_argument('--interface-index',type=int,help='Windows: force only this probe socket onto a specific interface')
+    parser.add_argument('--timeout',type=float,default=6)
     args = parser.parse_args()
+    if not 1<=args.count<=1000 or not math.isfinite(args.timeout) or not 0<args.timeout<=30:
+        parser.error('count must be 1..1000 and timeout within (0,30] seconds')
+    if args.source_ip:ipaddress.IPv4Address(args.source_ip)
+    if args.interface_index is not None and not 1<=args.interface_index<=0xffffffff:
+        parser.error('interface index must be 1..4294967295')
+    if not math.isfinite(args.seconds) or not 0<args.seconds<=86400:parser.error('invalid service duration')
     if args.probe:
-        raise SystemExit(0 if probe(args.probe, args.proto, args.count) == args.count else 1)
+        raise SystemExit(0 if probe(args.probe,args.proto,args.count,args.source_ip,args.interface_index,args.timeout)==args.count else 1)
     if not args.bind:
         parser.error('--bind <tailnet-ip> is required for the server (never bind 0.0.0.0 in the lab)')
     stop = threading.Event()

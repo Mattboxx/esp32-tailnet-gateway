@@ -1,34 +1,41 @@
-# Quality gate — 0.1.38-Mattboxx-1.14-dev.6 (2026-10-22)
+# Quality gate — dev.7 source / dev.6 hardware (2026-10-22)
 
 > **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
 
 ## Verdict: NOT READY — BLOCKERS REMAIN
 
-The candidate builds, passes the offline campaign and runs on the reference
-board, but the features that define the product have not yet been verified
-end-to-end on hardware through an authenticated session. Nothing has been
-pushed, released, renamed or published.
+Latest takeover evidence and remaining gates are in
+[TAKEOVER-VALIDATION.md](TAKEOVER-VALIDATION.md). Echo, source refusal, expiry
+and profile rollback now have scoped physical results; Linux is available.
+The older blocked rows below are historical and do not supersede that ledger.
+
+Dev.7 builds and passes offline validation but is not installed. Dev.6 has
+scoped authenticated hardware results and a confirmed multi-minute control-map
+recovery disruption. The correction needs physical verification; essential
+two-client/OTA/recovery/resource gates remain. Nothing was pushed or published.
 
 ## Firmware
 
 | Check | Status | Evidence / reason |
 |---|---|---|
-| WiFi build | PASS | `aaf166ed…`, 1,875,760 B, 95.4 % of the app slot |
-| Ethernet build | PASS (build only) | `975e4d61…`, 98.2 % of the slot — 35 KB headroom |
-| Offline campaign | PASS | 58 checks; one scanner scope finding fixed and rerun clean |
-| Browser / layout / i18n | PASS | 73 scenarios; 8 sections × 20 viewport/mode/language runs |
+| WiFi build | PASS, dev.7 | Binary `32485125…`; app 1,878,592 B / 95.6%; not installed |
+| Ethernet build | PASS, compile only | Binary `f3ce7b92…`; app 1,933,008 B / 98.3%; no W5500 qualification |
+| Offline campaign | PASS | Windows 62 checks, Linux ASan/UBSan 58; later device-tool guards targeted PASS |
+| Browser / layout / i18n | PASS | 75 synthetic scenarios; complete layout/site checks |
 | Boot, WiFi, tailnet join, direct path | PASS (hardware) | ping 10–15 ms, tailnet HTTP 200, 5 flash iterations |
 | Web security without a session | PASS (hardware) | 401 on protected APIs, 403 cross-site login/logout |
 | Reboot, heap, stack | PASS (hardware, short) | 120 s: no panic, heap 7.8–13 KB, DERP stack ≥ 5.3 KB |
-| **Service Gateway TCP/UDP end-to-end via a LAN client** | **BLOCKED** | needs an authenticated session (owner sign-in) |
-| **Rule expiry, Service watch, profiles, NVS persistence** | **BLOCKED** | same |
-| **OTA via Web UI / updater and rollback on hardware** | **BLOCKED** | same; flashing so far used USB otatool |
-| MQTT/HA, ntfy, SNMP, WoL/recovery on hardware | BLOCKED | broker unreachable; no recovery target configured |
+| **Service Gateway TCP/UDP end-to-end via a LAN client** | **PASS, installed dev.6** | Forced WiFi ingress: TCP 20/20, UDP 20/20; same-client source denial 0/3 each; not two identities |
+| **Expiry / profile rollback** | **PASS, scoped dev.6** | 120 s TCP lease closed; UDP positive control; Monitoring apply/rollback restored OFF |
+| **Service watch / NVS reboot persistence** | **PENDING** | Watch includes existing owner targets; no unapproved probes; reboot not yet performed |
+| **OTA / rollback on hardware** | **PENDING** | Never overwrite stable ota_1 for a test; dev.7 needs exact install authority |
+| SNMP operational tree | PASS, dev.6 | 27 OIDs, v1/v2c forced LAN plus 12 Tailnet replies; restored OFF unchanged |
+| MQTT/HA, ntfy, WoL/recovery on hardware | PENDING | Controlled lab/fault/independent recovery target gates remain |
 | AP fallback after 60 s | BLOCKED | requires removing the saved WiFi |
 | Two real clients, direct + DERP policy matrix | PENDING | release blocker from the roadmap (F01–F07) |
-| Linux ASan/UBSan | BLOCKED | no WSL distribution / Docker on this host |
+| Linux ASan/UBSan | PASS, offline only | Isolated Docker: 58/58 after two fixture corrections; no sanitizer suppression |
 | W5500 Ethernet | BLOCKED | no hardware; Ethernet package not produced |
-| Soak (hours) | PENDING | not run |
+| Soak / resources | RUNNING, dev.6 | Old capture interrupted at 42m50s; new 60 min serial + 30 min numeric sampler running; tight heap/largest block |
 
 ## Repository
 
@@ -67,13 +74,13 @@ pushed, released, renamed or published.
 
 ## To reach READY
 
-1. Owner signs in once in the app's browser pane on the device's LAN address
-   (the agent never types the admin password on a non-local host).
-2. Run the authenticated list in `docs/HARDWARE-CAMPAIGN.md`: Service Gateway
-   TCP and UDP through a LAN client, source refusal, expiry, Service watch,
-   profiles, reboot persistence, Web UI OTA and rollback.
-3. Linux sanitizers on a machine with WSL/Docker; a longer soak.
-4. Decide whether the two-client policy matrix blocks this release or the next.
+1. Finish current captures and remove only disposable lab rules; keep the owner
+   rule, original integration settings and stable ota_1 intact.
+2. With exact new-image authority and verified recovery, install dev.7 safely
+   and qualify its real reconnect behavior, reboot persistence, OTA and recovery.
+3. Complete controlled optional-service/fault and resource/long-soak checks.
+4. Complete the two-independent-client direct/DERP authorization matrix, or
+   retain NOT READY. Single-client and host fixtures do not satisfy that gate.
 
 ## Operations awaiting authorization (one coordinated request)
 

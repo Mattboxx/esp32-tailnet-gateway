@@ -496,6 +496,19 @@ async function main() {
     await f.page.waitForFunction(() => document.getElementById('ts-page-badge').textContent.includes('Connected'));
     assert.equal(await f.page.locator('#ts-page-badge').getAttribute('title'), '');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // A surviving control transport cannot imply complete current authority.
+    f = await fixture(browser, {page: 'status', statusBody: {tailscale: {
+      enabled:true,connected:true,authority_ready:false,register_user_id:1}}});
+    await f.page.waitForFunction(() => document.getElementById('ts-badge').textContent === 'Policy pending');
+    assert.match(await f.page.locator('#ts-badge').getAttribute('class'), /badge-warning/);
+    assert.equal(await f.page.locator('#glance-tailnet strong').textContent(), 'Policy pending');
+    assert.match(await f.page.locator('#ts-badge').getAttribute('title'), /data is blocked/);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    f = await fixture(browser, {page:'tailscale', tailscaleSettings:{enabled:true},
+      tailscaleRuntime:{connected:true,authority_ready:false,register_user_id:1}});
+    await f.page.waitForFunction(() => document.getElementById('ts-page-badge').textContent === 'Policy pending');
+    assert.match(await f.page.locator('#ts-page-badge').getAttribute('class'), /badge-warning/);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Selective service gateway: installed mapping != verified service.
     const forwardRule = {name: 'Synthetic broker', enabled: true, installed: true,
       protocol: 'tcp', listen_port: 18830, destination_port: 1883,

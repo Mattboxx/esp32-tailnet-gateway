@@ -25,7 +25,7 @@ everything above it.
 | `destination_no_answer` | No TCP handshake in 2 s | Peer online? Service listening? ACL allows this gateway? |
 | `source_rejected` | Only rejected LAN packets seen | Client address vs the rule's source CIDR, expiry |
 | `destination_reachable` | Handshake works from the gateway | Try the allowed LAN client on ESP-IP:listen-port |
-| `service_replied` | Replies seen recently | Application issue, not transport |
+| `service_replied` | Reply admitted for the remote tuple (possibly a test or another rule) | Verify the intended LAN client and application; this is not end-to-end proof |
 
 Press **Test destination** on a rule (works while it is disabled). UDP cannot
 be tested by handshake: use the reply evidence and the receiving service.

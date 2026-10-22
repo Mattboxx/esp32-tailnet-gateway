@@ -1,5 +1,10 @@
 # Validation ledger
 
+> **Newest actual evidence:** [TAKEOVER-VALIDATION.md](TAKEOVER-VALIDATION.md):
+> real forced-LAN TCP/UDP echo, source refusal, expiry and profile rollback;
+> diagnostic regression fixed; Linux 55/57 then corrected targeted 2/2 PASS.
+> Full final rerun/build and hardware gates remain open. NOT READY.
+
 > **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
 
 ## Current checkpoint — dev.6 continuation (2026-10-22, Claude Code session)

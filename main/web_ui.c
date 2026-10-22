@@ -411,6 +411,9 @@ static esp_err_t status_handler(httpd_req_t *req)
     cJSON *ts = cJSON_CreateObject();
     cJSON_AddBoolToObject  (ts, "enabled",   tailscale_enabled != 0);
     cJSON_AddBoolToObject  (ts, "connected", ts_connected);
+    ml_policy_status_t ts_policy;
+    ml_policy_get_status(&ts_policy);
+    cJSON_AddBoolToObject(ts, "authority_ready", ts_policy.authority_ready);
     cJSON_AddStringToObject(ts, "startup_error", tailscale_start_error() == ESP_OK ? "" : esp_err_to_name(tailscale_start_error()));
     cJSON_AddBoolToObject(ts, "startup_retrying", tailscale_start_retrying());
     cJSON_AddBoolToObject  (ts, "advertise_exit_node", tailscale_advertise_exit_node != 0);
@@ -3159,6 +3162,9 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     bool ts_runtime_connected = tailscale_is_connected();
     cJSON *runtime = cJSON_CreateObject();
     cJSON_AddBoolToObject(runtime, "connected", ts_runtime_connected);
+    ml_policy_status_t ts_runtime_policy;
+    ml_policy_get_status(&ts_runtime_policy);
+    cJSON_AddBoolToObject(runtime, "authority_ready", ts_runtime_policy.authority_ready);
     if (tailscale_tunnel_ip) {
         char buf[16];
         ip4_to_str(tailscale_tunnel_ip, buf, sizeof buf);
