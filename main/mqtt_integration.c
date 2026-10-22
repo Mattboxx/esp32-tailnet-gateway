@@ -397,6 +397,9 @@ static void publish_discovery(void)
         snprintf(object_id,sizeof object_id,"tailnet_status_%d",i+1);
         snprintf(state_template,sizeof state_template,"{{ value_json.tailnet_forward_rules[%d].status }}",i);
         discovery_publish_entity("sensor",object_id,"Tailnet rule status",s_state_topic,state_template,NULL,NULL,NULL);
+        snprintf(object_id,sizeof object_id,"tailnet_test_%d",i+1);
+        snprintf(command,sizeof command,"%s/command/tailnet_test/%d/%08lx",cfg.base_topic,i,(unsigned long)service_lease_token(&rule));
+        discovery_publish_entity("button",object_id,"Test Tailnet destination",NULL,NULL,command,"PRESS",NULL);
     }
     /* Retained discovery records survive rule deletion and reboot. Clear every
      * unused slot so Home Assistant does not keep orphaned rule switches. */
@@ -409,6 +412,8 @@ static void publish_discovery(void)
         snprintf(topic,sizeof topic,"%s/sensor/%s/tailnet_expiry_%d/config",cfg.discovery_prefix,s_device_id,i+1);
         if(discovery_visit(&s_discovery))discovery_result(&s_discovery,publish(topic,"",1)>=0);
         snprintf(topic,sizeof topic,"%s/sensor/%s/tailnet_status_%d/config",cfg.discovery_prefix,s_device_id,i+1);
+        if(discovery_visit(&s_discovery))discovery_result(&s_discovery,publish(topic,"",1)>=0);
+        snprintf(topic,sizeof topic,"%s/button/%s/tailnet_test_%d/config",cfg.discovery_prefix,s_device_id,i+1);
         if(discovery_visit(&s_discovery))discovery_result(&s_discovery,publish(topic,"",1)>=0);
     }
 
@@ -748,6 +753,14 @@ static void handle_command(const char *topic, const char *payload)
         s_publish_requested = true;
     } else if (!strcmp(command,"health_monitor_enabled")) {
         if(health_monitor_set_enabled(enabled)==ESP_OK)s_publish_requested=true;
+    } else if (!strncmp(command, "tailnet_test/", 13)) {
+        /* Same binding rule as the switch: index plus current rule token, so
+         * a delayed press never tests a different rule after compaction. */
+        uint32_t token;
+        if (!strcmp(payload, "PRESS") && strlen(command+13)==10 && command[13]>='0' && command[13]<'0'+TAILNET_FORWARD_MAX
+            && command[14]=='/' && control_parse_hex32(command+15,&token) && token)
+            (void)service_check_request(command[13]-'0', token);
+        s_publish_requested = true;
     } else if (!strncmp(command, "tailnet_forward/", 16)) {
         /* Unbound legacy index-only messages are deliberately rejected: a
          * delayed command must not target a survivor after rule compaction. */
