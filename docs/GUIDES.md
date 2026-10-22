@@ -15,13 +15,13 @@ The 20 guide subjects required by the roadmap, mapped to existing documents.
 | NAS & Homelab Recovery | NAS-RECOVERY.md | Present |
 | Smart Recovery | SMART-RECOVERY.md | Present |
 | Network Monitoring | NETWORK-HEALTH.md | Present |
-| MQTT | — | Missing (UI hints only) |
-| Home Assistant | — | Missing (Discovery entities undocumented) |
+| MQTT | MQTT.md | Present |
+| Home Assistant | HOME-ASSISTANT.md | Present (real HA not qualified) |
 | ntfy | NTFY-TRANSPORT.md | Partial: technical audit, no user guide |
 | Security Model | SECURITY.md, TAILNET-AUTHORIZATION.md | Present |
-| Troubleshooting | — | Missing (the in-UI guide exists) |
+| Troubleshooting | TROUBLESHOOTING.md | Present |
 | Firmware Updates | UPDATES.md | Present |
-| Backup and Restore | — | Missing (UI feature exists) |
+| Backup and Restore | BACKUP-RESTORE.md | Present |
 | Hardware Compatibility | README → Hardware | Partial |
 | Ethernet | ETHERNET.md | Present (not hardware-validated) |
 | Development and Testing | TESTING.md, AGENTS.md | Present |
