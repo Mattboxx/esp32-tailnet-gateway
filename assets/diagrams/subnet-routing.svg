@@ -2,16 +2,16 @@
   <title id="t">Subnet routing: Tailnet to LAN</title>
   <desc id="d">Tailnet clients reach devices on the ESP32's networks through an advertised and admin-approved subnet route. Optional source NAT lets LAN hosts reply without a static route on the main router.</desc>
   <style>
-    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E6EDF3}
-    .h{font-size:15px;font-weight:650}.s{font-size:12.5px;fill:#8B949E}.z{font-size:11.5px;font-weight:600;letter-spacing:2px;fill:#8B949E}
-    .zone{fill:#11161D;stroke:#30363D}.box{fill:#161B22;stroke:#30363D}.hot{fill:#0F2624;stroke:#2DD4BF;stroke-width:1.5}
-    .ln{stroke:#E6EDF3;stroke-width:2;fill:none}.wg{stroke:#2DD4BF;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E3ECE6}
+    .h{font-size:15px;font-weight:650}.s{font-size:12.5px;fill:#8DA397}.z{font-size:11.5px;font-weight:600;letter-spacing:2px;fill:#8DA397}
+    .zone{fill:#0E1511;stroke:#1C2A22}.box{fill:#111814;stroke:#1C2A22}.hot{fill:#0E2219;stroke:#1FC97A;stroke-width:1.5}
+    .ln{stroke:#E3ECE6;stroke-width:2;fill:none}.wg{stroke:#1FC97A;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
   </style>
   <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#E6EDF3"/></marker>
-    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2DD4BF"/></marker>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#E3ECE6"/></marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1FC97A"/></marker>
   </defs>
-  <rect width="960" height="360" rx="16" fill="#0D1117"/>
+  <rect width="960" height="360" rx="16" fill="#0A0F0C"/>
   <rect class="zone" x="20" y="44" width="280" height="264" rx="12"/>
   <rect class="zone" x="340" y="44" width="280" height="264" rx="12"/>
   <rect class="zone" x="660" y="44" width="280" height="264" rx="12"/>

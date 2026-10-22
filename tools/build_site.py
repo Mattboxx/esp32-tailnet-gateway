@@ -174,7 +174,7 @@ def render(page: Page, pages: list[Page]) -> str:
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#0D1117">
+<meta name="theme-color" content="#0A0F0C">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{NAME}">
 <meta property="og:title" content="{html.escape(full_title)}">
@@ -294,7 +294,7 @@ def build(out: Path) -> list[Page]:
     (out / 'robots.txt').write_text(f'User-agent: *\nAllow: /\nSitemap: {SITE_URL}sitemap.xml\n', encoding='utf-8')
     (out / 'site.webmanifest').write_text(json.dumps({
         'name': f'{NAME} — Mattboxx Edition', 'short_name': 'Tailnet Gateway', 'start_url': './', 'display': 'browser',
-        'background_color': '#0D1117', 'theme_color': '#0D1117',
+        'background_color': '#0A0F0C', 'theme_color': '#0A0F0C',
         'icons': [{'src': 'assets/icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
                   {'src': 'assets/avatar-512.png', 'sizes': '512x512', 'type': 'image/png'}]}, indent=1), encoding='utf-8')
     (out / '.nojekyll').write_text('', encoding='utf-8')
