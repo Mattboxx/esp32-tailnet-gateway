@@ -55,7 +55,7 @@ screening) are unchanged.
 - LAN → Tailnet rules (and AP-side port forwards) listen on the **selected**
   uplink: the Ethernet address while Ethernet is the uplink, otherwise WiFi.
   Bindings are reinstalled when the selection changes, so clients must use the
-  address of the current uplink. Health Monitor and SNMP interface counters
-  still observe WiFi only.
+  address of the current uplink. Health Monitor gateway checks also use the
+  selected uplink; SNMP interface counters still observe WiFi only.
 - DNS servers are global in lwIP: the last interface to obtain DHCP DNS wins.
 - No measurements of throughput, link-flap behavior or power on real hardware.
