@@ -43,3 +43,5 @@ esp_err_t config_profiles_apply(profile_id_t profile, uint32_t token, profile_re
 /* ESP_ERR_NOT_FOUND: no applied profile change to roll back. */
 esp_err_t config_profiles_rollback(profile_result_t *out);
 esp_err_t config_profiles_register_http(httpd_handle_t server);
+/* Active profile and whether one rollback level is available. */
+void config_profiles_status(profile_id_t *active, bool *rollback_available);

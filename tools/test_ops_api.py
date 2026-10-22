@@ -158,3 +158,62 @@ with tempfile.TemporaryDirectory(prefix='ops-export-') as directory:
     if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run(['gcc',*flags,str(c),'-o',str(binary),*libs],check=True)
     subprocess.run([str(binary)],check=True,timeout=20)
+
+# Third program: actual export_system_summary(); secret-bearing fixtures must
+# never appear, every allocation failure is clean.
+SUMMARY=r'''
+#include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "cJSON.h"
+#include "ntfy_integration.h"
+#include "mqtt_integration.h"
+#include "eth_uplink.h"
+#include "service_check.h"
+#include "config_profiles.h"
+#define MALLOC_CAP_INTERNAL 1
+static size_t heap_caps_get_minimum_free_size(int caps){(void)caps;return 41000;}
+static int64_t esp_timer_get_time(void){return 7200000000ll;}
+void ntfy_integration_get_status(ntfy_integration_status_t *o){memset(o,0,sizeof *o);o->task_running=true;}
+void ntfy_integration_get_config(ntfy_integration_config_t *o){memset(o,0,sizeof *o);o->enabled=true;o->commands_enabled=true;o->system_events=true;
+  strcpy(o->server,"https://ntfy.secret.example");strcpy(o->topic,"secret-topic-zz");strcpy(o->token,"tk_SECRET_TOKEN");}
+void mqtt_integration_get_status(mqtt_integration_status_t *o){memset(o,0,sizeof *o);o->configured=true;}
+bool mqtt_integration_task_running(void){return false;}
+void eth_uplink_get_status(eth_status_t *o){memset(o,0,sizeof *o);o->compiled=true;o->enabled_at_boot=true;o->driver_started=true;o->link_up=true;o->ip=0x3c01a8c0;o->gw=0x0101a8c0;strcpy(o->error,"secret driver detail");}
+void service_watch_get(service_watch_config_t *o){*o=(service_watch_config_t){.enabled=true,.interval_s=900};}
+const char *config_profile_name(profile_id_t p){return p==PROFILE_GATEWAY?"gateway":"none";}
+void config_profiles_status(profile_id_t *a,bool *r){*a=PROFILE_GATEWAY;*r=true;}
+''' + function(source,'static bool export_system_summary(') + r'''
+static unsigned allocations,fail_at;
+static void *allocate(size_t n){return ++allocations==fail_at?NULL:malloc(n);}
+int main(void){
+ cJSON *root=cJSON_CreateObject();assert(export_system_summary(root));
+ char *t=cJSON_PrintUnformatted(root);
+ const char *bad[]={"ntfy.secret","secret-topic","SECRET_TOKEN","192.168","secret driver","60.1.168"};
+ for(unsigned i=0;i<sizeof bad/sizeof *bad;i++)assert(!strstr(t,bad[i]));
+ cJSON *s=cJSON_GetObjectItem(root,"system_summary");
+ assert(cJSON_IsTrue(cJSON_GetObjectItem(s,"ntfy_system_events"))&&cJSON_IsFalse(cJSON_GetObjectItem(s,"mqtt_task_running")));
+ assert(cJSON_IsTrue(cJSON_GetObjectItem(s,"ethernet_error"))&&cJSON_GetObjectItem(s,"uptime_s")->valuedouble==7200);
+ assert(!strcmp(cJSON_GetObjectItem(s,"profile")->valuestring,"gateway")&&cJSON_GetObjectItem(s,"service_watch_interval_s")->valuedouble==900);
+ free(t);cJSON_Delete(root);
+ cJSON_Hooks hooks={allocate,free};cJSON_InitHooks(&hooks);
+ allocations=0;fail_at=0;root=cJSON_CreateObject();assert(export_system_summary(root));cJSON_Delete(root);unsigned total=allocations;
+ for(unsigned f=2;f<=total;f++){allocations=0;fail_at=f;root=cJSON_CreateObject();assert(!export_system_summary(root));cJSON_Delete(root);}
+ cJSON_InitHooks(NULL);
+ puts("PASS: actual export system summary excludes server/topic/token/IPs/error text, module/Ethernet/profile/watch states, every allocation failure (fixtures)");
+}
+'''
+SSTUBS={'esp_err.h':'#pragma once\ntypedef int esp_err_t;\n#define ESP_OK 0\n','lwip/pbuf.h':'#pragma once\nstruct pbuf;\n','lwip/netif.h':'#pragma once\nstruct netif;\n',
+        'esp_http_server.h':'#pragma once\ntypedef void *httpd_handle_t;\n','esp_netif.h':'#pragma once\ntypedef struct esp_netif_obj esp_netif_t;\n'}
+with tempfile.TemporaryDirectory(prefix='ops-summary-') as directory:
+    path=Path(directory);(path/'lwip').mkdir()
+    for name,text in SSTUBS.items():(path/name).write_text(text)
+    c=path/'summary.c';c.write_text(SUMMARY,encoding='utf-8');binary=path/('summary.exe' if os.name=='nt' else 'summary')
+    flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-function','-g','-I',str(path),'-I',str(ROOT/'main'),'-I',str(ROOT/'external/microlink/components/microlink/include')];libs=['-lm'];dep=os.environ.get('CJSON_SOURCE')
+    if dep:flags+=['-I',str(Path(dep).parent),dep]
+    else:
+        flags+=subprocess.check_output(['pkg-config','--cflags','libcjson'],text=True).split();libs+=subprocess.check_output(['pkg-config','--libs','libcjson'],text=True).split()
+    if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
+    subprocess.run(['gcc',*flags,str(c),'-o',str(binary),*libs],check=True)
+    subprocess.run([str(binary)],check=True,timeout=20)

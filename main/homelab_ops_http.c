@@ -85,6 +85,28 @@ static bool export_service_rules(cJSON *root) {
     }
     return true;
 }
+/* Module and configuration summary: states and counts only, no addresses,
+ * names, URLs, topics or credentials. */
+static bool export_system_summary(cJSON *root) {
+    cJSON *s=cJSON_AddObjectToObject(root,"system_summary");if(!s)return false;
+    ntfy_integration_status_t ntfy;ntfy_integration_get_status(&ntfy);ntfy_integration_config_t nc;ntfy_integration_get_config(&nc);
+    mqtt_integration_status_t mqtt;mqtt_integration_get_status(&mqtt);
+    eth_status_t eth;eth_uplink_get_status(&eth);
+    service_watch_config_t watch;service_watch_get(&watch);
+    profile_id_t profile;bool rollback;config_profiles_status(&profile,&rollback);
+    return cJSON_AddNumberToObject(s,"uptime_s",(double)(esp_timer_get_time()/1000000))
+        &&cJSON_AddNumberToObject(s,"internal_heap_minimum",heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL))
+        &&cJSON_AddBoolToObject(s,"mqtt_task_running",mqtt_integration_task_running())
+        &&cJSON_AddBoolToObject(s,"mqtt_configured",mqtt.configured)
+        &&cJSON_AddBoolToObject(s,"ntfy_task_running",ntfy.task_running)
+        &&cJSON_AddBoolToObject(s,"ntfy_enabled",nc.enabled)&&cJSON_AddBoolToObject(s,"ntfy_commands",nc.commands_enabled)
+        &&cJSON_AddBoolToObject(s,"ntfy_system_events",nc.system_events)
+        &&cJSON_AddBoolToObject(s,"ethernet_compiled",eth.compiled)&&cJSON_AddBoolToObject(s,"ethernet_enabled",eth.enabled_at_boot)
+        &&cJSON_AddBoolToObject(s,"ethernet_driver_started",eth.driver_started)&&cJSON_AddBoolToObject(s,"ethernet_link_up",eth.link_up)
+        &&cJSON_AddBoolToObject(s,"ethernet_selected_uplink",eth.selected)&&cJSON_AddBoolToObject(s,"ethernet_error",eth.error[0]!=0)
+        &&cJSON_AddBoolToObject(s,"service_watch_enabled",watch.enabled)&&cJSON_AddNumberToObject(s,"service_watch_interval_s",watch.interval_s)
+        &&cJSON_AddStringToObject(s,"profile",config_profile_name(profile))&&cJSON_AddBoolToObject(s,"profile_rollback_available",rollback);
+}
 static esp_err_t get_export(httpd_req_t *req) {
     if(web_ui_require_auth(req)!=ESP_OK)return ESP_FAIL;
     cJSON *root=homelab_ops_snapshot(false);if(!root){httpd_resp_send_500(req);return ESP_FAIL;}
@@ -103,7 +125,7 @@ static esp_err_t get_export(httpd_req_t *req) {
     uint32_t enabled=0,installed=0,accepted=0,blocked=0;tailnet_forward_totals(&enabled,&installed,&accepted,&blocked);
     cJSON_AddNumberToObject(root,"forwarding_enabled",enabled);cJSON_AddNumberToObject(root,"forwarding_installed",installed);
     cJSON_AddNumberToObject(root,"forwarding_accepted_packets",accepted);cJSON_AddNumberToObject(root,"forwarding_blocked_packets",blocked);
-    if(!export_service_rules(root)){cJSON_Delete(root);httpd_resp_send_500(req);return ESP_FAIL;}
+    if(!export_service_rules(root)||!export_system_summary(root)){cJSON_Delete(root);httpd_resp_send_500(req);return ESP_FAIL;}
     cJSON *capabilities=homelab_ops_capabilities();
     if(!capabilities || !cJSON_AddItemToObject(root,"capabilities",capabilities)){
         cJSON_Delete(capabilities);cJSON_Delete(root);httpd_resp_send_500(req);return ESP_FAIL;
