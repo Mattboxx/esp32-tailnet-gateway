@@ -1,4 +1,6 @@
 {
+ "Policy pending": "Autorización pendiente",
+ "Control transport is connected, but data is blocked until a complete current policy map is available.": "El transporte de control está conectado, pero el tráfico está bloqueado hasta recibir un mapa completo de las políticas actuales.",
  "\" did not save. Device is in a mixed state — fix and retry, no auto-reboot.": "\" no se guardó. El dispositivo está en un estado mixto: corrige y reintenta, sin reinicio automático.",
  "(empty response)": "(respuesta vacía)",
  "(failed to load tail)": "(no se pudo cargar el final)",

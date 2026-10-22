@@ -17,7 +17,10 @@ Verified in source (`main/ota_remote.c`, `main/ota_validation.h`) for stable
 | Release check | `GET api.github.com/repos/<old>/releases`, redirects disabled, requires HTTP 200 | API answers 301 → *GitHub check failed* |
 | Download | Fixed `github.com/<old>/releases/download/<tag>/firmware.bin`; redirects only to the same path or the release-asset CDN | Redirect to `<new>` is refused |
 
-So firmware up to 1.14-dev.6 **cannot update itself after the rename**. It
+Stable 1.13 and development builds **before bridge commit `5b797f8` cannot
+update themselves after the rename**. The installed dev.6 `aaf166ed…` and
+current dev.7 sources include that bridge; do not classify every dev.6 image
+as pre-bridge based on its version alone. Affected older firmware
 fails closed (no partial install, no damage): the device keeps running and can
 still be updated manually.
 

@@ -260,3 +260,19 @@ then stays on until the uplink has an address again. Disconnect events
 repeated by STA retries never postpone the deadline, and a reconnect inside
 the window cancels it, so brief drops do not toggle the AP. Boot is unchanged
 (AP up until the first connection) and always-on mode is unaffected.
+
+## ADR-024 — Fresh authority before reconnect completion (2026-10-22)
+
+Real dev.6 soak showed a server-ended map session followed by an empty fetch
+and a timed-out initial stream. The control socket became connected while
+policy stayed suspended; authority returned only after a later full map, about
+five minutes after the loss. Cached peer visibility and DERP are insufficient.
+
+Streaming MapRequest now omits peers only if current complete authority is
+already active. An unavailable/incomplete initial map follows coordinator
+reconnection/backoff, not CONNECTED publication. Existing policy suspension,
+epoch/revocation and complete-map checks are unchanged. No extra allocation,
+task or timer. Status/Tailscale show pending authority separately if observed.
+Actual coordinator branch/request host tests (mock transport) and Linux
+sanitizers pass; real Tailscale/Headscale reconnect qualification of dev.7 is
+still required. This is not evidence of official-client policy parity.

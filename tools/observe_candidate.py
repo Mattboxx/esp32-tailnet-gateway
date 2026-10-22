@@ -7,6 +7,7 @@ is a strict numeric/boolean allowlist, never raw responses, hosts or secrets.
 TEST_DEVICE_PASSWORD is read by the existing challenge/session helper.
 """
 import argparse
+import getpass
 import ipaddress
 import json
 import math
@@ -199,13 +200,17 @@ def main():
     parser.add_argument('--seconds', type=int, default=3600)
     parser.add_argument('--interval', type=int, default=60)
     parser.add_argument('--output', required=True, type=Path, help='New private JSONL file; refuses overwrite')
+    parser.add_argument('--prompt-password', action='store_true', help='Read password through a hidden terminal prompt, not an environment variable')
     args = parser.parse_args()
     if not args.expected_version or not 30 <= args.interval <= 3600 or not args.interval <= args.seconds <= 86400:
         parser.error('Require a valid version, interval 30..3600 s and duration interval..86400 s')
     try:
         # Importing this helper does not invoke its invasive SNMP main routine.
         with args.output.open('x', encoding='utf-8') as stream:
-            return observe(login(args.host), args.expected_version, args.seconds, args.interval, stream)
+            password = getpass.getpass('Device password (not saved): ') if args.prompt_password else None
+            api = login(args.host, password=password)
+            password = None
+            return observe(api, args.expected_version, args.seconds, args.interval, stream)
     except KeyboardInterrupt:
         print('Observation interrupted; partial records are not continuous-run evidence.')
         return 130

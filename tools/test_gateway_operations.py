@@ -272,7 +272,7 @@ int main(void){
  peer_direct=true;root=first_rule();assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),"activity"),"peer_path")),"direct"));cJSON_Delete(root);
  peer_online=false;root=first_rule();assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),"activity"),"peer_path")),"offline"));cJSON_Delete(root);
  peer_ip=0x64400099;root=first_rule();assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),"activity"),"peer_path")),"unknown"));cJSON_Delete(root);
- control=false;peer_ip=0x64400002;peer_online=true;root=first_rule();assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),"activity"),"peer_path")),"unknown"));control=true;
+ control=false;peer_ip=0x64400002;peer_online=true;root=first_rule();assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),"activity"),"peer_path")),"unknown"));control=true;cJSON_Delete(root);
  root=first_rule();j=cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0);act=cJSON_GetObjectItem(j,"activity");
  assert(reply_ip[0]==100&&reply_ip[1]==64&&reply_ip[2]==0&&reply_ip[3]==2&&reply_port==1883);
  assert(cJSON_GetObjectItem(j,"rule_token")->valuedouble==1883*7+1&&cJSON_GetObjectItem(j,"index")->valuedouble==0);cJSON_Delete(root);
@@ -287,7 +287,13 @@ int main(void){
  cJSON_Delete(root);
  /* Evidence refines only the matching passive states. */
  runtime.last_accepted_s=0;runtime.last_blocked_s=0;reply_seen=false;check_seen=false;check("mapping_installed");
- runtime.last_blocked_s=50;check("source_rejected");runtime.last_accepted_s=60;check("mapping_installed");
+ runtime.last_blocked_s=50;check("source_rejected");
+ /* A destination test/another rule can share the tuple's reply evidence.
+  * It must never hide this binding's rejected-only LAN observations. */
+ reply_seen=true;check("source_rejected");
+ check_seen=true;check_result.state=SC_REACHABLE;check("source_rejected");
+ check_result.state=SC_NO_ANSWER;check("source_rejected");
+ reply_seen=false;check_seen=false;runtime.last_accepted_s=60;check("mapping_installed");
  check_seen=true;check_result.state=SC_NO_ANSWER;check("destination_no_answer");
  check_result.state=SC_REACHABLE;check("destination_reachable");
  reply_seen=true;check("service_replied");

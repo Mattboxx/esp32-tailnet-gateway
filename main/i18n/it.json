@@ -1,4 +1,6 @@
 {
+ "Policy pending": "Autorizzazioni in attesa",
+ "Control transport is connected, but data is blocked until a complete current policy map is available.": "Il trasporto di controllo è connesso, ma il traffico è bloccato finché non arriva una mappa completa delle autorizzazioni attuali.",
  "\" did not save. Device is in a mixed state — fix and retry, no auto-reboot.": "\" non è stato salvato. Il dispositivo è in uno stato misto: correggi e riprova, nessun riavvio automatico.",
  "(empty response)": "(risposta vuota)",
  "(failed to load tail)": "(impossibile caricare la coda)",

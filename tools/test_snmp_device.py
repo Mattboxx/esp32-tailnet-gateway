@@ -4,6 +4,7 @@ Use only on your own device. TEST_DEVICE_PASSWORD stays in memory, and neither
 HTTP cookies, community nor returned MIB values are printed or written to disk.
 """
 import argparse
+import getpass
 import hashlib
 import hmac
 import http.cookiejar
@@ -101,18 +102,20 @@ def decode_reply(data):
     return arcs, vb[1][0], vb[1][1]
 
 
-def login(host):
-    password = os.environ['TEST_DEVICE_PASSWORD']
+def login(host, password=None):
+    if password is None:
+        password = os.environ['TEST_DEVICE_PASSWORD']
     base = 'http://' + host
     client = urllib.request.build_opener(urllib.request.ProxyHandler({}),
         urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 
-    def send(path, payload=None, *, raw=False, timeout=12):
+    def send(path, payload=None, *, raw=False, timeout=12, request_headers=None):
         if raw:
             assert isinstance(payload, bytes), 'Raw API bodies must be bytes'
         body = payload if raw else (None if payload is None else json.dumps(payload).encode())
-        req = urllib.request.Request(base + path, body,
-            headers={'Content-Type': 'application/octet-stream' if raw else 'application/json'} if body is not None else {})
+        headers = {'Content-Type': 'application/octet-stream' if raw else 'application/json'} if body is not None else {}
+        headers.update(request_headers or {})
+        req = urllib.request.Request(base + path, body, headers=headers)
         with client.open(req, timeout=timeout) as response:
             return json.load(response)
 
@@ -125,9 +128,9 @@ def login(host):
                          hashlib.sha256).hexdigest()
         assert send('/api/auth/login', {'nonce': challenge['nonce'], 'proof': proof})['ok']
 
-    def api(path, payload=None, *, raw=False, timeout=12):
+    def api(path, payload=None, *, raw=False, timeout=12, request_headers=None):
         try:
-            return send(path, payload, raw=raw, timeout=timeout)
+            return send(path, payload, raw=raw, timeout=timeout, request_headers=request_headers)
         except urllib.error.HTTPError as error:
             # An explicit 401 means require_auth rejected the request before
             # mutation. Renew once; never retry ambiguous network/write errors.
@@ -135,7 +138,7 @@ def login(host):
             if error.code != 401 or path.startswith('/api/auth/'):
                 raise
             authenticate()
-            return send(path, payload, raw=raw, timeout=timeout)
+            return send(path, payload, raw=raw, timeout=timeout, request_headers=request_headers)
 
     authenticate()
     return api
@@ -151,8 +154,14 @@ def main():
     parser.add_argument('--soak-seconds', type=int, default=0,
                         help='Keep SNMP enabled through multiple telemetry/forwarding refreshes')
     parser.add_argument('--tailnet-host', help='Also query the same agent over its reachable Tailnet IP')
+    parser.add_argument('--prompt-password', action='store_true', help='Read the existing password through a hidden terminal prompt')
+    parser.add_argument('--ops-only', action='store_true', help='Read the 27 operational OIDs, skipping legacy stress/cycle tests')
+    parser.add_argument('--lan-source', help='Explicit LAN source for UDP queries')
+    parser.add_argument('--interface-index', type=int, help='Windows LAN interface for this UDP socket only')
     args = parser.parse_args()
-    api = login(args.host)
+    password = getpass.getpass('Device password (not saved): ') if args.prompt_password else None
+    api = login(args.host, password=password)
+    password = None
     limits = api('/api/system/diag')['network_limits']
     assert limits['sockets'] == args.expected_sockets and limits['active_tcp'] == args.expected_active_tcp
     print(f'PASS: authenticated diagnostics report {args.expected_sockets} sockets and {args.expected_active_tcp} active TCP slots')
@@ -160,8 +169,8 @@ def main():
     assert not original['enabled'], 'Agent already enabled; refusing to change its live state'
     config = {key: original[key] for key in ('enabled', 'community', 'sys_name', 'sys_contact', 'sys_location')}
     assert config['community']
-    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    udp.settimeout(1)
+    from lab_echo import client_socket
+    udp = client_socket('udp', args.lan_source, args.interface_index, timeout=1)
     lan_retries = 0
 
     def exchange(packet, expect=True):
@@ -224,6 +233,16 @@ def main():
                 print('PASS: 12 actual Tailnet SNMP v1/v2c replies across repeated installer ticks', flush=True)
             finally:
                 tailnet.close()
+        if args.ops_only:
+            # Read operational data only, never print values/identifiers.
+            for version in (0, 1):
+                for index in range(1, 28):
+                    oid = [1, 3, 6, 1, 4, 1, 99999, 2, index, 0]
+                    result = exchange(request(comm, oid, version))
+                    assert result[0] == oid and result[1] == 0x42, 'Missing operational Gauge32 OID'
+                    assert 1 <= len(result[2]) <= 5, 'Invalid Gauge32 encoding'
+            print('PASS: all 27 operational Gauge32 OIDs answer over forced LAN in SNMPv1 and v2c', flush=True)
+            return
         for version in (0, 1):
             oid, count = [1, 3, 6, 1, 2, 1], 0
             while count < 100:

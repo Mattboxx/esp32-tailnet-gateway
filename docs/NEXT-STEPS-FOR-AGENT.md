@@ -1,4 +1,19 @@
-# Continuation — dev.6 local checkpoint (2026-10-22)
+# Continuation — dev.7 source / dev.6 hardware checkpoint (2026-10-22)
+
+> **Newest checkpoint:** [TAKEOVER-VALIDATION.md](TAKEOVER-VALIDATION.md).
+> Authenticated echo/source-denial/expiry/profile checks now have real results;
+> Linux is available, two corrected sanitizer fixtures pass. A no-reset serial
+> soak is running and two temporary lab rules require cleanup. Older tasks below
+> are historical, not an instruction to repeat already completed work.
+
+Latest: dev.7 fixes initial-map recovery plus truthful rule/policy diagnostics.
+Linux final 58/58 PASS; Windows final build/browser and Ethernet build running.
+SNMP 27 operational OIDs (v1/v2c forced LAN) + 12 Tailnet replies PASS; restored
+OFF unchanged. COM3 serial soak and authenticated read-only sampler still run.
+Do not flash dev.7 using old dev.6 authority. Stable ota_1 must remain untouched.
+Next: finish captures, remove only lab rules, record final test/build results,
+scan/review and commit locally. Request exact installation authority only after
+offline checks; two real clients/OTA/recovery and optional-service gates remain.
 
 > **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
 

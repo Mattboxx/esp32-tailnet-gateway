@@ -6,6 +6,20 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.38-Mattboxx-1.14-dev.7 — local correction candidate, not released
+
+- Request a fresh peer map when the streaming coordinator starts without
+  current policy authority. Retry incomplete initial registration instead of
+  declaring a usable connection based on cached peers or keepalives. Data
+  authorization remains fail-closed; hardware reconnection qualification pending.
+- Display pending policy separately from connected control transport in Status
+  and Tailscale cards, including EN/IT/ES/ZH wording.
+- Prefer current rule source-refusal evidence over shared destination reply
+  observations; do not confuse a gateway destination test with LAN delivery.
+- Harden local qualification tools: explicit Windows LAN probe interface,
+  exact echo validation, honest interrupted-soak analysis, private no-reset
+  capture, isolated Linux sanitizer runner and hidden password prompt.
+
 ### 0.1.38-Mattboxx-1.14-dev.6 — ESP32 Tailnet Gateway, local candidate
 
 - Rename the product to **ESP32 Tailnet Gateway — Mattboxx Edition** (formerly

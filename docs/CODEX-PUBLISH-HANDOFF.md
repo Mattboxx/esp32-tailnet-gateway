@@ -1,5 +1,9 @@
 # Codex publish handoff — ESP32 Tailnet Gateway, Mattboxx Edition
 
+> **Active takeover:** [TAKEOVER-VALIDATION.md](TAKEOVER-VALIDATION.md) supersedes
+> older session/Linux/missing-echo statements below. It records current lab
+> cleanup, running soak, exact new tests and uninstalled diagnostic correction.
+
 Main document for the agent that continues this project. Keep it current.
 Last updated: 2026-10-22 (Claude Code session). **No push, release, rename,
 Pages activation or announcement has been performed.** All work is in local
@@ -35,10 +39,10 @@ Release verdict: **NOT READY FOR RELEASE** (see section D and
 | Candidate records | `build/development-0.1.38-Mattboxx-1.14-dev.6/candidate-final/` (bin, elf, SHA256SUMS) |
 | Local package | `build/release-0.1.38-Mattboxx-1.14-dev.6/` (pre-release, WiFi) |
 
-Admin password: the agent must not type it on a non-local host. Authenticated
-tests need the owner to sign in once in the app's built-in browser pane; the
-session can then be used from that pane (same-origin `fetch`). Never store the
-password, cookies or tokens in files, scripts, commits or logs.
+The owner authenticated the board browser and authorized subsequent routine
+sign-in to this board. Use supported visible browser controls; do not use page
+evaluation to issue network requests. Never store the password, cookies or
+tokens in files, scripts, commits or logs.
 
 ---
 

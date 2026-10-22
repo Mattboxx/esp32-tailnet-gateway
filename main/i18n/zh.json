@@ -1,4 +1,6 @@
 {
+ "Policy pending": "等待授权策略",
+ "Control transport is connected, but data is blocked until a complete current policy map is available.": "控制连接已建立，但在收到完整的当前授权策略之前，数据流量仍被阻止。",
  "\" did not save. Device is in a mixed state — fix and retry, no auto-reboot.": "\" 未保存。设备处于混合状态——请修正后重试，不会自动重启。",
  "(empty response)": "（空响应）",
  "(failed to load tail)": "（无法加载末尾内容）",

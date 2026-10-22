@@ -12,6 +12,7 @@ class Client:
         self.failures = list(failures)
         self.authentications = 0
         self.requests = 0
+        self.seen_headers = []
 
     def open(self, request, timeout):
         assert timeout > 0
@@ -24,6 +25,7 @@ class Client:
             data = {'ok': True}
         else:
             self.requests += 1
+            self.seen_headers.append(dict(request.header_items()))
             if self.failures:
                 raise self.failures.pop(0)
             data = {'ok': True}
@@ -47,9 +49,27 @@ class Sessions(unittest.TestCase):
         c = self.exercise([HTTPError('', 401, 'fixture', {}, None)])
         self.assertEqual((c.authentications, c.requests), (2, 2))
 
+    def test_explicit_password_needs_no_environment_secret(self):
+        client = Client([])
+        with patch.dict('os.environ', {}, clear=True), \
+             patch('urllib.request.build_opener', return_value=client):
+            api = login('board.invalid', password='fixture-only-not-a-secret')
+            self.assertTrue(api('/api/system')['ok'])
+        self.assertEqual(client.authentications, 1)
+
     def test_network_error_never_resends_a_write(self):
         c = self.exercise([URLError('fixture')], URLError)
         self.assertEqual((c.authentications, c.requests), (1, 1))
+
+    def test_request_screening_headers_preserved_on_explicit_401_retry(self):
+        client = Client([HTTPError('', 401, 'fixture', {}, None)])
+        with patch('urllib.request.build_opener', return_value=client):
+            api = login('board.invalid', password='fixture-only-not-a-secret')
+            api('/api/operations', {'invalid': True}, request_headers={'Origin':'http://board.invalid'})
+        self.assertEqual(len(client.seen_headers), 2)
+        for headers in client.seen_headers:
+            self.assertEqual(headers['Origin'], 'http://board.invalid')
+            self.assertEqual(headers['Content-type'], 'application/json')
 
     def test_non_auth_http_error_never_resends(self):
         c = self.exercise([HTTPError('', 503, 'fixture', {}, None)], HTTPError)

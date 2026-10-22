@@ -3937,7 +3937,7 @@
         function set(id,text,tone){var el=document.getElementById(id);if(!el)return;el.querySelector('strong').textContent=text;el.className='glance-item'+(tone?' '+tone:'');}
         var sta=data&&data.sta||{},ts=data&&data.tailscale||{};
         set('glance-uplink',sta.connected?(sta.ssid||'Connected'):'Not connected',sta.connected?'ok':'bad');
-        set('glance-tailnet',!ts.enabled?'Off':ts.connected?'Connected':(ts.startup_retrying?'Retrying':'Not connected'),!ts.enabled?'':ts.connected?'ok':'bad');
+        set('glance-tailnet',!ts.enabled?'Off':ts.connected?(ts.authority_ready===false?'Policy pending':'Connected'):(ts.startup_retrying?'Retrying':'Not connected'),!ts.enabled?'':ts.connected?(ts.authority_ready===false?'warn':'ok'):'bad');
         set('glance-peers',Number.isFinite(ts.peers_online)?ts.peers_online+' / '+(ts.peers_total||0):'—','');
         var kb=Number.isFinite(data&&data.mem_internal_free)?Math.round(data.mem_internal_free/1024):null;
         set('glance-memory',kb==null?'—':kb+' KB',kb!=null&&kb<10?'warn':'');
@@ -4073,6 +4073,10 @@
       } else if (ts.register_user_id === 0) {
         tsBadge.className = 'badge badge-danger';
         tsBadge.innerHTML = '<span class="badge-dot"></span> Auth key invalid';
+      } else if (ts.connected && ts.authority_ready === false) {
+        tsBadge.className = 'badge badge-warning';
+        tsBadge.textContent = 'Policy pending';
+        tsBadge.title = 'Control transport is connected, but data is blocked until a complete current policy map is available.';
       } else if (ts.connected) {
         tsBadge.className = 'badge badge-success';
         tsBadge.innerHTML = '<span class="badge-dot badge-dot-pulse"></span> Connected';
@@ -7081,6 +7085,10 @@
           } else if (r.register_user_id === 0) {
             badge.className = 'badge badge-danger';
             badge.innerHTML = '<span class="badge-dot"></span> Auth key invalid';
+          } else if (r.connected && r.authority_ready === false) {
+            badge.className = 'badge badge-warning';
+            badge.textContent = 'Policy pending';
+            badge.title = 'Control transport is connected, but data is blocked until a complete current policy map is available.';
           } else if (r.connected) {
             badge.className = 'badge badge-success';
             badge.innerHTML = '<span class="badge-dot badge-dot-pulse"></span> Connected'
