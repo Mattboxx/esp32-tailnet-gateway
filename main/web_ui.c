@@ -4908,6 +4908,7 @@ static esp_err_t auth_challenge_handler(httpd_req_t *req)
 
 static esp_err_t auth_login_handler(httpd_req_t *req)
 {
+    if (browser_request_refused(req, false)) return ESP_FAIL;
     login_guard_t *guard = NULL;
     if (login_guard_reject(req, &guard)) return ESP_FAIL;
     /* Cap the body at a sane size so a misbehaving client can't make us
@@ -4989,6 +4990,7 @@ static esp_err_t auth_login_handler(httpd_req_t *req)
 
 static esp_err_t auth_logout_handler(httpd_req_t *req)
 {
+    if (browser_request_refused(req, false)) return ESP_FAIL;
     /* Clear only the slot this request authenticates against — the
      * operator's other tabs (or a parallel scripted session) survive. */
     session_clear_slot(session_find_for_req(req));

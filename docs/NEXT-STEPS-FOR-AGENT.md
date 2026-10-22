@@ -2,9 +2,12 @@
 
 ## Latest session (Claude Code, took over interrupted Codex work)
 
-Consolidated offline run 55/55 (build+browser) at the latest commit. Hardware
-campaign procedure is ready in HARDWARE-CAMPAIGN.md; it needs
-fresh owner authorization, an identified board and a verified backup.
+Consolidated offline run 55/55 (build+browser). Owner-authorized hardware
+campaign is running on the COM3 board: candidate on ota_0, stable 1.13 kept
+in ota_1, private verified backup. Two hardware findings fixed (policy barrier,
+login/logout cross-site screening); results and BLOCKED items are in
+VALIDATION-STATUS.md. Authenticated UI tests need one owner sign-in in the app
+browser pane (the agent never types the admin password on a LAN host).
 
 Nothing was reset; Codex's last edits were verified in place. Owner decision
 (2026-10-22): Selective Tailnet Service Gateway is the primary feature, Remote

@@ -124,10 +124,34 @@ over from the interrupted Codex session without resetting anything.
   online (DERP connected, direct peers; MQTT broker unreachable; internal free
   heap about 12.7 KB in the log). Full 16 MB backup read twice: only 4 NVS
   blocks differ (runtime writes); all images/partition MD5 valid. Private copy
-  and restore steps are under ignored build/private-device/. Not yet flashed.
+  and restore steps are under ignored build/private-device/.
 - AP fallback (ADR-023): runtime_recovery PASS with new fallback cases; build PASS.
+- **Hardware campaign (owner-authorized, COM3 board, 2026-10-22).** Candidate
+  written to ota_0 with ESP-IDF otatool and selected (otadata seq 29); stable
+  1.13 kept untouched in ota_1 as the USB rollback target (`otatool
+  switch_ota_partition --name ota_1`, or full restore from the private backup).
+  - Finding 1 (fixed, `49b8441`/microlink `2e2e96c`): stream start suspended an
+    already complete policy, so hosted-control deltas were rejected
+    (`delta-while-suspended`), tunnel data blocked, re-registration every ~15 s.
+    After the fix: no full-refresh errors, 2 peers linked, `tailscale ping`
+    direct ~10 ms, ICMP 0% loss, Web UI over the tailnet HTTP 200.
+  - Finding 2 (fixed, this checkpoint): POST login/logout skipped cross-site
+    screening (cross-origin login answered 400 instead of 403). Image
+    `cb1e0ad431012966964af6bf7b1c208ed9f64b5784456000a4783d89b52306d4` on
+    ota_0: cross-origin and `Sec-Fetch-Site: cross-site` login/logout 403,
+    same-origin login reaches the credential check, direct ping 12 ms and
+    tailnet HTTP 200 after reflash.
+  - Unauthenticated checks PASS: 401 on protected status/restart/Ethernet/
+    Service watch/export/capabilities APIs, setup refused once a password
+    exists, CSP/X-Frame-Options/nosniff/Referrer-Policy present.
+  - BLOCKED: authenticated Web UI flows (Service Gateway TCP/UDP end-to-end,
+    rule expiry, destination test, Service watch, profiles, NVS persistence,
+    OTA via UI) — the agent may not type the admin password into a non-local
+    host; needs one owner sign-in in the app browser pane. AP-fallback live
+    test (requires removing the saved WiFi), W5500 (no hardware), Linux
+    sanitizers (no WSL distro/Docker), MQTT/HA (broker unreachable), soak.
 - Pending:
-  sanitizers, full suite, hardware. Nothing here is hardware evidence.
+  sanitizers, full suite, the BLOCKED hardware items above.
 
 
 ## Current checkpoint — dev.5 continuation (2026-10-21)
