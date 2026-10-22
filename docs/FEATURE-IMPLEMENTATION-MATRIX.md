@@ -1,5 +1,7 @@
 # Feature implementation and validation matrix
 
+> **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
+
 Continuation checkpoint (2026-10-22, dev.6): all **42** items retained; SNMP operational
 subtree, web request screening and MQTT status added (see V). Earlier (2026-10-21): Dev.5 adds a
 bounded fragment-ingress subset, complete-map transport resumption barrier,

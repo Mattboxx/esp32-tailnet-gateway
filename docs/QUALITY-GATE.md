@@ -1,5 +1,7 @@
 # Quality gate — 0.1.38-Mattboxx-1.14-dev.6 (2026-10-22)
 
+> **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
+
 ## Verdict: NOT READY — BLOCKERS REMAIN
 
 The candidate builds, passes the offline campaign and runs on the reference
@@ -42,7 +44,7 @@ pushed, released, renamed or published.
 
 | Check | Status |
 |---|---|
-| Original mark, lockups, mono variants, avatar, favicon, banner, social preview | PASS (visually reviewed) |
+| Original mark, lockups, mono variants, avatar, favicon, banner, social preview | PARTIAL — black/green sources and PNGs regenerated (`tools/brand_svg.py`); Web UI, website, diagrams and BRAND.md still use the earlier teal palette |
 | Web UI identity and design system | PASS (desktop and phone screenshots reviewed) |
 | Authentic screenshots | PARTIAL — login screens from the real board; other screens need a signed-in session |
 
