@@ -1541,6 +1541,8 @@
     :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     [hidden] { display: none !important; }
 
+    html:lang(zh-Hans) body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", system-ui, sans-serif; }
+    html:lang(de) .btn, html:lang(fr) .btn, html:lang(es) .btn, html:lang(it) .btn { white-space: normal; text-align: center; }
     body.ui-simple [data-advanced] { display: none !important; }
     .adv-note { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; justify-content: space-between;
       border: 1px dashed var(--border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: var(--sp-4);
@@ -3059,6 +3061,8 @@
         <div class="card-header"><div class="card-header-left"><span class="card-title">Interface mode</span></div></div>
         <div class="card-body">
           <label class="feature-switch"><input type="checkbox" id="ui-advanced-toggle"><span class="feature-switch-track" aria-hidden="true"></span><span>Show advanced settings</span></label>
+          <div class="form-group" style="margin-top:var(--sp-3)"><label class="form-label" for="ui-lang">Language</label><select class="select" id="ui-lang" data-no-i18n></select>
+            <span class="form-hint">Detected from your browser; stored in this browser only. Technical values, addresses and keys are never translated.</span></div>
           <p class="form-hint">Simple mode hides expert sections (firewall chains, DHCP tables, MTU, SNMP, logging, hardware diagnostics). Nothing is disabled; hidden settings keep working. This choice is stored in this browser only.</p>
         </div>
       </div>
@@ -3392,7 +3396,7 @@
           <p style="margin:0 0 0.5rem 0;"><strong>ESP32 Tailnet Gateway — Mattboxx Edition</strong> (formerly ESP32 Homelab Gateway) — selective Tailnet service access, independent Wake-on-LAN and local diagnostics, with optional MQTT/Home Assistant and ntfy automation. Independent of managed servers, not of power, the router, Internet or VPN infrastructure.</p>
           <div class="stat-row"><span class="stat-label">Firmware version</span><span class="stat-value mono" id="about-version">—</span></div>
           <div class="stat-row"><span class="stat-label">Build tag</span>       <span class="stat-value mono" id="about-build-tag" title="—">—</span></div>
-          <div class="stat-row"><span class="stat-label">Source</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailscale-gateway" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Mattboxx/esp32-tailscale-gateway</a></span></div>
+          <div class="stat-row"><span class="stat-label">Source</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailnet-gateway" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Mattboxx/esp32-tailnet-gateway</a></span></div>
           <div class="stat-row"><span class="stat-label">Issues</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailscale-gateway/issues" target="_blank" rel="noopener" style="color:var(--accent);">github.com/&hellip;/issues</a></span></div>
           <div class="stat-row"><span class="stat-label">Original upstream</span><span class="stat-value mono"><a href="https://github.com/Csontikka/esp32-tailscale-subnet-router" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/esp32-tailscale-subnet-router</a></span></div>
           <div class="stat-row"><span class="stat-label">Tailscale stack</span><span class="stat-value mono"><a href="https://github.com/Csontikka/microlink" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/microlink</a> (userspace WireGuard + DERP + DISCO)</span></div>
@@ -3541,6 +3545,72 @@
        JAVASCRIPT
        =================================================================== -->
   <script>
+    /* UI translations. English text is both the key and the fallback; the
+     * build injects window.I18N_DATA (main/i18n/*.json). Only whole text
+     * nodes, a few attributes and confirm() messages that exactly match a
+     * key are replaced, so typed values, addresses and keys never change.
+     * Text assembled at run time from several pieces stays English. */
+    var I18N=(function(){
+      var data=window.I18N_DATA||null,lang='en',map=null,busy=false;
+      var ORIG=new WeakMap(),SHOWN=new WeakMap(),ATTRS=['placeholder','title','aria-label'];
+      var SKIP={SCRIPT:1,STYLE:1,CODE:1,PRE:1,TEXTAREA:1};
+      function codes(){return data?Object.keys(data.langs):[];}
+      function detect(){
+        var saved=null;try{saved=localStorage.getItem('ui-lang');}catch(e){}
+        if(saved==='en'||codes().indexOf(saved)>=0)return saved;
+        var prefs=navigator.languages&&navigator.languages.length?navigator.languages:[navigator.language||'en'];
+        for(var i=0;i<prefs.length;i++){var base=String(prefs[i]).toLowerCase().split('-')[0];
+          if(base==='en')return 'en';if(codes().indexOf(base)>=0)return base;}
+        return 'en';
+      }
+      function hash(t){var h=0x811c9dc5;for(var i=0;i<t.length;i++)h=Math.imul(h^t.charCodeAt(i),0x01000193)>>>0;return h;}
+      var pats=[];
+      function esc(t){return t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+      function load(code){map=null;pats=[];if(code==='en'||!data||!data.tr[code])return;map=new Map();
+        var row=data.tr[code];for(var i=0;i<data.h.length;i++)if(row[i])map.set(data.h[i],row[i]);
+        /* Sentences assembled at run time: "{}" marks a value copied unchanged. */
+        ((data.p||{})[code]||[]).forEach(function(e){pats.push([new RegExp('^'+e[0].split('{}').map(esc).join('(.+?)')+'$'),e[1]]);});}
+      function tr(s){if(!map||typeof s!=='string')return s;var k=s.trim();if(!k)return s;var v=map.get(hash(k));
+        if(v===undefined){for(var i=0;i<pats.length;i++){var m=pats[i][0].exec(k);if(m){var n=1;v=pats[i][1].replace(/\{\}/g,function(){return m[n++];});break;}}}
+        return v===undefined?s:s.replace(k,v);}
+      function skipped(el){for(var e=el;e;e=e.parentElement){if(SKIP[e.tagName]||e.hasAttribute&&e.hasAttribute('data-no-i18n'))return true;}return false;}
+      function text(n){
+        var cur=n.nodeValue;if(SHOWN.get(n)!==cur)ORIG.set(n,cur);  /* new English written by the app */
+        var src=ORIG.get(n);if(!src||!/[A-Za-z]/.test(src)||(n.parentElement&&skipped(n.parentElement)))return;
+        var out=tr(src);if(out!==cur){n.nodeValue=out;}SHOWN.set(n,out);
+      }
+      function attrs(el){
+        if(!el.getAttribute)return;var o=ORIG.get(el)||{};
+        ATTRS.forEach(function(a){var v=el.getAttribute(a);if(v==null)return;
+          if(o[a]===undefined||o['_'+a]!==v)o[a]=v;var out=tr(o[a]);if(out!==v)el.setAttribute(a,out);o['_'+a]=out;});
+        ORIG.set(el,o);
+      }
+      function walk(root){
+        if(root.nodeType===3){text(root);return;}
+        if(root.nodeType!==1||root.tagName==='SCRIPT'||root.tagName==='STYLE')return;
+        attrs(root);
+        var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT|NodeFilter.SHOW_ELEMENT,null),n;
+        while((n=w.nextNode())){if(n.nodeType===3)text(n);else if(n.tagName!=='SCRIPT'&&n.tagName!=='STYLE')attrs(n);}
+      }
+      function apply(){busy=true;try{walk(document.body);document.title=tr('ESP32 Tailnet Gateway');}finally{busy=false;}}
+      var observer=new MutationObserver(function(list){if(busy||!map&&lang==='en')return;busy=true;try{
+        list.forEach(function(m){if(m.type==='characterData')text(m.target);else if(m.type==='attributes')attrs(m.target);else m.addedNodes.forEach(walk);});
+      }finally{busy=false;}});
+      function set(code){
+        lang=code;load(code);document.documentElement.lang=code==='zh'?'zh-Hans':code;
+        try{localStorage.setItem('ui-lang',code);}catch(e){}
+        apply();
+      }
+      var nativeConfirm=window.confirm.bind(window);
+      window.confirm=function(m){return nativeConfirm(tr(m));};
+      return {
+        start:function(){lang=detect();load(lang);document.documentElement.lang=lang==='zh'?'zh-Hans':lang;
+          if(map)apply();observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:ATTRS});},
+        set:set,t:tr,current:function(){return lang;},
+        languages:function(){var out=[['en','English']];codes().forEach(function(c){out.push([c,data.langs[c].name]);});return out;}
+      };
+    })();
+    I18N.start();
     // One explicit click, no intermediate prompt or third-party embed.
     // A top-level HTTPS page keeps provider wallets/browser authentication
     // available. Never collect card details or report an assumed payment.
@@ -5770,6 +5840,9 @@
     }
     document.getElementById('ui-advanced-toggle').addEventListener('change',function(){setUiAdvanced(this.checked);});
     renderGoals();applyUiMode();
+    (function(){var sel=document.getElementById('ui-lang');if(!sel)return;
+      I18N.languages().forEach(function(l){var o=document.createElement('option');o.value=l[0];o.textContent=l[1];sel.appendChild(o);});
+      sel.value=I18N.current();sel.addEventListener('change',function(){I18N.set(this.value);});})();
     function loadServiceGatewaySummary(){
       var out=document.getElementById('sg-home-summary'),badge=document.getElementById('sg-home-badge'),loaded=false;
       return apiFetch('/api/tailnet-forward',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){

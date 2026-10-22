@@ -5,7 +5,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const html = () => fs.readFileSync(path.join(__dirname, '../main/index.html'), 'utf8');
+const { builtHtml } = require('./ui_build.cjs');
+let cached = null;
+const html = () => cached || (cached = builtHtml());
 
 function rule(i, o) {
   return Object.assign({ index: i, name: 'Rule ' + i, enabled: true, protocol: 'tcp', listen_port: 18830 + i,

@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
-const html = fs.readFileSync(path.join(__dirname, '../main/index.html'), 'utf8');
+const html = require('./ui_build.cjs').builtHtml();
 const mqtt = { enabled: true, connected: true, uri: 'mqtts://broker.example',
   base_topic: 'fixture/router', interval_seconds: 30, broker_watchdog_timeout_seconds: 300,
   broker_watchdog_wol_mac: '02:00:00:00:00:01' };
@@ -15,7 +15,7 @@ const updates = { enabled: false, auto_install: false, beta_channel: false,
   status: 'Periodic checks disabled', latest_version: '' };
 
 async function fixture(browser, options = {}) {
-  const context = await browser.newContext({ viewport: options.viewport || { width: 1280, height: 800 } });
+  const context = await browser.newContext({ viewport: options.viewport || { width: 1280, height: 800 }, locale: options.locale || 'en-US' });
   // Expert flows below use advanced sections; simple mode has its own scenario.
   if (options.simpleMode !== true) await context.addInitScript(() => { try { localStorage.setItem('ui-advanced', '1'); } catch (e) {} });
   const page = await context.newPage();
@@ -860,6 +860,31 @@ async function main() {
     assert.equal(await f.page.locator('#ui-advanced-toggle').isChecked(), true);
     await f.page.locator('#ui-mode-card .feature-switch').click();
     assert.equal(await f.page.locator('body.ui-simple').count(), 1);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Translations: browser language detection, manual switch, technical values untouched, English fallback.
+    f = await fixture(browser, { page: 'network', locale: 'it-IT', forwardBody: { rules: [tfRule()], max: 8, uplink_ip: '192.0.2.20', observation: 'passive_snapshot' } });
+    await f.page.waitForFunction(() => document.documentElement.lang === 'it' && document.querySelector('.nav-tab[data-page="network"]').textContent.includes('Rete'));
+    await f.page.waitForFunction(() => document.querySelector('.tf-sum-route'));
+    assert.match(await f.page.locator('.tf-sum-route').first().textContent(), /192\.0\.2\.20:15000 → 100\.64\.0\.9:5000 · TCPda 192\.168\.1\.20\/32/); // values never translated
+    await f.page.locator('.tf-edit').first().click();
+    await f.page.locator('.tf-name').first().fill('Rete di prova');
+    assert.equal(await f.page.locator('.tf-name').first().inputValue(), 'Rete di prova');
+    assert.equal(await f.page.locator('label[for="tf-dest-0"]').textContent(), 'Destinazione Tailnet');
+    f.page.once('dialog', d => { assert.match(d.message(), /Eliminare questa regola/); d.dismiss(); });
+    await f.page.locator('.tf-del').first().click();
+    await f.page.evaluate(() => { location.hash = 'system'; });
+    await f.page.waitForFunction(() => document.getElementById('page-system').classList.contains('active'));
+    await f.page.selectOption('#ui-lang', 'zh');
+    await f.page.waitForFunction(() => document.documentElement.lang === 'zh-Hans' && document.querySelector('.nav-tab[data-page="system"]').textContent.includes('系统'));
+    await f.page.selectOption('#ui-lang', 'en');
+    await f.page.waitForFunction(() => document.documentElement.lang === 'en' && document.querySelector('.nav-tab[data-page="network"]').textContent.includes('Network'));
+    assert.equal(await f.page.evaluate(() => localStorage.getItem('ui-lang')), 'en');
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // An unsupported browser language falls back to English.
+    f = await fixture(browser, { page: 'status', locale: 'de-DE' });
+    await f.page.waitForFunction(() => document.querySelector('#goal-grid .goal-tile'));
+    assert.equal(await f.page.evaluate(() => document.documentElement.lang), 'en');
+    assert.match(await f.page.locator('#wizard-card .card-title').textContent(), /What do you want to do\?/);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }
