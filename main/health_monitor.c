@@ -2,6 +2,7 @@
  * target. One check at a time on the existing optional worker, no power action.
  * SPDX-License-Identifier: MIT */
 #include "health_monitor.h"
+#include "eth_uplink.h"
 #include "homelab_ops.h"
 #include "tailscale_config.h"
 #include "mqtt_integration.h"
@@ -107,7 +108,7 @@ static bool health_configured(const health_config_t *c,unsigned role){
     return role==0?c->gateway_port!=0:role==1?c->dns_name[0]!=0:role==2?c->internet_ip[0]!=0:c->tailnet_target[0]!=0;
 }
 static bool health_uplink(esp_netif_ip_info_t *info){
-    esp_netif_t *sta=esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_t *sta=eth_uplink_service_netif(); /* WiFi STA, or Ethernet while selected */
     return sta&&esp_netif_is_netif_up(sta)&&esp_netif_get_ip_info(sta,info)==ESP_OK&&info->ip.addr;
 }
 static int health_tcp(uint32_t nbo,uint16_t port){
@@ -153,7 +154,7 @@ static const char *health_reason(const health_result *r){
     case 1:return "Configured check succeeded; not proof of application or whole-network health";
     case 0:return "TCP connection did not succeed; timeout, refusal and filtering are not distinguished";
     case -2:return "Optional-work admission deferred the check";
-    case -3:return "WiFi uplink has no usable local IPv4 address";
+    case -3:return "Selected uplink (WiFi, or Ethernet while selected) has no usable local IPv4 address";
     case -4:return "Uplink did not provide a gateway address";
     case -5:return "SDK name lookup did not yield an IPv4 result; this alone does not prove a DNS outage";
     case -6:return "Current Tailnet policy authority is incomplete or suspended";

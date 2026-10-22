@@ -469,7 +469,7 @@ cJSON *homelab_ops_capabilities(void) {
         else if(!strcmp(id,"wifi-uplink")){hardware=wifi;configured=wifi?1:0;running=sta_address;reason="STA address observed; association/address alone do not prove Internet access.";}
         else if(!strcmp(id,"ethernet")){eth_status_t eth;eth_uplink_get_status(&eth);compiled=eth.compiled;
             hardware=eth.driver_started?1:eth.enabled_at_boot&&eth.error[0]?0:-1;configured=eth.enabled_at_boot;running=eth.has_ip;experimental=true;
-            reason="W5500 SPI module with explicit pins only; link/IP observed, not physically validated; LAN-to-Tailnet listener and health checks stay on WiFi";}
+            reason="W5500 SPI module with explicit pins only; link/IP observed, not physically validated; service listeners and health checks follow the selected uplink";}
         else if(!strcmp(id,"ipv6")){
 #if CONFIG_LWIP_IPV6
             configured=1;
