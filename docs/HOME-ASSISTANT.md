@@ -25,6 +25,7 @@ One device with sensors and controls for:
   `service_replied`, `destination_no_answer`, `source_rejected`,
   `ready_to_enable`). Totals: configured/enabled/active rules and
   accepted/blocked packets.
+- A **Service watch** switch and a **Configuration profile** sensor.
 - Switches for the same commands listed in [MQTT](MQTT.md).
 
 Entities for removed rules are cleared from retained discovery. Rule switches
