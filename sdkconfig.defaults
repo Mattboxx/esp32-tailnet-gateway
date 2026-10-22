@@ -303,3 +303,11 @@ CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS=y
 # requirement for encrypted-backup; that's now satisfied by SJCL inlined
 # into the SPA (vendor/sjcl.min.js, injected by gen_index_html_gz.py).
 # The mbedTLS X509 cert-write flags are dropped with it.
+
+# Pin the values the shipped sdkconfig inherited from its ESP-IDF 5.3.1
+# initialization, so a fresh 5.5.3 checkout builds the same image
+# (found 2026-10-22 when a new environment produced a different binary).
+CONFIG_COMPILER_ORPHAN_SECTIONS_PLACE=y
+CONFIG_LOG_COLORS=y
+CONFIG_LWIP_HOOK_IP6_INPUT_NONE=y
+CONFIG_MBEDTLS_ECP_FIXED_POINT_OPTIM=y

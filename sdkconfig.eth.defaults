@@ -1,0 +1,4 @@
+# Extra defaults for the explicit Ethernet build (env:esp32-s3-eth only).
+# Compiles the W5500 SPI driver (~61 KiB of app flash, measured 2026-10-22);
+# it stays OFF at runtime until pins are configured (main/eth_uplink.c).
+CONFIG_ETH_SPI_ETHERNET_W5500=y

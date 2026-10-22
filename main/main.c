@@ -58,6 +58,7 @@
 #include "dns_relay.h"
 #include "snmp_agent.h"
 #include "snmp_ops.h"
+#include "eth_uplink.h"
 #include "wifi_networks.h"
 #include "wol.h"
 #include "mqtt_integration.h"
@@ -1011,7 +1012,9 @@ void app_main(void)
      * four ACL chains (to_esp / from_esp / to_ap / from_ap) actually
      * drop denied traffic. Must run AFTER esp_wifi_start so the netifs
      * exist and have their default input/linkoutput function pointers. */
+    eth_uplink_init();   /* optional SPI Ethernet: prepared, not started */
     netif_hooks_init();
+    eth_uplink_start();  /* refuses to run without the Ethernet ACL hooks */
 
     /* Install ACL wrappers first; SNMP must chain through them, not bypass
      * them. The agent remains disabled unless explicitly configured. */

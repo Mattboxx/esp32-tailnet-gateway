@@ -22,6 +22,9 @@ void netif_hooks_init(void);
 /* Compatibility no-op: Tailnet policy is enforced at IPv4 input. Do not
  * periodically rewrap a netif input already owned by another component. */
 void netif_hooks_refresh(void);
+/* True once the prepared Ethernet netif carries the ESP-bound ACL hooks. */
+#include <stdbool.h>
+bool netif_hooks_eth_protected(void);
 
 /* Wire-byte counters — accumulated in the four hook tap points before
  * the ACL check, so they represent everything that actually hit the

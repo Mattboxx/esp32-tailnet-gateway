@@ -40,6 +40,10 @@ static netif_input_fn       original_sta_input       = NULL;
 static netif_linkoutput_fn  original_sta_linkoutput  = NULL;
 static netif_input_fn       original_ap_input        = NULL;
 static netif_linkoutput_fn  original_ap_linkoutput   = NULL;
+/* Optional SPI Ethernet uplink: the same ESP-bound ACL chains as the STA. */
+static netif_input_fn       original_eth_input       = NULL;
+static netif_linkoutput_fn  original_eth_linkoutput  = NULL;
+static bool                 s_eth_protected          = false;
 
 /* Wire-byte counters. Updated on the LWIP TCPIP task, read from the
  * HTTP server task. Display-only — torn reads at the 32-bit boundary
@@ -247,6 +251,20 @@ static err_t sta_linkoutput_hook(struct netif *netif, struct pbuf *p)
     return original_sta_linkoutput ? original_sta_linkoutput(netif, p) : ERR_VAL;
 }
 
+static err_t eth_input_hook(struct pbuf *p, struct netif *netif)
+{
+    if (acl_drops(acl_check_and_tap(ACL_TO_ESP, p, false))) { pbuf_free(p); return ERR_OK; }
+    return original_eth_input ? original_eth_input(p, netif) : ERR_VAL;
+}
+
+static err_t eth_linkoutput_hook(struct netif *netif, struct pbuf *p)
+{
+    if (acl_drops(acl_check_and_tap(ACL_FROM_ESP, p, false))) { return ERR_OK; }
+    return original_eth_linkoutput ? original_eth_linkoutput(netif, p) : ERR_VAL;
+}
+
+bool netif_hooks_eth_protected(void) { return s_eth_protected; }
+
 static err_t ap_input_hook(struct pbuf *p, struct netif *netif)
 {
     if (p) s_ap_bytes_in += p->tot_len;
@@ -308,6 +326,21 @@ void netif_hooks_init(void)
             nif->input              = ap_input_hook;
             nif->linkoutput         = ap_linkoutput_hook;
             ESP_LOGI(TAG, "AP hooks installed on %c%c%d", nif->name[0], nif->name[1], nif->num);
+        }
+    }
+
+    /* Exists only when the optional Ethernet uplink was prepared at boot;
+     * it is started afterwards, never before these hooks are in place. */
+    esp_netif_t *eth = esp_netif_get_handle_from_ifkey("ETH_DEF");
+    if (eth) {
+        struct netif *nif = esp_netif_get_netif_impl(eth);
+        if (nif && nif->input && nif->linkoutput) {
+            original_eth_input      = nif->input;
+            original_eth_linkoutput = nif->linkoutput;
+            nif->input              = eth_input_hook;
+            nif->linkoutput         = eth_linkoutput_hook;
+            s_eth_protected         = true;
+            ESP_LOGI(TAG, "Ethernet ACL hooks installed on %c%c%d", nif->name[0], nif->name[1], nif->num);
         }
     }
 

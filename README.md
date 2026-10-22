@@ -390,11 +390,13 @@ traffic you route through it.)*
 
 **The published binary targets ESP32-S3 N16R8 with 8 MB octal PSRAM.**
 Other ESP32 families and Ethernet-specific boards are not drop-in targets.
-Ethernet uplink is **not implemented in this application**: SNMP's generic
-ETH interface counters are not an Ethernet driver. Adding it needs hardware,
-driver initialization and routing/forwarding integration. No Ethernet-capable
-release is provided here. Community ports are welcome, but
-do not flash this image onto an unrelated board.
+The published images are WiFi-only. The development line adds an optional
+**W5500 SPI Ethernet uplink** in a separate build (`esp32-s3-eth`) for boards
+with an explicitly wired module: OFF by default, explicit pins, DHCP or static
+IPv4, WiFi-first or Ethernet-first uplink selection, firewall hooks before
+start. It is host-tested but **not physically validated**; see
+[the Ethernet guide](docs/ETHERNET.md). SNMP's generic ETH counters are not an
+Ethernet driver. Do not flash this image onto an unrelated board.
 
 ### Upstream board compatibility reports (not current fork certification)
 

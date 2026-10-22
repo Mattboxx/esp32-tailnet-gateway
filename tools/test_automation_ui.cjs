@@ -82,6 +82,10 @@ async function fixture(browser, options = {}) {
     } else if (url.pathname === '/api/system/updates/install' || url.pathname === '/api/system/updates/check') {
       state.updatesBody = { ...(state.updatesBody || updates), busy: true, status: 'Checking GitHub releases' };
       body = { ok: true }; status = 202;
+    } else if (url.pathname === '/api/ethernet') {
+      if (route.request().method() === 'POST') { state.savedEthernet = route.request().postDataJSON(); body = {ok: true, restart_required: true}; }
+      else body = state.ethernetBody || {config:{enabled:false,chip:'w5500',spi_host:2,spi_mhz:20,sclk:12,mosi:11,miso:13,cs:10,int:14,rst:9,static_ip:false,ip:'',netmask:'',gateway:'',dns:'',preference:'wifi_first'},
+        status:{compiled:false,enabled_at_boot:false,driver_started:false,link_up:false,has_ip:false,selected_uplink:false,restart_required:false,link_changes:0,ip:'',netmask:'',gateway:'',error:''}};
     } else if (url.pathname === '/api/profiles') {
       const profiles=[{id:'gateway',title:'Gateway',summary:'Fixture gateway',enables:['service_expiry_notifications']},
         {id:'monitoring',title:'Monitoring',summary:'Fixture monitoring',enables:['device_monitoring','health_monitor']},
@@ -754,6 +758,20 @@ async function main() {
     await f.page.locator('#ntfy-save').click();
     for(let i=0;i<50&&!f.state.savedNtfy;i++)await f.page.waitForTimeout(100);
     assert.equal(f.state.savedNtfy.system_events,true);assert.equal(f.state.savedNtfy.tailscale_alerts,false); // other switches unchanged
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Ethernet: WiFi-only image reports not compiled; Ethernet build saves typed settings.
+    f=await fixture(browser,{page:'network'});
+    await f.page.waitForFunction(()=>document.getElementById('eth-status').textContent.includes('Not available in this firmware build'));
+    assert.equal(await f.page.locator('#eth-badge').textContent(),'Not compiled');
+    await f.context.close();count++;
+    f=await fixture(browser,{page:'network',ethernetBody:{config:{enabled:false,chip:'w5500',spi_host:2,spi_mhz:20,sclk:12,mosi:11,miso:13,cs:10,int:14,rst:9,static_ip:false,ip:'',netmask:'',gateway:'',dns:'',preference:'wifi_first'},
+      status:{compiled:true,enabled_at_boot:false,driver_started:false,link_up:false,has_ip:false,selected_uplink:false,restart_required:false,link_changes:0,ip:'',netmask:'',gateway:'',error:''}}});
+    await f.page.waitForFunction(()=>document.getElementById('eth-status').textContent==='Off.');
+    await f.page.locator('label:has(#eth-enabled)').click();await f.page.locator('#eth-pref').selectOption('ethernet_first');
+    await f.page.locator('label:has(#eth-static)').click();await f.page.locator('#eth-ip').fill('192.168.1.60');await f.page.locator('#eth-mask').fill('255.255.255.0');await f.page.locator('#eth-gw').fill('192.168.1.1');
+    await f.page.locator('#eth-save').click();
+    for(let i=0;i<50&&!f.state.savedEthernet;i++)await f.page.waitForTimeout(100);
+    assert.deepEqual(f.state.savedEthernet,{enabled:true,chip:'w5500',preference:'ethernet_first',spi_host:2,spi_mhz:20,sclk:12,mosi:11,miso:13,cs:10,int:14,rst:9,static_ip:true,ip:'192.168.1.60',netmask:'255.255.255.0',gateway:'192.168.1.1',dns:''});
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }

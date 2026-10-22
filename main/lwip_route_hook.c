@@ -39,6 +39,7 @@
 #include "microlink.h"
 #include "tailscale_config.h"
 #include "tailnet_forward.h"
+#include "eth_uplink.h"
 #include "ping/ping_sock.h"
 
 static const char *TAG = "exit_route";
@@ -298,6 +299,7 @@ typedef struct {
     struct netif *uplink;
     bool wg_ready;
     struct netif *default_netif;
+    struct netif *preferred;  /* NULL unless the optional Ethernet uplink is enabled */
 } supervisor_netifs_t;
 
 static void supervisor_netifs_cb(void *ctx)
@@ -305,6 +307,8 @@ static void supervisor_netifs_cb(void *ctx)
     supervisor_netifs_t *state = ctx;
     state->wg = find_wg_netif();
     state->uplink = find_sta_netif();
+    state->preferred = eth_uplink_lwip_select(state->uplink);
+    if (state->preferred) state->uplink = state->preferred;
     state->wg_ready = state->wg && netif_is_up(state->wg);
     state->default_netif = netif_default;
 }
@@ -412,7 +416,7 @@ static void route_supervisor_task(void *arg)
                 keepalive_start(tailscale_exit_node_ip);
             }
         } else {
-            want = s_original_default;
+            want = netifs.preferred ? netifs.preferred : s_original_default;
             if (s_wg_udp_pinned) {
                 microlink_t *ml = tailscale_get_microlink();
                 if (ml) pin_wg_output_sync(ml, NULL, pin_done, pin_completion);

@@ -44,6 +44,10 @@ static void fourvia6_get_status(fourvia6_status_t *v){v->enabled=true;}
 static void ml_policy_get_status(ml_policy_status_t *p){p->authority_ready=false;}
 static void tailnet_forward_totals(uint32_t *e,uint32_t *i,void *a,void *b){(void)a;(void)b;*e=2;*i=0;}
 static int tailnet_forward_count(void){return 2;}
+typedef struct {bool compiled,enabled_at_boot,driver_started,link_up,has_ip,selected,restart_required;uint32_t ip,mask,gw,link_changes;char error[64];} eth_status_t;
+static eth_status_t eth_fixture;
+#define ETH_MANIFEST_SUMMARY "w5500-spi-conditional"
+static void eth_uplink_get_status(eth_status_t *o){*o=eth_fixture;}
 static bool active(int state){(void)state;return false;}
 static esp_netif_t *esp_netif_get_handle_from_ifkey(const char *s){(void)s;static int n;return &n;}
 static int esp_netif_get_ip_info(void *n,esp_netif_ip_info_t *ip){(void)n;ip->ip.addr=1;return 0;}
@@ -75,6 +79,14 @@ int main(void){
     assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"lan-tailnet-forwarding"),"active")));
     assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"ethernet"),"compiled")));
     assert(cJSON_IsNull(cJSON_GetObjectItem(feature(r,"ethernet"),"hardware_supported")));
+    { /* Compiled but disabled: unknown hardware; started: hardware true, IP observed = active; failed start: false. */
+      eth_fixture=(eth_status_t){.compiled=true};cJSON *e=homelab_ops_capabilities();cJSON *f=feature(e,"ethernet");
+      assert(cJSON_IsTrue(cJSON_GetObjectItem(f,"compiled"))&&cJSON_IsNull(cJSON_GetObjectItem(f,"hardware_supported"))&&cJSON_IsFalse(cJSON_GetObjectItem(f,"configured")));cJSON_Delete(e);
+      eth_fixture=(eth_status_t){.compiled=true,.enabled_at_boot=true,.driver_started=true,.has_ip=true};e=homelab_ops_capabilities();f=feature(e,"ethernet");
+      assert(cJSON_IsTrue(cJSON_GetObjectItem(f,"hardware_supported"))&&cJSON_IsTrue(cJSON_GetObjectItem(f,"active"))&&cJSON_IsTrue(cJSON_GetObjectItem(f,"experimental")));cJSON_Delete(e);
+      eth_fixture=(eth_status_t){.compiled=true,.enabled_at_boot=true,.error="driver start failed"};e=homelab_ops_capabilities();f=feature(e,"ethernet");
+      assert(cJSON_IsFalse(cJSON_GetObjectItem(f,"hardware_supported"))&&cJSON_IsFalse(cJSON_GetObjectItem(f,"active")));cJSON_Delete(e);
+      eth_fixture=(eth_status_t){0}; }
     char *s=cJSON_PrintUnformatted(r);assert(s&&!strstr(s,"PRIVATE_"));cJSON_free(s);cJSON_Delete(r);assert(!live);
     for(unsigned i=1;i<=total;i++){allocations=0;fail_at=i;r=homelab_ops_capabilities();assert(!r);assert(!live);}
     fail_at=0;psram=features=0;broker=healthy=connected=false;r=homelab_ops_capabilities();assert(r);

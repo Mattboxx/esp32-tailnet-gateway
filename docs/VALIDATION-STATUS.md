@@ -75,6 +75,13 @@ over from the interrupted Codex session without resetting anything.
   snmp_codec PASS (actual MIB walk, 23 rows) and, after `e0b94b8`, the actual
   provider (values, sentinel, SG counts). SNMP task stack HWM unmeasured. Build PASS
   **1,820,404 (92.6%)**. Snapshot `.../snmp-service-evidence/`: BIN `70412c58f7c7aeb2b88447f46d01440b34c1d966029c11dd369c9260fccc8fd9`, ELF `a0159b1a865bf1d54698fd54749e60632001ed52680371cca391c0170c9c4c7e`.
+- Commit `792457d`. Then F31 conditional W5500 Ethernet (ADR-019): eth_uplink
+  core driver PASS; capabilities (+3 Ethernet states), route_hook, netif_hooks
+  PASS; browser 53/53. Default build PASS **1,828,368 (93.0%)**, BIN `153d0b3b54ffa0d0ebc7e1861fa0c75bb02875c33094693c298abb01adde2681`
+  (`.../ethernet-default/`). Ethernet build `esp32-s3-eth` PASS **1,881,192
+  (95.7%)**, BIN `60c8109224b82ce7a3a1657675d6ce65c4d8c91b7bfc5c48106b7636028c705b` (`build/validation-20261022-eth-env/`). Driver,
+  link, DHCP, ACL hooks and uplink switching are NOT exercised on hardware.
+  Reproducibility fix: four inherited options pinned in sdkconfig.defaults.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 
