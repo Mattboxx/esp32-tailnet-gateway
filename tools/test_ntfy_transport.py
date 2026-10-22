@@ -160,6 +160,8 @@ static esp_err_t nvs_commit(nvs_handle_t n) {
     memcpy(stored,pending,pending_size);stored_size=pending_size;return ESP_OK;
 }
 static void nvs_close(nvs_handle_t n) {(void)n;nvs_closes++;pending_size=0;}
+static uint8_t sysev_value=0xff;static int sysev_failure;
+static esp_err_t nvs_param_set_u8(const char *k,uint8_t v){assert(!strcmp(k,"ntfy_sysev")&&v<=1);if(sysev_failure)return ESP_FAIL;sysev_value=v;return ESP_OK;}
 static esp_err_t nvs_param_get_u8(const char *k,uint8_t *out) {
     if(!legacy_present)return ESP_ERR_NVS_NOT_FOUND;
 #define OLD_BOOL(key,field) if(!strcmp(k,key)){*out=legacy_config.field;return ESP_OK;}
@@ -345,6 +347,14 @@ int main(void) {
     }
     assert(ntfy_integration_set_config(&changed)==ESP_OK);
     load_state(&loaded);assert(!strcmp(loaded.topic,"changed")&&!s_last_event_id[0]);
+    /* System events live in a separate key: failure leaves both stores and RAM
+     * unchanged; a failed main record reverts the separate key. */
+    ntfy_integration_config_t events=changed;events.system_events=true;
+    sysev_failure=1;assert(ntfy_integration_set_config(&events)!=ESP_OK&&!s_config.system_events&&sysev_value==0xff);sysev_failure=0;
+    write_failure=1;assert(ntfy_integration_set_config(&events)!=ESP_OK&&!s_config.system_events&&sysev_value==0);write_failure=0;
+    assert(ntfy_integration_set_config(&events)==ESP_OK&&s_config.system_events&&sysev_value==1);
+    sysev_value=0x55;assert(ntfy_integration_set_config(&events)==ESP_OK&&sysev_value==0x55); /* unchanged flag: no extra write */
+    events.system_events=false;assert(ntfy_integration_set_config(&events)==ESP_OK&&sysev_value==0&&!s_config.system_events);
     /* Valid legacy settings migrate, but corrupt new data never falls back. */
     legacy_present=true;legacy_config=c;stored_size=0;
     load_state(&loaded);assert(config_equal(&c,&loaded)&&!strcmp(s_last_event_id,"legacy-id"));

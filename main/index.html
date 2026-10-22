@@ -2901,6 +2901,7 @@
           <div class="alert alert-warning" id="ntfy-transport-warning" style="display:none; margin-bottom:var(--sp-4);">Plain HTTP exposes the ntfy token, notifications and remote commands in transit. Prefer <code class="mono">https://</code>.</div>
           <div class="form-group"><label class="form-label" for="ntfy-token">Access token</label><input class="input" type="password" id="ntfy-token" autocomplete="new-password" placeholder="Optional — leave empty to keep"><label class="form-hint" style="display:flex;gap:0.35rem;align-items:center;"><input type="checkbox" id="ntfy-token-clear"> Clear saved token</label></div>
           <div class="grid grid-cols-2">
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-system-events"><span class="feature-switch-track" aria-hidden="true"></span><span>System events: gateway started, Tailscale restored after an alert, firmware update available</span></label><span class="form-hint">Off by default. One message per event; updates are only announced, never installed by this option.</span></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-alerts"><span class="feature-switch-track" aria-hidden="true"></span><span>Alert when internet works but Tailscale stays down</span></label><div class="feature-inline-dependent" id="ntfy-alert-settings"><label class="form-label" for="ntfy-delay" style="margin-top:0.5rem;">Failure delay (seconds)</label><input class="input mono" type="number" id="ntfy-delay" min="15" max="3600" value="120"></div></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-commands"><span class="feature-switch-track" aria-hidden="true"></span><span>Receive remote commands</span></label><div class="feature-inline-dependent" id="ntfy-command-settings"><label class="form-label" for="ntfy-poll" style="margin-top:0.5rem;">Poll interval (seconds)</label><input class="input mono" type="number" id="ntfy-poll" min="5" max="300" value="15"></div></div>
           </div>
@@ -7758,6 +7759,7 @@
         document.getElementById('ntfy-token').placeholder = d.has_token ? 'Saved — leave empty to keep' : 'Optional';
         document.getElementById('ntfy-token-clear').checked = false;
         document.getElementById('ntfy-alerts').checked = !!d.tailscale_alerts;
+        document.getElementById('ntfy-system-events').checked = !!d.system_events;
         document.getElementById('ntfy-commands').checked = !!d.commands_enabled;
         document.getElementById('ntfy-down-only').checked = !!d.commands_only_when_tailscale_down;
         document.getElementById('ntfy-direct-mac').checked = !!d.allow_direct_mac;
@@ -7774,7 +7776,7 @@
         document.getElementById('ntfy-save').disabled = true;
       });
     }
-    ['ntfy-enabled','ntfy-server','ntfy-topic','ntfy-token','ntfy-token-clear','ntfy-alerts',
+    ['ntfy-enabled','ntfy-server','ntfy-topic','ntfy-token','ntfy-token-clear','ntfy-alerts','ntfy-system-events',
      'ntfy-commands','ntfy-down-only','ntfy-direct-mac','ntfy-info','ntfy-info-details','ntfy-delay','ntfy-poll'].forEach(function(id) {
       var el=document.getElementById(id);
       el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', function() {
@@ -7805,6 +7807,7 @@
         topic:document.getElementById('ntfy-topic').value.trim(),
         clear_token:document.getElementById('ntfy-token-clear').checked,
         tailscale_alerts:document.getElementById('ntfy-alerts').checked,
+        system_events:document.getElementById('ntfy-system-events').checked,
         commands_enabled:document.getElementById('ntfy-commands').checked,
         commands_only_when_tailscale_down:document.getElementById('ntfy-down-only').checked,
         allow_direct_mac:document.getElementById('ntfy-direct-mac').checked,

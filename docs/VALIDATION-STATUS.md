@@ -62,6 +62,14 @@ over from the interrupted Codex session without resetting anything.
   4,741 B (level 2) under the 6,144 B budget. Whole on-device state size is
   still unmeasured. Build PASS **1,818,188 (92.5%)**. Snapshot
   `.../mqtt-state-budget/`: BIN `5d09639fa75d22dd20dbb04256c59c9b4603741c50c6d62401eb00cfd794a562`, ELF `331272c5b5e6339e0626275aa0ea2ad632c4860cc7a7e34da0522a805ce88ba4`.
+- Commit root `371c2c7`. Then F29 opt-in ntfy system events (boot with reset
+  reason, Tailscale restored after a delivered alert, update available, never
+  installed), separate NVS key `ntfy_sysev` for downgrade safety. Drivers PASS:
+  ntfy_logic (+actual scheduler), ntfy_transport (+separate-key fault/rollback),
+  ntfy_stack incl. exact ELF ENTRY budgets: task_main 688/768,
+  send_system_event 576/768, available_update_id 384/768 (frames, not task
+  HWM). Build PASS **1,819,668 (92.6%)**; browser 51/51. Snapshot
+  `.../ntfy-system-events/`: BIN `553c021c20ac1ddf46c79cb46dac52e8dce7b9e22d464c48fe51a3bbe90c044b`, ELF `2f6eef4bd1a9ba9d44d0745da0d24c0c31a42c9dc8d8f3cbd45891b9317e918b`.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 

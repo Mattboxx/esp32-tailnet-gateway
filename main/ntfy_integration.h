@@ -13,6 +13,7 @@ typedef struct {
     bool allow_direct_mac;
     bool info_enabled;
     bool info_include_details;
+    bool system_events;  /* opt-in boot/restored/update-available messages */
     char server[160];
     char topic[96];
     char token[160];

@@ -18,8 +18,9 @@ Since then (uncommitted): ml_policy admitted-reply evidence, per-rule last
 accepted/rejected stamps, evidence-aware diagnosis (ADR-016), inline guide
 destination test; 48 browser scenarios. Templates/home-card expiry and sanitized SG export done after commit `6304913`.
 SG MQTT/HA evidence done after `ccf32ab` (shared service_evidence.h). Next, in
-order: MQTT state budget done (ADR-017, `mqtt_state`). (1) F29 ntfy remaining
-events; (2) on-device MQTT state size check in the final campaign; (3) F27–F29 remaining events/commands;
+order: MQTT state budget (ADR-017) and ntfy system events (ADR-018) done.
+(1) F32 SNMP: Service Gateway counters/evidence OIDs; (2) on-device MQTT state
+size check in the final campaign; (3) F27–F29 remaining events/commands;
 (4) F31 Ethernet design (conditional); (5) consolidated validation incl. Linux
 sanitizers for web_security/config_profiles/service_check/policy_protocols.
 Flash ~148 KiB free: keep additions compact. Nothing committed; no image saved.
