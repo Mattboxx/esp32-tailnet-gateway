@@ -182,13 +182,24 @@ int main(void){
 ''')
 
 web = (ROOT / 'main/web_ui.c').read_text(encoding='utf-8')
-handler = function(web, 'static esp_err_t tailnet_forward_handler(')
+handler = function(web, 'static bool json_age(') + function(web, 'static esp_err_t tailnet_forward_handler(')
 run(HEAD + r'''
 #include "cJSON.h"
 #include "json_guard.h"
 #include "tailnet_forward.h"
 #include "service_diagnostics.h"
+#include "service_check.h"
 typedef struct {int status;char *response;} httpd_req_t;
+static int64_t fixture_us=100000000; /* uptime 100 s -> now_s 101 */
+static int64_t esp_timer_get_time(void){return fixture_us;}
+static bool reply_seen;static uint32_t reply_ms;static uint8_t reply_ip[4];static uint16_t reply_port;
+bool ml_policy_reply_age(uint8_t proto,const uint8_t ip[4],uint16_t port,uint32_t *age){assert(proto==6||proto==17);memcpy(reply_ip,ip,4);reply_port=port;if(reply_seen)*age=reply_ms;return reply_seen;}
+static uint32_t service_lease_token(const tailnet_forward_rule_t *r){return r->destination_port*7u+1u;}
+static bool check_seen;static service_check_result_t check_result;
+bool service_check_get(int i,uint32_t token,service_check_result_t *out){(void)i;assert(token);if(!check_seen)return false;*out=check_result;return true;}
+const char *service_check_state_name(unsigned s){return s==SC_REACHABLE?"reachable":"not_tested";}
+const char *service_check_summary(unsigned s){(void)s;return "fixture summary";}
+const char *service_check_next_step(unsigned s){(void)s;return "fixture step";}
 #define IPSTR "%u.%u.%u.%u"
 #define IP2STR(a) 192u,0u,2u,20u
 typedef int esp_netif_t;
@@ -214,9 +225,12 @@ static void check(const char *code){
  cJSON *a=cJSON_GetObjectItem(root,"rules");assert(cJSON_GetArraySize(a)==rows);
  cJSON *j=cJSON_GetArrayItem(a,0),*d=cJSON_GetObjectItem(j,"diagnostic");
  assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(d,"code")),code));
- assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(d,"service_status")),"not_tested"));
+ assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(d,"service_status")),service_check_state_name(check_seen?check_result.state:0)));
  assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(d,"data_plane_status")),"not_verified"));
  cJSON_Delete(root);
+}
+static cJSON *first_rule(void){
+ httpd_req_t r={.status=200};assert(tailnet_forward_handler(&r)==0);cJSON *root=cJSON_Parse(r.response);assert(root);free(r.response);return root;
 }
 static unsigned allocations,fail_at;
 static void *allocate(size_t n){return ++allocations==fail_at?NULL:malloc(n);}
@@ -241,6 +255,33 @@ int main(void){
  runtime.error[0]=0;
  authenticated=false;httpd_req_t denied={.status=200};assert(tailnet_forward_handler(&denied)==ESP_FAIL&&denied.status==401&&!denied.response);authenticated=true;
  send_result=-9;check("mapping_installed");send_result=0;
+ /* Activity ages, null when never; reply evidence keyed by resolved IP/port; check result shape. */
+ rows=1;runtime.resolved_ip=0x64400002;rule.destination_port=1883;runtime.last_accepted_s=0;runtime.last_blocked_s=91;
+ cJSON *root=first_rule(),*j=cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),*act=cJSON_GetObjectItem(j,"activity");
+ assert(cJSON_IsNull(cJSON_GetObjectItem(act,"last_accepted_age_s"))&&cJSON_GetObjectItem(act,"last_rejected_age_s")->valuedouble==10);
+ assert(cJSON_IsNull(cJSON_GetObjectItem(act,"service_reply_age_s"))&&!cJSON_GetObjectItem(j,"destination_check"));
+ assert(reply_ip[0]==100&&reply_ip[1]==64&&reply_ip[2]==0&&reply_ip[3]==2&&reply_port==1883);
+ assert(cJSON_GetObjectItem(j,"rule_token")->valuedouble==1883*7+1&&cJSON_GetObjectItem(j,"index")->valuedouble==0);cJSON_Delete(root);
+ reply_seen=true;reply_ms=4999;runtime.last_accepted_s=200; /* clock skew: stamp ahead of now -> 0, never negative */
+ check_seen=true;check_result=(service_check_result_t){.state=SC_REACHABLE,.token=1,.latency_ms=42,.resolved_ip=0x64400002,.observed_ms=95000};
+ root=first_rule();j=cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0);act=cJSON_GetObjectItem(j,"activity");
+ assert(cJSON_GetObjectItem(act,"service_reply_age_s")->valuedouble==4&&cJSON_GetObjectItem(act,"last_accepted_age_s")->valuedouble==0);
+ cJSON *dc=cJSON_GetObjectItem(j,"destination_check");
+ assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(dc,"state")),"reachable")&&!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(dc,"checked_ip")),"100.64.0.2"));
+ assert(cJSON_GetObjectItem(dc,"latency_ms")->valuedouble==42&&cJSON_GetObjectItem(dc,"age_s")->valuedouble==5);
+ assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(j,"diagnostic"),"service_status")),"reachable"));
+ cJSON_Delete(root);
+ /* Evidence refines only the matching passive states. */
+ runtime.last_accepted_s=0;runtime.last_blocked_s=0;reply_seen=false;check_seen=false;check("mapping_installed");
+ runtime.last_blocked_s=50;check("source_rejected");runtime.last_accepted_s=60;check("mapping_installed");
+ check_seen=true;check_result.state=SC_NO_ANSWER;check("destination_no_answer");
+ check_result.state=SC_REACHABLE;check("destination_reachable");
+ reply_seen=true;check("service_replied");
+ rule.enabled=0;check("ready_to_enable");check_result.state=SC_NO_ANSWER;check("disabled");rule.enabled=1;
+ uplink=false;check("uplink_no_ipv4");uplink=true; /* passive faults are never masked by evidence */
+ reply_seen=false;check_seen=false;runtime.last_accepted_s=runtime.last_blocked_s=0;
+ runtime.resolved_ip=0;root=first_rule();cJSON_Delete(root);
+ runtime.resolved_ip=1;reply_seen=false;check_seen=false;
  cJSON_Hooks hooks={allocate,free};cJSON_InitHooks(&hooks);allocations=0;fail_at=0;
  httpd_req_t base={.status=200};assert(tailnet_forward_handler(&base)==0);unsigned count=allocations;free(base.response);
  for(unsigned fail=1;fail<=count;fail++){

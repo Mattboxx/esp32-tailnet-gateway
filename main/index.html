@@ -5472,10 +5472,15 @@
        page:'network',focus:['tf-template','tf-list'],checks:[WZ_UPLINK,WZ_TS,WZ_PASSWORD,
         wzCheck('A free service rule slot',function(){return wzGet('/api/tailnet-forward').then(function(d){return (d.rules||[]).length<d.max?true:'All '+d.max+' rules are in use; remove one first';});})],exposure:true,
        risks:['Any device matching the source CIDR can use the service through this gateway; an address filter is not an identity.','Remote peers see the gateway’s Tailnet identity, so their ACLs must allow this gateway.','Throughput is limited by the ESP32 (WiFi plus WireGuard in software); suited to control and light traffic, not bulk transfers.','New rules start disabled; enable each one explicitly and prefer an expiry for temporary access.'],sections:[],
-       verify:function(){return wzGet('/api/tailnet-forward').then(function(d){var rules=d.rules||[];
+       verify:function(){return wzGet('/api/tailnet-forward').then(async function(d){var rules=d.rules||[],note='';
+         var next=rules.filter(function(r){return (r.protocol||'tcp')==='tcp'&&Number.isInteger(r.rule_token)&&(!r.destination_check||r.destination_check.state==='not_tested');})[0];
+         if(next){var resp=await apiFetch('/api/tailnet-forward/check',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({index:next.index,rule_token:next.rule_token})});
+           if(resp.ok){for(var t=0;t<4;t++){await new Promise(function(res){setTimeout(res,t?1500:1000);});d=await wzGet('/api/tailnet-forward');rules=d.rules||[];
+             var now=rules.filter(function(r){return r.index===next.index;})[0];if(now&&now.destination_check&&now.destination_check.state!=='pending'){note=' Destination test for “'+(now.name||'rule '+(now.index+1))+'”: '+now.destination_check.summary+'.';break;}}}
+           else note=' Destination test not started (HTTP '+resp.status+').';}
          var enabled=rules.filter(function(r){return r.enabled;}).length,installed=rules.filter(function(r){return r.installed;}).length,
            reachable=rules.filter(function(r){return r.destination_check&&r.destination_check.state==='reachable';}).length;
-         return rules.length+' rule(s): '+enabled+' enabled, '+installed+' installed, '+reachable+' with a reachable destination test. Connect from the allowed LAN client to confirm the application.';});}},
+         return rules.length+' rule(s): '+enabled+' enabled, '+installed+' installed, '+reachable+' with a reachable destination test.'+note+' Connect from the allowed LAN client to confirm the application.';});}},
       {id:'first-boot',title:'First boot',goal:'Name the device, protect administration and join your network.',page:'system',focus:['sys-device-name'],checks:[WZ_PASSWORD,WZ_UPLINK],
        risks:['Without a web password anyone on the LAN or AP can change settings.'],sections:[]},
       {id:'tailscale',capability:'tailscale',title:'Tailscale / Headscale',goal:'Join your tailnet with an auth key; for Headscale set the login server URL.',page:'tailscale',focus:['ts-auth-key','ts-login','ts-hostname'],checks:[WZ_UPLINK],
@@ -6419,6 +6424,14 @@
       document.getElementById('tf-badge').className='badge badge-warning';
     }
     var TF_CHECK_BADGE={reachable:'badge-success',no_tcp_answer:'badge-danger',pending:'badge-neutral',rule_changed:'badge-warning'};
+    function tfAge(v){return v==null?'never this boot':v<1?'just now':v+' s ago';}
+    function tfActivityHtml(r){
+      var a=r.activity;if(!a)return '';
+      var udp=(r.protocol||'tcp')==='udp';
+      return '<div class="form-hint tf-activity">Last accepted: '+escapeHtml(tfAge(a.last_accepted_age_s))+' · last rejected: '+escapeHtml(tfAge(a.last_rejected_age_s))
+        +' · reply from the Tailnet service: '+escapeHtml(a.service_reply_age_s==null?'none seen':tfAge(a.service_reply_age_s))
+        +(udp?' (for UDP this reply is the only evidence the service answers)':'')+'.</div>';
+    }
     function tfCheckHtml(r){
       if(!Number.isInteger(r.index)||!Number.isInteger(r.rule_token))return '';
       var c=r.destination_check,label=!c?'Not tested':c.state==='reachable'?'Reachable from gateway ('+c.latency_ms+' ms)':c.state==='pending'?'Testing…':c.summary;
@@ -6467,7 +6480,7 @@
           +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Protocol</label><select class="select tf-proto"><option value="tcp" '+(r.protocol!=='udp'?'selected':'')+'>TCP</option><option value="udp" '+(r.protocol==='udp'?'selected':'')+'>UDP</option></select></div><div class="form-group"><label class="form-label">Listen port</label><input class="input mono tf-listen" type="number" min="1" max="65535" value="'+escapeHtml(r.listen_port||'')+'" placeholder="18830"></div></div>'
           +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Tailnet destination</label><input class="input mono tf-dest" maxlength="95" value="'+escapeHtml(r.tailnet_destination||'')+'" placeholder="100.64.0.2 or broker.tailnet.ts.net"><span class="form-hint">Must resolve to 100.64.0.0/10.</span></div><div class="form-group"><label class="form-label">Destination port</label><input class="input mono tf-dport" type="number" min="1" max="65535" value="'+escapeHtml(r.destination_port||'')+'" placeholder="1883"></div></div>'
           +'<div class="form-group"><label class="form-label">Allowed source subnet</label><input class="input mono tf-cidr" value="'+escapeHtml(r.allowed_source_subnet||'')+'" placeholder="192.168.50.42/32"><span class="form-hint">Prefer a single client (/32) when possible. This is an address filter, not client identity.</span></div>'
-          +tfCheckHtml(r)+tfDiagnosticHtml(r)+'</div>';
+          +tfCheckHtml(r)+tfActivityHtml(r)+tfDiagnosticHtml(r)+'</div>';
       }).join('');
       document.querySelectorAll('.tf-row').forEach(function(row){
         row.querySelectorAll('input,select').forEach(function(el){el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',tfDirty);});

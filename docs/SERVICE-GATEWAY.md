@@ -54,6 +54,16 @@ waits for them. A result belongs to the rule's exact settings: editing the
 destination, port, protocol or source hides it. Requires a board with PSRAM
 for the optional worker.
 
+## Activity and reply evidence (development line)
+
+Each rule shows when the gateway last **accepted** and last **rejected** a LAN
+packet for it (uptime-based, "never this boot" after a restart), and when the
+Tailnet service last **replied**: the newest reply the policy gate admitted on
+a flow this gateway sent to that destination IP and port. For UDP that reply is
+the only evidence the service answers. Reply evidence belongs to the remote
+service tuple, so rules sharing a destination share it; it is not per LAN
+client, and it disappears while authority is suspended or after revocation.
+
 ## Performance and limits
 
 IPv4 TCP/UDP, up to 8 rules, destination in `100.64.0.0/10`. Clients connect to
@@ -144,7 +154,20 @@ runtime report, historical accepted/rejected counts and next step.
   tested**. Try from the permitted client, then check remote service/listener,
   authentication, firewall and applicable tailnet policy if it fails.
 
-There is no background probing and no automatic refresh added by this panel.
+Development line: evidence refines these states without hiding a passive
+fault (an uplink or control problem always wins):
+
+- Ready to enable: rule disabled, destination test reachable.
+- Service replied recently: the policy gate admitted a reply from that
+  destination on a flow this gateway sent. Not per LAN client.
+- Destination test got no TCP answer: check the peer, its listener and the
+  Tailnet ACL for this gateway.
+- Only rejected LAN packets seen: traffic reaches the listener but not from the
+  allowed source (or the expiry closed it). Compare the client with the CIDR.
+- Destination test reachable: try from the allowed client.
+
+There is no background probing and no automatic refresh added by this panel;
+the destination test runs only when requested.
 Save applies edits; an unsaved draft does not inherit an old “working” label.
 A failed read retains fields and reports unavailable; retry Reload before Save.
 

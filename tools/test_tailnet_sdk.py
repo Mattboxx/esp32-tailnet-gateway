@@ -85,6 +85,8 @@ static int lock_depth;
 static tailnet_forward_rule_t s_rules[TAILNET_FORWARD_MAX];
 static tailnet_forward_runtime_t s_runtime[TAILNET_FORWARD_MAX];
 static int s_count;
+static uint32_t fixture_uptime_s=1;
+#define TF_UPTIME_S() fixture_uptime_s
 static uint64_t s_generation=1;
 typedef struct { bool installed;tailnet_forward_mapping_t mapping; } active_mapping_t;
 static active_mapping_t s_active[TAILNET_FORWARD_MAX];

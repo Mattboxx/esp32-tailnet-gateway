@@ -68,7 +68,24 @@ int main(void){
     extended[42]=0;extended[6]=44;assert(ml_policy_rx(&p,key_a)); /* Atomic. */
     extended[43]=1;assert(!ml_policy_rx(&p,key_a)); /* Fragment needs reassembly. */
     extended[43]=0;extended[6]=43;assert(!ml_policy_rx(&p,key_a)); /* Routing hdr. */
-    ml_policy_reset();puts("PASS: actual policy related TCP/UDP ICMPv4/v6, wrong key/tuple/truncation/revoke; bounded IPv6 options/atomic fragment (host only)");
+    /* Reply evidence: only an ADMITTED reply on a flow this node sent counts. */
+    ml_policy_reset();standard();
+    const uint8_t svc[4]={100,64,0,1},other[4]={100,64,0,2};uint32_t age=0;
+    assert(!ml_policy_reply_age(17,svc,53,&age));
+    struct pbuf q=packet(4,17,"100.64.0.10","100.64.0.1",40001,53,0,0);ml_policy_sent(&q,key_a);
+    assert(!ml_policy_reply_age(17,svc,53,&age)); /* a send alone is not a reply */
+    assert(!rx(4,17,"100.64.0.1","100.64.0.10",53,40001,0,key_b)); /* wrong key admits nothing */
+    assert(!ml_policy_reply_age(17,svc,53,&age));
+    clock_ms+=10;assert(rx(4,17,"100.64.0.1","100.64.0.10",53,40001,0,key_a));
+    clock_ms+=1500;assert(ml_policy_reply_age(17,svc,53,&age)&&age==1500);
+    assert(!ml_policy_reply_age(17,svc,54,&age)&&!ml_policy_reply_age(6,svc,53,&age)&&!ml_policy_reply_age(17,other,53,&age));
+    assert(!ml_policy_reply_age(17,NULL,53,&age)&&!ml_policy_reply_age(17,svc,53,NULL));
+    q=packet(4,17,"100.64.0.10","100.64.0.1",40001,53,0,0);ml_policy_sent(&q,key_a);
+    assert(ml_policy_reply_age(17,svc,53,&age)&&age==1500); /* resend keeps the original reply time */
+    clock_ms+=200;assert(ml_policy_reply_age(17,svc,53,&age)&&age==1700);
+    ml_policy_suspend();assert(!ml_policy_reply_age(17,svc,53,&age)); /* no evidence while suspended */
+    ml_policy_reset();assert(!ml_policy_reply_age(17,svc,53,&age));
+    ml_policy_reset();puts("PASS: actual policy related TCP/UDP ICMPv4/v6, wrong key/tuple/truncation/revoke; bounded IPv6 options/atomic fragment; admitted-reply evidence (host only)");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='policy-protocol-') as directory:

@@ -26,6 +26,7 @@ typedef struct {
     bool installed;
     uint32_t resolved_ip;
     uint32_t accepted_packets, blocked_packets;
+    uint32_t last_accepted_s, last_blocked_s; /* uptime seconds, 0 = never this boot */
     char error[64];
 } tailnet_forward_runtime_t;
 
