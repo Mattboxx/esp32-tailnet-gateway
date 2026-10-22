@@ -198,6 +198,31 @@ static esp_err_t post_service_check(httpd_req_t *req) {
     } else {httpd_resp_set_status(req,"202 Accepted");if(reply){cJSON_AddBoolToObject(reply,"ok",true);cJSON_AddStringToObject(reply,"state","pending");}}
     return send_json(req,reply);
 }
+static cJSON *watch_json(void) {
+    service_watch_config_t w;service_watch_get(&w);cJSON *o=cJSON_CreateObject();
+    if(o&&!(cJSON_AddBoolToObject(o,"enabled",w.enabled)&&cJSON_AddBoolToObject(o,"notify",w.notify)&&cJSON_AddNumberToObject(o,"interval_s",w.interval_s))){cJSON_Delete(o);o=NULL;}
+    return o;
+}
+static esp_err_t get_service_watch(httpd_req_t *req) {
+    if(web_ui_require_auth(req)!=ESP_OK)return ESP_FAIL;
+    return send_json(req,watch_json());
+}
+static esp_err_t post_service_watch(httpd_req_t *req) {
+    if(web_ui_require_auth(req)!=ESP_OK)return ESP_FAIL;
+    char body[96];int total=req->content_len,received=0;esp_err_t err=ESP_ERR_INVALID_ARG;
+    if(total>0&&total<(int)sizeof body)while(received<total){int n=httpd_req_recv(req,body+received,total-received);if(n<=0)break;received+=n;}
+    if(total>0&&received==total&&total<(int)sizeof body){
+        body[received]=0;cJSON *root=json_guard_parse(body);service_watch_config_t w={0};unsigned interval=0,fields=0;
+        for(const cJSON *f=root?root->child:NULL;f;f=f->next)fields++;
+        uint8_t enabled=0,notify=0;
+        if(cJSON_IsObject(root)&&fields==3&&boolean(root,"enabled",&enabled)&&boolean(root,"notify",&notify)
+           &&integer(root,"interval_s",SERVICE_WATCH_MAX_S,&interval)){w.enabled=enabled;w.notify=notify;w.interval_s=interval;err=service_watch_set(&w);}
+        cJSON_Delete(root);
+    }
+    if(err!=ESP_OK){httpd_resp_set_status(req,err==ESP_ERR_INVALID_ARG?"400 Bad Request":err==ESP_ERR_NO_MEM?"503 Service Unavailable":"500 Internal Server Error");
+        cJSON *reply=cJSON_CreateObject();if(reply){cJSON_AddBoolToObject(reply,"ok",false);cJSON_AddStringToObject(reply,"error",err==ESP_ERR_INVALID_ARG?"interval must be 60-86400 s":esp_err_to_name(err));}return send_json(req,reply);}
+    return send_json(req,watch_json());
+}
 esp_err_t homelab_ops_register_http(httpd_handle_t server) {
     const httpd_uri_t routes[]={
         {.uri="/api/operations",.method=HTTP_GET,.handler=get_ops},
@@ -206,7 +231,9 @@ esp_err_t homelab_ops_register_http(httpd_handle_t server) {
         {.uri="/api/health",.method=HTTP_GET,.handler=get_health},
         {.uri="/api/service-leases",.method=HTTP_GET,.handler=get_leases},
         {.uri="/api/diagnostics/export",.method=HTTP_GET,.handler=get_export},
-        {.uri="/api/tailnet-forward/check",.method=HTTP_POST,.handler=post_service_check}};
+        {.uri="/api/tailnet-forward/check",.method=HTTP_POST,.handler=post_service_check},
+        {.uri="/api/service-watch",.method=HTTP_GET,.handler=get_service_watch},
+        {.uri="/api/service-watch",.method=HTTP_POST,.handler=post_service_watch}};
     for(unsigned i=0;i<sizeof routes/sizeof routes[0];i++){esp_err_t e=httpd_register_uri_handler(server,&routes[i]);if(e!=ESP_OK)return e;}
     esp_err_t err=service_transfer_register_http(server);
     if(err==ESP_OK)err=config_profiles_register_http(server);

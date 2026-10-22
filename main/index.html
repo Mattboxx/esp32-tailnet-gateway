@@ -2270,6 +2270,13 @@
           <p class="form-hint" style="margin:0 0 0.75rem 0;">Expose selected Tailnet services on the ESP32 uplink-LAN address. LAN clients do not need Tailscale and do not need to join the ESP32 access point. This table is fully separate from AP-side port forwarding.</p>
           <p class="form-hint">Source CIDRs filter addresses, not client identity. Use the narrowest subnet and keep authentication on the remote service. A mapping being installed does not prove the service is reachable.</p>
           <p class="form-hint" id="tf-context" role="status">Loading saved rules and passive diagnostics…</p>
+          <details id="sw-box"><summary style="cursor:pointer;">Service watch (optional periodic destination tests)</summary>
+            <p class="form-hint">Off by default. Tests one enabled TCP rule per interval through this gateway, using the same bounded handshake as Test destination. Two misses in a row send one ntfy/MQTT notice; the next answer sends a recovery notice. It never changes rules.</p>
+            <label class="feature-switch"><input type="checkbox" id="sw-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Watch enabled TCP rules</span></label>
+            <label class="feature-switch"><input type="checkbox" id="sw-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify via ntfy when a service stops or resumes answering</span></label>
+            <div class="form-row"><div class="form-group"><label class="form-label" for="sw-interval">Interval between tests (60–86400 s)</label><input class="input mono" id="sw-interval" type="number" min="60" max="86400"></div></div>
+            <button class="btn btn-secondary" id="sw-save" type="button" disabled>Save service watch</button> <span class="form-hint" id="sw-status" role="status"></span>
+          </details>
           <div id="tf-list"></div>
           <div class="form-row" style="margin-top:0.75rem;"><div class="form-group"><label class="form-label" for="tf-template">Service template</label><select class="input" id="tf-template"><option value="custom">Custom service</option><option value="mqtt-tls">MQTT over TLS</option><option value="mqtt">MQTT (unencrypted)</option><option value="https">HTTPS web UI</option><option value="nas-https">NAS web UI (HTTPS 5001)</option><option value="home-assistant">Home Assistant</option><option value="grafana">Grafana</option><option value="ssh">SSH</option><option value="syslog">Syslog (UDP)</option><option value="rdp">Remote Desktop</option></select><span class="form-hint" id="tf-template-hint"></span></div><button class="btn btn-secondary btn-md" id="tf-add" type="button" disabled>+ Add disabled draft</button></div>
           <p class="form-hint">Templates never enable a listener or save automatically. Enter the actual destination and a narrow source CIDR; verify service authentication and resolve any port conflict before enabling.</p>
@@ -4734,7 +4741,7 @@
 
     function loadPageState(page) {
       if (page === 'status') { fetchStatus(); loadServiceGatewaySummary(); }
-      if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); }
+      if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); loadServiceWatch(); }
       if (page === 'tailscale') loadTailscale();
       if (page === 'firewall') loadFirewall();
       if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); }
@@ -5678,6 +5685,23 @@
         if(!r.ok||!d.ok)throw new Error(d.error||('HTTP '+r.status));
         showToast('success','Ethernet settings saved','Restart the device to apply them.',5000);await loadEthernet();}
       catch(e){document.getElementById('eth-status').textContent='Not saved: '+e.message;btn.disabled=false;}
+    });
+    function loadServiceWatch(){
+      document.getElementById('sw-save').disabled=true;
+      return apiFetch('/api/service-watch',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(w){
+        if(!w||typeof w.enabled!=='boolean'||!Number.isInteger(w.interval_s))throw new Error('Invalid response');
+        document.getElementById('sw-enabled').checked=w.enabled;document.getElementById('sw-notify').checked=!!w.notify;document.getElementById('sw-interval').value=w.interval_s;
+        document.getElementById('sw-status').textContent=w.enabled?'Watching every '+w.interval_s+' s.':'Off.';
+      }).catch(function(e){document.getElementById('sw-status').textContent='Unavailable: '+e.message;});
+    }
+    ['sw-enabled','sw-notify','sw-interval'].forEach(function(id){document.getElementById(id).addEventListener(id==='sw-interval'?'input':'change',function(){document.getElementById('sw-save').disabled=false;});});
+    document.getElementById('sw-save').addEventListener('click',async function(){
+      var interval=Number(document.getElementById('sw-interval').value),btn=this;
+      if(!Number.isInteger(interval)||interval<60||interval>86400){document.getElementById('sw-status').textContent='Interval must be 60–86400 s.';return;}
+      btn.disabled=true;
+      try{var r=await apiFetch('/api/service-watch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled:document.getElementById('sw-enabled').checked,notify:document.getElementById('sw-notify').checked,interval_s:interval})});
+        var d=await r.json();if(!r.ok||d.ok===false)throw new Error(d.error||('HTTP '+r.status));await loadServiceWatch();}
+      catch(e){document.getElementById('sw-status').textContent='Not saved: '+e.message;btn.disabled=false;}
     });
     var s_capabilities=null;
     function capabilityUnavailable(id){var f=s_capabilities&&id?s_capabilities[id]:null;return f&&(f.compiled===false||f.hardware_supported===false)?f:null;}

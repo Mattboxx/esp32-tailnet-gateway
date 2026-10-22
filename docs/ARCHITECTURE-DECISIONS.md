@@ -232,3 +232,12 @@ exhausted budget refuses the console before any password check. The console's
 (a 100.64/10 local address that is not the STA, AP or Ethernet address), not
 that the client address looks like 100.64/10, which CGNAT-addressed LANs
 (LTE/Starlink) would satisfy.
+
+## ADR-021 — Service watch reuses the destination test slot (2026-10-22)
+
+The opt-in watch adds no task, timer or socket: when due, the operations
+worker queues the next enabled TCP rule into the existing single destination
+test slot (never displacing a manual request). Only handshake outcomes move its
+two-miss/one-recovery state; tunnel, policy and resource states are not service
+evidence. Settings live in their own validated NVS blob; missing or invalid
+means OFF. Notices are best-effort through ntfy/MQTT and never change rules.

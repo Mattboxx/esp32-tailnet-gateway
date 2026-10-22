@@ -91,6 +91,11 @@ over from the interrupted Codex session without resetting anything.
   tailnet_core (+Ethernet binding cases), portmap, forwarding_transactions,
   gateway_operations PASS (WiFi path unchanged). Builds PASS: default
   1,828,476 (93.0%), Ethernet 1,883,424 (95.8%). Not hardware-exercised.
+- Commits `fa13776`, `96d10fa` (listeners/health on selected uplink). Then the
+  opt-in Service watch (ADR-021): service_check PASS incl. watch scheduling,
+  two-miss alert, recovery, manual precedence, notify off; ops_api PASS;
+  browser 54/54; build PASS 1,830,764 (93.1%). Snapshot `.../service-watch/`:
+  BIN `c4b8249572ac8427d84671140d7831a332cc6bd29961586e90a4ab73db68137b`, ELF `6d03841354e558ef07c333ecdf41aeaaeb33bf3daafc33f0f629f9764e31e7d6`. The watch POST handler is not host-tested.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 

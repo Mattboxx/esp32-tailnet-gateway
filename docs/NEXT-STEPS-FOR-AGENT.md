@@ -20,9 +20,9 @@ destination test; 48 browser scenarios. Templates/home-card expiry and sanitized
 SG MQTT/HA evidence done after `ccf32ab` (shared service_evidence.h). Next, in
 order: MQTT state budget (ADR-017) and ntfy system events (ADR-018) done.
 SNMP provider test and F31 conditional W5500 Ethernet done (ADR-019, separate
-env). Service Gateway listeners now follow the selected uplink. Next: (1) health
-monitor uplink checks on the selected uplink; (2) F40 advanced items (optional-module recovery, periodic critical
-service checks); (3) F34 guides gap list; (4) on-device MQTT state
+env). Listeners/health follow the selected uplink; Service watch done (ADR-021).
+Next: (1) F40 recovery of optional modules in error (MQTT/ntfy/SNMP task
+supervision); (2) F34 guides gap list; (3) F34 guides gap list; (4) on-device MQTT state
 size check in the final campaign; (3) F27–F29 remaining events/commands;
 (4) F31 Ethernet design (conditional); (5) consolidated validation incl. Linux
 sanitizers for web_security/config_profiles/service_check/policy_protocols.

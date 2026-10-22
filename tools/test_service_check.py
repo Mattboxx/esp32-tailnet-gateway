@@ -16,7 +16,7 @@ def between(path, start, end):
     return start + text.split(start, 1)[1].split(end, 1)[0]
 
 forward = between('main/tailnet_forward.h', '#define TAILNET_FORWARD_MAX', 'typedef struct {\n    bool installed;')
-header = between('main/service_check.h', 'typedef enum {', '/* ESP_ERR_INVALID_ARG')
+header = between('main/service_check.h', 'typedef enum {', '/* ESP_ERR_INVALID_ARG') + between('main/service_check.h', 'typedef struct {bool enabled, notify;', 'void service_check_init')
 core = between('main/service_check.c', '/* --- service check core (begin) --- */', '/* --- service check core (end) --- */')
 
 PROGRAM = r'''
@@ -41,6 +41,8 @@ static uint64_t sc_now_ms(void){return now;}
 static bool sc_rule(int i,tailnet_forward_rule_t *r){if(i<0||i>=TAILNET_FORWARD_MAX||!present[i])return false;*r=rules[i];return true;}
 static void sc_path(const tailnet_forward_rule_t *r,sc_path_t *out){(void)r;*out=path;}
 static void sc_run(void);
+static int notify_down,notify_up,notify_index=-1;
+static void sc_notify(int index,bool recovered){notify_index=index;if(recovered)notify_up++;else notify_down++;}
 static int sc_connect(uint32_t ip,uint16_t port,uint32_t timeout){
     assert(timeout==SERVICE_CHECK_TIMEOUT_MS);connects++;last_ip=ip;last_port=port;now+=37;
     if(edit_during_connect>=0){rules[edit_during_connect].destination_port++;edit_during_connect=-1;}
@@ -114,7 +116,29 @@ int main(void){
     /* Zero clock still publishes a nonzero observation time. */
     now=0;rules[0].destination_port=443;assert(sc_request_locked(1,token(1),0)==ESP_OK);
     path.connected=false;sc_run();assert(got(1).observed_ms==1&&!sc_pending.active);
-    puts("PASS: actual destination check: validation, identity binding, single slot, cooldown/clock, UDP honesty, gates, queued edits (fixtures)");
+    /* Periodic watch: off by default, round-robin over enabled TCP rules only,
+     * manual requests take precedence, two misses alert once, recovery once. */
+    memset(sc_results,0,sizeof sc_results);sc_pending.active=false;
+    for(int i=0;i<3;i++){present[i]=true;rules[i].enabled=0;rules[i].destination_port=443;}
+    rules[0].enabled=1;rules[2].enabled=1; /* rule 2 is UDP: never watched */
+    path=(sc_path_t){.connected=true,.authority=true,.resolved_ip=0x64400001u};admit=true;connect_result=1;
+    now=100000;before=connects;sc_run();assert(connects==before); /* disabled: no traffic */
+    assert(!sc_watch_valid(&(service_watch_config_t){.interval_s=59})&&!sc_watch_valid(&(service_watch_config_t){.interval_s=86401})&&!sc_watch_valid(NULL));
+    sc_watch=(service_watch_config_t){.enabled=true,.notify=true,.interval_s=60};sc_watch_next=0;sc_watch_cursor=0;
+    sc_run();assert(connects==before+1&&got(0).state==SC_REACHABLE); /* due at once */
+    sc_run();assert(connects==before+1); /* not due again before the interval */
+    now+=60000;sc_run();assert(connects==before+2); /* only rule 0 qualifies: wraps back to it */
+    connect_result=0;now+=60000;sc_run();assert(got(0).state==SC_NO_ANSWER&&!notify_down);
+    now+=60000;sc_run();assert(notify_down==1&&notify_index==0); /* second miss alerts */
+    now+=60000;sc_run();assert(notify_down==1); /* once per outage */
+    path.connected=false;now+=60000;sc_run();assert(got(0).state==SC_NO_CONTROL&&notify_down==1&&!notify_up); /* not service evidence */
+    path.connected=true;connect_result=1;now+=60000;sc_run();assert(notify_up==1&&got(0).state==SC_REACHABLE);
+    now+=60000;sc_run();assert(notify_up==1);
+    /* A manual request already pending is not replaced by the watch. */
+    rules[1].enabled=1;now+=60000;assert(sc_request_locked(1,token(1),now)==ESP_OK);
+    sc_watch_schedule_locked(now);assert(sc_pending.index==1);sc_run();
+    sc_watch.notify=false;connect_result=0;for(int k=0;k<6;k++){now+=60000;sc_run();}assert(notify_down==1); /* notify off: no messages */
+    puts("PASS: actual destination check: validation, identity binding, single slot, cooldown/clock, UDP honesty, gates, queued edits; periodic watch scheduling/alerts (fixtures)");
 }
 '''
 

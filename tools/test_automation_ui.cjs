@@ -86,6 +86,10 @@ async function fixture(browser, options = {}) {
       if (route.request().method() === 'POST') { state.savedEthernet = route.request().postDataJSON(); body = {ok: true, restart_required: true}; }
       else body = state.ethernetBody || {config:{enabled:false,chip:'w5500',spi_host:2,spi_mhz:20,sclk:12,mosi:11,miso:13,cs:10,int:14,rst:9,static_ip:false,ip:'',netmask:'',gateway:'',dns:'',preference:'wifi_first'},
         status:{compiled:false,enabled_at_boot:false,driver_started:false,link_up:false,has_ip:false,selected_uplink:false,restart_required:false,link_changes:0,ip:'',netmask:'',gateway:'',error:''}};
+    } else if (url.pathname === '/api/service-watch') {
+      if (route.request().method() === 'POST') { const w = route.request().postDataJSON(); state.savedWatch = w;
+        if (w.interval_s < 60) { status = 400; body = {ok: false, error: 'interval must be 60-86400 s'}; } else { state.watchBody = w; body = w; } }
+      else body = state.watchBody || {enabled: false, notify: false, interval_s: 900};
     } else if (url.pathname === '/api/profiles') {
       const profiles=[{id:'gateway',title:'Gateway',summary:'Fixture gateway',enables:['service_expiry_notifications']},
         {id:'monitoring',title:'Monitoring',summary:'Fixture monitoring',enables:['device_monitoring','health_monitor']},
@@ -772,6 +776,17 @@ async function main() {
     await f.page.locator('#eth-save').click();
     for(let i=0;i<50&&!f.state.savedEthernet;i++)await f.page.waitForTimeout(100);
     assert.deepEqual(f.state.savedEthernet,{enabled:true,chip:'w5500',preference:'ethernet_first',spi_host:2,spi_mhz:20,sclk:12,mosi:11,miso:13,cs:10,int:14,rst:9,static_ip:true,ip:'192.168.1.60',netmask:'255.255.255.0',gateway:'192.168.1.1',dns:''});
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Service watch: off by default, saved with typed fields.
+    f=await fixture(browser,{page:'network'});
+    await f.page.waitForFunction(()=>document.getElementById('sw-status').textContent==='Off.');
+    await f.page.locator('#sw-box summary').click();
+    await f.page.locator('label:has(#sw-enabled)').click();await f.page.locator('#sw-interval').fill('300');
+    await f.page.locator('#sw-save').click();
+    await f.page.waitForFunction(()=>document.getElementById('sw-status').textContent==='Watching every 300 s.');
+    assert.deepEqual(f.state.savedWatch,{enabled:true,notify:false,interval_s:300});
+    await f.page.locator('#sw-interval').fill('30');await f.page.locator('#sw-save').click();
+    assert.match(await f.page.locator('#sw-status').textContent(),/60–86400/);assert.equal(f.state.savedWatch.interval_s,300); /* refused client-side */
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }

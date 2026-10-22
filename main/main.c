@@ -59,6 +59,7 @@
 #include "snmp_agent.h"
 #include "snmp_ops.h"
 #include "eth_uplink.h"
+#include "service_check.h"
 #include "wifi_networks.h"
 #include "wol.h"
 #include "mqtt_integration.h"
@@ -1036,6 +1037,7 @@ void app_main(void)
     dhcp_reservations_init();
     wol_init();
     homelab_ops_init();
+    service_check_init();  /* opt-in Service Gateway watch; OFF unless saved */
     homelab_snmp_register();
     runtime_metrics_init();
     mqtt_integration_init();

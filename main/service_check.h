@@ -34,6 +34,16 @@ typedef struct {
  * ESP_ERR_NOT_FINISHED another check pending; ESP_ERR_TIMEOUT cooldown;
  * ESP_ERR_NO_MEM optional worker unavailable. */
 esp_err_t service_check_request(int index, uint32_t expected_token);
+
+/* Opt-in periodic watch: one enabled TCP rule per interval, round-robin,
+ * through the same single slot. Two consecutive "no TCP answer" results
+ * notify once; the next reachable result notifies recovery. OFF by default. */
+typedef struct {bool enabled, notify; uint32_t interval_s;} service_watch_config_t;
+#define SERVICE_WATCH_MIN_S 60u
+#define SERVICE_WATCH_MAX_S 86400u
+void service_check_init(void);
+void service_watch_get(service_watch_config_t *out);
+esp_err_t service_watch_set(const service_watch_config_t *config);
 /* False when there is no result for the rule's current identity. */
 bool service_check_get(int index, uint32_t current_token, service_check_result_t *out);
 /* Optional operations worker only: at most one socket, bounded timeout. */
