@@ -2,36 +2,39 @@
 
 > **Newest checkpoint:** [TAKEOVER-VALIDATION.md](TAKEOVER-VALIDATION.md).
 > Authenticated echo/source-denial/expiry/profile checks now have real results;
-> Linux is available, two corrected sanitizer fixtures pass. A no-reset serial
-> soak is running and two temporary lab rules require cleanup. Older tasks below
+> Linux is available; final campaigns PASS. Both captures completed, all jobs
+> exited, temporary lab rules removed and SNMP/profile restored. Older tasks below
 > are historical, not an instruction to repeat already completed work.
 
 Latest: parent `99548da`, MicroLink `fa3153b`, local only. Dev.7 fixes initial-map
 recovery plus truthful rule/policy diagnostics. WiFi/Ethernet builds PASS;
-Windows 62/62 and Linux 58/58 PASS before final device-tool guards. A final
-full Windows offline/browser + Linux sanitizer rerun is now running.
+Final Windows offline/browser **63/63**, Linux sanitizer **60/60 PASS**.
+75 synthetic browser scenarios; logs/hashes in TAKEOVER-VALIDATION.md.
 SNMP 27 operational OIDs (v1/v2c forced LAN) + 12 Tailnet replies PASS; restored
-OFF unchanged. COM3 serial soak and authenticated read-only sampler still run.
+OFF unchanged. COM3 serial capture completed 3600.22 s, later API sampler 1800 s
+(30/30 samples). No observed panic/WDT/reset, but a five-minute authority outage
+is a confirmed dev.6 finding, not an availability PASS. Tight heap remains.
 Do not flash dev.7 using old dev.6 authority. Stable ota_1 must remain untouched.
 Lab cleanup completed: two disposable rules removed, owner rule exactly
 unchanged; browser reload one rule/no lab names. Do not rerun cleanup blindly.
-Next: finish captures, record final test/build results, scan/review and commit
-the remaining device-tool guards locally. Request exact installation authority only after
-offline checks; two real clients/OTA/recovery and optional-service gates remain.
+Next incomplete available work: exact dev.7 physical install/recovery campaign
+only IF owner answers the pending explicit image authorization. Otherwise keep
+the board intact; prepare controlled integration/two-client procedures without
+changing production exposure/policies. Two real clients, NVS/OTA/AP recovery,
+longer resource/fault qualification and optional integrations remain open.
 
-Current running jobs (22:57 local): COM3 serial session 64798 (60 min, expected
-completion about 23:07), read-only numeric sampler session 29617 (30 min,
-about 23:07); final Windows 75800, Linux 81784. Echo session 19535 completed.
-Do not add another COM3 reader. Exact dev.7 WiFi hash/artifacts in takeover
-ledger; installation question is pending, no permission inferred. New uncommitted
-device-only OTA tool guards protect ota_1: require starting version/slot and
-protected slot; host guard tests PASS. Do not run an OTA helper on active ota_0.
+All owned jobs finished at about 23:08; no COM3 reader remains. Do not revive old
+session IDs. Device-tool guards committed in `df8a420`: exact starting version/
+slot and protected slot required, host guard tests PASS. Never run the OTA
+upload helper on current active ota_0: it would target protected stable ota_1.
+Authorized safe path must first verify backup/recovery, boot stable ota_1 and
+upload the pinned WiFi dev.7 image to ota_0; no blanket flash permission.
 
-23:00 update: final Windows offline/browser **63/63 PASS**, 75 synthetic browser
-scenarios. Linux final still running. Physical dev.7 permission still pending;
-no reboot/flash so far. Temporary SNMP/profile/lab exposure cleaned; strict
+23:08 update: physical dev.7 permission still pending; no reboot/flash so far.
+Temporary SNMP/profile/lab exposure cleaned; strict
 lease ledger intentionally retained. Root firmware inputs unchanged since
-`99548da`; exact private dev.7 artifacts/hashes preserved.
+`99548da`; exact private dev.7 artifacts/hashes preserved. The owner's untracked
+COMMUNITY-POSTS.md remains untouched and must not be committed. No push/release.
 
 > **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
 

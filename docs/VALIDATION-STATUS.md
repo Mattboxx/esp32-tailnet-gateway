@@ -17,6 +17,14 @@ Raw nested history scan has nine reviewed
 uppercase-X example matches, not suppressed; details and exact artifact hashes
 in TAKEOVER-VALIDATION.md. Physical dev.7 install authority pending.
 
+Final physical collection: serial **3600.22 s completed**, no observed panic,
+watchdog/reset/allocation failure; serial heap minimum 7,019 B. Later sampler
+**1800 s, 30/30 samples**, no observed uptime decrease; largest-block minimum
+4,864 B, lifetime internal minimum 5,435 B, sockets 9–11/31, task HWM minimum
+raw 484. Five-minute control-map disruption remains a finding: completed
+collection is not an availability PASS. All owned jobs ended; temporary rules
+removed, SNMP/profile restored. No reboot/flash/push/publication.
+
 ## Historical checkpoint — dev.6 continuation (2026-10-22, Claude Code session)
 
 Source **0.1.38-Mattboxx-1.14-dev.6**, uncommitted root/dependency work, taken
