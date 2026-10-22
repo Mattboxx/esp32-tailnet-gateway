@@ -6531,7 +6531,8 @@
       var udp=(r.protocol||'tcp')==='udp';
       return '<div class="form-hint tf-activity">Last accepted: '+escapeHtml(tfAge(a.last_accepted_age_s))+' · last rejected: '+escapeHtml(tfAge(a.last_rejected_age_s))
         +' · reply from the Tailnet service: '+escapeHtml(a.service_reply_age_s==null?'none seen':tfAge(a.service_reply_age_s))
-        +(udp?' (for UDP this reply is the only evidence the service answers)':'')+'.</div>';
+        +(udp?' (for UDP this reply is the only evidence the service answers)':'')
+        +(a.peer_path&&a.peer_path!=='unknown'?' · destination peer: '+escapeHtml({direct:'direct path',relay:'relayed via DERP (slower)',offline:'offline in the peer list'}[a.peer_path]||a.peer_path):'')+'.</div>';
     }
     function tfCheckHtml(r){
       if(!Number.isInteger(r.index)||!Number.isInteger(r.rule_token))return '';

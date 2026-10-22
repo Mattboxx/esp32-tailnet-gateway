@@ -2584,6 +2584,21 @@ static const httpd_uri_t uri_portmap_save = {
 
 /* Dedicated uplink-LAN -> Tailnet forwarding. This API intentionally has
  * no AP/client-WiFi fields and persists a wholly separate rule table. */
+/* Current peer-snapshot evidence for a rule's destination: "direct",
+ * "relay" (DERP), "offline" or "unknown". Not a reachability test. */
+static const char *rule_peer_path(uint32_t ip_hbo, bool control)
+{
+    struct microlink_s *ml = tailscale_get_microlink();
+    if (!control || !ml || !ip_hbo) return "unknown";
+    int n = microlink_get_peer_count(ml);
+    for (int i = 0; i < n; i++) {
+        microlink_peer_info_t pi;
+        if (microlink_get_peer_info(ml, i, &pi) != ESP_OK || pi.vpn_ip != ip_hbo) continue;
+        return !pi.online ? "offline" : pi.direct_path ? "direct" : "relay";
+    }
+    return "unknown";
+}
+
 /* Uptime-seconds stamp (0 = never) as an age, or null: never a fake zero. */
 static bool json_age(cJSON *parent, const char *name, uint32_t stamp, uint32_t now_s)
 {
@@ -2650,7 +2665,8 @@ static esp_err_t tailnet_forward_handler(httpd_req_t *req)
             && cJSON_AddStringToObject(diagnostic, "data_plane_status", "not_verified");
         if (ok) {
             cJSON *activity = cJSON_AddObjectToObject(j, "activity");
-            ok = activity && json_age(activity, "last_accepted_age_s", rt.last_accepted_s, now_s)
+            ok = activity && cJSON_AddStringToObject(activity, "peer_path", rule_peer_path(rt.resolved_ip, control))
+                && json_age(activity, "last_accepted_age_s", rt.last_accepted_s, now_s)
                 && json_age(activity, "last_rejected_age_s", rt.last_blocked_s, now_s)
                 && (replied ? cJSON_AddNumberToObject(activity, "service_reply_age_s", reply_ms / 1000) != NULL
                             : cJSON_AddNullToObject(activity, "service_reply_age_s") != NULL);

@@ -695,11 +695,11 @@ async function main() {
     // Service Gateway: test a saved (still disabled) rule's Tailnet destination.
     const tfRule=()=>({index:0,rule_token:77,name:'NAS',enabled:false,installed:false,protocol:'tcp',listen_port:15000,tailnet_destination:'100.64.0.9',
       destination_port:5000,allowed_source_subnet:'192.168.1.20/32',accepted_packets:0,blocked_packets:0,error:'',diagnostic:{code:'disabled',summary:'Rule disabled',next_step:'Enable it'},
-      activity:{last_accepted_age_s:null,last_rejected_age_s:12,service_reply_age_s:null}});
+      activity:{peer_path:'relay',last_accepted_age_s:null,last_rejected_age_s:12,service_reply_age_s:null}});
     f=await fixture(browser,{page:'network',forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
     await f.page.waitForFunction(()=>document.querySelector('.tf-test')&&!document.querySelector('.tf-test').disabled);
     assert.equal(await f.page.locator('.tf-check-state').textContent(),'Not tested');
-    assert.match(await f.page.locator('.tf-activity').textContent(),/Last accepted: never this boot · last rejected: 12 s ago · reply from the Tailnet service: none seen/);
+    assert.match(await f.page.locator('.tf-activity').textContent(),/Last accepted: never this boot · last rejected: 12 s ago · reply from the Tailnet service: none seen · destination peer: relayed via DERP/);
     await f.page.locator('.tf-test').click();
     await f.page.waitForFunction(()=>document.querySelector('.tf-check-state')&&document.querySelector('.tf-check-state').textContent==='Reachable from gateway (42 ms)',null,{timeout:10000});
     assert.deepEqual(f.state.checkPosts,[{index:0,rule_token:77}]);
