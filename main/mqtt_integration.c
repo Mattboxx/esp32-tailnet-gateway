@@ -148,9 +148,9 @@ static bool add_device(cJSON *root)
     if(!device||!ids)return false;
     cJSON *id=cJSON_CreateString(s_device_id);if(!id)return false;
     if(!cJSON_AddItemToArray(ids,id)){cJSON_Delete(id);return false;}
-    return cJSON_AddStringToObject(device,"name","ESP32 Homelab Gateway — Mattboxx Edition")
+    return cJSON_AddStringToObject(device,"name","ESP32 Tailnet Gateway — Mattboxx Edition")
         &&cJSON_AddStringToObject(device,"manufacturer","Espressif / Mattboxx Edition")
-        &&cJSON_AddStringToObject(device,"model","ESP32-S3 Homelab Gateway");
+        &&cJSON_AddStringToObject(device,"model","ESP32-S3 Tailnet Gateway");
 }
 
 static void discovery_publish_entity(const char *domain, const char *object_id,

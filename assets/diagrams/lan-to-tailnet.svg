@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 400" width="960" height="400" role="img" aria-labelledby="t d">
+  <title id="t">Selective LAN to Tailnet Service Gateway</title>
+  <desc id="d">A LAN client without Tailscale connects to the ESP32 LAN address and listen port. The ESP32 checks that the rule is enabled and not expired, that the source is allowed and that protocol and port match, then forwards over WireGuard to one Tailnet service. A device outside the allowed source is refused. The remote peer sees the ESP32's tailnet identity and its own ACL still applies.</desc>
+  <style>
+    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E6EDF3}
+    .h{font-size:15px;font-weight:650}.s{font-size:12.5px;fill:#8B949E}.z{font-size:11.5px;font-weight:600;letter-spacing:2px;fill:#8B949E}
+    .t{fill:#2DD4BF}.r{fill:#F85149}
+    .zone{fill:#11161D;stroke:#30363D}.box{fill:#161B22;stroke:#30363D}.hot{fill:#0F2624;stroke:#2DD4BF;stroke-width:1.5}
+    .ln{stroke:#E6EDF3;stroke-width:2;fill:none}.wg{stroke:#2DD4BF;stroke-width:2.5;fill:none;stroke-dasharray:7 5}.bad{stroke:#F85149;stroke-width:2;fill:none;stroke-dasharray:4 4}
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#E6EDF3"/></marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2DD4BF"/></marker>
+  </defs>
+  <rect width="960" height="400" rx="16" fill="#0D1117"/>
+  <rect class="zone" x="20" y="44" width="300" height="304" rx="12"/>
+  <rect class="zone" x="340" y="44" width="280" height="304" rx="12"/>
+  <rect class="zone" x="640" y="44" width="300" height="304" rx="12"/>
+  <text class="z" x="36" y="70">YOUR LAN</text>
+  <text class="z" x="356" y="70">ESP32-S3 GATEWAY</text>
+  <text class="z" x="656" y="70">TAILNET</text>
+
+  <rect class="box" x="40" y="100" width="260" height="88" rx="10"/>
+  <text class="h" x="56" y="128">LAN client</text>
+  <text class="s" x="56" y="150">192.168.1.20 · no Tailscale client</text>
+  <text class="s" x="56" y="172">connects to 192.168.1.50:18830</text>
+
+  <rect class="box" x="40" y="236" width="260" height="88" rx="10"/>
+  <text class="h" x="56" y="264">Other LAN device</text>
+  <text class="s" x="56" y="286">192.168.1.30</text>
+  <text class="s r" x="56" y="308">refused: source not in the rule</text>
+
+  <rect class="hot" x="360" y="96" width="240" height="232" rx="12"/>
+  <text class="h" x="376" y="124">Rule: TCP 18830 → :1883</text>
+  <text class="s" x="376" y="154"><tspan class="t">✓</tspan> enabled and not expired</text>
+  <text class="s" x="376" y="178"><tspan class="t">✓</tspan> source in 192.168.1.20/32</text>
+  <text class="s" x="376" y="202"><tspan class="t">✓</tspan> protocol and port match</text>
+  <text class="s" x="376" y="226"><tspan class="t">✓</tspan> sent over WireGuard</text>
+  <path d="M376 244H584" stroke="#30363D"/>
+  <text class="s" x="376" y="268">listens on 192.168.1.50:18830</text>
+  <text class="s" x="376" y="290">accepted / rejected counters</text>
+  <text class="s" x="376" y="312">optional destination test</text>
+
+  <path class="ln" d="M300 144H356" marker-end="url(#a)"/>
+  <path class="bad" d="M300 280H350"/>
+  <path d="M344 272l12 16M356 272l-12 16" stroke="#F85149" stroke-width="2.5" stroke-linecap="round"/>
+  <path class="wg" d="M600 144H656" marker-end="url(#at)"/>
+
+  <rect class="box" x="660" y="100" width="260" height="88" rx="10"/>
+  <text class="h" x="676" y="128">Tailnet peer service</text>
+  <text class="s" x="676" y="150">broker.your-tailnet.ts.net:1883</text>
+  <text class="s" x="676" y="172">WireGuard, direct or DERP relay</text>
+
+  <rect class="box" x="660" y="236" width="260" height="88" rx="10"/>
+  <text class="z" x="676" y="262">WHAT THE PEER SEES</text>
+  <text class="s" x="676" y="286">the ESP32's tailnet identity;</text>
+  <text class="s" x="676" y="308">the peer's own ACL still decides</text>
+
+  <text class="s" x="20" y="380">One rule = one TCP or UDP service, one Tailnet IPv4 destination, one allowed source CIDR. Up to 8 rules; new rules start disabled.</text>
+</svg>

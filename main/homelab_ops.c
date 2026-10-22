@@ -450,7 +450,7 @@ cJSON *homelab_ops_capabilities(void) {
     bool wifi=(chip.features&CHIP_FEATURE_WIFI_BGN)!=0;
     size_t psram=esp_psram_get_size();
     bool ok=cJSON_AddNumberToObject(root,"schema",2)
-        &&cJSON_AddStringToObject(root,"product","ESP32 Homelab Gateway — Mattboxx Edition")
+        &&cJSON_AddStringToObject(root,"product","ESP32 Tailnet Gateway — Mattboxx Edition")
         &&cJSON_AddStringToObject(root,"version",app?app->version:"unknown")
         &&cJSON_AddBoolToObject(root,"hardware_qualified",false)
         &&cJSON_AddBoolToObject(root,"policy_parity_verified",false)

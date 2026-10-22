@@ -1,6 +1,6 @@
 # Selective Tailnet Service Gateway
 
-The primary feature of ESP32 Homelab Gateway — Mattboxx Edition: let ordinary
+The primary feature of ESP32 Tailnet Gateway — Mattboxx Edition: let ordinary
 devices on your existing LAN use **specific** services on your Tailscale or
 Headscale tailnet, without a Tailscale client on those devices, without joining
 them to the ESP32 access point and without changing your router or default

@@ -1,4 +1,6 @@
-# ESP32 Homelab Gateway — Mattboxx Edition
+# ESP32 Tailnet Gateway — Mattboxx Edition
+
+_Formerly ESP32 Homelab Gateway. Tagline: One ESP32. Multiple Tailnet roles. Enable only what you need._
 
 ## Identity and mission
 

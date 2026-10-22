@@ -2,7 +2,7 @@
 
 ## Mandate and reading order
 
-Develop **ESP32 Homelab Gateway — Mattboxx Edition** incrementally, not merely
+Develop **ESP32 Tailnet Gateway — Mattboxx Edition** (formerly ESP32 Homelab Gateway) incrementally, not merely
 its documentation. The user-approved full mandate is preserved without feature
 removal in [docs/MASTER-DEVELOPMENT-PROMPT.md](docs/MASTER-DEVELOPMENT-PROMPT.md).
 Read this file, [GOALS.md](GOALS.md), the full master mandate, then:
