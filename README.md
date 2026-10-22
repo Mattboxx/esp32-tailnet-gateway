@@ -120,7 +120,8 @@ not fully out-of-band management.
 **[Supported hardware](#hardware)** ·
 **[What's new in stable 1.13](docs/RELEASE-1.13.md)** ·
 **[See every change from upstream](CUSTOM_BRANCH.md)** ·
-**[Read the security model](SECURITY.md)**
+**[Read the security model](SECURITY.md)** ·
+**[All guides](docs/GUIDES.md)**
 
 ## One board, three network gateways
 
