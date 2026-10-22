@@ -1,7 +1,8 @@
 """Opt-in, read-only external resource/continuity sampler (not qualification).
 
 No configuration changes, restart, SNMP enablement, OTA or traffic generation.
-Only session authentication plus GET /api/status and /api/system/diag. Output
+Only session authentication plus GET /api/status, /api/system/diag,
+/api/operations and /api/tailnet-forward (reduced to counts). Output
 is a strict numeric/boolean allowlist, never raw responses, hosts or secrets.
 TEST_DEVICE_PASSWORD is read by the existing challenge/session helper.
 """
@@ -21,7 +22,7 @@ STATUS_NUMBERS = ('uptime_s', 'free_heap', 'free_psram', 'mem_internal_free',
 MEMORY_NUMBERS = ('internal_total', 'internal_free', 'internal_min_free',
                   'internal_largest', 'spiram_total', 'spiram_free',
                   'spiram_min_free', 'spiram_largest')
-READ_PATHS = frozenset(('/api/status', '/api/system/diag'))
+READ_PATHS = frozenset(('/api/status', '/api/system/diag', '/api/operations', '/api/tailnet-forward'))
 
 
 def number(value, *, temperature=False):
@@ -98,6 +99,25 @@ def sample(api, expected, index, *, clock=time.monotonic):
     except Exception:
         result['diag_ok'] = False
     result['diag_request_ms'] = round((clock() - start)*1000, 2)
+    start = clock()
+    try:
+        ops = read('/api/operations')
+        # A point-in-time count of open sockets, not a reservation or a maximum.
+        result['socket_usage'] = number(ops.get('sockets_used'))
+        result['policy_authority_ready'] = boolean(ops.get('authority_ready'))
+        result['module_restarts'] = number(ops.get('module_restarts'))
+        forward = read('/api/tailnet-forward')
+        rules = forward.get('rules')
+        rules = [obj(r) for r in rules[:8]] if isinstance(rules, list) else []
+        result['sg_rules'] = len(rules)
+        result['sg_enabled'] = sum(r.get('enabled') is True for r in rules)
+        result['sg_installed'] = sum(r.get('installed') is True for r in rules)
+        result['sg_destination_reachable'] = sum(obj(r.get('destination_check')).get('state') == 'reachable' for r in rules)
+        result['sg_service_replied'] = sum(number(obj(r.get('activity')).get('service_reply_age_s')) is not None for r in rules)
+        result['evidence_ok'] = True
+    except Exception:
+        result['evidence_ok'] = False
+    result['evidence_request_ms'] = round((clock() - start)*1000, 2)
     return result
 
 
