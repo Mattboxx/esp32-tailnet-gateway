@@ -15,6 +15,12 @@
 #include "tailnet_forward.h"
 #include "service_lease.h"
 #include "health_monitor.h"
+#include "eth_uplink.h"
+#if CONFIG_ETH_SPI_ETHERNET_W5500
+#define ETH_MANIFEST_SUMMARY "w5500-spi-conditional"
+#else
+#define ETH_MANIFEST_SUMMARY "not-compiled"
+#endif
 #include "service_check.h"
 #include "dns_relay.h"
 #include "esp_heap_caps.h"
@@ -461,7 +467,9 @@ cJSON *homelab_ops_capabilities(void) {
         else if(!strcmp(id,"headscale")){configured=tailscale_enabled&&tailscale_login_server&&tailscale_login_server[0];running=configured&&tailscale_is_connected();reason="Custom control URL selected; server compatibility is not automatically verified.";}
         else if(!strcmp(id,"direct")||!strcmp(id,"derp")){configured=tailscale_enabled;reason="Transport support; no fresh per-peer path proof in this manifest.";}
         else if(!strcmp(id,"wifi-uplink")){hardware=wifi;configured=wifi?1:0;running=sta_address;reason="STA address observed; association/address alone do not prove Internet access.";}
-        else if(!strcmp(id,"ethernet")){compiled=false;hardware=-1;configured=running=0;reason="No Ethernet driver/profile implemented; generic netif counters are not hardware support.";}
+        else if(!strcmp(id,"ethernet")){eth_status_t eth;eth_uplink_get_status(&eth);compiled=eth.compiled;
+            hardware=eth.driver_started?1:eth.enabled_at_boot&&eth.error[0]?0:-1;configured=eth.enabled_at_boot;running=eth.has_ip;experimental=true;
+            reason="W5500 SPI module with explicit pins only; link/IP observed, not physically validated; LAN-to-Tailnet listener and health checks stay on WiFi";}
         else if(!strcmp(id,"ipv6")){
 #if CONFIG_LWIP_IPV6
             configured=1;
@@ -493,7 +501,7 @@ cJSON *homelab_ops_capabilities(void) {
         if(!capability_add(arr,id,compiled,hardware,configured,running,experimental,reason)){cJSON_Delete(root);return NULL;}
     }
     ok=cJSON_AddBoolToObject(root,"authority_ready",policy.authority_ready)
-        &&cJSON_AddStringToObject(root,"ethernet","not-implemented")
+        &&cJSON_AddStringToObject(root,"ethernet",ETH_MANIFEST_SUMMARY)
         &&cJSON_AddStringToObject(root,"tunnel_fragments","bounded-4096B-RX-and-successful-TX-TCP-UDP-IPv6-padding-preheaders")
         &&cJSON_AddStringToObject(root,"hostname_checks","IPv4-DNS-and-Tailnet-cache");
     if(!ok){cJSON_Delete(root);return NULL;}

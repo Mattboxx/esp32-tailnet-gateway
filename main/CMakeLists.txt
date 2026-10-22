@@ -55,6 +55,7 @@ idf_component_register(SRCS "main.c"
                             "homelab_ops_http.c"
                             "config_profiles.c"
                             "service_check.c"
+                            "eth_uplink.c"
                             "service_lease.c"
                             "service_transfer.c"
                             "mqtt_integration.c"
@@ -83,6 +84,7 @@ idf_component_register(SRCS "main.c"
                                   app_update
                                   mqtt
                                   esp_http_client
+                                  esp_eth esp_driver_spi esp_driver_gpio
                     INCLUDE_DIRS ".")
 
 # Phase 1.9k: wrap ip_napt_forward to skip NAPT for tailnet CGNAT

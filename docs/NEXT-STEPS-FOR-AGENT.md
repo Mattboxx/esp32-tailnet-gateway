@@ -19,12 +19,14 @@ accepted/rejected stamps, evidence-aware diagnosis (ADR-016), inline guide
 destination test; 48 browser scenarios. Templates/home-card expiry and sanitized SG export done after commit `6304913`.
 SG MQTT/HA evidence done after `ccf32ab` (shared service_evidence.h). Next, in
 order: MQTT state budget (ADR-017) and ntfy system events (ADR-018) done.
-SNMP SG rows 22/23 done. (1) host fixture for snmp_ops provider counting + SNMP
-task stack HWM in final campaign; F31 Ethernet design (conditional); (2) on-device MQTT state
+SNMP provider test and F31 conditional W5500 Ethernet done (ADR-019, separate
+env). Next: (1) F31 follow-up: LAN-to-Tailnet listener/health on the selected
+uplink; (2) F40 advanced items (optional-module recovery, periodic critical
+service checks); (3) F34 guides gap list; (4) on-device MQTT state
 size check in the final campaign; (3) F27–F29 remaining events/commands;
 (4) F31 Ethernet design (conditional); (5) consolidated validation incl. Linux
 sanitizers for web_security/config_profiles/service_check/policy_protocols.
-Flash ~148 KiB free: keep additions compact. Nothing committed; no image saved.
+Flash ~135 KiB free (default image): keep additions compact. Nothing committed; no image saved.
 
 ## Active continuation — dev.6, operations integration in progress
 

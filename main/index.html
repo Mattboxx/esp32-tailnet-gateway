@@ -2285,6 +2285,37 @@
         </div>
         <div class="form-footer"><span class="form-footer-hint">A source CIDR is mandatory. Up to 8 TCP/UDP rules; listen ports must be unique per protocol.</span><div class="form-footer-actions"><button class="btn btn-secondary btn-md" id="tf-reload">Reload</button><button class="btn btn-primary btn-md" id="tf-save" disabled>Save</button></div></div>
       </div>
+
+      <!-- ===== Optional SPI Ethernet uplink (W5500) ===== -->
+      <div class="card mt-4" id="eth-card" data-capability="ethernet">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Ethernet uplink (optional W5500 SPI module)</span></div><span class="badge badge-neutral" id="eth-badge">—</span></div>
+        <div class="card-body">
+          <p class="form-hint">Only for boards with an explicitly wired W5500 module and the Ethernet firmware build. Most ESP32-S3 boards have no Ethernet. Changes apply after a restart. Not physically validated on this candidate; the LAN → Tailnet listener and health checks still use WiFi.</p>
+          <p id="eth-status" role="status">Not loaded</p>
+          <label class="feature-switch"><input type="checkbox" id="eth-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable Ethernet at next boot</span></label>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="eth-pref">Uplink preference</label><select class="input" id="eth-pref"><option value="wifi_first">WiFi first, Ethernet as fallback</option><option value="ethernet_first">Ethernet first, WiFi as fallback</option></select></div>
+            <div class="form-group"><label class="form-label" for="eth-host">SPI host</label><select class="input" id="eth-host"><option value="2">SPI2</option><option value="3">SPI3</option></select></div>
+            <div class="form-group"><label class="form-label" for="eth-mhz">SPI clock (MHz)</label><input class="input mono" id="eth-mhz" type="number" min="1" max="40"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="eth-sclk">SCLK GPIO</label><input class="input mono eth-pin" id="eth-sclk" type="number" min="0" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-mosi">MOSI GPIO</label><input class="input mono eth-pin" id="eth-mosi" type="number" min="0" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-miso">MISO GPIO</label><input class="input mono eth-pin" id="eth-miso" type="number" min="0" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-cs">CS GPIO</label><input class="input mono eth-pin" id="eth-cs" type="number" min="0" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-int">INT GPIO (-1 = poll)</label><input class="input mono eth-pin" id="eth-int" type="number" min="-1" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-rst">RST GPIO (-1 = none)</label><input class="input mono eth-pin" id="eth-rst" type="number" min="-1" max="48"></div>
+          </div>
+          <label class="feature-switch"><input type="checkbox" id="eth-static"><span class="feature-switch-track" aria-hidden="true"></span><span>Static IPv4 instead of DHCP</span></label>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="eth-ip">Address</label><input class="input mono" id="eth-ip" placeholder="192.168.1.60"></div>
+            <div class="form-group"><label class="form-label" for="eth-mask">Netmask</label><input class="input mono" id="eth-mask" placeholder="255.255.255.0"></div>
+            <div class="form-group"><label class="form-label" for="eth-gw">Gateway</label><input class="input mono" id="eth-gw" placeholder="192.168.1.1"></div>
+            <div class="form-group"><label class="form-label" for="eth-dns">DNS (optional)</label><input class="input mono" id="eth-dns"></div>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-secondary" id="eth-reload" type="button">Reload</button><button class="btn btn-primary" id="eth-save" type="button" disabled>Save (applies after restart)</button></div>
+        </div>
+      </div>
     </div>
 
     <!-- =================================================================
@@ -4703,7 +4734,7 @@
 
     function loadPageState(page) {
       if (page === 'status') { fetchStatus(); loadServiceGatewaySummary(); }
-      if (page === 'network') { loadNetwork(); loadServiceLeases(); }
+      if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); }
       if (page === 'tailscale') loadTailscale();
       if (page === 'firewall') loadFirewall();
       if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); }
@@ -5610,6 +5641,44 @@
     }
     document.getElementById('sg-home-guide').addEventListener('click',function(){wzOpen('lan-tailnet');});
     document.getElementById('sg-home-open').addEventListener('click',function(e){var tab=document.querySelector('.nav-tab[data-page="network"]');if(tab){e.preventDefault();tab.click();}});
+    var ETH_FIELDS=['eth-enabled','eth-pref','eth-host','eth-mhz','eth-sclk','eth-mosi','eth-miso','eth-cs','eth-int','eth-rst','eth-static','eth-ip','eth-mask','eth-gw','eth-dns'];
+    var s_eth_loaded=false;
+    function ethStatusText(st){
+      if(!st.compiled)return 'Not available in this firmware build (WiFi-only image).';
+      if(!st.enabled_at_boot)return 'Off'+(st.restart_required?' · saved settings apply after restart':'')+'.';
+      var t=st.driver_started?(st.link_up?'Link up':'Link down'):'Driver not started'+(st.error?': '+st.error:'');
+      if(st.has_ip)t+=' · '+st.ip+' via '+(st.gateway||'no gateway');
+      t+=st.selected_uplink?' · current uplink':' · not the current uplink';
+      return t+(st.restart_required?' · saved changes apply after restart':'')+'. Link changes this boot: '+st.link_changes+'.';
+    }
+    function loadEthernet(){
+      s_eth_loaded=false;document.getElementById('eth-save').disabled=true;
+      return apiFetch('/api/ethernet',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
+        if(!d||!d.config||!d.status||typeof d.config.enabled!=='boolean')throw new Error('Invalid Ethernet response');
+        var c=d.config,st=d.status,set=function(id,v){var el=document.getElementById(id);if(el.type==='checkbox')el.checked=!!v;else el.value=v;};
+        set('eth-enabled',c.enabled);set('eth-pref',c.preference);set('eth-host',String(c.spi_host));set('eth-mhz',c.spi_mhz);
+        set('eth-sclk',c.sclk);set('eth-mosi',c.mosi);set('eth-miso',c.miso);set('eth-cs',c.cs);set('eth-int',c.int);set('eth-rst',c.rst);
+        set('eth-static',c.static_ip);set('eth-ip',c.ip);set('eth-mask',c.netmask);set('eth-gw',c.gateway);set('eth-dns',c.dns);
+        document.getElementById('eth-status').textContent=ethStatusText(st);
+        var badge=document.getElementById('eth-badge');
+        badge.textContent=!st.compiled?'Not compiled':!st.enabled_at_boot?'Off':st.has_ip?'Connected':st.driver_started?'No link':'Error';
+        badge.className='badge '+(st.has_ip?'badge-success':st.enabled_at_boot&&st.compiled?'badge-warning':'badge-neutral');
+        s_eth_loaded=st.compiled;
+      }).catch(function(e){document.getElementById('eth-status').textContent='Ethernet settings unavailable: '+e.message;});
+    }
+    ETH_FIELDS.forEach(function(id){document.getElementById(id).addEventListener(id==='eth-enabled'||id==='eth-static'||id==='eth-pref'||id==='eth-host'?'change':'input',function(){document.getElementById('eth-save').disabled=!s_eth_loaded;});});
+    document.getElementById('eth-reload').addEventListener('click',loadEthernet);
+    document.getElementById('eth-save').addEventListener('click',async function(){
+      var num=function(id){return Number(document.getElementById(id).value);},val=function(id){return document.getElementById(id).value.trim();};
+      var body={enabled:document.getElementById('eth-enabled').checked,chip:'w5500',preference:val('eth-pref'),spi_host:num('eth-host'),spi_mhz:num('eth-mhz'),
+        sclk:num('eth-sclk'),mosi:num('eth-mosi'),miso:num('eth-miso'),cs:num('eth-cs'),int:num('eth-int'),rst:num('eth-rst'),
+        static_ip:document.getElementById('eth-static').checked,ip:val('eth-ip'),netmask:val('eth-mask'),gateway:val('eth-gw'),dns:val('eth-dns')};
+      var btn=this;btn.disabled=true;
+      try{var r=await apiFetch('/api/ethernet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});var d=await r.json();
+        if(!r.ok||!d.ok)throw new Error(d.error||('HTTP '+r.status));
+        showToast('success','Ethernet settings saved','Restart the device to apply them.',5000);await loadEthernet();}
+      catch(e){document.getElementById('eth-status').textContent='Not saved: '+e.message;btn.disabled=false;}
+    });
     var s_capabilities=null;
     function capabilityUnavailable(id){var f=s_capabilities&&id?s_capabilities[id]:null;return f&&(f.compiled===false||f.hardware_supported===false)?f:null;}
     /* Advisory UI gate from the one manifest; the firmware still refuses on its own. */

@@ -208,3 +208,17 @@ version, never installed) are sent by the existing ntfy worker, one message per
 event with a 60 s retry and nothing queued while disabled. The switch lives in
 a separate NVS key: the versioned ntfy record keeps its flag mask, so stable
 1.13 still accepts it after a downgrade and simply ignores the new key.
+
+## ADR-019 — Ethernet is a separate, explicit build and fails closed (2026-10-22)
+
+The W5500 SPI driver costs about 61 KiB of app flash (measured: 92.9% to 95.7%
+of the slot), too much for an option most boards cannot use, so release images
+stay WiFi-only and `env:esp32-s3-eth` adds the driver; one source tree, same
+app/NVS/updater identity. Runtime is OFF by default with explicit pins and
+validated settings applied at boot. The netif is prepared before the ACL hooks
+are installed and started only after them. Uplink choice reuses the route
+supervisor (and event-driven updates when Tailscale is off): "legacy" when
+disabled, otherwise WiFi-first or Ethernet-first with a three-sample stability
+window. While creating the second environment we found the shipped sdkconfig
+diverged from `sdkconfig.defaults` in four options inherited from IDF 5.3.1;
+they are now pinned so fresh checkouts build the same image.
