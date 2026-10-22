@@ -158,8 +158,8 @@ Exact dev.7 installation permission requested; **pending owner answer**.
 
 ## Local source preservation and privacy scope
 
-MicroLink correction committed locally as `fa3153b`; no push. Root commit
-pending. Current root/history and nested working-tree scans found zero at
+MicroLink correction committed locally as `fa3153b`; parent `99548da`, no push.
+Current root/history and nested working-tree scans found zero at
 their recorded scope. A newly expanded **nested full-history** scan reports
 nine matches in upstream example blobs (458 blobs inspected). Each match was
 read and classified against the exact `tskey-auth-X+(-X+)?` template form:
@@ -168,14 +168,36 @@ keys. Raw scanner result remains nine findings; no exception/suppression or
 history rewrite was introduced to turn that scan green. Private metadata-only
 log: `build/takeover-sensitive-dependency-history.log`.
 
+Both exact dev.7 `.bin` snapshots additionally passed the artifact-mode
+credential/path/userinfo pattern scan (`build/takeover-dev7-artifact-scan.log`).
+This does not establish the absence of every possible secret or vulnerability.
+
+Subsequent device-only OTA helper hardening requires the exact initial version,
+running slot and protected slot, checks the known two-slot layout/size/boot
+selection and refuses to target stable ota_1. Its pure host tests include
+candidate-on-ota_0 refusal; **3/3 targeted drivers PASS** at
+`build/validation-20261022-225454-034483/`. No OTA request has been sent.
+Final reruns including all device-tool guards:
+
+- **Windows 63/63 PASS**, including 75 synthetic browser scenarios, full
+  layout/site and scanner checks:
+  `build/validation-20261022-225540-807692/`.
+- **Linux 60/60 PASS**, ASan/UBSan/leak detection enabled:
+  `build/linux-validation-20261022-225550/validation-20261022-205639-479186/`.
+- Both target builds above remain the exact firmware source. Final reruns did
+  not request another build or run device tests. No sanitizer suppression,
+  authentication weakening or secret-pattern exception was added.
+
 ## Exact continuation / temporary live state
 
-1. Keep uninterrupted capture running to completion, verify profile rollback
-   fields and collect largest-block/socket/task metrics via authenticated UI.
-2. Temporary TCP lab lease is expired/retained closed; UDP lab rule remains
-   enabled/permanent. Remove only the two `lab-*` rules before finishing;
-   preserve the original user rule. First lease opt-in established strict v3
-   permanent bindings; do not erase its NVS ledger.
+1. Keep uninterrupted captures running to completion (about 23:07 local),
+   record actual elapsed/completion/resource summaries. Profile rollback fields
+   and SNMP OFF have been verified.
+2. **Cleanup completed around 22:58:** both disposable lab rules removed with
+   exact original owner configuration compared before/after. Browser reload:
+   one saved rule, no lab names. Echo service has ended. First lease opt-in
+   established strict v3 permanent bindings; its ledger/tombstones remain,
+   deliberately not erased. Existing owner rule remains permanent and unchanged.
 3. Service watch, MQTT/ntfy/SNMP fault campaign, authenticated security tests,
    NVS/reboot, AP recovery and safe OTA upgrade remain pending. Inspect the
    watch's target scope before enabling it; do not probe unrelated targets.

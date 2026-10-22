@@ -7,7 +7,17 @@
 
 > **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
 
-## Current checkpoint — dev.6 continuation (2026-10-22, Claude Code session)
+Current takeover: source dev.7 at parent `99548da` / MicroLink `fa3153b`, local
+only; installed dev.6 unchanged. WiFi/Ethernet builds, Windows 62/62, Linux
+58/58 PASS; new device-tool guards targeted PASS and final full rerun running.
+Final rerun after device-tool guards: Windows **63/63** (75 browser scenarios),
+Linux **60/60** sanitizer PASS; both target builds unchanged and PASS.
+SNMP restored OFF, profile none; disposable lab rules removed, owner unchanged.
+Raw nested history scan has nine reviewed
+uppercase-X example matches, not suppressed; details and exact artifact hashes
+in TAKEOVER-VALIDATION.md. Physical dev.7 install authority pending.
+
+## Historical checkpoint — dev.6 continuation (2026-10-22, Claude Code session)
 
 Source **0.1.38-Mattboxx-1.14-dev.6**, uncommitted root/dependency work, taken
 over from the interrupted Codex session without resetting anything.

@@ -20,7 +20,7 @@ two-client/OTA/recovery/resource gates remain. Nothing was pushed or published.
 |---|---|---|
 | WiFi build | PASS, dev.7 | Binary `32485125…`; app 1,878,592 B / 95.6%; not installed |
 | Ethernet build | PASS, compile only | Binary `f3ce7b92…`; app 1,933,008 B / 98.3%; no W5500 qualification |
-| Offline campaign | PASS | Windows 62 checks, Linux ASan/UBSan 58; later device-tool guards targeted PASS |
+| Offline campaign | PASS | Final Windows 63 checks (75 browser scenarios), Linux ASan/UBSan 60; both target builds separately PASS, same firmware inputs |
 | Browser / layout / i18n | PASS | 75 synthetic scenarios; complete layout/site checks |
 | Boot, WiFi, tailnet join, direct path | PASS (hardware) | ping 10–15 ms, tailnet HTTP 200, 5 flash iterations |
 | Web security without a session | PASS (hardware) | 401 on protected APIs, 403 cross-site login/logout |
