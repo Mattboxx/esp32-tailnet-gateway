@@ -154,7 +154,7 @@ int main(void){
     assert(ops_metric(5)==0&&ops_metric(SNMP_OPS_RESET_REASON)==7&&calls==4);
     snmp_agent_set_operational_provider(NULL); fake_now=4000000;
     assert(ops_metric(SNMP_OPS_AVAILABLE)==0&&ops_metric(SNMP_OPS_RESET_REASON)==0&&calls==4);
-    puts("PASS: actual MIB order/walk/lookups, 21 operational Gauge32 rows, unavailable default, 1 s cache, clock regression, provider replacement");
+    puts("PASS: actual MIB order/walk/lookups, 23 operational Gauge32 rows, unavailable default, 1 s cache, clock regression, provider replacement");
 }
 '''
 mib_program = (HEADER + '#include <stdatomic.h>\n' + constants + operational_h + types + codec
