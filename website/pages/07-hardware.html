@@ -1,0 +1,29 @@
+<!--
+slug: hardware/
+title: Hardware
+description: Supported hardware for ESP32 Tailnet Gateway: ESP32-S3 N16R8 with 16 MB flash and 8 MB PSRAM, optional microSD and experimental W5500 Ethernet.
+group: Start
+order: 7
+-->
+<h1>Hardware</h1>
+<figure class="diagram">
+  <img src="{{root}}assets/diagrams/hardware.svg" alt="Reference ESP32-S3 N16R8 board with USB-C power, optional microSD and optional W5500 SPI Ethernet in a separate build." width="960" height="360">
+  <figcaption>Reference target and optional modules.</figcaption>
+</figure>
+
+<h2>Reference target</h2>
+<table>
+  <tbody>
+    <tr><th scope="row">SoC</th><td>ESP32-S3 (dual core, 2.4 GHz WiFi)</td></tr>
+    <tr><th scope="row">Memory</th><td>16 MB flash, 8 MB octal PSRAM (N16R8), e.g. ESP32-S3-DevKitC-1 N16R8</td></tr>
+    <tr><th scope="row">Power</th><td>Reliable USB supply, separate from the machines it should wake</td></tr>
+    <tr><th scope="row">Optional</th><td>microSD card for the log flight recorder</td></tr>
+  </tbody>
+</table>
+<p>Other ESP32 families are not drop-in targets. Community reports for other ESP32-S3 boards are collected in <a href="{{repo}}/blob/Main/docs/HARDWARE.md">docs/HARDWARE.md</a>; please add yours with the <em>Hardware report</em> issue form.</p>
+
+<h2>W5500 Ethernet (experimental)</h2>
+<p>The separate <code>esp32-s3-eth</code> image supports an explicitly wired W5500 SPI module: off by default, explicit pins, DHCP or static IPv4, WiFi-first or Ethernet-first. It is host-tested only and <strong>not validated on real hardware</strong>. Never flash it onto a board without the module wired as documented in <a href="{{repo}}/blob/Main/docs/ETHERNET.md">docs/ETHERNET.md</a>.</p>
+
+<h2>Single radio</h2>
+<p>The uplink and the access point share one 2.4 GHz radio and channel. After a roam to a different channel the device realigns the AP, which briefly interrupts AP clients.</p>

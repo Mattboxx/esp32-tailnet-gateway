@@ -1,0 +1,32 @@
+<!--
+slug: contributing/
+title: Contributing
+description: How to contribute to ESP32 Tailnet Gateway: bug reports, hardware reports, guide improvements, translations and pull requests.
+group: Project
+order: 15
+-->
+<h1>Contributing</h1>
+<p>Bug reports, hardware reports, guide fixes and translations are as welcome as code.</p>
+
+<h2>Ways to help</h2>
+<ul>
+  <li><strong>Hardware report:</strong> tell us which board you used and what worked.</li>
+  <li><strong>Guide feedback:</strong> point out a confusing step or a missing case.</li>
+  <li><strong>Translations:</strong> review the Web UI wording in your language.</li>
+  <li><strong>Code:</strong> open an issue first for anything non-trivial.</li>
+</ul>
+
+<h2>Build and test</h2>
+<pre><code>git clone --recurse-submodules {{repo}}
+cd esp32-tailnet-gateway
+pio run -e esp32-s3
+python tools/validate_all.py</code></pre>
+<p><code>validate_all.py</code> is offline and never touches a device. Device tests can change a real board; run them only on your own test hardware.</p>
+
+<h2>Rules</h2>
+<ul>
+  <li>Never commit credentials, real addresses, tailnet names or device backups.</li>
+  <li>Keep changes focused; update the changelog and affected guides.</li>
+  <li>Follow the <a href="{{repo}}/blob/Main/CODE_OF_CONDUCT.md">code of conduct</a>.</li>
+</ul>
+<p>Details: <a href="{{repo}}/blob/Main/CONTRIBUTING.md">CONTRIBUTING.md</a>.</p>

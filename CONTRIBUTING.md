@@ -1,7 +1,9 @@
 # Contributing
 
-Thanks for your interest! This is a small, single-maintainer hobby project, so
-please keep changes focused and be patient with review turnaround.
+Thanks for your interest in ESP32 Tailnet Gateway — Mattboxx Edition! This is a
+small, single-maintainer project, so please keep changes focused and be patient
+with review turnaround. Everyone taking part follows the
+[code of conduct](CODE_OF_CONDUCT.md).
 
 ## Before you start
 
@@ -32,7 +34,7 @@ pio device monitor -b 115200
 The `external/microlink` submodule (the Tailscale/WireGuard stack) is required:
 
 ```sh
-git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailscale-gateway
+git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailnet-gateway
 # or, in an existing clone:
 git submodule update --init --recursive
 ```
@@ -44,8 +46,17 @@ normal `pio run` re-embeds it.
 ## Tests
 
 See **[docs/TESTING.md](docs/TESTING.md)** for the host-side test harness and how
-to point it at a device. Please run the relevant tests before opening a PR and
-mention the result.
+to point it at a device. Run `python tools/validate_all.py` (offline, never
+touches a device) before opening a PR and mention the result. Device tests
+(`tools/*_device.py`) can change a real board: run them only on your own test
+hardware.
+
+## Documentation, guides and hardware reports
+
+Guide fixes are as valuable as code. Every guide states who it is for,
+requirements, procedure, verification, common problems, limits and security.
+Hardware reports (board, flash/PSRAM, what worked, firmware version) help
+other users; use the *Hardware report* issue form.
 
 ## Pull requests
 

@@ -1,0 +1,41 @@
+<!--
+slug: network-modes/
+title: Network modes
+description: ESP32 subnet router, IoT WiFi AP gateway and exit node modes for Tailscale and Headscale, and how they differ from the Service Gateway.
+nav: Network modes
+group: Guides
+order: 3
+-->
+<h1>Network modes</h1>
+<p>Three traffic paths are independent of each other and of the Service Gateway. Enable the ones you need.</p>
+
+<h2>Subnet router: Tailnet → LAN</h2>
+<figure class="diagram">
+  <img src="{{root}}assets/diagrams/subnet-routing.svg" alt="Tailnet clients reach LAN devices through a subnet route advertised by the ESP32 and approved in the admin console." width="960" height="360">
+  <figcaption>Advertised routes must be approved in the Tailscale or Headscale admin console.</figcaption>
+</figure>
+<p>Advertise the uplink LAN and/or the ESP32's AP subnet. Turn on source NAT when LAN hosts have no route back to the tailnet. 4via6 maps an overlapping IPv4 LAN into a site-specific IPv6 prefix. Guide: <a href="{{repo}}/blob/Main/docs/SUBNET-ROUTER.md">Subnet router</a>.</p>
+
+<h2>AP gateway for IoT</h2>
+<figure class="diagram">
+  <img src="{{root}}assets/diagrams/ap-gateway.svg" alt="IoT devices on the ESP32 access point get DHCP, DNS, NAT and firewall, and reach the Internet through the uplink or a Tailnet exit node." width="960" height="360">
+  <figcaption>The access point is for low-bandwidth devices, not phones or laptops.</figcaption>
+</figure>
+<p>The AP can stay always on, or run recovery-only: in standby while the uplink works and back after an outage. Firewall chains and AP-side port forwarding apply to its subnet.</p>
+
+<h2>Exit node</h2>
+<p>As a client, the ESP32 sends AP traffic through a chosen Tailnet exit node and fails closed when it is unreachable. As a server, it advertises itself as an IPv4 exit node (approval required); IPv6 fails closed. The two modes cannot be active together. Guide: <a href="{{repo}}/blob/Main/docs/EXIT-NODE.md">Exit node</a>.</p>
+
+<h2>Which one do I need?</h2>
+<table>
+  <thead><tr><th>Goal</th><th>Use</th></tr></thead>
+  <tbody>
+    <tr><td>A LAN device must reach one remote service</td><td><a href="{{root}}service-gateway/">Service Gateway</a></td></tr>
+    <tr><td>Reach LAN devices from anywhere on the tailnet</td><td>Subnet router</td></tr>
+    <tr><td>Isolate IoT gear on its own WiFi</td><td>AP gateway</td></tr>
+    <tr><td>Egress AP traffic from another site</td><td>Exit node client</td></tr>
+  </tbody>
+</table>
+
+<h2>Ethernet</h2>
+<p>A separate <code>esp32-s3-eth</code> build adds an optional W5500 SPI Ethernet uplink with explicit pins, DHCP or static IPv4 and WiFi-first or Ethernet-first selection. It is host-tested but <strong>not hardware-validated</strong>; see <a href="{{root}}hardware/">Hardware</a>.</p>

@@ -1,0 +1,63 @@
+<!--
+slug:
+title: Home
+description: ESP32-S3 firmware for Tailscale and Headscale: selective LAN-to-Tailnet service access, subnet routing, remote recovery and optional automation.
+schema: home
+-->
+<section class="hero">
+  <div>
+    <p class="eyebrow">Mattboxx Edition</p>
+    <h1>ESP32 Tailnet Gateway</h1>
+    <p class="tagline">One ESP32. Multiple Tailnet roles. <span>Enable only what you need.</span></p>
+    <p class="lead">Let an ordinary LAN device use one specific service on your Tailscale or Headscale tailnet — without installing a client on it, moving it to another network or changing your router.</p>
+    <div class="cta">
+      <a class="btn primary" href="{{root}}getting-started/">Get started</a>
+      <a class="btn" href="{{root}}service-gateway/">How the Service Gateway works</a>
+      <a class="btn" href="{{root}}downloads/">Download</a>
+    </div>
+  </div>
+  <svg class="roles" viewBox="0 0 480 300" role="img" aria-labelledby="roles-t">
+    <title id="roles-t">A LAN device passes through the ESP32; the Service Gateway role is enabled, the other roles stay off until you enable them.</title>
+    <rect x="16" y="128" width="56" height="40" rx="8" fill="none" stroke="currentColor" stroke-width="2.5"/>
+    <path d="M72 148h64" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <rect class="lit" x="136" y="104" width="38" height="88" rx="10"/>
+    <rect class="hole" x="150" y="128" width="10" height="40" rx="5"/>
+    <g fill="none" stroke-width="3" stroke-linecap="round">
+      <path class="muted-line" d="M174 130c56 0 56-90 112-90"/>
+      <path class="muted-line" d="M174 139c56 0 56-45 112-45"/>
+      <path class="lit" d="M174 148h112" fill="none"/>
+      <path class="muted-line" d="M174 157c56 0 56 45 112 45"/>
+      <path class="muted-line" d="M174 166c56 0 56 90 112 90"/>
+    </g>
+    <g class="nodes" stroke-width="2.5">
+      <circle class="muted-line" cx="296" cy="40" r="7"/><circle class="muted-line" cx="296" cy="94" r="7"/>
+      <circle class="lit" cx="296" cy="148" r="8"/>
+      <circle class="muted-line" cx="296" cy="202" r="7"/><circle class="muted-line" cx="296" cy="256" r="7"/>
+    </g>
+    <text x="314" y="45">Subnet router</text><text x="314" y="99">AP gateway</text>
+    <text class="on" x="314" y="153">Service Gateway</text>
+    <text x="314" y="207">Exit node</text><text x="314" y="261">Remote recovery</text>
+    <text x="44" y="196" text-anchor="middle">LAN device</text>
+  </svg>
+</section>
+
+<h2>The problem it solves</h2>
+<p>A home-automation controller, a printer dashboard or an old PC needs to reach <strong>one</strong> service at another site — an MQTT broker, a NAS web UI, an SSH host. It cannot run Tailscale, and you do not want to advertise whole subnets or replace the router. Put an ESP32-S3 on the same LAN and publish one rule: <em>this device may use this Tailnet service on this port</em>.</p>
+
+<figure class="diagram">
+  <img src="{{root}}assets/diagrams/lan-to-tailnet.svg" alt="A LAN client connects to the ESP32's address and listen port; the ESP32 checks rule, source, protocol and port, then forwards over WireGuard to one Tailnet service. Other devices are refused." width="960" height="400">
+  <figcaption>Selective LAN → Tailnet: one rule, one service, one allowed source.</figcaption>
+</figure>
+
+<h2>One firmware, multiple roles</h2>
+<div class="grid">
+  <div class="card"><h3>Service Gateway <span class="badge on">primary</span></h3><p>LAN → one TCP or UDP service on a Tailnet peer, with source restriction, expiry, destination test and Service watch.</p><a href="{{root}}service-gateway/">Service Gateway</a></div>
+  <div class="card"><h3>Subnet router</h3><p>Reach your LAN and the ESP32's own AP subnet from tailnet clients, with optional source NAT and 4via6.</p><a href="{{root}}network-modes/">Network modes</a></div>
+  <div class="card"><h3>IoT AP gateway</h3><p>Give low-bandwidth devices their own WiFi with DHCP, DNS, NAT and firewall chains, optionally through an exit node.</p><a href="{{root}}network-modes/">Network modes</a></div>
+  <div class="card"><h3>Remote recovery</h3><p>A separately powered tailnet node that can wake your NAS and report bounded, honest evidence.</p><a href="{{root}}remote-recovery/">Remote recovery</a></div>
+  <div class="card"><h3>Automation</h3><p>MQTT with Home Assistant Discovery, ntfy and read-only SNMP. All optional, none required for routing.</p><a href="{{root}}automation/">Automation</a></div>
+  <div class="card"><h3>Diagnostics</h3><p>Evidence per layer — control, path, rule, handshake, traffic — never a green light it cannot justify.</p><a href="{{root}}features/">All features</a></div>
+</div>
+
+<h2>Honest limits</h2>
+<p>This is a microcontroller running userspace WireGuard on one shared 2.4 GHz radio. It suits control traffic, telemetry, dashboards and SSH, not video or bulk transfers. It is community firmware, not an official Tailscale client. Read the <a href="{{root}}faq/">FAQ</a> and the <a href="{{root}}security/">security model</a> before deploying it.</p>

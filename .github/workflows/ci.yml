@@ -1,0 +1,68 @@
+name: CI
+
+# Builds both firmware variants and runs the offline test campaign. Read-only:
+# no secrets, no device access, no publishing. Artifacts are build outputs for
+# review, never a release.
+on:
+  workflow_dispatch:
+  push:
+    branches: [Main, mattboxx]
+  pull_request:
+    branches: [Main, mattboxx]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  firmware:
+    name: Build ${{ matrix.env }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        env: [esp32-s3, esp32-s3-eth]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+      - name: Install PlatformIO
+        run: python -m pip install platformio==6.1.18
+      - name: Build
+        run: pio run -e ${{ matrix.env }}
+      - name: Image hashes
+        run: sha256sum .pio/build/${{ matrix.env }}/firmware.bin .pio/build/${{ matrix.env }}/firmware.elf | tee SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.env }}-${{ github.sha }}
+          path: |
+            .pio/build/${{ matrix.env }}/firmware.bin
+            SHA256SUMS
+          retention-days: 14
+
+  site:
+    name: Website checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Build and check the static site
+        run: python tools/build_site.py --check

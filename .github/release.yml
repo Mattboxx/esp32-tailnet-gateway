@@ -1,0 +1,18 @@
+# Categories for GitHub's generated release notes. The hand-written notes in
+# docs/RELEASE-*.md remain authoritative and state what was actually tested.
+changelog:
+  exclude:
+    labels: [skip-changelog]
+  categories:
+    - title: Security
+      labels: [security]
+    - title: Service Gateway
+      labels: [service-gateway]
+    - title: Fixes
+      labels: [bug]
+    - title: Features
+      labels: [enhancement]
+    - title: Documentation and guides
+      labels: [documentation]
+    - title: Other changes
+      labels: ["*"]

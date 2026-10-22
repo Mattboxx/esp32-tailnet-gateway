@@ -74,12 +74,14 @@ def main():
             if args.sanitizers:flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
             run(name+'-compile',['gcc',*flags,str(ROOT/'tools'/('test_'+name+'.c')),'-o',str(binary)])
             if results[-1]['status']=='PASS':run(name,[str(binary)])
+        run('site-build',[sys.executable,'tools/build_site.py','--check'])
         run('sensitive-history',[sys.executable,'tools/check_sensitive_data.py','--history'])
         run('sensitive-dependency',[sys.executable,'tools/check_sensitive_data.py','--repository','external/microlink'])
     if args.browser:
         runtime=Path.home()/'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'
         if runtime.is_dir():env.setdefault('NODE_PATH',str(runtime))
         run('browser',['node','tools/test_automation_ui.cjs'])
+        run('site-browser',['node','tools/test_site_browser.cjs'],600)
     summary=dict(results=results,build_requested=args.build,browser_requested=args.browser,
                  sanitizers_requested=args.sanitizers,targeted_only=bool(args.only),
                  hardware_executed=False,release_qualified=False)

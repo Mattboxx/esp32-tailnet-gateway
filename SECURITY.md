@@ -127,7 +127,7 @@ web-UI authentication bypass, or any other concern that affects the safety of a
 device running this code — please report it privately rather than opening a
 public issue.
 
-**Preferred channel:** use GitHub's [private vulnerability reporting](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/security/advisories/new)
+**Preferred channel:** use GitHub's [private vulnerability reporting](https://github.com/Mattboxx/esp32-tailnet-gateway/security/advisories/new)
 on this repository. This creates a private security advisory that only the
 maintainer and invited collaborators can see.
 

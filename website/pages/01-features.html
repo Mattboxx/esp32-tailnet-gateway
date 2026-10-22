@@ -1,0 +1,51 @@
+<!--
+slug: features/
+title: Features
+description: Everything ESP32 Tailnet Gateway can do: Service Gateway, subnet routing, AP gateway, exit node, recovery, diagnostics and automation.
+nav: Features
+order: 1
+-->
+<h1>Features</h1>
+<p>Every capability below is a switch. A user who only needs LAN → Tailnet access never has to configure recovery, MQTT, ntfy or SNMP. Disabling a feature stops its runtime work; it does not remove its code from flash.</p>
+
+<figure class="diagram">
+  <img src="{{root}}assets/diagrams/architecture.svg" alt="Six ownership areas: Network Gateway, Recovery and Device Management, Monitoring and Diagnostics, Automation and Integrations, Configuration and Management, and the Connectivity Core on ESP-IDF." width="960" height="460">
+  <figcaption>Firmware architecture: six ownership areas on one ESP32-S3.</figcaption>
+</figure>
+
+<h2>Network gateway</h2>
+<table>
+  <thead><tr><th>Capability</th><th>What it does</th><th>Default</th></tr></thead>
+  <tbody>
+    <tr><td>Selective Service Gateway</td><td>Up to 8 TCP/UDP rules from a LAN listen port to one Tailnet IPv4 destination (literal or MagicDNS name), each with a mandatory source CIDR, binding token and optional expiry.</td><td>Rules start disabled</td></tr>
+    <tr><td>Subnet router</td><td>Advertise the uplink LAN and/or the AP subnet to the tailnet; optional source NAT; optional 4via6 for overlapping IPv4 sites.</td><td>Off</td></tr>
+    <tr><td>AP gateway</td><td>Own WiFi access point with DHCP reservations, MAC denylist, cached DNS forwarder, NAT and AP-side port forwarding.</td><td>Recovery-only AP</td></tr>
+    <tr><td>Exit node</td><td>Send AP traffic through a Tailnet exit node (fails closed), or advertise the ESP32 itself as an IPv4 exit node.</td><td>Off</td></tr>
+    <tr><td>Firewall</td><td>Four first-match chains with hit counters; Tailnet authorization on original packets before NAT.</td><td>Allow when empty</td></tr>
+  </tbody>
+</table>
+
+<h2>Recovery and device management</h2>
+<ul>
+  <li>Wake-on-LAN address book (up to 12 devices) from the Web UI, MQTT, Home Assistant or replay-protected ntfy commands.</li>
+  <li>Bounded Smart Recovery jobs: precheck a known port, one WoL burst, wait, check again.</li>
+  <li>Recovery access point that returns 60 seconds after the saved WiFi disappears and stays until it is back.</li>
+</ul>
+
+<h2>Monitoring and diagnostics</h2>
+<ul>
+  <li>Per-rule state, accepted/rejected counters, admitted replies and the last evidence seen.</li>
+  <li>Destination test (one bounded TCP handshake) and opt-in Service watch with change alerts.</li>
+  <li>Route explain, ping, traceroute, WiFi scan, live logs, optional microSD flight recorder, sanitized diagnostic export.</li>
+</ul>
+
+<h2>Configuration and management</h2>
+<ul>
+  <li>Responsive Web UI and JSON API; PBKDF2 password verifier with login challenge, sessions, cross-site and DNS-rebinding screening.</li>
+  <li>Configuration profiles (Gateway, Recovery, IoT, Monitoring, Advanced) with preview and rollback.</li>
+  <li>Encrypted configuration backup and restore; opt-in GitHub updates with application rollback.</li>
+  <li>No telemetry, crash uploads or forced update polling.</li>
+</ul>
+
+<h2>Automation and integrations</h2>
+<p>MQTT with Home Assistant Discovery, ntfy alerts and commands, read-only SNMP v1/v2c. Each is supervised and off by default; see <a href="{{root}}automation/">Automation</a>.</p>

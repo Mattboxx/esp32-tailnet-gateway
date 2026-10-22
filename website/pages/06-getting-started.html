@@ -1,0 +1,48 @@
+<!--
+slug: getting-started/
+title: Getting started
+description: Flash an ESP32-S3, join your WiFi and Tailscale or Headscale tailnet, and publish your first LAN-to-Tailnet service rule in about 20 minutes.
+group: Start
+order: 6
+-->
+<h1>Getting started</h1>
+<p><strong>You need:</strong> an ESP32-S3 N16R8 board, a USB data cable, a 2.4 GHz WiFi network, and a Tailscale account or a Headscale server (0.26 or newer).</p>
+
+<h2>1. Flash the firmware</h2>
+<p>Download the Windows package from the <a href="{{root}}downloads/">downloads page</a> and run <code>CLEAN_INSTALL_ERASE_ALL.bat</code> for a first install. On Linux or macOS:</p>
+<pre><code>python -m pip install esptool
+esptool.py --chip esp32s3 --baud 921600 write_flash 0x0 firmware-factory.bin</code></pre>
+
+<h2>2. First-time setup</h2>
+<p>Join the setup access point (default <code>ESP32-TSR-Setup</code>; its name and password are printed on the serial console), open <code>http://192.168.4.1</code>, set an admin password and rename the access point.</p>
+<figure>
+  <img src="{{root}}assets/login-1.14-dev6.png" alt="Sign-in screen of the ESP32 Tailnet Gateway Web UI, development build 1.14-dev.6" width="1280" height="800" loading="lazy">
+  <figcaption>Authentic capture of the sign-in screen, development build 0.1.38-Mattboxx-1.14-dev.6.</figcaption>
+</figure>
+
+<h2>3. Join your WiFi</h2>
+<p>Under <strong>Network</strong>, select your 2.4 GHz network and save. Reserve a fixed address for the ESP32 on your router.</p>
+
+<h2>4. Enrol on your tailnet</h2>
+<ol>
+  <li>Create a <strong>reusable, non-ephemeral</strong> auth key (Tailscale admin → Settings → Keys) or a Headscale pre-auth key.</li>
+  <li>In <strong>Tailscale</strong>, paste the key, set a hostname and, for Headscale, the login server URL.</li>
+  <li>After it appears in the admin console, <strong>disable node-key expiry</strong> and reboot the ESP32 once.</li>
+  <li>Approve any advertised routes.</li>
+</ol>
+
+<h2>5. Publish your first service</h2>
+<p>Follow the <a href="{{root}}service-gateway/">Service Gateway guide</a>: add a rule with a single-device source, run <strong>Test destination</strong>, then enable it.</p>
+
+<h2>Verify</h2>
+<ul>
+  <li>Status shows the uplink connected and Tailscale running with peers.</li>
+  <li><code>tailscale ping &lt;esp-hostname&gt;</code> answers from another node.</li>
+  <li>The rule's accepted counter grows when the LAN client connects.</li>
+</ul>
+
+<h2>Common problems</h2>
+<p>An unapproved route, node-key expiry left on, or a peer ACL that does not include the ESP32 cause most first-day issues. See <a href="{{root}}troubleshooting/">Troubleshooting</a>. Detailed walk-through with screenshots: <a href="{{repo}}/blob/Main/docs/GETTING-STARTED.md">docs/GETTING-STARTED.md</a>.</p>
+
+<h2>Security</h2>
+<p>Set the admin password before joining any shared network. The local Web UI is HTTP: administer it from a trusted LAN or over the tailnet.</p>
