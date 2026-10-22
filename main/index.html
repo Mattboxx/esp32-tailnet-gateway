@@ -5559,11 +5559,13 @@
         b.addEventListener('click',function(){wzOpen(w.id);});list.appendChild(b);});
     }
     function wzPanel(){return document.getElementById('wizard-panel');}
-    function wzClose(){wzClearFocus();s_wz=null;wzPanel().hidden=true;}
+    var s_wz_trigger=null;
+    function wzClose(){wzClearFocus();s_wz=null;wzPanel().hidden=true;if(s_wz_trigger&&document.body.contains(s_wz_trigger))s_wz_trigger.focus();s_wz_trigger=null;}
     async function wzOpen(id){
       var w=WIZARDS.filter(function(x){return x.id===id;})[0];if(!w)return;
       s_wz={w:w,snapshot:null,started:false};
-      var p=wzPanel();p.hidden=false;
+      if(document.activeElement&&!wzPanel().contains(document.activeElement))s_wz_trigger=document.activeElement;
+      var p=wzPanel();p.hidden=false;document.getElementById('wizard-close').focus();
       document.getElementById('wizard-title').textContent=w.title;
       document.getElementById('wizard-goal').textContent=w.goal;
       var risks=document.getElementById('wizard-risks');risks.replaceChildren();w.risks.forEach(function(r){risks.appendChild(wzEl('li',r));});
@@ -5625,6 +5627,7 @@
     document.getElementById('wizard-verify').addEventListener('click',wzVerify);
     document.getElementById('wizard-restore').addEventListener('click',wzRestore);
     document.getElementById('wizard-close').addEventListener('click',wzClose);
+    document.addEventListener('keydown',function(e){if(e.key==='Escape'&&s_wz&&!wzPanel().hidden){e.preventDefault();wzClose();}});
     wzRenderList();
     function loadServiceGatewaySummary(){
       var out=document.getElementById('sg-home-summary'),badge=document.getElementById('sg-home-badge'),loaded=false;
