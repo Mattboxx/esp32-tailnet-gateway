@@ -182,7 +182,7 @@ int main(void){
 ''')
 
 web = (ROOT / 'main/web_ui.c').read_text(encoding='utf-8')
-handler = function(web, 'static bool json_age(') + function(web, 'static esp_err_t tailnet_forward_handler(')
+handler = function(web, 'static const char *rule_peer_path(') + function(web, 'static bool json_age(') + function(web, 'static esp_err_t tailnet_forward_handler(')
 run(HEAD + r'''
 #include "cJSON.h"
 #include "json_guard.h"
@@ -192,6 +192,11 @@ run(HEAD + r'''
 #include "service_evidence.h"
 typedef struct {int status;char *response;} httpd_req_t;
 static int64_t fixture_us=100000000; /* uptime 100 s -> now_s 101 */
+struct microlink_s {int unused;};static struct microlink_s fixture_ml;static bool peer_online=true,peer_direct=false;static uint32_t peer_ip=0x64400002;
+typedef struct {uint32_t vpn_ip;bool online,direct_path;} microlink_peer_info_t;
+static struct microlink_s *tailscale_get_microlink(void){return &fixture_ml;}
+static int microlink_get_peer_count(struct microlink_s *m){assert(m);return 2;}
+static int microlink_get_peer_info(struct microlink_s *m,int i,microlink_peer_info_t *o){assert(m);if(i==1)return -1;*o=(microlink_peer_info_t){.vpn_ip=peer_ip,.online=peer_online,.direct_path=peer_direct};return ESP_OK;}
 static int64_t esp_timer_get_time(void){return fixture_us;}
 static bool reply_seen;static uint32_t reply_ms;static uint8_t reply_ip[4];static uint16_t reply_port;
 bool ml_policy_reply_age(uint8_t proto,const uint8_t ip[4],uint16_t port,uint32_t *age){assert(proto==6||proto==17);memcpy(reply_ip,ip,4);reply_port=port;if(reply_seen)*age=reply_ms;return reply_seen;}
@@ -263,6 +268,12 @@ int main(void){
  cJSON *root=first_rule(),*j=cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),*act=cJSON_GetObjectItem(j,"activity");
  assert(cJSON_IsNull(cJSON_GetObjectItem(act,"last_accepted_age_s"))&&cJSON_GetObjectItem(act,"last_rejected_age_s")->valuedouble==10);
  assert(cJSON_IsNull(cJSON_GetObjectItem(act,"service_reply_age_s"))&&!cJSON_GetObjectItem(j,"destination_check"));
+ assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(act,"peer_path")),"relay"));cJSON_Delete(root);
+ peer_direct=true;root=first_rule();assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),"activity"),"peer_path")),"direct"));cJSON_Delete(root);
+ peer_online=false;root=first_rule();assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),"activity"),"peer_path")),"offline"));cJSON_Delete(root);
+ peer_ip=0x64400099;root=first_rule();assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),"activity"),"peer_path")),"unknown"));cJSON_Delete(root);
+ control=false;peer_ip=0x64400002;peer_online=true;root=first_rule();assert(!strcmp(cJSON_GetStringValue(cJSON_GetObjectItem(cJSON_GetObjectItem(cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0),"activity"),"peer_path")),"unknown"));control=true;
+ root=first_rule();j=cJSON_GetArrayItem(cJSON_GetObjectItem(root,"rules"),0);act=cJSON_GetObjectItem(j,"activity");
  assert(reply_ip[0]==100&&reply_ip[1]==64&&reply_ip[2]==0&&reply_ip[3]==2&&reply_port==1883);
  assert(cJSON_GetObjectItem(j,"rule_token")->valuedouble==1883*7+1&&cJSON_GetObjectItem(j,"index")->valuedouble==0);cJSON_Delete(root);
  reply_seen=true;reply_ms=4999;runtime.last_accepted_s=200; /* clock skew: stamp ahead of now -> 0, never negative */

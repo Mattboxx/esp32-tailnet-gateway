@@ -73,6 +73,9 @@ a flow this gateway sent to that destination IP and port. For UDP that reply is
 the only evidence the service answers. Reply evidence belongs to the remote
 service tuple, so rules sharing a destination share it; it is not per LAN
 client, and it disappears while authority is suspended or after revocation.
+The activity line also shows the destination peer's path from the current
+peer list: direct, relayed via DERP (slower) or offline. It is a snapshot, not
+a reachability test.
 
 ## Templates and export (development line)
 
