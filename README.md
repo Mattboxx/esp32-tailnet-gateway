@@ -116,8 +116,8 @@ Each release on the [releases page](../../releases/latest) contains:
 |---|---|
 | `firmware-factory.bin` | Full image for a first install at offset `0x0` (erases settings) |
 | `firmware.bin` | Application image for the Web UI updater or keep-settings updates |
-| `ESP32-S3-router-<version>-windows.zip` | Guided Windows package with esptool and batch files |
-| `SHA256SUMS`, `FIRMWARE-LICENSES.txt` | Checksums and third-party notices |
+| `ESP32-Tailnet-Gateway-<version>-windows.zip` | Guided Windows package with esptool and batch files |
+| `SHA256SUMS.txt`, `release-manifest.json`, `FIRMWARE-LICENSES.txt` | Checksums, build metadata and third-party notices |
 
 The WiFi build is the default. An **Ethernet (W5500) variant**, when
 published, is labelled separately and is only for boards with that module

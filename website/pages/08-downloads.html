@@ -16,14 +16,15 @@ order: 8
   <tbody>
     <tr><td><code>firmware-factory.bin</code></td><td>First install with esptool at offset <code>0x0</code>. Erases all settings.</td></tr>
     <tr><td><code>firmware.bin</code></td><td>Updates: Web UI upload, the opt-in GitHub updater, or keep-settings flashing.</td></tr>
-    <tr><td><code>ESP32-S3-router-&lt;version&gt;-windows.zip</code></td><td>Guided Windows package with esptool and batch files.</td></tr>
-    <tr><td><code>SHA256SUMS</code>, <code>FIRMWARE-LICENSES.txt</code></td><td>Checksums and third-party notices.</td></tr>
+    <tr><td><code>ESP32-Tailnet-Gateway-&lt;version&gt;-windows.zip</code></td><td>Guided Windows package with esptool and batch files.</td></tr>
+    <tr><td><code>SHA256SUMS.txt</code>, <code>release-manifest.json</code>, <code>FIRMWARE-LICENSES.txt</code></td><td>Checksums, build metadata and third-party notices.</td></tr>
+    <tr><td><code>firmware-eth.bin</code>, <code>firmware-eth-factory.bin</code></td><td>Ethernet (W5500) variant only, when published; it updates only from its own asset.</td></tr>
   </tbody>
 </table>
 
 <h2>Verify a download</h2>
-<pre><code>sha256sum -c SHA256SUMS            # Linux
-shasum -a 256 -c SHA256SUMS        # macOS
+<pre><code>sha256sum -c SHA256SUMS.txt        # Linux
+shasum -a 256 -c SHA256SUMS.txt    # macOS
 Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
 
 <h2>WiFi and Ethernet variants</h2>
