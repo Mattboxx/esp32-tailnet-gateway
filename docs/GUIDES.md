@@ -22,6 +22,6 @@ The 20 guide subjects required by the roadmap, mapped to existing documents.
 | Troubleshooting | TROUBLESHOOTING.md | Present |
 | Firmware Updates | UPDATES.md | Present |
 | Backup and Restore | BACKUP-RESTORE.md | Present |
-| Hardware Compatibility | README → Hardware | Partial |
+| Hardware Compatibility | HARDWARE.md, README → Hardware | Present |
 | Ethernet | ETHERNET.md | Present (not hardware-validated) |
 | Development and Testing | TESTING.md, AGENTS.md | Present |
