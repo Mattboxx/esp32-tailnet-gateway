@@ -107,10 +107,19 @@ int main(void) {
     assert(!last_target && !s_pending);
     /* Replace an already queued transition before the worker gets CPU time. */
     ap_policy_request(true);ap_policy_request(false);execute();assert(!last_target);
+    /* Recovery-only fallback: a lost uplink waits 60 s; disconnect events
+     * repeated by STA retries never postpone it; a reconnect cancels it. */
+    ap_policy_request(false);execute();unsigned calls=mode_calls;int64_t lost=clock_us;
+    ap_policy_request_after(true,60000);
+    for(int i=0;i<11;i++){clock_us+=5000000;ap_policy_request_after(true,60000);} /* retries every 5 s */
+    clock_us=lost;execute();assert(last_target&&mode_calls==calls+1&&clock_us==lost+60000000);
+    ap_policy_request(false);execute();calls=mode_calls;
+    ap_policy_request_after(true,60000);clock_us+=30000000;ap_policy_request(false); /* back within the minute */
+    execute();assert(!last_target&&mode_calls==calls+1); /* AP never turned on */
     ap_policy_request(true);unsigned before=mode_calls;
     shutdown_callback();ap_policy_request(true);execute();
     assert(ap_policy_is_shutdown() && mode_calls==before && !s_pending && allocations==1);
-    puts("AP recovery: one reserved stack, 1000 coalesced requests without allocation, grace/retry timing, latest-generation races and shutdown suppression");
+    puts("AP recovery: one reserved stack, 1000 coalesced requests without allocation, grace/retry timing, 60 s WiFi-loss fallback not postponed by retries and cancelled by reconnect, latest-generation races and shutdown suppression");
 }
 '''
 run('AP recovery remains allocation-free under runtime fragmentation', headers + ap_fixture + ap_source + ap_tests)

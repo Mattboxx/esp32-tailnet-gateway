@@ -168,6 +168,7 @@ static volatile bool s_manual_scan_active = false;
  * address, but brings it back whenever STA disconnects so a bad credential or
  * upstream outage never locks the operator out of the device. */
 static volatile bool     s_ap_auto_off = false;
+#define AP_FALLBACK_DELAY_MS 60000u
 
 static bool ap_policy_apply_runtime(bool on)
 {
@@ -429,7 +430,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
         ap_connect = 0;
         if (shutting_down) return;
-        if (s_ap_auto_off) ap_policy_request(true);
+        /* Recovery-only AP: give the saved WiFi a minute to come back before
+         * re-opening the AP; it then stays up until the uplink has an address
+         * again (GOT_IP below turns it off). Brief drops never flap the AP. */
+        if (s_ap_auto_off) ap_policy_request_after(true, AP_FALLBACK_DELAY_MS);
         if (s_manual_scan_active) {
             ESP_LOGI(TAG_STA, "STA reconnect paused for manual scan");
             return;

@@ -2095,7 +2095,7 @@
             <label class="feature-switch">
               <input type="checkbox" id="net-ap-uplink-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable client access point</span>
             </label>
-            <span class="form-hint">This WiFi network lets devices use the ESP32 as their gateway to the Internet and to routes available through Tailscale. When switched off, it stays hidden during normal connected operation but returns automatically if the uplink is lost, so the router cannot become unreachable.</span>
+            <span class="form-hint">This WiFi network lets devices use the ESP32 as their gateway to the Internet and to routes available through Tailscale. When switched off, it stays hidden during normal connected operation; if the saved WiFi is not found for one minute it returns automatically and stays on until the uplink is back, so the device cannot become unreachable.</span>
           </div>
           <div class="stat-row">
             <span class="stat-label">Connected clients</span>
