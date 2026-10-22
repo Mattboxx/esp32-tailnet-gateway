@@ -114,7 +114,7 @@ password, cookies or tokens in files, scripts, commits or logs.
    `test_site_browser.cjs`. Rendering check at 16/32/180/512 px.
    *Done when:* no `#2DD4BF`/`#3b82f6` remains in shipped assets and all
    browser checks pass.
-6. **Secret-scan scope** — PARTIAL. `.github/sensitive-patterns.yml`
+6. **Secret-scan scope** — COMPLETED: directory excludes removed; exact example addresses allowed; `allowed_files` exempts only this scrubbed handoff from the name block (content still scanned); unit test added. (Original note follows.) `.github/sensitive-patterns.yml`
    currently excludes `website/**` and `assets/diagrams/**` from the RFC1918
    rule only (other rules still scan them). Owner asked for narrower
    exclusions: replace with explicit `allow` entries for the synthetic
