@@ -8,6 +8,7 @@
 #include "tailscale_config.h"
 #include "web_ui.h"
 #include "netif_hooks.h"
+#include "portmap.h"
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_mac.h"
@@ -99,6 +100,7 @@ static atomic_bool s_link, s_has_ip;
 static struct netif *s_lwip;           /* read in TCP/IP context only after start */
 static eth_selector_t s_selector;      /* TCP/IP context only */
 static esp_netif_t *s_netif;
+static atomic_bool s_selected_eth;  /* last applied choice; drives listener rebinding */
 #if CONFIG_ETH_SPI_ETHERNET_W5500
 static esp_eth_handle_t s_handle;
 #endif
@@ -159,6 +161,8 @@ static void apply_choice(void)
     int choice = eth_uplink_choose(&immediate, true, s_running.preference, sta_ok, eth_ok);
     esp_netif_t *want = choice == ETH_CHOICE_ETH ? s_netif : sta_ok ? sta : NULL;
     if (want) esp_netif_set_default_netif(want);
+    bool eth = choice == ETH_CHOICE_ETH;
+    if (atomic_exchange(&s_selected_eth, eth) != eth || eth) portmap_install_all();
 }
 
 static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -341,7 +345,16 @@ struct netif *eth_uplink_lwip_select(struct netif *sta)
     bool sta_ok = sta && netif_is_up(sta) && netif_is_link_up(sta) && ip4_addr_get_u32(netif_ip4_addr(sta));
     bool eth_ok = netif_is_up(s_lwip) && netif_is_link_up(s_lwip) && ip4_addr_get_u32(netif_ip4_addr(s_lwip));
     int choice = eth_uplink_choose(&s_selector, true, s_running.preference, sta_ok, eth_ok);
-    return choice == ETH_CHOICE_ETH ? s_lwip : sta;
+    bool eth = choice == ETH_CHOICE_ETH;
+    /* Already in TCP/IP context: rebind listeners in place, never queue-wait on ourselves. */
+    if (atomic_exchange(&s_selected_eth, eth) != eth) portmap_install_now();
+    return eth ? s_lwip : sta;
+}
+
+esp_netif_t *eth_uplink_service_netif(void)
+{
+    if (s_netif && atomic_load(&s_selected_eth) && atomic_load(&s_has_ip)) return s_netif;
+    return esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
 }
 
 /* --- HTTP --- */

@@ -86,6 +86,8 @@ static bool tailscale_exit_server_active(void) { return true; }
 static uint16_t tailscale_peerapi_port(void) { return 41180; }
 static esp_netif_t sta;
 static esp_netif_t *esp_netif_get_handle_from_ifkey(const char *key) { assert(!strcmp(key,"WIFI_STA_DEF")); return &sta; }
+/* Ethernet disabled: the service listener follows the WiFi STA as before. */
+static esp_netif_t *eth_uplink_service_netif(void) { return esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"); }
 static esp_err_t esp_netif_get_ip_info(esp_netif_t *n,esp_netif_ip_info_t *ip) { (void)n; ip->ip.addr=sta_down?0:0xc0000201; return ESP_OK; }
 static struct { uint8_t proto; uint16_t port; uint32_t dest; } bindings[PORTMAP_MAX+TAILNET_FORWARD_MAX];
 static int binding_count;

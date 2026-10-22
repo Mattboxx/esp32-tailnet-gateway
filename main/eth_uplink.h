@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include "esp_err.h"
 #include "esp_http_server.h"
+#include "esp_netif.h"
 
 enum {ETH_CHIP_W5500 = 1};
 enum {ETH_PREF_WIFI_FIRST = 0, ETH_PREF_ETHERNET_FIRST = 1};
@@ -45,3 +46,6 @@ void eth_uplink_get_status(eth_status_t *out);
  * legacy STA default; otherwise the lwIP netif to use as uplink. */
 struct netif *eth_uplink_lwip_select(struct netif *sta);
 esp_err_t eth_uplink_register_http(httpd_handle_t server);
+/* The uplink that LAN-to-Tailnet/AP-side bindings listen on: the Ethernet
+ * netif while it is the selected uplink, otherwise the WiFi STA netif. */
+esp_netif_t *eth_uplink_service_netif(void);

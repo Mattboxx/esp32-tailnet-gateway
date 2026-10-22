@@ -215,6 +215,8 @@ static int httpd_resp_set_type(httpd_req_t *r,const char *type){(void)r;assert(!
 static int httpd_resp_set_hdr(httpd_req_t *r,const char *name,const char *value){(void)r;assert(!strcmp(name,"Cache-Control")&&!strcmp(value,"no-store"));return ESP_OK;}
 static int httpd_resp_sendstr(httpd_req_t *r,const char *body){r->response=malloc(strlen(body)+1);assert(r->response);strcpy(r->response,body);return send_result;}
 static esp_netif_t *esp_netif_get_handle_from_ifkey(const char *key){static int netif;assert(!strcmp(key,"WIFI_STA_DEF"));return &netif;}
+/* Ethernet disabled: the service listener follows the WiFi STA as before. */
+static esp_netif_t *eth_uplink_service_netif(void) { return esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"); }
 static int esp_netif_get_ip_info(esp_netif_t *n,esp_netif_ip_info_t *ip){assert(n);ip->ip.addr=uplink?1:0;return ESP_OK;}
 static bool tailscale_is_connected(void){return control;}
 bool tailnet_forward_get(int i,tailnet_forward_rule_t *r,tailnet_forward_runtime_t *rt){if(i>=rows)return false;*r=rule;*rt=runtime;return true;}

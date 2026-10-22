@@ -135,8 +135,19 @@ int main(void) {
     packet(bytes,false,17,0xc0000363,0xc0000301,53);
     assert(__wrap_ip4_input(&p,&ap)==42 && local_dns==1 && freed==1);
     ap.napt=0; assert(__wrap_ip4_input(&p,&ap)==ERR_OK && freed==2 && local_dns==1);
+    /* Optional Ethernet uplink ("en") bound as the listener: same policy. */
+    struct netif eth={.name={'e','n'},.ip={swap32(0xc0000401)}};
+    s_rules[0]=(tailnet_forward_rule_t){.valid=1,.enabled=1,.proto=6,.listen_port=2222,.destination_port=22,.source_network=0xc0000400,.source_prefix=24};
+    s_generation++;activate(eth.ip.addr);freed=translated=0;
+    packet(bytes,false,6,0xc0000463,0xc0000401,2222);
+    assert(__wrap_ip4_input(&p,&eth)==42 && translated==1);
+    packet(bytes,false,6,0xc6336463,0xc0000401,2222);
+    assert(__wrap_ip4_input(&p,&eth)==ERR_OK && freed==1 && translated==1); /* wrong source refused */
+    /* The STA address is no longer the binding: its listener port is not ours. */
+    packet(bytes,false,6,0xc0000463,0xc0000201,2222);
+    assert(__wrap_ip4_input(&p,&sta)==ERR_OK && freed==2 && translated==1);
     core_depth=0; assert(!lock_depth);
-    puts("PASS: actual IPv4 core wrapper rechecks queued packets against installed policy; denied packets freed without entering DNAT, accepted return preserved, WG denied, AP DNS preserved with NAPT ON");
+    puts("PASS: actual IPv4 core wrapper rechecks queued packets against installed policy; denied packets freed without entering DNAT, accepted return preserved, WG denied, AP DNS preserved with NAPT ON, Ethernet uplink binding");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='tailnet-core-') as directory:
