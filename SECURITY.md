@@ -97,6 +97,27 @@ available to authorized sessions; explicitly requested info replies can still
 include network details under their separate opt-in setting.
 See [confirmed issues and regression coverage](docs/NTFY-TRANSPORT.md).
 
+## 1.14 development surfaces (not in a stable release)
+
+Threat-model notes for features added in the development line; offline-tested
+only, not hardware-qualified.
+
+| Surface | Who can reach it | Protection | Residual risk |
+|---|---|---|---|
+| Web/API administration | LAN, AP, Tailnet clients that reach the UI | session cookie (SameSite=Strict), Origin and Sec-Fetch-Site screening on writes, trusted-Host check when no password is set (DNS rebinding), one device-wide failed-login budget shared with the console | HTTP only (no TLS); a LAN attacker on-path can observe sessions; set a password |
+| Remote console (TCP) | interfaces selected in its binding | requires the admin password; shares the login budget; "VPN" binding means arrival on the node's tunnel address | plain TCP; prefer the VPN binding |
+| Service Gateway rules | LAN clients matching the source CIDR | rules start OFF, exposure confirmation in the guide, optional expiry, binding tokens for remote toggles | a CIDR is not identity; remote peers see the gateway's identity |
+| Destination test / Service watch | administrators (and MQTT/HA for the watch switch) | one bounded TCP connect at a time, cooldown, existing worker and socket budget, OFF by default | probes originate from the gateway's tailnet identity |
+| MQTT / Home Assistant commands | anyone who can publish to `B/command/#` | strict payloads, binding-qualified rule topics, recovery behind its own switch | authorization is the broker's: use auth, TLS, ACLs |
+| ntfy commands and events | anyone who can publish to the topic | commands opt-in, token recommended, replay cursor persisted; events opt-in | public topics are guessable: use a private topic and token |
+| SNMP operational rows | SNMP clients allowed by the agent settings | read-only, numeric values only, no targets/identifiers, SET refused | community strings are not strong authentication |
+| Diagnostic export | administrators | allowlisted states/counters; no names, destinations, IPs, ports, credentials | review before sharing |
+| Ethernet uplink (separate build) | the wired LAN | OFF by default, explicit pins, ESP-bound ACL hooks installed before the interface starts | not physically validated |
+| Profiles / guides | administrators | enable-only presets with token-bound preview; guides write through existing validated forms and never read secrets | one rollback level |
+
+Downgrade note: stable 1.13 ignores the lease ledger, so temporary rules become
+permanent after a downgrade; see [docs/NVS-KEYS.md](docs/NVS-KEYS.md).
+
 ## Reporting a Vulnerability
 
 If you think you've found a security issue in this firmware — for example a
