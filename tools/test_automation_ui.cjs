@@ -728,6 +728,23 @@ async function main() {
     await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&document.getElementById('wizard-title').textContent==='Publish a Tailnet service to the LAN');
     assert.equal(await f.page.locator('#wizard-exposure-row').isHidden(),false);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Templates: risk hint, first free listen port per protocol, UDP template.
+    f=await fixture(browser,{page:'network'});
+    await f.page.waitForFunction(()=>!document.getElementById('tf-add').disabled);
+    await f.page.locator('#tf-template').selectOption('mqtt');
+    assert.match(await f.page.locator('#tf-template-hint').textContent(),/Unencrypted/);
+    await f.page.locator('#tf-template').selectOption('ssh');await f.page.locator('#tf-add').click();await f.page.locator('#tf-add').click();
+    assert.deepEqual(await f.page.locator('.tf-listen').evaluateAll(e=>e.map(x=>x.value)),['2222','2223']);
+    await f.page.locator('#tf-template').selectOption('syslog');await f.page.locator('#tf-add').click();
+    assert.equal(await f.page.locator('.tf-proto').nth(2).inputValue(),'udp');assert.equal(await f.page.locator('.tf-listen').nth(2).inputValue(),'15514');
+    assert.equal(await f.page.locator('.tf-enabled:checked').count(),0);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Home card lists open temporary access with the soonest closure.
+    f=await fixture(browser,{page:'status',forwardBody:{rules:[{index:0,rule_token:5,name:'NAS',enabled:true,installed:true,protocol:'tcp',listen_port:15001,tailnet_destination:'100.64.0.9',destination_port:5001,allowed_source_subnet:'192.168.1.20/32',accepted_packets:3,blocked_packets:0,error:''}],max:8},
+      leasesBody:[{index:0,rule_token:5,temporary:true,effective_enabled:true,remaining_s:840,status:'active'},{index:1,rule_token:6,temporary:true,effective_enabled:false,remaining_s:0,status:'expired'}]});
+    await f.page.waitForFunction(()=>document.getElementById('sg-home-summary').textContent.includes('temporary'));
+    assert.match(await f.page.locator('#sg-home-summary').textContent(),/1 rule\(s\) · 1 enabled · 1 installed .* 1 temporary rule\(s\) open; the next closes in 14 min\./);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }
 }

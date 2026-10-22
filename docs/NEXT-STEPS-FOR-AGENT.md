@@ -16,9 +16,9 @@ codex-primary-runtime/dependencies/node/node_modules.
 Checkpoint commits: microlink `a3d712a`, root `ce11271` (local, not pushed).
 Since then (uncommitted): ml_policy admitted-reply evidence, per-rule last
 accepted/rejected stamps, evidence-aware diagnosis (ADR-016), inline guide
-destination test; 48 browser scenarios. Next, in order: (1) Service Gateway
-rule templates review + per-rule expiry shown in the home card; (2) F26 export
-of Service Gateway evidence (sanitized); (3) F27–F29 remaining events/commands;
+destination test; 48 browser scenarios. Templates/home-card expiry and sanitized SG export done after commit `6304913`.
+Next, in order: (1) F27/F28 Service Gateway MQTT/HA evidence entities (test
+state, reply age) within flash budget; (2) F29 ntfy expiry/test events; (3) F27–F29 remaining events/commands;
 (4) F31 Ethernet design (conditional); (5) consolidated validation incl. Linux
 sanitizers for web_security/config_profiles/service_check/policy_protocols.
 Flash ~148 KiB free: keep additions compact. Nothing committed; no image saved.

@@ -6,6 +6,9 @@
 #include "service_transfer.h"
 #include "config_profiles.h"
 #include "service_check.h"
+#include "service_diagnostics.h"
+#include "ml_policy.h"
+#include "esp_timer.h"
 #include "portmap.h"
 #include "sdkconfig.h"
 #include "web_ui.h"
@@ -57,6 +60,34 @@ static esp_err_t get_health(httpd_req_t *req) {
     if(web_ui_require_auth(req)!=ESP_OK)return ESP_FAIL;
     return send_json(req,health_monitor_snapshot(true));
 }
+/* Service Gateway evidence without names, destinations, ports or source
+ * networks: state, diagnosis codes, test state, counters and ages only. */
+static bool export_service_rules(cJSON *root) {
+    cJSON *rules=cJSON_AddArrayToObject(root,"service_gateway_rules");if(!rules)return false;
+    uint32_t now_s=(uint32_t)(esp_timer_get_time()/1000000)+1u;
+    for(int i=0;i<TAILNET_FORWARD_MAX;i++){
+        tailnet_forward_rule_t r;tailnet_forward_runtime_t rt;if(!tailnet_forward_get(i,&r,&rt))continue;
+        service_check_result_t check={0};bool checked=service_check_get(i,service_lease_token(&r),&check);
+        uint32_t reply_ms=0;const uint8_t remote[4]={(uint8_t)(rt.resolved_ip>>24),(uint8_t)(rt.resolved_ip>>16),(uint8_t)(rt.resolved_ip>>8),(uint8_t)rt.resolved_ip};
+        bool replied=rt.resolved_ip&&ml_policy_reply_age(r.proto,remote,r.destination_port,&reply_ms);
+        /* Uplink/control are reported elsewhere in the export; treat them as up
+         * here so the code describes the rule, not a global fault. */
+        service_diagnostic_t d=service_diagnose_evidence(service_diagnose(r.enabled,true,true,rt.resolved_ip!=0,rt.installed,rt.error[0]!=0),
+            checked&&check.state==SC_REACHABLE?SERVICE_EVIDENCE_REACHABLE:checked&&check.state==SC_NO_ANSWER?SERVICE_EVIDENCE_NO_ANSWER:SERVICE_EVIDENCE_NONE,
+            replied,rt.last_accepted_s!=0,rt.last_blocked_s!=0);
+        cJSON *item=cJSON_CreateObject();
+        if(!item||!cJSON_AddItemToArray(rules,item)){cJSON_Delete(item);return false;}
+        if(!cJSON_AddNumberToObject(item,"index",i)||!cJSON_AddStringToObject(item,"protocol",r.proto==TAILNET_FORWARD_PROTO_UDP?"udp":"tcp")
+            ||!cJSON_AddBoolToObject(item,"enabled",r.enabled)||!cJSON_AddBoolToObject(item,"installed",rt.installed)
+            ||!cJSON_AddBoolToObject(item,"single_source",r.source_prefix==32)||!cJSON_AddBoolToObject(item,"runtime_error",rt.error[0]!=0)
+            ||!cJSON_AddStringToObject(item,"diagnostic",d.code)
+            ||!cJSON_AddStringToObject(item,"destination_check",service_check_state_name(checked?check.state:SC_NONE))
+            ||!cJSON_AddNumberToObject(item,"accepted_packets",rt.accepted_packets)||!cJSON_AddNumberToObject(item,"rejected_packets",rt.blocked_packets)
+            ||!(rt.last_accepted_s?cJSON_AddNumberToObject(item,"last_accepted_age_s",now_s>=rt.last_accepted_s?now_s-rt.last_accepted_s:0):cJSON_AddNullToObject(item,"last_accepted_age_s"))
+            ||!(replied?cJSON_AddNumberToObject(item,"service_reply_age_s",reply_ms/1000):cJSON_AddNullToObject(item,"service_reply_age_s")))return false;
+    }
+    return true;
+}
 static esp_err_t get_export(httpd_req_t *req) {
     if(web_ui_require_auth(req)!=ESP_OK)return ESP_FAIL;
     cJSON *root=homelab_ops_snapshot(false);if(!root){httpd_resp_send_500(req);return ESP_FAIL;}
@@ -75,6 +106,7 @@ static esp_err_t get_export(httpd_req_t *req) {
     uint32_t enabled=0,installed=0,accepted=0,blocked=0;tailnet_forward_totals(&enabled,&installed,&accepted,&blocked);
     cJSON_AddNumberToObject(root,"forwarding_enabled",enabled);cJSON_AddNumberToObject(root,"forwarding_installed",installed);
     cJSON_AddNumberToObject(root,"forwarding_accepted_packets",accepted);cJSON_AddNumberToObject(root,"forwarding_blocked_packets",blocked);
+    if(!export_service_rules(root)){cJSON_Delete(root);httpd_resp_send_500(req);return ESP_FAIL;}
     cJSON *capabilities=homelab_ops_capabilities();
     if(!capabilities || !cJSON_AddItemToObject(root,"capabilities",capabilities)){
         cJSON_Delete(capabilities);cJSON_Delete(root);httpd_resp_send_500(req);return ESP_FAIL;
