@@ -75,6 +75,7 @@ def main():
             run(name+'-compile',['gcc',*flags,str(ROOT/'tools'/('test_'+name+'.c')),'-o',str(binary)])
             if results[-1]['status']=='PASS':run(name,[str(binary)])
         run('site-build',[sys.executable,'tools/build_site.py','--check'])
+        run('i18n-coverage',[sys.executable,'tools/i18n_extract.py','--check','90'])
         run('sensitive-history',[sys.executable,'tools/check_sensitive_data.py','--history'])
         run('sensitive-dependency',[sys.executable,'tools/check_sensitive_data.py','--repository','external/microlink'])
     if args.browser:

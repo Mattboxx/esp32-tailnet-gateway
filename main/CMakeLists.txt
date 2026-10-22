@@ -20,6 +20,12 @@ endif()
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
              "${CMAKE_CURRENT_LIST_DIR}/index.html"
              "${CMAKE_CURRENT_LIST_DIR}/gen_index_html_gz.py")
+# UI translations are injected by the helper; any dictionary change must
+# regenerate the embedded page as well.
+file(GLOB _i18n_files "${CMAKE_CURRENT_LIST_DIR}/i18n/*.json")
+if(_i18n_files)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_i18n_files})
+endif()
 find_package(Python3 REQUIRED)
 execute_process(
     COMMAND ${Python3_EXECUTABLE}

@@ -23,6 +23,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `esp32-s3-eth` build (not hardware-validated).
 - Recovery access point returns 60 s after the saved WiFi disappears and
   stays until it is back.
+- Web UI: one design system for old and new screens (standard button size,
+  44 px touch targets, 16 px inputs on phones), Service Gateway rules as a
+  table on desktop and cards on phones with an editor, a goal-based start,
+  simple/advanced mode, an at-a-glance strip, and English/Italian/Spanish/
+  Simplified Chinese with browser detection. The embedded page is minified
+  at build time (about 25 KB smaller before translations).
 - Hardware campaign fixes: a stream restart no longer suspends a complete
   Tailnet policy (hosted-control deltas were rejected and tunnel data blocked);
   login/logout now refuse cross-site requests.

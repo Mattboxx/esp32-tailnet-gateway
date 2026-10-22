@@ -9,7 +9,9 @@ const { install } = require('./ui_fixture.cjs');
 
 const all = [[320, 640], [360, 740], [390, 844], [430, 932], [768, 1024], [1024, 768], [1440, 900], [1920, 1080], [844, 390]];
 // Advanced mode shows every section; simple mode is checked at a phone and a desktop width.
-const runs = all.map(v => [...v, 'advanced']).concat([[390, 844, 'simple'], [1440, 900, 'simple']]);
+const runs = all.map(v => [...v, 'advanced', 'en-US']).concat([[390, 844, 'simple', 'en-US'], [1440, 900, 'simple', 'en-US']])
+  // Every shipped translation at a narrow phone and a desktop width (longest words, CJK rendering).
+  .concat(['it-IT', 'es-ES', 'zh-CN'].flatMap(l => [[320, 640, 'advanced', l], [390, 844, 'simple', l], [1440, 900, 'advanced', l]]));
 const tabs = ['status', 'network', 'tailscale', 'firewall', 'tools', 'operations', 'automation', 'system'];
 const shots = process.argv[2];
 const only = process.env.UI_TABS ? process.env.UI_TABS.split(',') : tabs;
@@ -18,9 +20,9 @@ const only = process.env.UI_TABS ? process.env.UI_TABS.split(',') : tabs;
   const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || 'chrome' });
   const failures = [];
   try {
-    for (const [width, height, mode] of runs) {
+    for (const [width, height, mode, locale] of runs) {
       const touch = width < 768;
-      const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch });
+      const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale });
       if (mode === 'advanced') await context.addInitScript(() => { try { localStorage.setItem('ui-advanced', '1'); } catch (e) {} });
       const page = await context.newPage();
       const errors = [];
@@ -28,10 +30,12 @@ const only = process.env.UI_TABS ? process.env.UI_TABS.split(',') : tabs;
       await install(page);
       await page.goto('http://esp32.test/#status');
       await page.waitForTimeout(600);
+      const lang = await page.evaluate(() => document.documentElement.lang);
+      if (lang !== (locale === 'zh-CN' ? 'zh-Hans' : locale.slice(0, 2))) failures.push(`${locale}: page language ${lang}`);
       for (const tab of only) {
         await page.evaluate(t => { location.hash = t; }, tab);
         await page.waitForTimeout(450);
-        const where = `${width}x${height} ${mode} #${tab}`;
+        const where = `${width}x${height} ${mode} ${locale} #${tab}`;
         const r = await page.evaluate(({ touch }) => {
           const vw = window.innerWidth, out = { overflow: document.documentElement.scrollWidth - vw, clipped: [], small: [], tiny: [] };
           const visible = el => { const s = getComputedStyle(el); const b = el.getBoundingClientRect();
@@ -56,7 +60,7 @@ const only = process.env.UI_TABS ? process.env.UI_TABS.split(',') : tabs;
         if (r.clipped.length) failures.push(`${where}: clipped ${[...new Set(r.clipped)].slice(0, 6).join(', ')}`);
         if (r.small.length) failures.push(`${where}: touch targets <36px ${[...new Set(r.small)].slice(0, 6).join(', ')}`);
         if (r.tiny.length) failures.push(`${where}: text <11px ${[...new Set(r.tiny)].slice(0, 4).join(', ')}`);
-        if (shots) await page.screenshot({ path: path.join(shots, `ui-${mode}-${width}x${height}-${tab}.png`), fullPage: true });
+        if (shots) await page.screenshot({ path: path.join(shots, `ui-${locale}-${mode}-${width}x${height}-${tab}.png`), fullPage: true });
       }
       if (errors.length) failures.push(`${width}x${height}: script errors ${[...new Set(errors)].slice(0, 3).join(' | ')}`);
       await context.close();
