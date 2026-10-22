@@ -85,3 +85,34 @@ previous release's `firmware.bin`.
   1.13 release.
 - After the rename, verify from one bridge device: *Check now* reports the
   repository `Mattboxx/esp32-tailnet-gateway`.
+
+## Old updater behaviour, verified (2026-10-22)
+
+Checked in the 1.13 release source (`8dbf060`) and in the 1.13 image actually
+installed on the bench board (strings of the backed-up `ota_1`), and in the
+packaged 1.10 and 1.11 images:
+
+- Every updater-capable release (1.10 → 1.13) uses the same repository name,
+  `Mattboxx/esp32-tailscale-gateway-NAS-recovery`, so **one bridge release
+  under that name reaches all of them**. Releases before 1.10 have no GitHub
+  updater and always need a manual update.
+- Request: `GET https://api.github.com/repos/<old>/releases?per_page=10`,
+  automatic redirects disabled, HTTP 200 required. After a rename the API
+  answers 301 → "GitHub check failed"; nothing is installed.
+- Selection: newest non-draft release among the **latest 10**, prerelease only
+  with the beta channel on, asset named exactly `firmware.bin` in state
+  `uploaded`, with a GitHub `digest` (`sha256:…`) and a size that fits the slot.
+- Download: only from `https://github.com/<old>/releases/download/<tag>/firmware.bin`
+  or the `release-assets.githubusercontent.com` CDN (≤ 3 redirects); the
+  SHA-256 must match the digest; the image's app identity and version must
+  match the tag.
+- Timing: periodic checks are opt-in (daily when enabled); auto-install is a
+  separate opt-in with a ≥ 1 h spacing; *Check now* / *Install latest update*
+  work on demand. Devices with checks off will not find the bridge by
+  themselves — the announcement must tell their owners to press *Check now*
+  or upload `firmware.bin` once.
+
+Consequences for the publishing order: publish the bridge as a **stable**
+release, keep it among the 10 newest releases during the window, do not
+publish more than nine other releases before the rename, and keep the 1.13
+release online.
