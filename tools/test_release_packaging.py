@@ -4,10 +4,26 @@ import json
 import tempfile
 from pathlib import Path
 from package_release import (validate_release_version, collect_release_notices,
-                             upstream_release_reference, validate_build_description)
+                             upstream_release_reference, validate_build_description,
+                             release_readme, release_manifest, VARIANTS)
 
 
 class PackagingVersionTests(unittest.TestCase):
+    def test_variants_have_distinct_assets_and_honest_readme(self):
+        version = '0.1.38-Mattboxx-1.14-dev.6'
+        self.assertEqual(VARIANTS['wifi'][1], 'firmware.bin')
+        self.assertEqual(VARIANTS['eth'][1], 'firmware-eth.bin')
+        self.assertEqual(len({v[1] for v in VARIANTS.values()} | {v[2] for v in VARIANTS.values()}), 4)
+        wifi, eth = release_readme(version, True, 'wifi'), release_readme(version, True, 'eth')
+        self.assertIn('ESP32 TAILNET GATEWAY', wifi)
+        self.assertIn('Development candidate (pre-release)', wifi)
+        self.assertIn('not an official Tailscale client', wifi)
+        self.assertNotIn('firmware-eth', wifi)
+        self.assertIn('W5500', eth); self.assertIn('not validated on real', eth); self.assertIn('firmware-eth-factory.bin', eth)
+        self.assertIn('Stable community release', release_readme('0.1.38-Mattboxx-1.14', False, 'wifi'))
+        manifest = release_manifest(version, True, 'eth', {'firmware-eth.bin': {'sha256': '0' * 64, 'bytes': 1}}, {'project_name': 'esp32_tsr'})
+        self.assertEqual((manifest['channel'], manifest['update_asset'], manifest['app_identity']), ('pre-release', 'firmware-eth.bin', 'esp32_tsr'))
+
     def test_external_build_directory_has_exact_project_and_version(self):
         root = Path(__file__).resolve().parents[1]
         version = '0.1.38-Mattboxx-1.13-dev.1'

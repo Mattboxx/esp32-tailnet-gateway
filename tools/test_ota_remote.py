@@ -128,10 +128,16 @@ int main(void) {
     }
     const char *stages[]={"dev","alpha1","beta.1","rc2",""};
     for(int i=0;i<5;i++) { char v[32]; snprintf(v,sizeof v,"0.1.31-Mattboxx-1.10%s%s",i==4?"":"-",stages[i]); assert(ota_version_parse(v,&a)); if(i) assert(ota_version_compare(&a,&b)>0); b=a; }
-    assert(ota_download_url_allowed(OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin"));
+    assert(ota_download_url_allowed(OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/" OTA_ASSET));
+#ifdef ETH_VARIANT
+    /* Variant isolation: the Ethernet build never accepts the WiFi image, and the reverse. */
+    assert(!ota_download_url_allowed(OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin"));
+#else
+    assert(!ota_download_url_allowed(OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/firmware-eth.bin"));
+#endif
     /* Rename bridge: both fixed release paths, nothing that merely shares a prefix. */
     assert(!strcmp(ota_repo(0),OTA_REPO_CURRENT)&&!strcmp(ota_repo(1),OTA_REPO_PREVIOUS)&&!ota_repo(2));
-    assert(ota_download_url_allowed("https://github.com/" OTA_REPO_PREVIOUS "/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin"));
+    assert(ota_download_url_allowed("https://github.com/" OTA_REPO_PREVIOUS "/releases/download/v0.1.31-Mattboxx-1.10/" OTA_ASSET));
     const char *near[]={"https://github.com/Mattboxx/esp32-tailnet-gatewayX/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin",
         "https://github.com/Mattboxx/esp32-tailnet/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin",
         "https://github.com/Csontikka/esp32-tailscale-subnet-router/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin",
@@ -143,13 +149,13 @@ int main(void) {
     const char *hash="sha256:1111111111111111111111111111111111111111111111111111111111111111";
     assert(ota_digest_parse(hash,digest)&&digest[0]==0x11); assert(!ota_digest_parse("sha256:123",digest));
     cJSON *rows=cJSON_CreateArray();
-    release_row(rows,"v0.1.31-Mattboxx-1.11-beta.1",true,false,"firmware.bin",hash,1024);
-    release_row(rows,"v0.1.31-Mattboxx-1.10",false,false,"firmware.bin",hash,1024);
-    release_row(rows,"v0.1.99",false,false,"firmware.bin",hash,1024);
-    release_row(rows,"v0.1.31-Mattboxx-1.99",false,true,"firmware.bin",hash,1024);
+    release_row(rows,"v0.1.31-Mattboxx-1.11-beta.1",true,false,OTA_ASSET,hash,1024);
+    release_row(rows,"v0.1.31-Mattboxx-1.10",false,false,OTA_ASSET,hash,1024);
+    release_row(rows,"v0.1.99",false,false,OTA_ASSET,hash,1024);
+    release_row(rows,"v0.1.31-Mattboxx-1.99",false,true,OTA_ASSET,hash,1024);
     release_row(rows,"v0.1.31-Mattboxx-1.98",false,false,"firmware-factory.bin",hash,1024);
-    release_row(rows,"v0.1.31-Mattboxx-1.97",false,false,"firmware.bin","missing",1024);
-    release_row(rows,"v0.1.31-Mattboxx-1.96",false,false,"firmware.bin",hash,999999);
+    release_row(rows,"v0.1.31-Mattboxx-1.97",false,false,OTA_ASSET,"missing",1024);
+    release_row(rows,"v0.1.31-Mattboxx-1.96",false,false,OTA_ASSET,hash,999999);
     char tag[32]; uint32_t size;
     assert(ota_remote_select_release(rows,running.version,false,2048,tag,&size,digest)); assert(!strcmp(tag,"v0.1.31-Mattboxx-1.10")&&size==1024);
     assert(ota_remote_select_release(rows,running.version,true,2048,tag,&size,digest)); assert(!strcmp(tag,"v0.1.31-Mattboxx-1.11-beta.1"));
@@ -164,22 +170,23 @@ int main(void) {
     puts("PASS: real-C fork version/channel/release selection, digest/URL guards, partial reads, exclusive writer, redirects, download/hash/image/flash failure cleanup and commit-before-reboot");
 }
 '''
-with tempfile.TemporaryDirectory(prefix='ota-remote-') as directory:
-    path = Path(directory)
-    (path / 'test.c').write_text(fixture + writer + selector + installer + tests, encoding='utf-8')
-    flags = ['-std=c11', '-pthread', '-Wall', '-Wextra', '-Werror', '-I', str(ROOT / 'main')]
-    libs = []
-    cjson = os.environ.get('CJSON_SOURCE')
-    if cjson:
-        flags += ['-I', str(Path(cjson).parent), cjson]
-    else:
-        flags += subprocess.check_output(['pkg-config', '--cflags', 'libcjson'], text=True).split()
-        libs += subprocess.check_output(['pkg-config', '--libs', 'libcjson'], text=True).split()
-    if os.environ.get('OTA_SANITIZE') == '1':
-        flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
-    binary = path / ('test.exe' if os.name == 'nt' else 'test')
-    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary), *libs], check=True)
-    subprocess.run([str(binary)], check=True)
+for variant in ([], ['-DOTA_ASSET="firmware-eth.bin"', '-DETH_VARIANT']):
+  with tempfile.TemporaryDirectory(prefix='ota-remote-') as directory:
+      path = Path(directory)
+      (path / 'test.c').write_text(fixture + writer + selector + installer + tests, encoding='utf-8')
+      flags = ['-std=c11', '-pthread', '-Wall', '-Wextra', '-Werror', '-I', str(ROOT / 'main')] + variant
+      libs = []
+      cjson = os.environ.get('CJSON_SOURCE')
+      if cjson:
+          flags += ['-I', str(Path(cjson).parent), cjson]
+      else:
+          flags += subprocess.check_output(['pkg-config', '--cflags', 'libcjson'], text=True).split()
+          libs += subprocess.check_output(['pkg-config', '--libs', 'libcjson'], text=True).split()
+      if os.environ.get('OTA_SANITIZE') == '1':
+          flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+      binary = path / ('test.exe' if os.name == 'nt' else 'test')
+      subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary), *libs], check=True)
+      subprocess.run([str(binary)], check=True)
 
 # Second program: actual check_release() repository lookup across the rename.
 checker = 'static OTA_NOINLINE bool check_release' + source.split('static OTA_NOINLINE bool check_release', 1)[1].split('/* Check the app descriptor', 1)[0]
@@ -220,7 +227,7 @@ static int answers[3],calls; static char urls[3][128]; static int fail_transport
 static esp_http_client_handle_t http_client(const char *url,http_buffer_t *b){assert(calls<3);snprintf(urls[calls],sizeof urls[0],"%s",url);return b;}
 static esp_err_t esp_http_client_perform(esp_http_client_handle_t c){
     if(fail_transport==calls+1){calls++;return ESP_FAIL;}
-    if(answers[calls]==200)strcpy(c->body,"[{\"tag_name\":\"v0.1.38-Mattboxx-1.14\",\"prerelease\":false,\"draft\":false,\"assets\":[{\"name\":\"firmware.bin\",\"state\":\"uploaded\",\"size\":1024,\"digest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\"}]}]");
+    if(answers[calls]==200)strcpy(c->body,"[{\"tag_name\":\"v0.1.38-Mattboxx-1.14\",\"prerelease\":false,\"draft\":false,\"assets\":[{\"name\":\"" OTA_ASSET "\",\"state\":\"uploaded\",\"size\":1024,\"digest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\"}]}]");
     else strcpy(c->body,"{\"message\":\"Not Found\"}");
     c->used=strlen(c->body);calls++;return ESP_OK;}
 static int esp_http_client_get_status_code(esp_http_client_handle_t c){(void)c;return answers[calls-1];}

@@ -2,6 +2,18 @@
 
 ## Latest session (Claude Code, took over interrupted Codex work)
 
+**Latest checkpoint (2026-10-22 evening):** rebrand (ESP32 Tailnet Gateway),
+website (website/ + tools/build_site.py), GitHub files/CI, OTA rename bridge
+and per-variant update assets, UI design system + goal launcher + simple mode +
+EN/IT/ES/ZH (owner: no FR/DE for now; drafts in main/i18n/disabled/),
+packaging with wifi/eth variants and manifest, launch drafts in docs/launch/.
+Final candidate `aaf166ed…` runs on the COM3 board. Next: (1) owner signs in
+once in the app browser pane → run the authenticated hardware list in
+HARDWARE-CAMPAIGN.md (Service Gateway TCP/UDP E2E, expiry, watch, profiles,
+NVS persistence, Web UI OTA + rollback); (2) package the tested image with
+`package_release.py --prerelease`; (3) owner authorization for push → bridge
+release → rename → Pages (docs/MIGRATION-RENAME.md).
+
 Consolidated offline run 55/55 (build+browser). Owner-authorized hardware
 campaign is running on the COM3 board: candidate on ota_0, stable 1.13 kept
 in ota_1, private verified backup. Two hardware findings fixed (policy barrier,

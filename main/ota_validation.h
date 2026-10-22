@@ -3,6 +3,23 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#if defined(__has_include)
+#if __has_include("sdkconfig.h")
+#include "sdkconfig.h"
+#endif
+#endif
+
+/* Each firmware variant updates only from its own release asset, so a board
+ * running the Ethernet build never installs the WiFi-only image (which would
+ * drop its Ethernet uplink) and a WiFi board never installs the larger
+ * Ethernet image. */
+#ifndef OTA_ASSET
+#if defined(CONFIG_ETH_SPI_ETHERNET_W5500) && CONFIG_ETH_SPI_ETHERNET_W5500
+#define OTA_ASSET "firmware-eth.bin"
+#else
+#define OTA_ASSET "firmware.bin"
+#endif
+#endif
 
 /* Repository rename bridge. Firmware up to 1.14-dev.6 requests the releases
  * API of the previous name with redirects disabled and requires HTTP 200, so
@@ -111,7 +128,7 @@ static inline bool ota_download_url_allowed(const char *url)
     for (unsigned i = 0; i < OTA_REPO_COUNT && !tag; ++i) tag = ota_release_download_tail(url, ota_repo(i));
     if (tag) {
         const char *slash = strchr(tag, '/');
-        if (!slash || (size_t)(slash - tag) >= 32 || strcmp(slash, "/firmware.bin")) return false;
+        if (!slash || (size_t)(slash - tag) >= 32 || strcmp(slash, "/" OTA_ASSET)) return false;
         char version[32] = {0}; memcpy(version, tag, (size_t)(slash - tag));
         ota_version_t v; return ota_version_parse(version, &v);
     }

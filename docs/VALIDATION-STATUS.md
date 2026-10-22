@@ -155,8 +155,28 @@ over from the interrupted Codex session without resetting anything.
     host; needs one owner sign-in in the app browser pane. AP-fallback live
     test (requires removing the saved WiFi), W5500 (no hardware), Linux
     sanitizers (no WSL distro/Docker), MQTT/HA (broker unreachable), soak.
+- **UX/i18n/rebrand checkpoint (2026-10-22 evening).** Consolidated offline
+  run `validate_all.py --browser`: 57/58 PASS; the only failure was the
+  sensitive scan flagging synthetic 192.168.1.x examples in the new website
+  and diagrams, fixed by giving those documentation trees the same exclusion
+  as docs/README (rerun: 0 findings). Includes 73 browser scenarios on the
+  built (minified + translated) page, layout audit 8 sections × 20 runs
+  (9 viewports, simple/advanced, it/es/zh), website build/link/SEO check and
+  9-viewport browser test, i18n coverage ≥ 90 % (it 94.0, es 94.5, zh 95.1).
+  Firmware: WiFi `aaf166eddaef76444f37d0a80cde7973707406e4f955e5ca1ca59d77674fd172`
+  1,875,760 B (95.4 % of the app slot); Ethernet
+  `975e4d61add87edff50e55bfdf7503e8d3fbf25fe7d099992c21771ce95cc331`
+  1,930,912 B (98.2 %, only 35 KB headroom: watch before adding anything to
+  the Ethernet image). WiFi image flashed to ota_0 on the COM3 board: boot,
+  direct tailnet ping 15 ms, Web UI over the tailnet 200, unauth 401,
+  cross-site login 403, served page carries the translation bundle, login
+  screen verified in EN/IT/ZH. 120 s reboot capture: no panic, internal heap
+  7.8–13.0 KB (minimum during TLS handshakes), DERP stack ≥ 5,300 B.
+  Updater variant isolation: WiFi image contains no `firmware-eth.bin`, the
+  Ethernet image does.
 - Pending:
-  sanitizers, full suite, the BLOCKED hardware items above.
+  sanitizers, the BLOCKED hardware items above, Lighthouse on the deployed
+  site, a native-speaker review of the it/es/zh wording.
 
 
 ## Current checkpoint — dev.5 continuation (2026-10-21)
