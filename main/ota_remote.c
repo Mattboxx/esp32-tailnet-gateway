@@ -80,7 +80,7 @@ bool ota_remote_select_release(const cJSON *releases, const char *running,
             const cJSON *ah = cJSON_GetObjectItemCaseSensitive(asset, "digest");
             const cJSON *as = cJSON_GetObjectItemCaseSensitive(asset, "state");
             unsigned char hash[32];
-            if (!cJSON_IsString(an) || strcmp(an->valuestring, "firmware.bin") ||
+            if (!cJSON_IsString(an) || strcmp(an->valuestring, OTA_ASSET) ||
                 !cJSON_IsString(as) || strcmp(as->valuestring, "uploaded") ||
                 !cJSON_IsNumber(az) || az->valuedouble < 288 || az->valuedouble > partition_size ||
                 az->valuedouble != (double)(uint32_t)az->valuedouble ||
@@ -208,7 +208,7 @@ static OTA_NOINLINE bool install_release(void)
     char url[192];
     const char *repo = ota_repo(state.repo);
     if (!repo) { ota_writer_release(); return false; }
-    snprintf(url, sizeof url, "https://github.com/%s/releases/download/%s/firmware.bin", repo, state.latest_version);
+    snprintf(url, sizeof url, "https://github.com/%s/releases/download/%s/" OTA_ASSET, repo, state.latest_version);
     http_buffer_t b = {.location = malloc(2048)};
     unsigned char *buffer = malloc(2048);
     esp_http_client_handle_t client = NULL;

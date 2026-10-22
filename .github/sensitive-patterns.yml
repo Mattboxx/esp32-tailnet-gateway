@@ -85,6 +85,10 @@ blocked_content:
       - "external/**"
       - "web/**"
       - "docs/**"
+      # Website pages and diagrams are documentation too: they show the same
+      # synthetic example LAN (192.168.1.x) as README.md and docs/.
+      - "website/**"
+      - "assets/diagrams/**"
       - "examples/**"
       - "tools/**"
       - "README.md"
