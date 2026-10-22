@@ -22,7 +22,7 @@ The state includes uplink, Tailscale, routes/exit node, AP, resources,
 updates, MQTT watchdog, `operations` (recovery, health, resources),
 `forwarding_leases` and `tailnet_forward_rules[]` with `enabled`, `installed`,
 `status` (same diagnosis code as the Web UI), `destination_check` and
-`service_reply_age_s`. The state is fitted to 6 KiB: when larger, detail the
+`service_reply_age_s`, plus `service_watch` (ON/OFF) and the active `profile`. The state is fitted to 6 KiB: when larger, detail the
 Web UI still serves is dropped and `state_compact_level` (1 or 2) says so.
 
 ## Commands
@@ -35,7 +35,7 @@ anything else is rejected.
 | `status` | publish state now |
 | `restart` | controlled restart |
 | `reconnect_wifi`, `reconnect_tailscale` | reconnect that link |
-| `ap_always_on`, `wifi_power_save`, `tailscale_enabled`, `accept_routes`, `snat_subnet_routes`, `advertise_ap`, `advertise_exit_node`, `exit_node_lan_bypass`, `fourvia6_enabled`, `health_monitor_enabled` | switches |
+| `ap_always_on`, `wifi_power_save`, `tailscale_enabled`, `accept_routes`, `snat_subnet_routes`, `advertise_ap`, `advertise_exit_node`, `exit_node_lan_bypass`, `fourvia6_enabled`, `health_monitor_enabled`, `service_watch_enabled` | switches (`service_watch_enabled` keeps the saved interval/notify) |
 | `tailnet_forward/<index>/<8-hex rule token>` | enable/disable one Service Gateway rule; index-only topics are rejected so a delayed command cannot hit another rule |
 | `wol/<MAC>` | send WoL to a **saved** device only |
 | `recovery/<12-hex MAC>` with `PRESS` | Smart Recovery, only if *Allow MQTT/ntfy recovery commands* is on |

@@ -34,6 +34,7 @@
 #include "homelab_ops.h"
 #include "service_lease.h"
 #include "service_evidence.h"
+#include "config_profiles.h"
 #include "service_retry.h"
 #include "discovery_budget.h"
 #include "health_monitor.h"
@@ -204,6 +205,11 @@ static void publish_discovery(void)
     snprintf(command,sizeof command,"%s/command/health_monitor_enabled",cfg.base_topic);
     discovery_publish_entity("switch","health_monitor_enabled","Configured connectivity checks",s_state_topic,
         "{{ value_json.operations.health.enabled }}",command,NULL,NULL);
+    snprintf(command,sizeof command,"%s/command/service_watch_enabled",cfg.base_topic);
+    discovery_publish_entity("switch","service_watch","Service watch (periodic destination tests)",s_state_topic,
+        "{{ value_json.service_watch }}",command,NULL,NULL);
+    discovery_publish_entity("sensor","configuration_profile","Configuration profile",s_state_topic,
+        "{{ value_json.profile }}",NULL,NULL,NULL);
     discovery_publish_entity("sensor","sockets_used","Sockets in use",s_state_topic,
         "{{ value_json.operations.sockets_used }}",NULL,NULL,NULL);
     discovery_publish_entity("sensor","gateway_health","Configured gateway TCP check",s_state_topic,
@@ -605,6 +611,10 @@ static void publish_state(void)
     cJSON_AddStringToObject(root, "mqtt_watchdog_triggered",
                             s_watchdog_triggered ? "ON" : "OFF");
     cJSON_AddNumberToObject(root, "mqtt_watchdog_wake_count", s_watchdog_wake_count);
+    service_watch_config_t watch; service_watch_get(&watch);
+    cJSON_AddStringToObject(root, "service_watch", watch.enabled ? "ON" : "OFF");
+    profile_id_t profile; bool profile_rollback; config_profiles_status(&profile, &profile_rollback);
+    cJSON_AddStringToObject(root, "profile", config_profile_name(profile));
     cJSON_AddNumberToObject(root, "broker_silence_seconds",
                             mqtt_integration_broker_silence_seconds());
     uint32_t tf_enabled=0,tf_installed=0,tf_accepted=0,tf_blocked=0;
@@ -664,6 +674,7 @@ static void handle_command(const char *topic, const char *payload)
     bool is_switch = !strcmp(command, "ap_always_on")
         || !strcmp(command, "wifi_power_save")
         || !strcmp(command, "health_monitor_enabled")
+        || !strcmp(command, "service_watch_enabled")
         || !strcmp(command, "tailscale_enabled") || !strcmp(command, "accept_routes")
         || !strcmp(command, "snat_subnet_routes") || !strcmp(command, "advertise_exit_node")
         || !strcmp(command, "advertise_ap")
@@ -728,6 +739,13 @@ static void handle_command(const char *topic, const char *payload)
         s_wifi_reconnect_requested = true;
     } else if (!strcmp(command, "reconnect_tailscale")) {
         if (tailscale_enabled) schedule_restart();
+    } else if (!strcmp(command, "service_watch_enabled")) {
+        /* Toggles periodic tests only; interval/notify stay as configured. */
+        service_watch_config_t watch;
+        service_watch_get(&watch);
+        watch.enabled = enabled;
+        (void)service_watch_set(&watch);
+        s_publish_requested = true;
     } else if (!strcmp(command,"health_monitor_enabled")) {
         if(health_monitor_set_enabled(enabled)==ESP_OK)s_publish_requested=true;
     } else if (!strncmp(command, "tailnet_forward/", 16)) {
