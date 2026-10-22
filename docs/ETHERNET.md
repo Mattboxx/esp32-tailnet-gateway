@@ -52,8 +52,10 @@ screening) are unchanged.
 ## Current limits
 
 - Only W5500. DM9051/KSZ8851SNL drivers exist in ESP-IDF but are not wired.
-- The LAN → Tailnet listener, Health Monitor and SNMP interface counters still
-  use the WiFi uplink; a LAN reached only through Ethernet cannot use Service
-  Gateway rules yet.
+- LAN → Tailnet rules (and AP-side port forwards) listen on the **selected**
+  uplink: the Ethernet address while Ethernet is the uplink, otherwise WiFi.
+  Bindings are reinstalled when the selection changes, so clients must use the
+  address of the current uplink. Health Monitor and SNMP interface counters
+  still observe WiFi only.
 - DNS servers are global in lwIP: the last interface to obtain DHCP DNS wins.
 - No measurements of throughput, link-flap behavior or power on real hardware.

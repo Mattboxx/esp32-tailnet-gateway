@@ -338,7 +338,9 @@ bool tailnet_forward_allow_ipv4_packet(struct pbuf *p,struct netif *input)
      * not the earlier Wi-Fi/WireGuard callback that merely queues it.
      * NAPT-enabled AP input is not DNAT: preserve its local DNS/services. */
     if(!input||input->napt)return true;
-    bool uplink=input->name[0]=='s'&&input->name[1]=='t';
+    /* WiFi STA ("st") or the optional Ethernet uplink ("en"); the binding-IP
+     * check in allow_packet still pins the listener to the selected one. */
+    bool uplink=(input->name[0]=='s'&&input->name[1]=='t')||(input->name[0]=='e'&&input->name[1]=='n');
     return allow_packet(p,false,netif_ip4_addr(input)->addr,uplink);
 }
 bool tailnet_forward_is_routed_target(uint8_t proto,uint32_t dst,uint16_t port){LOCK();bool found=false;for(int i=0;i<TAILNET_FORWARD_MAX;i++)if(s_active[i].installed&&s_active[i].mapping.rule.proto==proto&&s_active[i].mapping.destination_nbo==dst&&s_active[i].mapping.rule.destination_port==port){found=true;break;}UNLOCK();return found;}

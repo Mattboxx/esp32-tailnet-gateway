@@ -49,6 +49,7 @@
 #include "service_check.h"
 #include "ml_policy.h"
 #include "service_evidence.h"
+#include "eth_uplink.h"
 #include "service_diagnostics.h"
 #include "mac_deny.h"
 #include "reset_history.h"
@@ -2600,7 +2601,7 @@ static esp_err_t tailnet_forward_handler(httpd_req_t *req)
     /* Match the actual portmap binding, not a saved SSID or AP policy.
      * An IPv4 address is not proof of router/Internet/tunnel availability. */
     esp_netif_ip_info_t ip = {0};
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_t *sta = eth_uplink_service_netif();  /* STA, or Ethernet while selected */
     bool uplink = sta && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr;
     bool control = tailscale_is_connected();
     char uplink_ip[16] = "";

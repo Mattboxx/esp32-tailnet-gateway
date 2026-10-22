@@ -86,6 +86,11 @@ over from the interrupted Codex session without resetting anything.
   console VPN binding by tunnel address (ADR-020); web_security PASS (incl.
   tunnel binding cases); build PASS 1,828,444 (93.0%). Console path itself
   not host-tested end-to-end.
+- Commit `fbe8e3a`. Then Service Gateway on the selected uplink: bindings use
+  Ethernet while selected, "en" ingress accepted, rebinding on change.
+  tailnet_core (+Ethernet binding cases), portmap, forwarding_transactions,
+  gateway_operations PASS (WiFi path unchanged). Builds PASS: default
+  1,828,476 (93.0%), Ethernet 1,883,424 (95.8%). Not hardware-exercised.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 

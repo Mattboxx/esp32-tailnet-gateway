@@ -12,6 +12,7 @@
 #include "portmap.h"
 #include "tailnet_forward.h"
 #include "forwarding_config.h"
+#include "eth_uplink.h"
 #include "web_ui.h"
 #include "tailscale_config.h"
 #include "freertos/FreeRTOS.h"
@@ -216,10 +217,11 @@ static void portmap_install_cb(void *arg)
     /* Pull the current STA IP — without it the NAPT bind has nothing to
      * tie the external side to. Skip silently when STA isn't up yet;
      * we'll be called again from IP_GOT_IP. */
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    /* WiFi STA, or the optional Ethernet netif while it is the selected uplink. */
+    esp_netif_t *sta = eth_uplink_service_netif();
     esp_netif_ip_info_t ip_info = {0};
     if (!sta || esp_netif_get_ip_info(sta, &ip_info) != ESP_OK || !ip_info.ip.addr) {
-        ESP_LOGI(TAG, "STA has no IP yet; deferring portmap install");
+        ESP_LOGI(TAG, "uplink has no IP yet; deferring portmap install");
         return;
     }
     uint32_t bind_ip = ip_info.ip.addr;
@@ -248,8 +250,13 @@ static void portmap_install_cb(void *arg)
         }
         tailnet_forward_mark_installed(m, ok, ok ? NULL : "lwIP port-map table full");
     }
-    ESP_LOGI(TAG, "installed %d AP-side + %d LAN-to-Tailnet mapping(s) on STA " IPSTR,
+    ESP_LOGI(TAG, "installed %d AP-side + %d LAN-to-Tailnet mapping(s) on uplink " IPSTR,
              ap_installed, tailnet_installed, IP2STR(&ip_info.ip));
+}
+
+void portmap_install_now(void)
+{
+    portmap_install_cb(NULL);  /* caller is already on the TCP/IP thread */
 }
 
 void portmap_install_all(void)

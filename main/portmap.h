@@ -47,6 +47,8 @@ bool               portmap_listen_conflicts(uint8_t proto, uint16_t port);
  * main on IP_GOT_IP and after any table change. Safe to call repeatedly
  * — clears existing bindings first so duplicates don't accumulate. */
 void               portmap_install_all(void);
+/* Same refresh, for callers already running on the TCP/IP thread. */
+void               portmap_install_now(void);
 
 #ifdef __cplusplus
 }
