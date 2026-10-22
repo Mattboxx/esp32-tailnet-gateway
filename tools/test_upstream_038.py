@@ -239,6 +239,7 @@ handler = function(web, 'static esp_err_t system_debug_wg_tx_post_handler(')
 cjson = os.environ.get('CJSON_SOURCE')
 run('actual WG TX HTTP diagnostic: password session, strict JSON, lifecycle contention and failed mutations', r'''
 #include "cJSON.h"
+#include "json_guard.h"
 #define ESP_FAIL -1
 #define ESP_ERR_INVALID_STATE -3
 #define HTTPD_400_BAD_REQUEST 400
@@ -281,5 +282,5 @@ int main(void){
  request("{\"copyfree\":true}",200);assert(copyfree&&mutations==3);
 }
 ''', sources=(Path(cjson),) if cjson else (),
-    includes=(Path(cjson).parent,) if cjson else ('/usr/include/cjson',),
+    includes=((Path(cjson).parent,) if cjson else ('/usr/include/cjson',)) + (ROOT / 'main',),
     libraries=() if cjson else ('-lcjson',), flags=('-Wno-misleading-indentation',))
