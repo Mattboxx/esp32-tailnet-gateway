@@ -22,6 +22,7 @@ fixture=r'''
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "module_supervisor.h"
 #define WOL_MAX_DEVICES 12
 #define TAILNET_FORWARD_MAX 8
 #define CONFIG_LWIP_MAX_SOCKETS 31
@@ -87,7 +88,7 @@ with tempfile.TemporaryDirectory(prefix='ops-core-') as directory:
     program.write_text(fixture+woltype+types+globals+adapters+''.join(function(n) for n in (
         'static uint32_t checksum(', 'static bool valid_settings(', 'static bool valid_profile(',
         'static void event_locked(', 'static esp_err_t save_locked(', 'void homelab_ops_service_closed(', 'bool homelab_ops_admit(', 'static void finish_locked(', 'static void apply_probe_locked('))+body,encoding='utf-8')
-    flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-variable','-Wno-misleading-indentation','-g']
+    flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-variable','-Wno-misleading-indentation','-g','-I',str(ROOT/'main')]
     if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run(['gcc',*flags,str(program),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True,timeout=20)

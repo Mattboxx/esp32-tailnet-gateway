@@ -801,7 +801,8 @@ static void task_main(void *arg)
 void ntfy_integration_init(void)
 {
     if (s_task) return;
-    s_lock = xSemaphoreCreateMutex();
+    /* Retry-safe: the module supervisor may call this again after a failed start. */
+    if (!s_lock) s_lock = xSemaphoreCreateMutex();
     if (!s_lock) return;
     load_state(&s_config);
     uint8_t system_events = 0;

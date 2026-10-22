@@ -1032,6 +1032,11 @@ bool mqtt_integration_connected(void)
     return s_connected;
 }
 
+bool mqtt_integration_task_running(void)
+{
+    return s_manager_task != NULL;
+}
+
 void mqtt_integration_get_status(mqtt_integration_status_t *out)
 {
     if (!out) return;

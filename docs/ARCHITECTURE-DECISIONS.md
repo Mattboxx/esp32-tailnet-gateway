@@ -241,3 +241,13 @@ test slot (never displacing a manual request). Only handshake outcomes move its
 two-miss/one-recovery state; tunnel, policy and resource states are not service
 evidence. Settings live in their own validated NVS blob; missing or invalid
 means OFF. Notices are best-effort through ntfy/MQTT and never change rules.
+
+## ADR-022 — Optional workers are re-started by the operations worker (2026-10-22)
+
+If the MQTT or ntfy task cannot be created (typically low internal memory at
+boot), the PSRAM operations worker is started and retries the missing worker
+after 60 s, doubling to 15 minutes, until both run; `module_restarts` counts
+successful restarts. No task, timer or internal RAM is added for supervision,
+routing and the Web UI never wait on it, and a module that is merely
+disconnected (not crashed) keeps its own bounded retry. ntfy init became
+retry-safe (it no longer recreates its mutex).
