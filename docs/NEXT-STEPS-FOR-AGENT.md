@@ -2,7 +2,8 @@
 
 ## Latest session (Claude Code, took over interrupted Codex work)
 
-Hardware campaign procedure is ready in HARDWARE-CAMPAIGN.md; it needs
+Consolidated offline run 55/55 (build+browser) at the latest commit. Hardware
+campaign procedure is ready in HARDWARE-CAMPAIGN.md; it needs
 fresh owner authorization, an identified board and a verified backup.
 
 Nothing was reset; Codex's last edits were verified in place. Owner decision

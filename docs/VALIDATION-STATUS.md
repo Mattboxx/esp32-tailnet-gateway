@@ -113,6 +113,11 @@ over from the interrupted Codex session without resetting anything.
   hardware guide, per-rule peer path, 60 browser scenarios incl. 375 px phone
   width on six pages, SNMP health rows 24-27, HA Service watch switch and
   profile sensor. Builds PASS, latest 1,833,100 (93.2%).
+- Consolidated offline run with `--build --browser` (Windows): **55/55 PASS**,
+  `build/validation-20261022-152515-095847/`. Includes new drivers mqtt_commands and the handler tests
+  for Service watch, destination check, Ethernet and profiles; browser 70/70.
+  Image `.../consolidated-20261022/`: BIN `2e59380ec8d764acee00a076edcf9fc2cf05b752251222b6e6301f4ec870c0ef`,
+  ELF `19d590cb66c3db90adfdde2b000922a9d59fb386e9525d931530ec57d247d7a8`. Not run: Linux ASan/UBSan, device tests, hardware.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 
