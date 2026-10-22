@@ -251,3 +251,12 @@ successful restarts. No task, timer or internal RAM is added for supervision,
 routing and the Web UI never wait on it, and a module that is merely
 disconnected (not crashed) keeps its own bounded retry. ntfy init became
 retry-safe (it no longer recreates its mutex).
+
+## ADR-023 — Recovery-only AP returns after 60 s without the saved WiFi (2026-10-22)
+
+Owner request. With the client AP switched off (recovery-only), a lost uplink
+now arms a 60 s window before the AP is re-enabled instead of 100 ms; the AP
+then stays on until the uplink has an address again. Disconnect events
+repeated by STA retries never postpone the deadline, and a reconnect inside
+the window cancels it, so brief drops do not toggle the AP. Boot is unchanged
+(AP up until the first connection) and always-on mode is unaffected.

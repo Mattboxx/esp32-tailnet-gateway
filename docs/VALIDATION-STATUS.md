@@ -118,6 +118,14 @@ over from the interrupted Codex session without resetting anything.
   for Service watch, destination check, Ethernet and profiles; browser 70/70.
   Image `.../consolidated-20261022/`: BIN `2e59380ec8d764acee00a076edcf9fc2cf05b752251222b6e6301f4ec870c0ef`,
   ELF `19d590cb66c3db90adfdde2b000922a9d59fb386e9525d931530ec57d247d7a8`. Not run: Linux ASan/UBSan, device tests, hardware.
+- Physical board (read-only, 2026-10-22): ESP32-S3 QFN56 rev v0.2, 16 MB flash,
+  8 MB PSRAM, USB-Serial/JTAG; no flash encryption/secure boot. Installed:
+  stable 0.1.38-Mattboxx-1.13 active in ota_1 (dev.1 in ota_0). Running and
+  online (DERP connected, direct peers; MQTT broker unreachable; internal free
+  heap about 12.7 KB in the log). Full 16 MB backup read twice: only 4 NVS
+  blocks differ (runtime writes); all images/partition MD5 valid. Private copy
+  and restore steps are under ignored build/private-device/. Not yet flashed.
+- AP fallback (ADR-023): runtime_recovery PASS with new fallback cases; build PASS.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 

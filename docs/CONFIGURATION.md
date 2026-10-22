@@ -37,6 +37,7 @@ Up to **5** networks, tried in order. Per network:
 | **On-board DNS forwarder** | on | Resolver + PSRAM response cache for AP clients. |
 | **Forwarder upstream** | configured / learned | Upstream resolver the forwarder queries. This fork has no hard-coded public fallback. |
 | **Hide SSID** | off | Stop broadcasting the SSID in beacons. |
+| **Enable client access point** | on | Off = recovery-only: the AP is up at boot until the uplink connects, then hidden. If the saved WiFi is not found for **60 s** the AP comes back and stays on until the uplink has an address again; shorter drops do not toggle it. |
 
 ## Network → DHCP, clients, denylist, port forwarding
 

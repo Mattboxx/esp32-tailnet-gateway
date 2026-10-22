@@ -80,16 +80,23 @@ esp_err_t ap_policy_init(bool (*apply)(bool))
     return ESP_OK;
 }
 
-void ap_policy_request(bool on)
+void ap_policy_request_after(bool on, uint32_t delay_ms)
 {
-    int64_t due = esp_timer_get_time() + (on ? 100000 : 1500000);
+    int64_t due = esp_timer_get_time() + (int64_t)delay_ms * 1000;
     taskENTER_CRITICAL(&s_lock);
     if (!s_shutdown) {
-        s_target = on;
-        s_due = due;
-        ++s_generation;
+        if (!(s_pending && s_target == on && s_due <= due)) {
+            s_target = on;
+            s_due = due;
+            ++s_generation;
+        }
         s_pending = true;
     }
     taskEXIT_CRITICAL(&s_lock);
     if (s_worker) xTaskNotifyGive(s_worker);
+}
+
+void ap_policy_request(bool on)
+{
+    ap_policy_request_after(on, on ? 100 : 1500);
 }
