@@ -21,7 +21,7 @@ One device with sensors and controls for:
   closures; per-device **Recovery** buttons (honour *Allow MQTT/ntfy recovery
   commands*).
 - Service Gateway, per rule: an enable **switch**, **time remaining** for
-  temporary rules and **Tailnet rule status** (the diagnosis code: e.g.
+  temporary rules, a **Test Tailnet destination** button and **Tailnet rule status** (the diagnosis code: e.g.
   `service_replied`, `destination_no_answer`, `source_rejected`,
   `ready_to_enable`). Totals: configured/enabled/active rules and
   accepted/blocked packets.

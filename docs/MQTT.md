@@ -37,6 +37,7 @@ anything else is rejected.
 | `reconnect_wifi`, `reconnect_tailscale` | reconnect that link |
 | `ap_always_on`, `wifi_power_save`, `tailscale_enabled`, `accept_routes`, `snat_subnet_routes`, `advertise_ap`, `advertise_exit_node`, `exit_node_lan_bypass`, `fourvia6_enabled`, `health_monitor_enabled`, `service_watch_enabled` | switches (`service_watch_enabled` keeps the saved interval/notify) |
 | `tailnet_forward/<index>/<8-hex rule token>` | enable/disable one Service Gateway rule; index-only topics are rejected so a delayed command cannot hit another rule |
+| `tailnet_test/<index>/<8-hex rule token>` with `PRESS` | run one destination test for that rule (same binding rule as the switch) |
 | `wol/<MAC>` | send WoL to a **saved** device only |
 | `recovery/<12-hex MAC>` with `PRESS` | Smart Recovery, only if *Allow MQTT/ntfy recovery commands* is on |
 
