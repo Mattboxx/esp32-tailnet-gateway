@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ESP32 Tailnet Gateway</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230D1117'/%3E%3Cg fill='none' stroke-linecap='round' stroke-width='4'%3E%3Cpath d='M15 32h10' stroke='%23E6EDF3'/%3E%3Cpath d='M38 32h10' stroke='%232DD4BF'/%3E%3Cpath d='M38 28.5c5 0 5-10.5 10.5-10.5M38 35.5c5 0 5 10.5 10.5 10.5' stroke='%2364748B'/%3E%3C/g%3E%3Ccircle cx='12.5' cy='32' r='5' fill='%23E6EDF3'/%3E%3Crect x='25' y='19' width='13' height='26' rx='4' fill='%232DD4BF'/%3E%3Crect x='29.5' y='26' width='4' height='12' rx='2' fill='%230D1117'/%3E%3Ccircle cx='52' cy='32' r='5' fill='%232DD4BF'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230D1117'/%3E%3Cg fill='none' stroke-linecap='round' stroke-width='4.5'%3E%3Cpath d='M12.5 32h12' stroke='%23e8eaed'/%3E%3Cpath d='M30.5 32c0-9 5-14 15-14M30.5 32c0 9 5 14 15 14' stroke='%234b5563'/%3E%3Cpath d='M30.5 32h15' stroke='%232dd4bf'/%3E%3C/g%3E%3Ccircle cx='30.5' cy='32' r='7' fill='%232dd4bf'/%3E%3Ccircle cx='30.5' cy='32' r='2.75' fill='%230D1117'/%3E%3Ccircle cx='49.5' cy='32' r='5' fill='%232dd4bf'/%3E%3Ccircle cx='49' cy='18' r='3.75' fill='%234b5563'/%3E%3Ccircle cx='49' cy='46' r='3.75' fill='%234b5563'/%3E%3C/svg%3E">
   <style>
     /* =====================================================================
        DESIGN TOKENS
@@ -1528,19 +1528,8 @@
     <button class="nav-ham-btn" id="navHamBtn" aria-label="Open menu" aria-controls="navTabs" aria-expanded="false">≡</button>
     <div class="nav-brand">
       <div class="nav-brand-icon">
-        <!-- Project mark: LAN device -> gateway -> one enabled Tailnet role -->
-        <svg class="brand-mark" width="26" height="26" viewBox="0 0 64 64" role="img" aria-label="ESP32 Tailnet Gateway">
-          <g fill="none" stroke-linecap="round" stroke-width="4">
-            <path d="M15 32h10" stroke="#e8eaed"/><path d="M38 32h10" stroke="#2dd4bf"/>
-            <path d="M38 28.5c5 0 5-10.5 10.5-10.5M38 35.5c5 0 5 10.5 10.5 10.5" stroke="#5c6370"/>
-          </g>
-          <circle cx="12.5" cy="32" r="5" fill="#e8eaed"/>
-          <rect x="25" y="19" width="13" height="26" rx="4" fill="#2dd4bf"/>
-          <rect x="29.5" y="26" width="4" height="12" rx="2" fill="#0d0f12"/>
-          <circle cx="52" cy="32" r="5" fill="#2dd4bf"/>
-          <circle cx="52" cy="17.5" r="3.6" fill="none" stroke="#5c6370" stroke-width="2.8"/>
-          <circle cx="52" cy="46.5" r="3.6" fill="none" stroke="#5c6370" stroke-width="2.8"/>
-        </svg>
+        <!-- Project mark: LAN input -> ESP32 hub -> one enabled Tailnet role -->
+        <svg class="brand-mark" width="26" height="26" viewBox="0 0 64 64" role="img" aria-label="ESP32 Tailnet Gateway"><g fill="none" stroke-linecap="round" stroke-width="4.5"><path d="M12.5 32h12" stroke="#e8eaed"/><path d="M30.5 32c0-9 5-14 15-14M30.5 32c0 9 5 14 15 14" stroke="#4b5563"/><path d="M30.5 32h15" stroke="#2dd4bf"/></g><circle cx="30.5" cy="32" r="7" fill="#2dd4bf"/><circle cx="30.5" cy="32" r="2.75" fill="#0d0f12"/><circle cx="49.5" cy="32" r="5" fill="#2dd4bf"/><circle cx="49" cy="18" r="3.75" fill="#4b5563"/><circle cx="49" cy="46" r="3.75" fill="#4b5563"/></svg>
       </div>
       <span class="nav-brand-name" id="brandName">Tailnet Gateway</span>
     </div>

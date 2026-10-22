@@ -13,15 +13,17 @@ trademarks of their respective owners and are used only descriptively.
 
 ## Logo
 
-The mark is a LAN device (left dot) passing through one gateway into several
-Tailnet roles. One role is lit; the others are outlined — *enable only what
-you need*. It deliberately avoids a dot grid (Tailscale) and chip/red motifs
-(Espressif).
+The mark is a LAN input entering the ESP32 hub (the ring) and leaving as
+three Tailnet roles. One role is lit; the others stay dimmed — *enable only
+what you need*. Geometry: 64-unit grid, 4.5-unit round strokes, hub radius 7
+with a 2.75 core, optically centred (+1.5 units). It deliberately avoids a dot
+grid (Tailscale) and chip/red motifs (Espressif).
 
 | File | Use |
 |---|---|
 | `logo-mark.svg` | App icon, favicon, avatar (dark tile) |
 | `logo-mark-light.svg` | Mark without tile, for light backgrounds |
+| `logo-mono.svg` (+ `-white`, `-black`) | Single-colour mark (`currentColor`), inactive roles as outlines |
 | `logo-horizontal-dark.svg` / `-light.svg` | Mark + wordmark lockups |
 | `banner.svg` | README hero, 1280×400 |
 | `social-preview.svg` | GitHub / Open Graph preview, 1280×640 |

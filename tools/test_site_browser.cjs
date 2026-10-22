@@ -67,6 +67,8 @@ pages.unshift('');
         if (shots) await page.screenshot({ path: path.join(shots, `site-${width}-menu.png`) });
       }
       await page.goto(base, { waitUntil: 'load' });
+      if (width > 760 && await page.isVisible('.menu')) failures.push(`${width}: mobile menu button visible on a wide screen`);
+      if (width > 760 && !(await page.isVisible('#site-nav'))) failures.push(`${width}: main navigation hidden on a wide screen`);
       await page.click('.search-open');
       await page.fill('#search-input', 'headscale');
       const hits = await page.locator('#search-results a').count();

@@ -1,17 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="t d">
-  <title id="t">ESP32 Tailnet Gateway</title>
-  <desc id="d">A LAN device passes through one gateway; one Tailnet role is lit, the others stay off until enabled.</desc>
-  <rect width="64" height="64" rx="14" fill="#0D1117"/>
-  <g fill="none" stroke-linecap="round" stroke-width="3.5">
-    <path d="M15 32h10" stroke="#E6EDF3"/>
-    <path d="M38 32h10" stroke="#2DD4BF"/>
-    <path d="M38 28.5c5 0 5-10.5 10.5-10.5" stroke="#475569"/>
-    <path d="M38 35.5c5 0 5 10.5 10.5 10.5" stroke="#475569"/>
-  </g>
-  <circle cx="12.5" cy="32" r="4.5" fill="#E6EDF3"/>
-  <rect x="25" y="20" width="13" height="24" rx="4" fill="#2DD4BF"/>
-  <rect x="29.5" y="26" width="4" height="12" rx="2" fill="#0D1117"/>
-  <circle cx="52" cy="32" r="4.5" fill="#2DD4BF"/>
-  <circle cx="52" cy="18" r="3.5" fill="none" stroke="#475569" stroke-width="2.5"/>
-  <circle cx="52" cy="46" r="3.5" fill="none" stroke="#475569" stroke-width="2.5"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="t"><title id="t">ESP32 Tailnet Gateway</title><rect width="64" height="64" rx="16" fill="#0D1117"/><g transform="translate(1.5 0)"><g fill="none" stroke-linecap="round" stroke-width="4.5"><path d="M11 32h12" stroke="#E6EDF3"/><path d="M29 32c0-9 5-14 15-14" stroke="#46536A"/><path d="M29 32c0 9 5 14 15 14" stroke="#46536A"/><path d="M29 32h15" stroke="#2DD4BF"/></g><circle cx="29" cy="32" r="7" fill="#2DD4BF"/><circle cx="29" cy="32" r="2.75" fill="#0D1117"/><circle cx="48" cy="32" r="5" fill="#2DD4BF"/><circle cx="47.5" cy="18" r="3.75" fill="#46536A"/><circle cx="47.5" cy="46" r="3.75" fill="#46536A"/></g></svg>
