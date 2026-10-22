@@ -184,7 +184,14 @@ deployed site.
 | Windows ZIP | same | `8f922030f9dbb260e75befc8f5977f68a699aac2d49a170f2f8f3134848f8ab9` | 16,712,198 | | `build/release-0.1.38-Mattboxx-1.14-dev.6/` |
 | Ethernet `firmware.bin` | `865d474` | `975e4d61add87edff50e55bfdf7503e8d3fbf25fe7d099992c21771ce95cc331` | 1,930,912 | 98.2 % | compiled only; build dir `%TEMP%/mattboxx-esp32-build-0114/esp32-s3-eth` |
 
-**These are not final.** Item C.5 changes `main/index.html` (mark, favicon,
+Newer builds after the black/green UI and translation fixes (commit `438ff77`),
+**compiled only, not yet flashed or tested on the board**:
+WiFi `bb6991137300915de253f22b2c08de6e3c7ddbae7417ceecb0b6e147910ecc95`
+(1,878,400 B, 95.5 %), Ethernet
+`f8dd2e941cbedbf354a50f54f3b3bc9c417fba4fd12a6fc7aba79086c4ec1e77`
+(1,933,536 B, 98.3 %). Build dir `%TEMP%/mattboxx-esp32-build-0114/<env>/`.
+
+**None of these are final.** Item C.5 changes `main/index.html` (mark, favicon,
 accent), so both images must be rebuilt, re-flashed, re-tested and
 re-packaged. Never relabel these hashes as the release.
 
