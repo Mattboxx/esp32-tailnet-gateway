@@ -13,8 +13,8 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 DRIVERS='release_packaging device_session feature_preservation upstream_033 upstream_038 ntfy_stack ntfy_logic ntfy_transport ntfy_stream snmp_codec route_hook netif_hooks runtime_recovery portmap forwarding_transactions web_port tailnet_filter tailnet_state tailnet_api tailnet_core tailnet_sdk peer_dns ota_remote gateway_operations tailnet_authorization peer_convergence policy_protocols policy_reassembly ops_core ops_api service_lease health_monitor development_plan candidate_observer'.split()
-DRIVERS+=['json_guard','service_transfer','service_retry','capabilities','mqtt_discovery','web_security','config_profiles','service_check']
-SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT TAILNET PEER_DNS OTA GATEWAY POLICY OPS LEASE HEALTH JSON TRANSFER RETRY CAP DISCOVERY WEB PROFILE SC'.split()
+DRIVERS+=['json_guard','service_transfer','service_retry','capabilities','mqtt_discovery','web_security','config_profiles','service_check','mqtt_state']
+SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT TAILNET PEER_DNS OTA GATEWAY POLICY OPS LEASE HEALTH JSON TRANSFER RETRY CAP DISCOVERY WEB PROFILE SC MQTTSTATE'.split()
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

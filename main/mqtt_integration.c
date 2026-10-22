@@ -427,6 +427,68 @@ static void publish_discovery(void)
     if(discovery_finished(&s_discovery))ESP_LOGI(TAG, "Home Assistant discovery accepted locally (%d WOL button(s)); broker delivery unverified", count);
 }
 
+/* QoS1 retained state shares the client's 8 KiB outbox with Discovery and
+ * acknowledgements; keep one state message well below it. */
+#define MQTT_STATE_BUDGET 6144u
+
+/* Compact mode keeps only the fields Home Assistant templates read plus the
+ * evidence, never names, destinations or ports. */
+static bool add_tailnet_rules(cJSON *root, bool compact)
+{
+    cJSON *tf_rules = cJSON_AddArrayToObject(root, "tailnet_forward_rules");
+    if (!tf_rules) return false;
+    for (int i = 0; i < tailnet_forward_count(); i++) {
+        tailnet_forward_rule_t rule; tailnet_forward_runtime_t rt;
+        if (!tailnet_forward_get(i, &rule, &rt)) continue;
+        cJSON *j = cJSON_CreateObject();
+        if (!j || !cJSON_AddItemToArray(tf_rules, j)) {cJSON_Delete(j); return false;}
+        /* Same evidence as the Web API; uplink/control are published separately. */
+        service_evidence_t ev;
+        service_evidence_collect(i, service_lease_token(&rule), &rule, &rt, true, true, &ev);
+        bool ok = cJSON_AddStringToObject(j, "enabled", rule.enabled ? "ON" : "OFF")
+            && cJSON_AddStringToObject(j, "installed", rt.installed ? "ON" : "OFF")
+            && cJSON_AddStringToObject(j, "status", ev.diag.code)
+            && cJSON_AddStringToObject(j, "destination_check", service_check_state_name(ev.checked ? ev.check.state : SC_NONE))
+            && (ev.replied ? cJSON_AddNumberToObject(j, "service_reply_age_s", ev.reply_ms / 1000) != NULL
+                           : cJSON_AddNullToObject(j, "service_reply_age_s") != NULL);
+        if (ok && !compact)
+            ok = cJSON_AddStringToObject(j, "name", rule.name)
+                && cJSON_AddStringToObject(j, "protocol", rule.proto == 17 ? "udp" : "tcp")
+                && cJSON_AddNumberToObject(j, "listen_port", rule.listen_port)
+                && cJSON_AddStringToObject(j, "destination", rule.destination)
+                && cJSON_AddNumberToObject(j, "destination_port", rule.destination_port);
+        if (!ok) return false;
+    }
+    return true;
+}
+
+/* Print the state; if it exceeds the budget, drop detail that the Web API
+ * still serves (device list, events, duplicate leases, then rule labels) and
+ * mark the level. Returns NULL only on allocation failure. */
+static char *state_print_fitted(cJSON *root, size_t budget, unsigned *level)
+{
+    *level = 0;
+    char *json = cJSON_PrintUnformatted(root);
+    for (unsigned step = 1; json && strlen(json) > budget && step <= 2; step++) {
+        free(json);
+        json = NULL;
+        *level = step;
+        if (step == 1) {
+            cJSON *ops = cJSON_GetObjectItemCaseSensitive(root, "operations");
+            cJSON_DeleteItemFromObjectCaseSensitive(ops, "devices");
+            cJSON_DeleteItemFromObjectCaseSensitive(ops, "events");
+            cJSON_DeleteItemFromObjectCaseSensitive(ops, "forwarding_leases");
+        } else {
+            cJSON_DeleteItemFromObjectCaseSensitive(root, "tailnet_forward_rules");
+            if (!add_tailnet_rules(root, true)) return NULL;
+        }
+        cJSON_DeleteItemFromObjectCaseSensitive(root, "state_compact_level");
+        if (!cJSON_AddNumberToObject(root, "state_compact_level", step)) return NULL;
+        json = cJSON_PrintUnformatted(root);
+    }
+    return json;
+}
+
 static void publish_state(void)
 {
     if (!s_connected) return;
@@ -552,24 +614,19 @@ static void publish_state(void)
     cJSON_AddNumberToObject(root,"tailnet_forward_installed",tf_installed);
     cJSON_AddNumberToObject(root,"tailnet_forward_accepted_packets",tf_accepted);
     cJSON_AddNumberToObject(root,"tailnet_forward_blocked_packets",tf_blocked);
-    cJSON *tf_rules=cJSON_AddArrayToObject(root,"tailnet_forward_rules");
-    for(int i=0;i<tailnet_forward_count();i++){
-        tailnet_forward_rule_t rule;tailnet_forward_runtime_t rt;if(!tailnet_forward_get(i,&rule,&rt))continue;
-        cJSON *j=cJSON_CreateObject();cJSON_AddStringToObject(j,"name",rule.name);cJSON_AddStringToObject(j,"enabled",rule.enabled?"ON":"OFF");cJSON_AddStringToObject(j,"protocol",rule.proto==17?"udp":"tcp");cJSON_AddNumberToObject(j,"listen_port",rule.listen_port);cJSON_AddStringToObject(j,"destination",rule.destination);cJSON_AddNumberToObject(j,"destination_port",rule.destination_port);cJSON_AddStringToObject(j,"installed",rt.installed?"ON":"OFF");
-        /* Same evidence as the Web API; uplink/control are published separately. */
-        service_evidence_t ev;service_evidence_collect(i,service_lease_token(&rule),&rule,&rt,true,true,&ev);
-        cJSON_AddStringToObject(j,"status",ev.diag.code);cJSON_AddStringToObject(j,"destination_check",service_check_state_name(ev.checked?ev.check.state:SC_NONE));
-        if(ev.replied)cJSON_AddNumberToObject(j,"service_reply_age_s",ev.reply_ms/1000);else cJSON_AddNullToObject(j,"service_reply_age_s");
-        cJSON_AddItemToArray(tf_rules,j);
-    }
+    (void)add_tailnet_rules(root,false);
 
     cJSON *operations=homelab_ops_snapshot(false);
     if(operations && !cJSON_AddItemToObject(root,"operations",operations))cJSON_Delete(operations);
     cJSON *leases=service_lease_snapshot();
     if(leases && !cJSON_AddItemToObject(root,"forwarding_leases",leases))cJSON_Delete(leases);
-    char *json = cJSON_PrintUnformatted(root);
+    unsigned level = 0;
+    char *json = state_print_fitted(root, MQTT_STATE_BUDGET, &level);
     cJSON_Delete(root);
     if (json) {
+        if (strlen(json) > MQTT_STATE_BUDGET)
+            ESP_LOGW(TAG, "state %u bytes exceeds the %u-byte budget after compaction",
+                     (unsigned)strlen(json), (unsigned)MQTT_STATE_BUDGET);
         publish(s_state_topic, json, 1);
         free(json);
     }

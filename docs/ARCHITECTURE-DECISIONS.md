@@ -188,3 +188,14 @@ protocol, remote IPv4 and port returns the newest current-epoch reply age and
 nothing while suspended. It is evidence, never a grant, and not per LAN client.
 Per-rule last accepted/rejected stamps are uptime seconds set under the
 forwarder lock on the TCP/IP path (no extra I/O). No new task, socket or timer.
+
+## ADR-017 — The MQTT state degrades to fit, never silently fails (2026-10-22)
+
+The retained QoS1 state shares an 8 KiB client outbox. A host measurement of
+the actual rule array showed 8 worst-case rules alone take 3,783 bytes, so a
+full state could exceed it and never be delivered. The state is now fitted to
+6,144 bytes: level 1 drops detail the Web API still serves (device list,
+events, duplicate leases); level 2 publishes rules without names, destinations
+and ports. Every field a Home Assistant template reads is kept, and
+`state_compact_level` tells consumers. A still-oversize state is published
+and logged, never dropped silently or retried in a loop.

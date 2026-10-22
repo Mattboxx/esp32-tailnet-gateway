@@ -55,8 +55,13 @@ over from the interrupted Codex session without resetting anything.
   HA "Tailnet rule status" sensor per rule with orphan cleanup. gateway_operations,
   ops_api, mqtt_discovery, service_retry PASS; build PASS **1,818,068 (92.5%)**.
   Snapshot `.../service-mqtt-evidence/`: BIN `004d703b47cd44291c25cdbac9dc0ad9e6a8c3ef8c650d46f1e2319a3774f1e6`, ELF `328d1b76a12abc2cba1a80370650f1cd2877b10f197bbddb47f345b608e0f2bf`. SPA
-  unchanged in this block (browser not rerun). MQTT state payload content and
-  worst-case size against the 8 KiB QoS1 outbox are NOT covered by a driver.
+  unchanged in this block (browser not rerun).
+- Commit root `18cc45b`. Then MQTT state budget: new `mqtt_state` driver on
+  the actual rule array/fitting code. MEASURED (host, synthetic worst case):
+  8 rules 3,783 B full vs 1,055 B compact; fitted states 5,469 B (level 1) and
+  4,741 B (level 2) under the 6,144 B budget. Whole on-device state size is
+  still unmeasured. Build PASS **1,818,188 (92.5%)**. Snapshot
+  `.../mqtt-state-budget/`: BIN `5d09639fa75d22dd20dbb04256c59c9b4603741c50c6d62401eb00cfd794a562`, ELF `331272c5b5e6339e0626275aa0ea2ad632c4860cc7a7e34da0522a805ce88ba4`.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 
