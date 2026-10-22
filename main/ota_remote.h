@@ -14,6 +14,7 @@ typedef struct {
     bool busy, checked, update_available;
     uint32_t last_check, asset_size;
     unsigned progress;
+    uint8_t repo; /* ota_repo() index that answered the last release check */
     char latest_version[32], status[96], release_url[192];
 } ota_remote_state_t;
 

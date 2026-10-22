@@ -3155,7 +3155,7 @@
           <span class="badge badge-neutral" id="sys-ota-badge">Manual only</span>
         </div>
         <div class="card-body">
-          <p class="form-hint" style="margin:0 0 0.75rem 0;">Only Mattboxx releases from <a href="https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases" target="_blank" rel="noopener">the custom fork</a> are eligible. GitHub downloads use HTTPS, a SHA-256 checksum and board/version checks. Settings are preserved; the device restarts after installation.</p>
+          <p class="form-hint" style="margin:0 0 0.75rem 0;">Only Mattboxx releases from <a id="sys-updates-repo" href="https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases" target="_blank" rel="noopener">the ESP32 Tailnet Gateway repository</a> are eligible. GitHub downloads use HTTPS, a SHA-256 checksum and board/version checks. Settings are preserved; the device restarts after installation.</p>
           <div class="grid grid-cols-2">
             <div class="stat-row" style="border-top:none;">
               <span class="stat-label">Running</span>
@@ -8142,7 +8142,8 @@
         document.getElementById('sys-updates-status').textContent = (d.status || 'Ready') + (d.busy && d.progress ? ' · ' + d.progress + '%' : '');
         document.getElementById('sys-updates-last-check').textContent = d.last_check > 1700000000 ? 'Last successful check: ' + new Date(d.last_check * 1000).toLocaleString() : 'No successful check recorded this boot';
         var link = document.getElementById('sys-updates-release');
-        var safe = typeof d.release_url === 'string' && /^https:\/\/github\.com\/Mattboxx\/esp32-tailscale-gateway-NAS-recovery\/releases\/tag\/[a-zA-Z0-9.-]+$/.test(d.release_url);
+        var safe = typeof d.release_url === 'string' && /^https:\/\/github\.com\/Mattboxx\/(esp32-tailnet-gateway|esp32-tailscale-gateway-NAS-recovery)\/releases\/tag\/[a-zA-Z0-9.-]+$/.test(d.release_url);
+        if (d.checked && /^Mattboxx\/(esp32-tailnet-gateway|esp32-tailscale-gateway-NAS-recovery)$/.test(d.repository || '')) document.getElementById('sys-updates-repo').href = 'https://github.com/' + d.repository + '/releases';
         link.style.display = safe ? '' : 'none'; if (safe) link.href = d.release_url;
         var badge = document.getElementById('sys-ota-badge');
         badge.textContent = d.busy ? 'Working…' : d.update_available ? 'Update available' : d.enabled ? (d.auto_install ? 'Automatic install' : 'Checks enabled') : 'Periodic checks off';

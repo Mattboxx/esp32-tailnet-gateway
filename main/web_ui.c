@@ -3977,7 +3977,7 @@ static esp_err_t updates_get_handler(httpd_req_t *req)
     cJSON_AddStringToObject(json, "latest_version", state.latest_version);
     cJSON_AddStringToObject(json, "status", state.status);
     cJSON_AddStringToObject(json, "release_url", state.release_url);
-    cJSON_AddStringToObject(json, "repository", OTA_FORK_REPO);
+    cJSON_AddStringToObject(json, "repository", ota_repo(state.repo) ? ota_repo(state.repo) : OTA_FORK_REPO);
     char *text = cJSON_PrintUnformatted(json); cJSON_Delete(json);
     if (!text) { httpd_resp_send_500(req); return ESP_FAIL; }
     httpd_resp_set_type(req, "application/json");

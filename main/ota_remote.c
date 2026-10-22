@@ -141,11 +141,20 @@ static OTA_NOINLINE bool check_release(void)
     status_set("Checking GitHub releases");
     http_buffer_t b = {.body = heap_caps_malloc(JSON_LIMIT + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)};
     if (!b.body) { status_set("Not enough memory for release metadata"); return false; }
-    b.body[0] = 0;
-    esp_http_client_handle_t client = http_client(OTA_FORK_API, &b);
-    esp_err_t err = client ? esp_http_client_perform(client) : ESP_ERR_NO_MEM;
-    int code = client ? esp_http_client_get_status_code(client) : 0;
-    if (client) esp_http_client_cleanup(client);
+    /* Only the worker task runs checks, so one static URL buffer is safe and
+     * keeps the measured frame budget. Fall back to the previous repository
+     * name only on 404 from the current one (before the GitHub rename). */
+    static char api[112];
+    esp_err_t err = ESP_FAIL; int code = 0; unsigned repo = 0;
+    for (; repo < OTA_REPO_COUNT; ++repo) {
+        b.body[0] = 0; b.used = 0; b.overflow = false;
+        snprintf(api, sizeof api, "https://api.github.com/repos/%s/releases?per_page=10", ota_repo(repo));
+        esp_http_client_handle_t client = http_client(api, &b);
+        err = client ? esp_http_client_perform(client) : ESP_ERR_NO_MEM;
+        code = client ? esp_http_client_get_status_code(client) : 0;
+        if (client) esp_http_client_cleanup(client);
+        if (err != ESP_OK || code != 404) break;
+    }
     if (err != ESP_OK || code != 200 || b.overflow) {
         free(b.body);
         status_set(b.overflow ? "GitHub response too large" : code == 403 || code == 429 ? "GitHub rate limit; retry later" : "GitHub check failed (HTTPS/network/server)");
@@ -162,11 +171,11 @@ static OTA_NOINLINE bool check_release(void)
     cJSON_Delete(json);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_state.checked = true; s_state.last_check = (uint32_t)time(NULL);
-    s_state.update_available = found; s_state.asset_size = size;
+    s_state.update_available = found; s_state.asset_size = size; s_state.repo = (uint8_t)repo;
     strlcpy(s_state.latest_version, tag, sizeof s_state.latest_version);
     if (found) {
         memcpy(s_digest, digest, sizeof s_digest);
-        snprintf(s_state.release_url, sizeof s_state.release_url, OTA_FORK_URL "/releases/tag/%s", tag);
+        snprintf(s_state.release_url, sizeof s_state.release_url, "https://github.com/%s/releases/tag/%s", ota_repo(repo), tag);
     }
     xSemaphoreGive(s_lock);
     status_set(found ? "Update available" : "No newer compatible release");
@@ -197,7 +206,9 @@ static OTA_NOINLINE bool install_release(void)
     bool success = false;
     esp_ota_handle_t writer = 0;
     char url[192];
-    snprintf(url, sizeof url, OTA_FORK_URL "/releases/download/%s/firmware.bin", state.latest_version);
+    const char *repo = ota_repo(state.repo);
+    if (!repo) { ota_writer_release(); return false; }
+    snprintf(url, sizeof url, "https://github.com/%s/releases/download/%s/firmware.bin", repo, state.latest_version);
     http_buffer_t b = {.location = malloc(2048)};
     unsigned char *buffer = malloc(2048);
     esp_http_client_handle_t client = NULL;

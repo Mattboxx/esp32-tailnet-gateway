@@ -127,7 +127,8 @@ class UpstreamIntegrationTests(unittest.TestCase):
     def test_updates_are_fork_only_opt_in_and_privileged(self):
         source = self.text('main/ota_remote.c')
         validation = self.text('main/ota_validation.h')
-        self.assertIn('OTA_FORK_REPO "Mattboxx/esp32-tailscale-gateway-NAS-recovery"', validation)
+        self.assertIn('OTA_REPO_CURRENT "Mattboxx/esp32-tailnet-gateway"', validation)
+        self.assertIn('OTA_REPO_PREVIOUS "Mattboxx/esp32-tailscale-gateway-NAS-recovery"', validation)
         self.assertNotIn('Csontikka', source + validation)
         self.assertIn('.crt_bundle_attach = esp_crt_bundle_attach', source)
         self.assertIn('.disable_auto_redirect = true', source)
