@@ -70,6 +70,11 @@ over from the interrupted Codex session without resetting anything.
   send_system_event 576/768, available_update_id 384/768 (frames, not task
   HWM). Build PASS **1,819,668 (92.6%)**; browser 51/51. Snapshot
   `.../ntfy-system-events/`: BIN `553c021c20ac1ddf46c79cb46dac52e8dce7b9e22d464c48fe51a3bbe90c044b`, ELF `2f6eef4bd1a9ba9d44d0745da0d24c0c31a42c9dc8d8f3cbd45891b9317e918b`.
+- Commit `a30f87f`. Then SNMP rows 22 (rules with reachable destination test)
+  and 23 (rules with admitted service reply) via the shared evidence helper.
+  snmp_codec PASS (actual MIB walk, 23 rows); provider counting itself is not
+  host-tested and the SNMP task stack high-water mark is unmeasured. Build PASS
+  **1,820,404 (92.6%)**. Snapshot `.../snmp-service-evidence/`: BIN `70412c58f7c7aeb2b88447f46d01440b34c1d966029c11dd369c9260fccc8fd9`, ELF `a0159b1a865bf1d54698fd54749e60632001ed52680371cca391c0170c9c4c7e`.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 

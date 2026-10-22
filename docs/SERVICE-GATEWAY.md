@@ -83,6 +83,10 @@ each rule's switch and expiry sensor; unused slots are cleared. The switch
 topic still requires the rule binding token. Real Home Assistant behavior and
 the state payload size budget are not yet qualified.
 
+SNMP (read-only, private tree `1.3.6.1.4.1.99999.2`): `.17.0`/`.18.0` accepted
+and blocked packets, `.22.0` rules whose current destination test was
+reachable, `.23.0` rules with an admitted reply from their service.
+
 ## Performance and limits
 
 IPv4 TCP/UDP, up to 8 rules, destination in `100.64.0.0/10`. Clients connect to

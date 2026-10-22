@@ -11,6 +11,8 @@ enum {
     SNMP_OPS_POLICY_PEERS, SNMP_OPS_RETURN_FLOWS, SNMP_OPS_FORWARD_ENABLED,
     SNMP_OPS_FORWARD_INSTALLED, SNMP_OPS_FORWARD_ACCEPTED, SNMP_OPS_FORWARD_BLOCKED,
     SNMP_OPS_MQTT_CONNECTED, SNMP_OPS_CONTROL_CONNECTED, SNMP_OPS_RESET_REASON,
+    SNMP_OPS_FORWARD_REACHABLE, /* rules whose current destination test was reachable */
+    SNMP_OPS_FORWARD_REPLIED,   /* rules with an admitted reply from their service */
     SNMP_OPS_LIMIT
 };
 typedef struct {uint32_t value[SNMP_OPS_LIMIT];} snmp_operational_metrics_t;

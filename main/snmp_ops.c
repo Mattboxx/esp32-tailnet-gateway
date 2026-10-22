@@ -6,6 +6,8 @@
 #include "tailnet_forward.h"
 #include "mqtt_integration.h"
 #include "tailscale_config.h"
+#include "service_evidence.h"
+#include "service_lease.h"
 #include "esp_system.h"
 #include <string.h>
 static void operational_metrics(snmp_operational_metrics_t *out) {
@@ -35,5 +37,11 @@ static void operational_metrics(snmp_operational_metrics_t *out) {
     out->value[SNMP_OPS_MQTT_CONNECTED]=mqtt_integration_connected();
     out->value[SNMP_OPS_CONTROL_CONNECTED]=tailscale_is_connected();
     out->value[SNMP_OPS_RESET_REASON]=esp_reset_reason();
+    for(int i=0;i<TAILNET_FORWARD_MAX;i++){
+        tailnet_forward_rule_t rule;tailnet_forward_runtime_t rt;if(!tailnet_forward_get(i,&rule,&rt))continue;
+        service_evidence_t ev;service_evidence_collect(i,service_lease_token(&rule),&rule,&rt,true,true,&ev);
+        if(ev.checked&&ev.check.state==SC_REACHABLE)out->value[SNMP_OPS_FORWARD_REACHABLE]++;
+        if(ev.replied)out->value[SNMP_OPS_FORWARD_REPLIED]++;
+    }
 }
 void homelab_snmp_register(void){snmp_agent_set_operational_provider(operational_metrics);}
