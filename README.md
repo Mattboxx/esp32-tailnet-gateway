@@ -9,11 +9,11 @@
 All-in-one ESP32-S3 Tailscale/Headscale gateway with selective LAN-to-Tailnet
 access, subnet routing, remote recovery and optional automation.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-0F766E.svg)](LICENSE)
-[![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0D1117.svg)](#8-supported-hardware)
-[![ESP-IDF 5.5.3](https://img.shields.io/badge/ESP--IDF-5.5.3-0D1117.svg)](https://docs.espressif.com/projects/esp-idf/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-0B7A4B.svg)](LICENSE)
+[![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
+[![ESP-IDF 5.5.3](https://img.shields.io/badge/ESP--IDF-5.5.3-0A0F0C.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![CI](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/ci.yml)
-[![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailnet-gateway?label=stable&color=0F766E)](../../releases/latest)
+[![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailnet-gateway?label=stable&color=0B7A4B)](../../releases/latest)
 
 [Website](https://mattboxx.github.io/esp32-tailnet-gateway/) ·
 [Download](../../releases/latest) ·

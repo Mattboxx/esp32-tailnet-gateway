@@ -1,8 +1,8 @@
-/* ESP32 Tailnet Gateway website. Tokens follow assets/brand/BRAND.md. */
+/* ESP32 Tailnet Gateway website. Black/green tokens follow assets/brand/BRAND.md. */
 :root {
-  --bg: #0D1117; --surface: #11161D; --card: #161B22; --line: #30363D;
-  --text: #E6EDF3; --muted: #8B949E; --accent: #2DD4BF; --accent-text: #2DD4BF;
-  --accent-ink: #0D1117; --amber: #F5A524; --danger: #F85149; --code: #161B22;
+  --bg: #0A0F0C; --surface: #0E1511; --card: #111814; --line: #1C2A22;
+  --text: #E3ECE6; --muted: #8DA397; --accent: #1FC97A; --accent-text: #1FC97A;
+  --accent-ink: #04130B; --off: #2E6B4C; --input: #1FC97A; --amber: #F5A524; --danger: #F85149; --code: #111814;
   --radius: 12px; --max: 1120px;
   --font: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
@@ -10,16 +10,16 @@
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --bg: #FFFFFF; --surface: #F6F8FA; --card: #FFFFFF; --line: #D0D7DE;
-    --text: #0D1117; --muted: #57606A; --accent: #0F766E; --accent-text: #0F766E;
-    --accent-ink: #FFFFFF; --amber: #9A6700; --danger: #CF222E; --code: #F6F8FA;
+    --bg: #FFFFFF; --surface: #F4F7F5; --card: #FFFFFF; --line: #D3DED7;
+    --text: #0A0F0C; --muted: #4F6158; --accent: #0B7A4B; --accent-text: #0B7A4B;
+    --accent-ink: #FFFFFF; --off: #0A0F0C; --input: #0A0F0C; --amber: #9A6700; --danger: #CF222E; --code: #F4F7F5;
     color-scheme: light;
   }
 }
 :root[data-theme="light"] {
-  --bg: #FFFFFF; --surface: #F6F8FA; --card: #FFFFFF; --line: #D0D7DE;
-  --text: #0D1117; --muted: #57606A; --accent: #0F766E; --accent-text: #0F766E;
-  --accent-ink: #FFFFFF; --amber: #9A6700; --danger: #CF222E; --code: #F6F8FA;
+  --bg: #FFFFFF; --surface: #F4F7F5; --card: #FFFFFF; --line: #D3DED7;
+  --text: #0A0F0C; --muted: #4F6158; --accent: #0B7A4B; --accent-text: #0B7A4B;
+  --accent-ink: #FFFFFF; --off: #0A0F0C; --input: #0A0F0C; --amber: #9A6700; --danger: #CF222E; --code: #F4F7F5;
   color-scheme: light;
 }
 
@@ -94,7 +94,7 @@ main:focus { outline: none; }
 .btn { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 18px; border-radius: 10px; font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--card); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .roles { width: 100%; }
-.roles .hole, .roles .nodes circle { fill: var(--bg); } .roles .muted-line { stroke: var(--muted); stroke-opacity: .45; } .roles .nodes .lit { fill: var(--accent); } .roles .lit { stroke: var(--accent); fill: var(--accent); }
+.roles .hole, .roles .nodes circle { fill: var(--bg); } .roles { color: var(--input); } .roles .muted-line { stroke: var(--off); } .roles .nodes .lit { fill: var(--accent); } .roles .lit { stroke: var(--accent); fill: var(--accent); }
 .roles text { fill: var(--muted); font: 15px var(--font); } .roles text.on { fill: var(--text); font-weight: 650; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 20px 0; }

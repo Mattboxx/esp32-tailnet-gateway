@@ -56,8 +56,8 @@ password, cookies or tokens in files, scripts, commits or logs.
 | Translations | COMPLETED | EN/IT/ES/ZH built in; FR/DE drafts kept in `main/i18n/disabled/` by owner decision (`fc8121e`); see [I18N.md](I18N.md) |
 | Page minification | COMPLETED | Build-time, segment-aware; browser tests run on the built page |
 | Rebrand (name, README, docs) | COMPLETED | ESP32 Tailnet Gateway; README in the 20-section order (`69de720`) |
-| Logo black/green | PARTIAL | New sources from `tools/brand_svg.py` (`0470c8e`): tile/transparent/light/mono/compact marks, lockups, banner, social preview, PNG exports. **Not yet applied** to: Web UI mark/favicon and accent colour, website CSS and hero, the 8 diagrams (still teal), `assets/brand/BRAND.md` palette text |
-| Website | COMPLETED (teal palette) | 16 pages, search, 404, redirects, sitemap, robots, canonical, OG, JSON-LD; checks in CI and `validate_all` (`e3d4600`). Needs the black/green palette |
+| Logo black/green | COMPLETED (assets, UI, site, diagrams) | `tools/brand_svg.py` generates every mark/lockup/banner/social SVG (`0470c8e`); Web UI accent/mark/favicon, website tokens and hero, 8 diagrams, README badges and BRAND.md switched to black/green (commit after `e15944a`). Firmware images must be rebuilt to carry the new UI |
+| Website | COMPLETED (black/green) | 16 pages, search, 404, redirects, sitemap, robots, canonical, OG, JSON-LD; checks in CI and `validate_all` (`e3d4600`). Needs the black/green palette |
 | GitHub files and Actions | COMPLETED (not run on GitHub) | `ci.yml` (both builds, read-only), `pages.yml` (manual only), CodeQL, sensitive scan, templates, CoC, SUPPORT, release.yml |
 | Packaging | COMPLETED | `tools/package_release.py --variant wifi|eth`, manifest, Linux/macOS steps; WiFi pre-release package built |
 | Launch drafts | COMPLETED (drafts) | `docs/launch/ANNOUNCEMENTS.md` — not posted |
@@ -103,7 +103,7 @@ password, cookies or tokens in files, scripts, commits or logs.
    (e.g. Mosquitto) and a local ntfy, clearly labelled "local lab". SNMP can
    be queried from the PC (`snmpget` / Python) once enabled. *Done when:* each
    integration has PASS (lab) or explicit BLOCKED.
-5. **Black/green identity rollout** — PARTIAL. Apply to:
+5. **Black/green identity rollout** — COMPLETED except a firmware rebuild/reflash (old text kept for reference). Apply to:
    `main/index.html` (`.brand-mark` inline SVG, favicon data URI, `--accent`
    tokens → green `#1FC97A`, `.btn-primary` text dark `#04130B`),
    `website/assets/site.css` (accent tokens: dark `#1FC97A`, light `#0B7A4B`;

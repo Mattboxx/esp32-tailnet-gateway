@@ -2,17 +2,17 @@
   <title id="t">Remote recovery with Wake-on-LAN and Smart Recovery</title>
   <desc id="d">From anywhere on the tailnet, the operator reaches the independently powered ESP32, which prechecks a known TCP port on the NAS, sends a bounded Wake-on-LAN burst if needed, waits, and checks again. It cannot hard-reset a frozen machine and is not KVM or BIOS access.</desc>
   <style>
-    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E6EDF3}
-    .h{font-size:15px;font-weight:650}.s{font-size:12.5px;fill:#8B949E}.z{font-size:11.5px;font-weight:600;letter-spacing:2px;fill:#8B949E}
-    .t{fill:#2DD4BF}.am{fill:#F5A524}
-    .zone{fill:#11161D;stroke:#30363D}.box{fill:#161B22;stroke:#30363D}.hot{fill:#0F2624;stroke:#2DD4BF;stroke-width:1.5}
-    .ln{stroke:#E6EDF3;stroke-width:2;fill:none}.wg{stroke:#2DD4BF;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E3ECE6}
+    .h{font-size:15px;font-weight:650}.s{font-size:12.5px;fill:#8DA397}.z{font-size:11.5px;font-weight:600;letter-spacing:2px;fill:#8DA397}
+    .t{fill:#1FC97A}.am{fill:#F5A524}
+    .zone{fill:#0E1511;stroke:#1C2A22}.box{fill:#111814;stroke:#1C2A22}.hot{fill:#0E2219;stroke:#1FC97A;stroke-width:1.5}
+    .ln{stroke:#E3ECE6;stroke-width:2;fill:none}.wg{stroke:#1FC97A;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
   </style>
   <defs>
-    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#E6EDF3"/></marker>
-    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2DD4BF"/></marker>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#E3ECE6"/></marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1FC97A"/></marker>
   </defs>
-  <rect width="960" height="380" rx="16" fill="#0D1117"/>
+  <rect width="960" height="380" rx="16" fill="#0A0F0C"/>
   <rect class="zone" x="20" y="44" width="250" height="276" rx="12"/>
   <rect class="zone" x="290" y="44" width="380" height="276" rx="12"/>
   <rect class="zone" x="690" y="44" width="250" height="276" rx="12"/>
@@ -35,7 +35,7 @@
   <text class="s" x="326" y="178"><tspan class="t">2</tspan>  if down: one Wake-on-LAN burst</text>
   <text class="s" x="326" y="202"><tspan class="t">3</tspan>  wait, then check again (optional service port)</text>
   <text class="s" x="326" y="226"><tspan class="t">4</tspan>  report the evidence, never more</text>
-  <path d="M326 244H634" stroke="#30363D"/>
+  <path d="M326 244H634" stroke="#1C2A22"/>
   <text class="s" x="326" y="266">one job at a time · MAC cooldown · cancellable</text>
   <text class="s" x="326" y="286">never replayed after a reboot</text>
 

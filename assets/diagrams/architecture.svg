@@ -2,12 +2,12 @@
   <title id="t">Firmware architecture</title>
   <desc id="d">Six ownership areas on one ESP32-S3: Connectivity Core based on microlink, Network Gateway, Recovery and Device Management, Monitoring and Diagnostics, Automation and Integrations, and Configuration and Management, on top of ESP-IDF 5.5.3, lwIP and FreeRTOS. Optional integrations cannot block routing or local administration.</desc>
   <style>
-    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E6EDF3}
-    .h{font-size:14.5px;font-weight:650}.s{font-size:12px;fill:#8B949E}.z{font-size:11px;font-weight:600;letter-spacing:2px;fill:#8B949E}
-    .t{fill:#2DD4BF}
-    .box{fill:#161B22;stroke:#30363D}.hot{fill:#0F2624;stroke:#2DD4BF;stroke-width:1.5}.opt{fill:#161B22;stroke:#475569;stroke-dasharray:5 4}
+    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E3ECE6}
+    .h{font-size:14.5px;font-weight:650}.s{font-size:12px;fill:#8DA397}.z{font-size:11px;font-weight:600;letter-spacing:2px;fill:#8DA397}
+    .t{fill:#1FC97A}
+    .box{fill:#111814;stroke:#1C2A22}.hot{fill:#0E2219;stroke:#1FC97A;stroke-width:1.5}.opt{fill:#111814;stroke:#2E4A3B;stroke-dasharray:5 4}
   </style>
-  <rect width="960" height="460" rx="16" fill="#0D1117"/>
+  <rect width="960" height="460" rx="16" fill="#0A0F0C"/>
   <text class="z" x="24" y="36">ESP32 TAILNET GATEWAY — SIX OWNERSHIP AREAS</text>
 
   <rect class="hot" x="24" y="52" width="300" height="160" rx="12"/>
