@@ -8,16 +8,16 @@ The 20 guide subjects required by the roadmap, mapped to existing documents.
 | Quick Start | README → Quick start | Present |
 | Installation | README → Flash it / Build from source | Present |
 | Tailscale | README → Tailscale & Headscale, CONFIGURATION → Tailscale | Present |
-| Headscale | README → Tailscale & Headscale | Partial: no step-by-step login-server guide |
-| Subnet Router | CONFIGURATION → Tailscale | Partial: no dedicated walkthrough |
-| Exit Node | CONFIGURATION → Exit-node DNS | Partial: no dedicated walkthrough |
+| Headscale | HEADSCALE.md | Present |
+| Subnet Router | SUBNET-ROUTER.md | Present |
+| Exit Node | EXIT-NODE.md | Present |
 | LAN → Tailnet (Service Gateway) | SERVICE-GATEWAY.md | Present |
 | NAS & Homelab Recovery | NAS-RECOVERY.md | Present |
 | Smart Recovery | SMART-RECOVERY.md | Present |
 | Network Monitoring | NETWORK-HEALTH.md | Present |
 | MQTT | MQTT.md | Present |
 | Home Assistant | HOME-ASSISTANT.md | Present (real HA not qualified) |
-| ntfy | NTFY-TRANSPORT.md | Partial: technical audit, no user guide |
+| ntfy | NTFY.md, NTFY-TRANSPORT.md | Present |
 | Security Model | SECURITY.md, TAILNET-AUTHORIZATION.md | Present |
 | Troubleshooting | TROUBLESHOOTING.md | Present |
 | Firmware Updates | UPDATES.md | Present |
