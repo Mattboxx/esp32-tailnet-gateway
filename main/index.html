@@ -2271,7 +2271,7 @@
           <p class="form-hint">Source CIDRs filter addresses, not client identity. Use the narrowest subnet and keep authentication on the remote service. A mapping being installed does not prove the service is reachable.</p>
           <p class="form-hint" id="tf-context" role="status">Loading saved rules and passive diagnostics…</p>
           <div id="tf-list"></div>
-          <div class="form-row" style="margin-top:0.75rem;"><div class="form-group"><label class="form-label" for="tf-template">Service template</label><select class="input" id="tf-template"><option value="custom">Custom service</option><option value="ssh">SSH</option><option value="https">HTTPS</option><option value="home-assistant">Home Assistant</option><option value="mqtt-tls">MQTT over TLS</option><option value="rdp">Remote Desktop</option></select></div><button class="btn btn-secondary btn-md" id="tf-add" type="button" disabled>+ Add disabled draft</button></div>
+          <div class="form-row" style="margin-top:0.75rem;"><div class="form-group"><label class="form-label" for="tf-template">Service template</label><select class="input" id="tf-template"><option value="custom">Custom service</option><option value="mqtt-tls">MQTT over TLS</option><option value="mqtt">MQTT (unencrypted)</option><option value="https">HTTPS web UI</option><option value="nas-https">NAS web UI (HTTPS 5001)</option><option value="home-assistant">Home Assistant</option><option value="grafana">Grafana</option><option value="ssh">SSH</option><option value="syslog">Syslog (UDP)</option><option value="rdp">Remote Desktop</option></select><span class="form-hint" id="tf-template-hint"></span></div><button class="btn btn-secondary btn-md" id="tf-add" type="button" disabled>+ Add disabled draft</button></div>
           <p class="form-hint">Templates never enable a listener or save automatically. Enter the actual destination and a narrow source CIDR; verify service authentication and resolve any port conflict before enabling.</p>
           <details style="margin-top:1rem"><summary>Back up or import saved service rules</summary>
             <p class="form-hint">Exports contain destination addresses/hostnames and source subnets, not credentials. Keep the file private. Import replaces this LAN → Tailnet table only, never the separate AP-side mappings. All imported rules start OFF; review before confirming.</p>
@@ -5588,17 +5588,24 @@
     document.getElementById('wizard-close').addEventListener('click',wzClose);
     wzRenderList();
     function loadServiceGatewaySummary(){
-      var out=document.getElementById('sg-home-summary'),badge=document.getElementById('sg-home-badge');
+      var out=document.getElementById('sg-home-summary'),badge=document.getElementById('sg-home-badge'),loaded=false;
       return apiFetch('/api/tailnet-forward',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
         var rules=Array.isArray(d.rules)?d.rules:[],enabled=rules.filter(function(r){return r.enabled;}).length,
           installed=rules.filter(function(r){return r.installed;}).length,
           tested=rules.filter(function(r){return r.destination_check&&r.destination_check.state==='reachable';}).length;
-        badge.textContent=rules.length+' / '+(d.max||8);
+        loaded=true;badge.textContent=rules.length+' / '+(d.max||8);
         badge.className='badge '+(installed?'badge-success':'badge-neutral');
         out.textContent=!rules.length?'No service rules yet. Start with the guide: it checks prerequisites, explains the exposure and helps you test the destination before enabling it.'
           :rules.length+' rule(s) · '+enabled+' enabled · '+installed+' installed · '+tested+' with a reachable destination test'
             +(d.tailscale_control_connected===false?' · Tailnet control offline':'')+'. Installed is a local mapping, not proof the remote application answers.';
-      }).catch(function(e){badge.textContent='—';out.textContent='Service rules unavailable ('+e.message+').';});
+      }).then(function(){return apiFetch('/api/service-leases',{cache:'no-store'}).then(function(r){return r.ok?r.json():null;});})
+      .then(function(leases){
+        if(!Array.isArray(leases))return;
+        var open=leases.filter(function(l){return l&&l.temporary&&l.effective_enabled&&Number.isInteger(l.remaining_s)&&l.remaining_s>0;});
+        if(!open.length)return;
+        var next=Math.min.apply(null,open.map(function(l){return l.remaining_s;}));
+        out.textContent+=' '+open.length+' temporary rule(s) open; the next closes in '+(next>=3600?Math.round(next/360)/10+' h':Math.max(1,Math.round(next/60))+' min')+'.';
+      }).catch(function(e){if(!loaded){badge.textContent='—';out.textContent='Service rules unavailable ('+e.message+').';}});
     }
     document.getElementById('sg-home-guide').addEventListener('click',function(){wzOpen('lan-tailnet');});
     document.getElementById('sg-home-open').addEventListener('click',function(e){var tab=document.querySelector('.nav-tab[data-page="network"]');if(tab){e.preventDefault();tab.click();}});
@@ -6514,7 +6521,27 @@
       }).finally(function(){if(epoch===s_tf_epoch){tfEditingDisabled(false);tfMutation(false);}});
     }
     document.getElementById('tf-reload').addEventListener('click',loadTailnetForward);
-    document.getElementById('tf-add').addEventListener('click',function(){if(!s_tf_loaded||s_tf_mutating)return;if(s_tf_list.length>=s_tf_max){showToast('error','List full','Maximum '+s_tf_max+' rules.',4000);return;}snapshotTf();var templates={ssh:['Remote SSH',2222,22],https:['Remote HTTPS',8443,443],'home-assistant':['Remote Home Assistant',18123,8123],'mqtt-tls':['Remote MQTT TLS',18883,8883],rdp:['Remote Desktop',13389,3389]},t=templates[document.getElementById('tf-template').value];s_tf_list.push({name:t?t[0]:'',enabled:false,protocol:'tcp',listen_port:t?t[1]:'',tailnet_destination:'',destination_port:t?t[2]:'',allowed_source_subnet:''});resetTfImport();renderTf();tfDirty();});
+    /* name, protocol, suggested listen port, destination port, hint. Ports are
+     * suggestions: the first free listen port for that protocol is used. */
+    var TF_TEMPLATES={
+      'mqtt-tls':['Remote MQTT TLS','tcp',18883,8883,'Encrypted MQTT. The broker must allow this gateway in the Tailnet ACL.'],
+      mqtt:['Remote MQTT','tcp',18830,1883,'Unencrypted: credentials cross your LAN in clear text before entering the tunnel. Prefer MQTT over TLS and a /32 source.'],
+      https:['Remote HTTPS','tcp',8443,443,'The browser will see the remote certificate name, not this gateway, so expect a name warning unless the service accepts it.'],
+      'nas-https':['Remote NAS web UI','tcp',15001,5001,'NAS administration exposed to the allowed source: restrict to one client and use an expiry.'],
+      'home-assistant':['Remote Home Assistant','tcp',18123,8123,'Home Assistant may reject unknown proxies; check its trusted networks if requests fail.'],
+      grafana:['Remote Grafana','tcp',13000,3000,'Dashboard access; Grafana authentication still applies.'],
+      ssh:['Remote SSH','tcp',2222,22,'Host keys identify the remote server, not this gateway.'],
+      syslog:['Remote syslog','udp',15514,514,'UDP: no destination handshake. Use the reply/accepted evidence and the receiving server to confirm delivery.'],
+      rdp:['Remote Desktop','tcp',13389,3389,'Remote desktop is a high-value target: one source client, an expiry and Network Level Authentication.']};
+    function tfFreeListenPort(proto,port){
+      var used=s_tf_list.filter(function(r){return (r.protocol||'tcp')===proto;}).map(function(r){return Number(r.listen_port);});
+      for(var n=0;n<64&&port+n<=65535;n++)if(used.indexOf(port+n)<0)return port+n;
+      return '';
+    }
+    function tfTemplateHint(){var t=TF_TEMPLATES[document.getElementById('tf-template').value];
+      document.getElementById('tf-template-hint').textContent=t?t[4]:'Fill every field yourself. New rules always start disabled.';}
+    document.getElementById('tf-template').addEventListener('change',tfTemplateHint);tfTemplateHint();
+    document.getElementById('tf-add').addEventListener('click',function(){if(!s_tf_loaded||s_tf_mutating)return;if(s_tf_list.length>=s_tf_max){showToast('error','List full','Maximum '+s_tf_max+' rules.',4000);return;}snapshotTf();var t=TF_TEMPLATES[document.getElementById('tf-template').value];s_tf_list.push({name:t?t[0]:'',enabled:false,protocol:t?t[1]:'tcp',listen_port:t?tfFreeListenPort(t[1],t[2]):'',tailnet_destination:'',destination_port:t?t[3]:'',allowed_source_subnet:''});resetTfImport();renderTf();tfDirty();});
     document.getElementById('tf-save').addEventListener('click',function(){
       if(!s_tf_loaded||s_tf_mutating)return;
       snapshotTf();var seen={};

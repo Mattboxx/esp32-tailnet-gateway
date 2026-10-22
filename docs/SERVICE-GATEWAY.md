@@ -64,6 +64,16 @@ the only evidence the service answers. Reply evidence belongs to the remote
 service tuple, so rules sharing a destination share it; it is not per LAN
 client, and it disappears while authority is suspended or after revocation.
 
+## Templates and export (development line)
+
+Templates (MQTT over TLS, unencrypted MQTT, HTTPS, NAS web UI, Home Assistant,
+Grafana, SSH, syslog over UDP, Remote Desktop) prefill name, protocol and ports,
+pick the first free listen port and show the main risk. Destination and source
+are never guessed and the rule starts disabled. The Status card lists open
+temporary rules and the soonest closure. The local diagnostic export includes
+per-rule state, diagnosis, test state, counters and ages, never names,
+destinations, ports, source networks or runtime error text.
+
 ## Performance and limits
 
 IPv4 TCP/UDP, up to 8 rules, destination in `100.64.0.0/10`. Clients connect to

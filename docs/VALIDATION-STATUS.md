@@ -42,6 +42,13 @@ over from the interrupted Codex session without resetting anything.
   service_check, tailnet_api, ops_api. Build PASS app **1,814,296 (92.3%)**.
   Snapshot `build/development-0.1.38-Mattboxx-1.14-dev.6/service-evidence/`:
   BIN SHA-256 `fc8a2fa60f310fae5687bb7a9c06e1681e633b56b5b10f87a39c1f93dca4e101`, ELF SHA-256 `296846b218fac611e61977d8979b60257b6b53f57545cdfd612d8322c8837b83`. Browser 48/48.
+- Commits microlink `2ec076b`, root `6304913`. Then: 9 risk-annotated rule
+  templates with first-free listen port, open temporary access on the home
+  card, sanitized Service Gateway evidence in the diagnostic export (actual
+  helper: no names/destinations/IPs/ports/CIDRs/errors, every allocation
+  failure). ops_api + gateway_operations PASS; build PASS **1,816,232 (92.4%)**;
+  browser 50/50. Snapshot `.../service-templates-export/`: BIN `f318c6a558b2f8081ff854443509547e26bc0c2c474c302bae11e857403b6571`,
+  ELF `b5b9d510e9f832c5abd00bc91a87bcf13f867f2f3e2f7bbf40f41b82c6285208`.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 
