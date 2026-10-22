@@ -509,7 +509,12 @@ async function main() {
     assert.match(await f.page.locator('.tf-diag-body').textContent(), /192\.0\.2\.20:18830 → 100\.64\.0\.2:1883/);
     assert.match(await f.page.locator('.tf-diag-body').textContent(), /not proof of service replies/);
     assert.deepEqual(f.externalRequests, []);
+    assert.equal(await f.page.locator('.tf-editor').first().isHidden(), true); // saved rules show a summary first
+    assert.match(await f.page.locator('.tf-sum-route').first().textContent(), /192\.0\.2\.20:18830 → 100\.64\.0\.2:1883/);
+    await f.page.locator('.tf-edit').first().click();
+    assert.equal(await f.page.locator('.tf-edit').first().getAttribute('aria-expanded'), 'true');
     await f.page.locator('.tf-name').fill('Draft name');
+    assert.equal(await f.page.locator('.tf-sum-name').first().textContent(), 'Draft name'); // summary follows the editor
     assert.equal(await f.page.locator('.tf-runtime-badge').textContent(), 'Unsaved');
     assert.match(await f.page.locator('.tf-diag-body').textContent(), /Save and reload/);
     f.state.forwardFailures = 1; await f.page.locator('#tf-reload').click();
@@ -704,6 +709,7 @@ async function main() {
     await f.page.waitForFunction(()=>document.querySelector('.tf-check-state')&&document.querySelector('.tf-check-state').textContent==='Reachable from gateway (42 ms)',null,{timeout:10000});
     assert.deepEqual(f.state.checkPosts,[{index:0,rule_token:77}]);
     assert.match(await f.page.locator('.tf-check-next').textContent(),/connect from an allowed LAN client/);
+    await f.page.locator('.tf-edit').first().click();
     await f.page.locator('.tf-name').fill('NAS edited');
     assert.equal(await f.page.locator('.tf-test').isDisabled(),true); // tests the saved rule only
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
