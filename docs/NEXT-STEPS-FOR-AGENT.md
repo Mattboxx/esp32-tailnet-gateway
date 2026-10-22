@@ -21,8 +21,8 @@ SG MQTT/HA evidence done after `ccf32ab` (shared service_evidence.h). Next, in
 order: MQTT state budget (ADR-017) and ntfy system events (ADR-018) done.
 SNMP provider test and F31 conditional W5500 Ethernet done (ADR-019, separate
 env). Listeners/health follow the selected uplink; Service watch done (ADR-021).
-Next: (1) F40 recovery of optional modules in error (MQTT/ntfy/SNMP task
-supervision); (2) F34 guides gap list; (3) F34 guides gap list; (4) on-device MQTT state
+Optional-module supervisor done (ADR-022). Next: (1) F34 guides gap list
+and missing guides; (2) F26 export completeness; (3) F34 guides gap list; (4) on-device MQTT state
 size check in the final campaign; (3) F27–F29 remaining events/commands;
 (4) F31 Ethernet design (conditional); (5) consolidated validation incl. Linux
 sanitizers for web_security/config_profiles/service_check/policy_protocols.

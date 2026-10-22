@@ -1042,6 +1042,10 @@ void app_main(void)
     runtime_metrics_init();
     mqtt_integration_init();
     ntfy_integration_init();
+    {   /* A failed optional worker start is retried by the operations worker. */
+        ntfy_integration_status_t ntfy; ntfy_integration_get_status(&ntfy);
+        if (!mqtt_integration_task_running() || !ntfy.task_running) (void)homelab_ops_start_optional_worker();
+    }
 
     /* Apply POSIX timezone before SNTP runs — so the first time-of-day
      * print after the first sync renders in local time. Empty NVS value

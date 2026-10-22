@@ -39,6 +39,7 @@ void mqtt_integration_init(void);
 void mqtt_integration_get_config(mqtt_integration_config_t *out);
 esp_err_t mqtt_integration_set_config(const mqtt_integration_config_t *config);
 bool mqtt_integration_connected(void);
+bool mqtt_integration_task_running(void);
 void mqtt_integration_get_status(mqtt_integration_status_t *out);
 bool mqtt_integration_watchdog_triggered(void);
 uint32_t mqtt_integration_watchdog_wake_count(void);

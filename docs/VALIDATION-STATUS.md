@@ -96,6 +96,9 @@ over from the interrupted Codex session without resetting anything.
   two-miss alert, recovery, manual precedence, notify off; ops_api PASS;
   browser 54/54; build PASS 1,830,764 (93.1%). Snapshot `.../service-watch/`:
   BIN `c4b8249572ac8427d84671140d7831a332cc6bd29961586e90a4ab73db68137b`, ELF `6d03841354e558ef07c333ecdf41aeaaeb33bf3daafc33f0f629f9764e31e7d6`. The watch POST handler is not host-tested.
+- Commit `beaa161`. Then optional-module supervisor (ADR-022): service_retry
+  (+actual supervisor backoff), ops_core PASS; build PASS. Low-memory start
+  failure itself not reproduced on hardware.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 

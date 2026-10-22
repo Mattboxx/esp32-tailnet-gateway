@@ -122,3 +122,32 @@ with tempfile.TemporaryDirectory(prefix='service-retry-') as folder:
     if os.environ.get('RETRY_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run([os.environ.get('CC','gcc'),*flags,str(p/'test.c'),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True,timeout=30)
+
+# Actual optional-module supervisor backoff (main/module_supervisor.h).
+SUPERVISOR = r'''
+#include <assert.h>
+#include <stdio.h>
+#include "module_supervisor.h"
+int main(void){
+    module_supervisor_t s={0};
+    assert(!module_supervisor_due(&s,0,true)); /* everything running: never acts */
+    assert(module_supervisor_due(&s,0,false));
+    uint64_t now=1000;unsigned expected[]={60,120,240,480,900,900,900};
+    for(unsigned i=0;i<sizeof expected/sizeof *expected;i++){
+        module_supervisor_result(&s,now,0,false);
+        assert(s.next_ms==now+expected[i]*1000ull&&!module_supervisor_due(&s,s.next_ms-1,false)&&module_supervisor_due(&s,s.next_ms,false));
+        now=s.next_ms;
+    }
+    module_supervisor_result(&s,now,1,false);assert(s.restarts==1&&s.failures>4); /* partial restart keeps backing off */
+    module_supervisor_result(&s,now,1,true);assert(s.restarts==2&&!s.failures&&!s.next_ms);
+    for(int i=0;i<1000;i++){module_supervisor_result(&s,now,0,false);}
+    assert(s.failures==255&&module_supervisor_delay_s(s.failures)==900);
+    puts("PASS: actual optional-module supervisor: idle when running, 60 s doubling to 15 min, restart accounting, reset on recovery");
+}
+'''
+with tempfile.TemporaryDirectory(prefix='module-supervisor-') as folder:
+    p=Path(folder);(p/'s.c').write_text(SUPERVISOR)
+    binary=p/('s.exe' if os.name=='nt' else 's');flags=['-std=c11','-Wall','-Wextra','-Werror','-I',str(ROOT/'main')]
+    if os.environ.get('RETRY_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
+    subprocess.run([os.environ.get('CC','gcc'),*flags,str(p/'s.c'),'-o',str(binary)],check=True)
+    subprocess.run([str(binary)],check=True,timeout=30)

@@ -22,6 +22,7 @@
 #define ETH_MANIFEST_SUMMARY "not-compiled"
 #endif
 #include "service_check.h"
+#include "module_supervisor.h"
 #include "dns_relay.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
@@ -65,6 +66,7 @@ static result_t results[WOL_MAX_DEVICES];
 static event_t events[OPS_EVENTS];
 static uint32_t event_seq,job_seq,denied_jobs;
 static uint32_t service_closures;
+static module_supervisor_t supervisor;  /* worker-owned */
 static job_t job;
 static SemaphoreHandle_t lock;
 static StaticSemaphore_t lock_storage;
@@ -317,6 +319,16 @@ static void worker(void *arg) {
                 (void)ntfy_integration_queue_event(message);}
             mqtt_integration_publish_now();
         }
+        {   /* Optional integration workers that failed to start get bounded retries. */
+            ntfy_integration_status_t ntfy;ntfy_integration_get_status(&ntfy);
+            bool running=mqtt_integration_task_running()&&ntfy.task_running;
+            if(module_supervisor_due(&supervisor,now,running)){
+                unsigned restarted=0;
+                if(!mqtt_integration_task_running()){mqtt_integration_init();restarted+=mqtt_integration_task_running();}
+                if(!ntfy.task_running){ntfy_integration_init();ntfy_integration_get_status(&ntfy);restarted+=ntfy.task_running;}
+                LOCK();module_supervisor_result(&supervisor,now,restarted,mqtt_integration_task_running()&&ntfy.task_running);UNLOCK();
+            }
+        }
         if(!active(local.state)){
             health_monitor_poll(); /* Serialized with recovery; at most one probe. */
             service_check_poll();  /* Same worker and socket budget, on request only. */
@@ -381,6 +393,7 @@ cJSON *homelab_ops_snapshot(bool detailed) {
     cJSON_AddBoolToObject(root,"remote_commands",s.remote_commands);
     cJSON_AddBoolToObject(root,"lease_notifications",s.lease_notifications);
     cJSON_AddNumberToObject(root,"service_closures",service_closures);
+    cJSON_AddNumberToObject(root,"module_restarts",supervisor.restarts);
     cJSON_AddNumberToObject(root,"minimum_internal",s.minimum_internal);cJSON_AddNumberToObject(root,"minimum_largest",s.minimum_largest);
     cJSON_AddNumberToObject(root,"socket_reserve",s.socket_reserve);cJSON_AddNumberToObject(root,"interval_s",s.interval_s);
     cJSON *history=cJSON_AddArrayToObject(root,"events");
