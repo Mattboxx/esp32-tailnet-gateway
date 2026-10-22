@@ -2,6 +2,9 @@
 
 ## Latest session (Claude Code, took over interrupted Codex work)
 
+Hardware campaign procedure is ready in HARDWARE-CAMPAIGN.md; it needs
+fresh owner authorization, an identified board and a verified backup.
+
 Nothing was reset; Codex's last edits were verified in place. Owner decision
 (2026-10-22): Selective Tailnet Service Gateway is the primary feature, Remote
 Recovery & Diagnostics the second pillar (GOALS.md, ADR-015, roadmap note).
