@@ -6,6 +6,27 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.38-Mattboxx-1.14-dev.6 — ESP32 Tailnet Gateway, local candidate
+
+- Rename the product to **ESP32 Tailnet Gateway — Mattboxx Edition** (formerly
+  ESP32 Homelab Gateway) with a new original logo, banner, diagrams and README.
+  NVS namespace, app identity (`esp32_tsr`) and updater identity are unchanged.
+- Service Gateway: per-rule destination test, Service watch, evidence-aware
+  diagnosis, templates, guided setup and sanitized transfer.
+- Configuration profiles with preview, binding token and rollback; capability
+  manifest drives UI gates; optional-module supervisor.
+- Web security: cross-origin/cross-site screening for every state-changing
+  handler including login and logout, DNS-rebinding Host check without a
+  password, device-wide login budget shared with the remote console.
+- MQTT state budget and strict command parsing; ntfy system events; SNMP
+  operational subtree; optional W5500 Ethernet uplink in a separate
+  `esp32-s3-eth` build (not hardware-validated).
+- Recovery access point returns 60 s after the saved WiFi disappears and
+  stays until it is back.
+- Hardware campaign fixes: a stream restart no longer suspends a complete
+  Tailnet policy (hosted-control deltas were rejected and tunnel data blocked);
+  login/logout now refuse cross-site requests.
+
 ### 0.1.38-Mattboxx-1.14-dev.5 — bounded fragments and health, local/unqualified
 
 - Reassemble a bounded IPv4/IPv6 tunnel-ingress subset before original-address

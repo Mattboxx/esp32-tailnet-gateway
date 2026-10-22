@@ -4714,7 +4714,7 @@ static char *device_name_dup(void)
     char *s = nvs_param_get_str("dev_name");
     if (s && s[0]) return s;
     free(s);
-    return strdup("Homelab Gateway");
+    return strdup("Tailnet Gateway");
 }
 
 static esp_err_t auth_status_handler(httpd_req_t *req)

@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ESP32 Homelab Gateway</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%230f172a'/%3E%3Cg fill='none' stroke='%2360a5fa' stroke-width='1.8' stroke-linecap='round'%3E%3Cpath d='M9.5 9.5a9.5 9.5 0 0 1 13 0'/%3E%3Cpath d='M12.2 12a5.6 5.6 0 0 1 7.6 0'/%3E%3C/g%3E%3Crect x='10.5' y='15' width='11' height='11' rx='2.2' fill='%231e293b' stroke='%233b82f6' stroke-width='1.6'/%3E%3Cpath d='M8 18.5h2.5M8 22.5h2.5M21.5 18.5H24M21.5 22.5H24M14 26v2M18 26v2' stroke='%233b82f6' stroke-width='1.4' stroke-linecap='round'/%3E%3Crect x='13.6' y='18.1' width='4.8' height='4.8' rx='.8' fill='%233b82f6'/%3E%3C/svg%3E">
+  <title>ESP32 Tailnet Gateway</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230D1117'/%3E%3Cg fill='none' stroke-linecap='round' stroke-width='4'%3E%3Cpath d='M15 32h10' stroke='%23E6EDF3'/%3E%3Cpath d='M38 32h10' stroke='%232DD4BF'/%3E%3Cpath d='M38 28.5c5 0 5-10.5 10.5-10.5M38 35.5c5 0 5 10.5 10.5 10.5' stroke='%2364748B'/%3E%3C/g%3E%3Ccircle cx='12.5' cy='32' r='5' fill='%23E6EDF3'/%3E%3Crect x='25' y='19' width='13' height='26' rx='4' fill='%232DD4BF'/%3E%3Crect x='29.5' y='26' width='4' height='12' rx='2' fill='%230D1117'/%3E%3Ccircle cx='52' cy='32' r='5' fill='%232DD4BF'/%3E%3C/svg%3E">
   <style>
     /* =====================================================================
        DESIGN TOKENS
@@ -1528,21 +1528,21 @@
     <button class="nav-ham-btn" id="navHamBtn" aria-label="Open menu" aria-controls="navTabs" aria-expanded="false">≡</button>
     <div class="nav-brand">
       <div class="nav-brand-icon">
-        <!-- Project mark: chip + WiFi (inline SVG, crisp at any size) -->
-        <svg class="brand-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-label="ESP32 Homelab Gateway">
-          <g stroke="#3b82f6" stroke-width="2">
-            <path d="M5 8.4a9.5 9.5 0 0 1 14 0"/>
-            <path d="M8 11.2a5.5 5.5 0 0 1 8 0"/>
+        <!-- Project mark: LAN device -> gateway -> one enabled Tailnet role -->
+        <svg class="brand-mark" width="26" height="26" viewBox="0 0 64 64" role="img" aria-label="ESP32 Tailnet Gateway">
+          <g fill="none" stroke-linecap="round" stroke-width="4">
+            <path d="M15 32h10" stroke="#e8eaed"/><path d="M38 32h10" stroke="#2dd4bf"/>
+            <path d="M38 28.5c5 0 5-10.5 10.5-10.5M38 35.5c5 0 5 10.5 10.5 10.5" stroke="#5c6370"/>
           </g>
-          <circle cx="12" cy="13.2" r="1.15" fill="#3b82f6"/>
-          <g stroke="#3b82f6" stroke-width="2">
-            <rect x="8" y="15" width="8" height="6.4" rx="1.3"/>
-            <path d="M10.3 15v-1.4M13.7 15v-1.4M8 17.4H6.4M8 19.4H6.4M16 17.4h1.6M16 19.4h1.6"/>
-          </g>
-          <rect x="10.4" y="17.4" width="3.2" height="1.8" rx="0.4" fill="#3b82f6"/>
+          <circle cx="12.5" cy="32" r="5" fill="#e8eaed"/>
+          <rect x="25" y="19" width="13" height="26" rx="4" fill="#2dd4bf"/>
+          <rect x="29.5" y="26" width="4" height="12" rx="2" fill="#0d0f12"/>
+          <circle cx="52" cy="32" r="5" fill="#2dd4bf"/>
+          <circle cx="52" cy="17.5" r="3.6" fill="none" stroke="#5c6370" stroke-width="2.8"/>
+          <circle cx="52" cy="46.5" r="3.6" fill="none" stroke="#5c6370" stroke-width="2.8"/>
         </svg>
       </div>
-      <span class="nav-brand-name" id="brandName">Homelab Gateway</span>
+      <span class="nav-brand-name" id="brandName">Tailnet Gateway</span>
     </div>
 
     <div class="nav-tabs" role="tablist" id="navTabs">
@@ -1675,7 +1675,7 @@
           <path d="M7 11V7a5 5 0 0110 0v4"/>
         </svg>
       </div>
-      <div class="auth-title" id="login-title">Homelab Gateway</div>
+      <div class="auth-title" id="login-title">Tailnet Gateway</div>
       <!-- updateBrandName() also rewrites #login-title with the operator label. -->
       <div class="auth-subtitle">Enter your admin password to continue.</div>
       <div class="auth-error" id="login-error"></div>
@@ -2998,7 +2998,7 @@
           <div class="grid grid-cols-2">
             <div class="form-group">
               <label class="form-label" for="sys-device-name">Friendly name</label>
-              <input class="input" type="text" id="sys-device-name" placeholder="Homelab Gateway" maxlength="32">
+              <input class="input" type="text" id="sys-device-name" placeholder="Tailnet Gateway" maxlength="32">
               <span class="form-hint">Shown in the nav and on the login screen. Helps tell multiple routers apart.</span>
             </div>
             <div class="form-group">
@@ -3296,7 +3296,7 @@
           <span class="badge badge-neutral mono">MIT</span>
         </div>
         <div class="card-body">
-          <p style="margin:0 0 0.5rem 0;"><strong>ESP32 Homelab Gateway — Mattboxx Edition</strong> — selective Tailnet service access, independent Wake-on-LAN and local diagnostics, with optional MQTT/Home Assistant and ntfy automation. Independent of managed servers, not of power, the router, Internet or VPN infrastructure.</p>
+          <p style="margin:0 0 0.5rem 0;"><strong>ESP32 Tailnet Gateway — Mattboxx Edition</strong> (formerly ESP32 Homelab Gateway) — selective Tailnet service access, independent Wake-on-LAN and local diagnostics, with optional MQTT/Home Assistant and ntfy automation. Independent of managed servers, not of power, the router, Internet or VPN infrastructure.</p>
           <div class="stat-row"><span class="stat-label">Firmware version</span><span class="stat-value mono" id="about-version">—</span></div>
           <div class="stat-row"><span class="stat-label">Build tag</span>       <span class="stat-value mono" id="about-build-tag" title="—">—</span></div>
           <div class="stat-row"><span class="stat-label">Source</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailscale-gateway" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Mattboxx/esp32-tailscale-gateway</a></span></div>
@@ -8701,7 +8701,7 @@
         .then(function (resp) {
           if (!resp || resp.ok !== true) throw new Error('Settings were not fully saved. Refresh and retry.');
           updateBrandName(name);
-          showToast('success', 'Saved', 'Name "' + (name || 'Homelab Gateway') + '"' + (tz ? ' · TZ ' + tz : '') + '.', 3500);
+          showToast('success', 'Saved', 'Name "' + (name || 'Tailnet Gateway') + '"' + (tz ? ' · TZ ' + tz : '') + '.', 3500);
           /* Backend flips restart_required when the TZ actually changed —
            * the IDF log subsystem caches TZ at boot, so the new rule
            * only governs log timestamps after a reboot. */
@@ -9466,7 +9466,7 @@
     });
 
     function updateBrandName(name) {
-      var n = (name && name.length) ? name : 'Homelab Gateway';
+      var n = (name && name.length) ? name : 'Tailnet Gateway';
       document.title = n;
       var brand = document.getElementById('brandName');
       var login = document.getElementById('login-title');

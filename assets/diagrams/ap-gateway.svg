@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" width="960" height="360" role="img" aria-labelledby="t d">
+  <title id="t">IoT WiFi gateway on the ESP32 access point</title>
+  <desc id="d">IoT devices join the ESP32's own WiFi access point. The ESP32 provides DHCP, DNS forwarding, NAT and firewall chains, and sends their traffic over the uplink WiFi, or through a selected Tailscale exit node that fails closed when unreachable.</desc>
+  <style>
+    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E6EDF3}
+    .h{font-size:15px;font-weight:650}.s{font-size:12.5px;fill:#8B949E}.z{font-size:11.5px;font-weight:600;letter-spacing:2px;fill:#8B949E}
+    .zone{fill:#11161D;stroke:#30363D}.box{fill:#161B22;stroke:#30363D}.hot{fill:#0F2624;stroke:#2DD4BF;stroke-width:1.5}
+    .ln{stroke:#E6EDF3;stroke-width:2;fill:none}.wg{stroke:#2DD4BF;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#E6EDF3"/></marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#2DD4BF"/></marker>
+  </defs>
+  <rect width="960" height="360" rx="16" fill="#0D1117"/>
+  <rect class="zone" x="20" y="44" width="280" height="264" rx="12"/>
+  <rect class="zone" x="340" y="44" width="280" height="264" rx="12"/>
+  <rect class="zone" x="660" y="44" width="280" height="264" rx="12"/>
+  <text class="z" x="36" y="70">ESP32 ACCESS POINT</text>
+  <text class="z" x="356" y="70">ESP32-S3 AP GATEWAY</text>
+  <text class="z" x="676" y="70">UPLINK</text>
+
+  <rect class="box" x="40" y="96" width="240" height="56" rx="10"/>
+  <text class="h" x="56" y="129">Smart plug</text>
+  <rect class="box" x="40" y="164" width="240" height="56" rx="10"/>
+  <text class="h" x="56" y="197">Thermostat</text>
+  <rect class="box" x="40" y="232" width="240" height="56" rx="10"/>
+  <text class="h" x="56" y="258">Sensor hub</text>
+  <text class="s" x="56" y="278">own subnet, e.g. 192.168.4.0/24</text>
+
+  <rect class="hot" x="360" y="96" width="240" height="192" rx="12"/>
+  <text class="h" x="376" y="124">DHCP · DNS · NAT · ACL</text>
+  <text class="s" x="376" y="152">DHCP reservations, MAC denylist</text>
+  <text class="s" x="376" y="176">DNS forwarder with cache</text>
+  <text class="s" x="376" y="200">four firewall chains, hit counters</text>
+  <text class="s" x="376" y="224">AP-side port forwarding</text>
+  <text class="s" x="376" y="248">AP always on, or recovery-only</text>
+  <text class="s" x="376" y="268">standby while the uplink works</text>
+
+  <rect class="box" x="680" y="96" width="240" height="72" rx="10"/>
+  <text class="h" x="696" y="124">Existing WiFi router</text>
+  <text class="s" x="696" y="146">2.4 GHz uplink to the Internet</text>
+  <rect class="hot" x="680" y="200" width="240" height="88" rx="10"/>
+  <text class="h" x="696" y="228">Optional exit node</text>
+  <text class="s" x="696" y="250">AP traffic via a Tailnet peer;</text>
+  <text class="s" x="696" y="270">fails closed when unreachable</text>
+
+  <path class="ln" d="M280 124H356" marker-end="url(#a)"/>
+  <path class="ln" d="M280 192H356" marker-end="url(#a)"/>
+  <path class="ln" d="M280 260H356" marker-end="url(#a)"/>
+  <path class="ln" d="M600 132H676" marker-end="url(#a)"/>
+  <path class="wg" d="M600 244H676" marker-end="url(#at)"/>
+
+  <text class="s" x="20" y="338">Single 2.4 GHz radio shared by uplink and AP. Meant for low-bandwidth IoT and control traffic, not phones, video or bulk transfers.</text>
+</svg>
