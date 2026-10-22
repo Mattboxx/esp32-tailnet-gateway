@@ -141,6 +141,11 @@ over from the interrupted Codex session without resetting anything.
     ota_0: cross-origin and `Sec-Fetch-Site: cross-site` login/logout 403,
     same-origin login reaches the credential check, direct ping 12 ms and
     tailnet HTTP 200 after reflash.
+  - USB reset of the same image (private serial log): IP after 4.1 s,
+    recovery AP off at 6.9 s (uplink connected), direct WireGuard session
+    13.5 s, DERP connected ~13.8 s; no panic; internal free heap 10.5–13.2 KB
+    across 90 s; DERP task stack free 5,304 B. MQTT retries every ~20 s fail
+    only because the broker is unreachable; routing is unaffected.
   - Unauthenticated checks PASS: 401 on protected status/restart/Ethernet/
     Service watch/export/capabilities APIs, setup refused once a password
     exists, CSP/X-Frame-Options/nosniff/Referrer-Policy present.
