@@ -278,3 +278,61 @@ with tempfile.TemporaryDirectory(prefix='ops-watch-') as directory:
     if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run(['gcc',*flags,str(c),'-o',str(binary),*libs],check=True)
     subprocess.run([str(binary)],check=True,timeout=20)
+
+# Fifth program: actual POST /api/tailnet-forward/check handler.
+CHECK=r'''
+#include <assert.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "cJSON.h"
+#include "json_guard.h"
+#define ESP_OK 0
+#define ESP_FAIL -1
+#define ESP_ERR_NO_MEM 0x101
+#define ESP_ERR_INVALID_ARG 0x102
+#define ESP_ERR_INVALID_STATE 0x103
+#define ESP_ERR_TIMEOUT 0x107
+#define ESP_ERR_NOT_FINISHED 0x10c
+#define TAILNET_FORWARD_MAX 8
+typedef int esp_err_t;
+typedef struct {int content_len,offset,status;const char *body;bool authorized;char reply[256];} httpd_req_t;
+static esp_err_t next_result;static int requests,last_index;static uint32_t last_token;
+static esp_err_t service_check_request(int i,uint32_t t){requests++;last_index=i;last_token=t;return next_result;}
+static int web_ui_require_auth(httpd_req_t *r){if(r->authorized)return ESP_OK;r->status=401;return ESP_FAIL;}
+static void httpd_resp_set_status(httpd_req_t *r,const char *s){r->status=atoi(s);}
+static void httpd_resp_set_type(httpd_req_t *r,const char *s){(void)r;(void)s;}
+static void httpd_resp_set_hdr(httpd_req_t *r,const char *k,const char *v){(void)r;(void)k;(void)v;}
+static void httpd_resp_send_500(httpd_req_t *r){r->status=500;}
+static int httpd_resp_sendstr(httpd_req_t *r,const char *s){snprintf(r->reply,sizeof r->reply,"%s",s);if(!r->status)r->status=200;return ESP_OK;}
+static int httpd_req_recv(httpd_req_t *r,char *out,int n){memcpy(out,r->body+r->offset,n);r->offset+=n;return n;}
+''' + ''.join(function(source,s) for s in ('static bool integer(','static esp_err_t send_json(','static esp_err_t post_service_check(')) + r'''
+static httpd_req_t post(const char *body){httpd_req_t r={.content_len=(int)strlen(body),.body=body,.authorized=true};post_service_check(&r);return r;}
+int main(void){
+    httpd_req_t r=post("{\"index\":7,\"rule_token\":4294967295}");
+    assert(r.status==202&&requests==1&&last_index==7&&last_token==4294967295u&&strstr(r.reply,"pending"));
+    const char *bad[]={"{\"index\":8,\"rule_token\":1}","{\"index\":-1,\"rule_token\":1}","{\"index\":1}","{\"index\":1.5,\"rule_token\":1}",
+        "{\"index\":1,\"rule_token\":4294967296}","{\"index\":1,\"rule_token\":\"1\"}","{\"index\":1,\"rule_token\":1,\"x\":0}",
+        "{\"index\":1,\"index\":2}","[]","{"};
+    for(unsigned i=0;i<sizeof bad/sizeof *bad;i++){r=post(bad[i]);assert(r.status==400);}
+    assert(requests==1);
+    struct {esp_err_t e;int status;const char *text;} map[]={{ESP_ERR_INVALID_STATE,409,"rule changed"},{ESP_ERR_NOT_FINISHED,429,"another check"},
+        {ESP_ERR_TIMEOUT,429,"moments ago"},{ESP_ERR_NO_MEM,503,"worker unavailable"},{ESP_ERR_INVALID_ARG,400,"invalid request"}};
+    for(unsigned i=0;i<sizeof map/sizeof *map;i++){next_result=map[i].e;r=post("{\"index\":0,\"rule_token\":5}");assert(r.status==map[i].status&&strstr(r.reply,map[i].text));}
+    httpd_req_t denied={.content_len=2,.body="{}",.authorized=false};int before=requests;post_service_check(&denied);assert(denied.status==401&&requests==before);
+    char big[120];memset(big,' ',sizeof big-1);big[sizeof big-1]=0;before=requests;r=post(big);assert(r.status==400&&requests==before);
+    puts("PASS: actual destination-check POST: strict index/token, 202/409/429/503/400 mapping, auth and size (fixtures)");
+}
+'''
+with tempfile.TemporaryDirectory(prefix='ops-check-') as directory:
+    path=Path(directory);c=path/'check.c';c.write_text(CHECK,encoding='utf-8');binary=path/('check.exe' if os.name=='nt' else 'check')
+    flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-function','-g','-I',str(ROOT/'main')];libs=['-lm'];dep=os.environ.get('CJSON_SOURCE')
+    if dep:flags+=['-I',str(Path(dep).parent),dep]
+    else:
+        flags+=subprocess.check_output(['pkg-config','--cflags','libcjson'],text=True).split();libs+=subprocess.check_output(['pkg-config','--libs','libcjson'],text=True).split()
+    if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
+    subprocess.run(['gcc',*flags,str(c),'-o',str(binary),*libs],check=True)
+    subprocess.run([str(binary)],check=True,timeout=20)
