@@ -43,6 +43,12 @@ int tailnet_forward_count(void);
 bool tailnet_forward_get(int index, tailnet_forward_rule_t *rule, tailnet_forward_runtime_t *runtime);
 esp_err_t tailnet_forward_set_all(const tailnet_forward_rule_t *rules, int count, char *error, size_t error_size);
 esp_err_t tailnet_forward_set_enabled(int index, bool enabled);
+esp_err_t tailnet_forward_set_enabled_bound(int index,uint32_t expected_rule,bool enabled);
+#define TAILNET_TABLE_GUARD_LEN 34
+typedef struct {char guard[TAILNET_TABLE_GUARD_LEN];int previous_count,previous_enabled;} tailnet_forward_preview_t;
+/* Optimistic configuration selector, NOT authentication. Preview never saves. */
+esp_err_t tailnet_forward_replace_guarded(const tailnet_forward_rule_t *rules,int count,const char *expected,bool apply,
+                                         tailnet_forward_preview_t *preview,char *error,size_t error_size);
 esp_err_t tailnet_forward_parse_cidr(const char *text, uint32_t *network_hbo, uint8_t *prefix);
 void tailnet_forward_format_cidr(uint32_t network_hbo, uint8_t prefix, char *out, size_t out_size);
 bool tailnet_forward_listen_conflicts(uint8_t proto, uint16_t port);

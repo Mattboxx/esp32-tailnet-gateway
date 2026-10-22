@@ -10,7 +10,10 @@ import tempfile
 
 ROOT=Path(__file__).resolve().parents[1]
 source=(ROOT/'main/web_ui.c').read_text(encoding='utf-8')
-functions='static bool json_port_value'+source.split('static bool json_port_value',1)[1].split('static const httpd_uri_t uri_tailnet_forward=',1)[0]
+definition='static bool json_port_value(const cJSON *item, uint16_t *out)\n{'
+functions=definition+source.split(definition,1)[1].split('static const httpd_uri_t uri_tailnet_forward=',1)[0]
+start=source.index('static esp_err_t portmap_save_handler(')
+ap_handler=source[start:source.index('\n}',start)+2]
 fixture=r'''
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
@@ -22,6 +25,7 @@ fixture=r'''
 #include <string.h>
 #include <strings.h>
 #include "cJSON.h"
+#include "json_guard.h"
 typedef int esp_err_t;
 #define ESP_OK 0
 #define ESP_FAIL -1
@@ -29,6 +33,7 @@ typedef int esp_err_t;
 #define ESP_ERR_INVALID_STATE -3
 #define HTTPD_400_BAD_REQUEST 400
 #include "tailnet_forward.h"
+#include "portmap.h"
 typedef struct { const char *body; int status; char response[256]; } httpd_req_t;
 static bool authenticated=true, allocation_fails;
 static unsigned save_calls, mqtt_changes;
@@ -57,6 +62,31 @@ esp_err_t tailnet_forward_set_all(const tailnet_forward_rule_t *r,int n,char *wh
     ++save_calls; last_count=n; memcpy(last_rules,r,n*sizeof *r);
     if(save_result==ESP_ERR_INVALID_STATE)strlcpy(why,"port conflict",capacity);
     return save_result;
+}
+'''
+ap_adapters=r'''
+typedef struct {uint32_t addr;} ip4_addr_t;
+static bool ip4addr_aton(const char *s,ip4_addr_t *out){if(strcmp(s,"192.0.2.2"))return false;out->addr=0xc0000202;return true;}
+static uint8_t portmap_proto_from_str(const char *s){return !strcmp(s,"tcp")?6:!strcmp(s,"udp")?17:0;}
+static unsigned ap_saves;static int ap_count,ap_error;
+int portmap_set_all(const portmap_entry_t *r,int n){assert(r);ap_count=n;ap_saves++;return save_result;}
+static void nvs_save_errors_reset(void){ap_error=0;}
+static void nvs_save_record_err(const char *s,int e){(void)s;ap_error=e;}
+static int send_save_response(httpd_req_t *r){if(ap_error)r->status=500;return ESP_OK;}
+'''
+ap_tests=r'''
+static void ap_cases(void){
+    const char *good="{\"mappings\":[{\"proto\":\"tcp\",\"ext_port\":2222,\"int_ip\":\"192.0.2.2\",\"int_port\":22,\"name\":\"fixture\"}]}";
+    httpd_req_t r={.body=good,.status=200};assert(portmap_save_handler(&r)==ESP_OK&&r.status==200&&ap_saves==1&&ap_count==1);
+    const char *bad[]={"{\"mappings\":[{\"proto\":\"tcp\",\"ext_port\":2222,\"int_ip\":\"192.0.2.2\",\"int_port\":22},{}]}",
+        "{\"mappings\":[null]}","{\"mappings\":[{\"proto\":\"udp\",\"ext_port\":1.5,\"int_ip\":\"192.0.2.2\",\"int_port\":22}]}",
+        "{\"mappings\":[],\"Mappings\":[]}","{\"mappings\":[]} trailing"};
+    for(unsigned i=0;i<sizeof bad/sizeof bad[0];i++){r=(httpd_req_t){.body=bad[i],.status=200};portmap_save_handler(&r);assert(r.status==400&&ap_saves==1);}
+    cJSON *root=cJSON_Parse(good),*arr=cJSON_GetObjectItem(root,"mappings");assert(root);
+    for(unsigned i=1;i<=PORTMAP_MAX;i++)cJSON_AddItemToArray(arr,cJSON_Duplicate(cJSON_GetArrayItem(arr,0),true));
+    char *body=cJSON_PrintUnformatted(root);r=(httpd_req_t){.body=body,.status=200};portmap_save_handler(&r);assert(r.status==400&&ap_saves==1);free(body);cJSON_Delete(root);
+    authenticated=false;r=(httpd_req_t){.body=good,.status=200};portmap_save_handler(&r);assert(r.status==401&&ap_saves==1);authenticated=true;
+    puts("PASS: actual AP-side HTTP handler rejects an entire malformed/oversized/ambiguous table without partial saves (synthetic HTTP/NVS)");
 }
 '''
 tests=r'''
@@ -116,6 +146,7 @@ int main(void) {
     assert(send(root).status==400 && !save_calls);
     root=cJSON_CreateObject(); cJSON_AddArrayToObject(root,"rules");
     assert(send(root).status==200 && save_calls==1 && mqtt_changes==1 && last_count==0);
+    ap_cases();
     puts("PASS: actual Tailnet HTTP handler rejects nonboolean/missing enable and oversized/wrong-type labels/destinations, preserves explicit ON/OFF, auth and ports; maps persistence failure to 500 and conflict to 409");
 }
 '''
@@ -124,7 +155,7 @@ with tempfile.TemporaryDirectory(prefix='tailnet-api-') as directory:
     (path/'esp_err.h').write_text('/* fixture supplies esp_err_t */\n',encoding='utf-8')
     (path/'lwip/pbuf.h').write_text('#pragma once\nstruct pbuf;\n',encoding='utf-8')
     (path/'lwip/netif.h').write_text('#pragma once\nstruct netif;\n',encoding='utf-8')
-    (path/'test.c').write_text(fixture+functions+tests,encoding='utf-8')
+    (path/'test.c').write_text(fixture+functions+ap_adapters+ap_handler+ap_tests+tests,encoding='utf-8')
     flags=['-std=c11','-Wall','-Wextra','-Werror','-I',str(path),'-I',str(ROOT/'main')]
     libs=[]; cjson=os.environ.get('CJSON_SOURCE')
     if cjson: flags+=['-I',str(Path(cjson).parent),cjson]

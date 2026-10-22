@@ -28,6 +28,7 @@ fixture = r'''
 #include <stdio.h>
 #include <string.h>
 #include "cJSON.h"
+#include "json_guard.h"
 typedef int esp_err_t;
 #define ESP_OK 0
 #define ESP_FAIL -1

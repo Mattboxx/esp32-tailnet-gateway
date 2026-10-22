@@ -31,6 +31,11 @@
 #include "peer_dns.h"
 #include "ota_remote.h"
 #include "wol.h"
+#include "homelab_ops.h"
+#include "service_lease.h"
+#include "service_retry.h"
+#include "discovery_budget.h"
+#include "health_monitor.h"
 #include "fourvia6.h"
 #include "tailnet_forward.h"
 
@@ -44,12 +49,38 @@ static volatile bool s_publish_requested;
 static volatile bool s_discovery_requested;
 static volatile bool s_watchdog_triggered;
 static volatile uint32_t s_watchdog_wake_count;
-static volatile int64_t s_last_broker_ok_us;
+static int64_t s_last_broker_ok_us;
+static portMUX_TYPE s_broker_clock_mux = portMUX_INITIALIZER_UNLOCKED;
+static uint32_t s_connection_events;
+#define BROKER_CONNECTED 1u
+#define BROKER_DISCONNECTED 2u
 static volatile bool s_restart_requested;
 static volatile bool s_wifi_reconnect_requested;
 static char s_device_id[24];
 static char s_availability_topic[128];
 static char s_state_topic[128];
+static discovery_budget_t s_discovery;
+static mqtt_integration_status_t s_status;
+static portMUX_TYPE s_status_mux = portMUX_INITIALIZER_UNLOCKED;
+
+static void broker_clock_set(bool connected, bool reset)
+{
+    int64_t now = esp_timer_get_time();
+    portENTER_CRITICAL(&s_broker_clock_mux);
+    /* Failed reconnects must not postpone the outage watchdog forever. */
+    if (reset || connected || s_connected) s_last_broker_ok_us = now;
+    s_connected = connected;
+    portEXIT_CRITICAL(&s_broker_clock_mux);
+}
+
+static int64_t broker_silence_us(void)
+{
+    int64_t now = esp_timer_get_time();
+    portENTER_CRITICAL(&s_broker_clock_mux);
+    int64_t elapsed = s_connected || !s_last_broker_ok_us ? 0 : now - s_last_broker_ok_us;
+    portEXIT_CRITICAL(&s_broker_clock_mux);
+    return elapsed > 0 ? elapsed : 0;
+}
 
 extern bool wifi_ap_policy_auto_off(void);
 extern bool wifi_ap_runtime_enabled(void);
@@ -108,14 +139,16 @@ static int publish(const char *topic, const char *payload, int retain)
     return esp_mqtt_client_publish(s_client, topic, payload ? payload : "", 0, 1, retain);
 }
 
-static void add_device(cJSON *root)
+static bool add_device(cJSON *root)
 {
     cJSON *device = cJSON_AddObjectToObject(root, "device");
     cJSON *ids = cJSON_AddArrayToObject(device, "identifiers");
-    cJSON_AddItemToArray(ids, cJSON_CreateString(s_device_id));
-    cJSON_AddStringToObject(device, "name", "ESP32 Tailscale Router");
-    cJSON_AddStringToObject(device, "manufacturer", "Espressif");
-    cJSON_AddStringToObject(device, "model", "ESP32-S3 Tailscale subnet router");
+    if(!device||!ids)return false;
+    cJSON *id=cJSON_CreateString(s_device_id);if(!id)return false;
+    if(!cJSON_AddItemToArray(ids,id)){cJSON_Delete(id);return false;}
+    return cJSON_AddStringToObject(device,"name","ESP32 Homelab Gateway — Mattboxx Edition")
+        &&cJSON_AddStringToObject(device,"manufacturer","Espressif / Mattboxx Edition")
+        &&cJSON_AddStringToObject(device,"model","ESP32-S3 Homelab Gateway");
 }
 
 static void discovery_publish_entity(const char *domain, const char *object_id,
@@ -124,34 +157,33 @@ static void discovery_publish_entity(const char *domain, const char *object_id,
                                      const char *command_topic,
                                      const char *device_class, const char *unit)
 {
+    if(!discovery_visit(&s_discovery))return;
     mqtt_integration_config_t cfg;
     mqtt_integration_get_config(&cfg);
     char topic[256];
     snprintf(topic, sizeof topic, "%s/%s/%s/%s/config", cfg.discovery_prefix,
              domain, s_device_id, object_id);
     cJSON *root = cJSON_CreateObject();
-    if (!root) return;
+    if (!root) {discovery_result(&s_discovery,false);return;}
     char unique_id[96];
     snprintf(unique_id, sizeof unique_id, "%s_%s", s_device_id, object_id);
-    cJSON_AddStringToObject(root, "name", name);
-    cJSON_AddStringToObject(root, "unique_id", unique_id);
-    if (state_topic) cJSON_AddStringToObject(root, "state_topic", state_topic);
-    if (value_template) cJSON_AddStringToObject(root, "value_template", value_template);
-    if (command_topic) cJSON_AddStringToObject(root, "command_topic", command_topic);
-    if (device_class) cJSON_AddStringToObject(root, "device_class", device_class);
-    if (unit) cJSON_AddStringToObject(root, "unit_of_measurement", unit);
+    bool complete=cJSON_AddStringToObject(root,"name",name)&&cJSON_AddStringToObject(root,"unique_id",unique_id);
+    if (state_topic) complete=complete&&cJSON_AddStringToObject(root, "state_topic", state_topic);
+    if (value_template) complete=complete&&cJSON_AddStringToObject(root, "value_template", value_template);
+    if (command_topic) complete=complete&&cJSON_AddStringToObject(root, "command_topic", command_topic);
+    if (device_class) complete=complete&&cJSON_AddStringToObject(root, "device_class", device_class);
+    if (unit) complete=complete&&cJSON_AddStringToObject(root, "unit_of_measurement", unit);
     if (strcmp(domain, "sensor") == 0 || strcmp(domain, "binary_sensor") == 0)
-        cJSON_AddStringToObject(root, "entity_category", "diagnostic");
-    cJSON_AddStringToObject(root, "availability_topic", s_availability_topic);
-    cJSON_AddStringToObject(root, "payload_available", "online");
-    cJSON_AddStringToObject(root, "payload_not_available", "offline");
-    add_device(root);
-    char *json = cJSON_PrintUnformatted(root);
+        complete=complete&&cJSON_AddStringToObject(root, "entity_category", "diagnostic");
+    complete=complete&&cJSON_AddStringToObject(root,"availability_topic",s_availability_topic)
+        &&cJSON_AddStringToObject(root,"payload_available","online")
+        &&cJSON_AddStringToObject(root,"payload_not_available","offline")&&add_device(root);
+    char *json = complete?cJSON_PrintUnformatted(root):NULL;
     cJSON_Delete(root);
     if (json) {
-        publish(topic, json, 1);
-        free(json);
-    }
+        discovery_result(&s_discovery,publish(topic, json, 1)>=0);
+        cJSON_free(json);
+    }else discovery_result(&s_discovery,false);
 }
 
 static void normalized_mac(const uint8_t mac[6], char out[13])
@@ -163,10 +195,27 @@ static void normalized_mac(const uint8_t mac[6], char out[13])
 static void publish_discovery(void)
 {
     mqtt_integration_config_t cfg;
+    char command[160];
     mqtt_integration_get_config(&cfg);
     if (!cfg.home_assistant_discovery || !cfg.discovery_prefix[0]) return;
+    discovery_publish_entity("sensor","recovery_state","Recovery state",s_state_topic,
+        "{{ value_json.operations.recovery_state }}",NULL,NULL,NULL);
+    snprintf(command,sizeof command,"%s/command/health_monitor_enabled",cfg.base_topic);
+    discovery_publish_entity("switch","health_monitor_enabled","Configured connectivity checks",s_state_topic,
+        "{{ value_json.operations.health.enabled }}",command,NULL,NULL);
+    discovery_publish_entity("sensor","sockets_used","Sockets in use",s_state_topic,
+        "{{ value_json.operations.sockets_used }}",NULL,NULL,NULL);
+    discovery_publish_entity("sensor","gateway_health","Configured gateway TCP check",s_state_topic,
+        "{{ value_json.operations.health.checks[0].state }}",NULL,NULL,NULL);
+    discovery_publish_entity("sensor","dns_health","Configured DNS lookup",s_state_topic,
+        "{{ value_json.operations.health.checks[1].state }}",NULL,NULL,NULL);
+    discovery_publish_entity("sensor","internet_health","Configured Internet TCP check",s_state_topic,
+        "{{ value_json.operations.health.checks[2].state }}",NULL,NULL,NULL);
+    discovery_publish_entity("sensor","tailnet_service_health","Configured Tailnet service check",s_state_topic,
+        "{{ value_json.operations.health.checks[3].state }}",NULL,NULL,NULL);
+    discovery_publish_entity("sensor","internal_largest","Largest internal block",s_state_topic,
+        "{{ value_json.operations.internal_largest }}",NULL,NULL,"B");
 
-    char command[160];
     discovery_publish_entity("sensor", "cpu_load", "CPU load", s_state_topic,
                              "{{ value_json.cpu_load_pct }}", NULL, NULL, "%");
     discovery_publish_entity("binary_sensor", "snmp_enabled", "SNMP enabled", s_state_topic,
@@ -224,6 +273,9 @@ static void publish_discovery(void)
                              "{{ value_json.ap_clients }}", NULL, NULL, NULL);
     discovery_publish_entity("sensor", "mqtt_watchdog_wakes", "MQTT watchdog wakes",
                              s_state_topic, "{{ value_json.mqtt_watchdog_wake_count }}",
+                             NULL, NULL, NULL);
+    discovery_publish_entity("sensor", "service_closures", "Temporary service access closures",
+                             s_state_topic, "{{ value_json.operations.service_closures }}",
                              NULL, NULL, NULL);
     discovery_publish_entity("binary_sensor", "mqtt_watchdog_triggered",
                              "MQTT watchdog triggered", s_state_topic,
@@ -328,10 +380,13 @@ static void publish_discovery(void)
         if (!tailnet_forward_get(i, &rule, NULL)) continue;
         char object_id[48], state_template[96], label[80];
         snprintf(object_id, sizeof object_id, "tailnet_forward_%d", i + 1);
-        snprintf(command, sizeof command, "%s/command/tailnet_forward/%d", cfg.base_topic, i);
+        snprintf(command, sizeof command, "%s/command/tailnet_forward/%d/%08lx", cfg.base_topic, i,(unsigned long)service_lease_token(&rule));
         snprintf(state_template, sizeof state_template, "{{ value_json.tailnet_forward_rules[%d].enabled }}", i);
         snprintf(label, sizeof label, "LAN to Tailnet: %.60s", rule.name[0] ? rule.name : rule.destination);
         discovery_publish_entity("switch", object_id, label, s_state_topic, state_template, command, NULL, NULL);
+        snprintf(object_id,sizeof object_id,"tailnet_expiry_%d",i+1);
+        snprintf(state_template,sizeof state_template,"{{ value_json.forwarding_leases[%d].remaining_s }}",i);
+        discovery_publish_entity("sensor",object_id,"Tailnet rule time remaining",s_state_topic,state_template,NULL,NULL,"s");
     }
     /* Retained discovery records survive rule deletion and reboot. Clear every
      * unused slot so Home Assistant does not keep orphaned rule switches. */
@@ -340,7 +395,9 @@ static void publish_discovery(void)
         snprintf(object_id, sizeof object_id, "tailnet_forward_%d", i + 1);
         snprintf(topic, sizeof topic, "%s/switch/%s/%s/config",
                  cfg.discovery_prefix, s_device_id, object_id);
-        publish(topic, "", 1);
+        if(discovery_visit(&s_discovery))discovery_result(&s_discovery,publish(topic,"",1)>=0);
+        snprintf(topic,sizeof topic,"%s/sensor/%s/tailnet_expiry_%d/config",cfg.discovery_prefix,s_device_id,i+1);
+        if(discovery_visit(&s_discovery))discovery_result(&s_discovery,publish(topic,"",1)>=0);
     }
 
     int count = wol_count();
@@ -356,8 +413,12 @@ static void publish_discovery(void)
         snprintf(name, sizeof name, "Wake %s", device.name[0] ? device.name : mac);
         discovery_publish_entity("button", object_id, name, NULL, NULL, command,
                                  NULL, NULL);
+        snprintf(object_id,sizeof object_id,"recovery_%s",mac);
+        snprintf(command,sizeof command,"%s/command/recovery/%s",cfg.base_topic,mac);
+        snprintf(name,sizeof name,"Recover %.40s",device.name[0]?device.name:mac);
+        discovery_publish_entity("button",object_id,name,NULL,NULL,command,NULL,NULL);
     }
-    ESP_LOGI(TAG, "Home Assistant discovery published (%d WOL button(s))", count);
+    if(discovery_finished(&s_discovery))ESP_LOGI(TAG, "Home Assistant discovery accepted locally (%d WOL button(s)); broker delivery unverified", count);
 }
 
 static void publish_state(void)
@@ -491,6 +552,10 @@ static void publish_state(void)
         cJSON *j=cJSON_CreateObject();cJSON_AddStringToObject(j,"name",rule.name);cJSON_AddStringToObject(j,"enabled",rule.enabled?"ON":"OFF");cJSON_AddStringToObject(j,"protocol",rule.proto==17?"udp":"tcp");cJSON_AddNumberToObject(j,"listen_port",rule.listen_port);cJSON_AddStringToObject(j,"destination",rule.destination);cJSON_AddNumberToObject(j,"destination_port",rule.destination_port);cJSON_AddStringToObject(j,"installed",rt.installed?"ON":"OFF");cJSON_AddItemToArray(tf_rules,j);
     }
 
+    cJSON *operations=homelab_ops_snapshot(false);
+    if(operations && !cJSON_AddItemToObject(root,"operations",operations))cJSON_Delete(operations);
+    cJSON *leases=service_lease_snapshot();
+    if(leases && !cJSON_AddItemToObject(root,"forwarding_leases",leases))cJSON_Delete(leases);
     char *json = cJSON_PrintUnformatted(root);
     cJSON_Delete(root);
     if (json) {
@@ -530,6 +595,7 @@ static void handle_command(const char *topic, const char *payload)
     bool enabled = false;
     bool is_switch = !strcmp(command, "ap_always_on")
         || !strcmp(command, "wifi_power_save")
+        || !strcmp(command, "health_monitor_enabled")
         || !strcmp(command, "tailscale_enabled") || !strcmp(command, "accept_routes")
         || !strcmp(command, "snat_subnet_routes") || !strcmp(command, "advertise_exit_node")
         || !strcmp(command, "advertise_ap")
@@ -542,6 +608,13 @@ static void handle_command(const char *topic, const char *payload)
     }
     if (!strcmp(command, "status")) {
         s_publish_requested = true;
+    } else if (!strncmp(command,"recovery/",9)) {
+        const char *compact=command+9;char mac[18];
+        if(strlen(compact)==12 && (!strcmp(payload,"PRESS") || !strcmp(payload,"1"))){
+            snprintf(mac,sizeof mac,"%.2s:%.2s:%.2s:%.2s:%.2s:%.2s",compact,compact+2,compact+4,compact+6,compact+8,compact+10);
+            (void)homelab_ops_command(mac,true);
+        }
+        s_publish_requested=true;
     } else if (!strcmp(command, "restart")) {
         schedule_restart();
     } else if (!strcmp(command, "ap_always_on")) {
@@ -587,10 +660,15 @@ static void handle_command(const char *topic, const char *payload)
         s_wifi_reconnect_requested = true;
     } else if (!strcmp(command, "reconnect_tailscale")) {
         if (tailscale_enabled) schedule_restart();
+    } else if (!strcmp(command,"health_monitor_enabled")) {
+        if(health_monitor_set_enabled(enabled)==ESP_OK)s_publish_requested=true;
     } else if (!strncmp(command, "tailnet_forward/", 16)) {
-        unsigned index;
-        if (control_parse_index(command + 16, TAILNET_FORWARD_MAX, &index)
-            && tailnet_forward_set_enabled((int)index, enabled) == ESP_OK) {
+        /* Unbound legacy index-only messages are deliberately rejected: a
+         * delayed command must not target a survivor after rule compaction. */
+        uint32_t token;
+        if (strlen(command+16)==10&&command[16]>='0'&&command[16]<'0'+TAILNET_FORWARD_MAX
+            &&command[17]=='/'&&control_parse_hex32(command+18,&token)&&token
+            &&tailnet_forward_set_enabled_bound(command[16]-'0',token,enabled)==ESP_OK) {
             s_publish_requested = true;
             s_discovery_requested = true;
         }
@@ -614,24 +692,13 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
     (void)handler_args;
     (void)base;
     esp_mqtt_event_handle_t event = event_data;
+    if (!event || event->client != s_client) return;
     if (event_id == MQTT_EVENT_CONNECTED) {
-        s_connected = true;
-        s_last_broker_ok_us = esp_timer_get_time();
-        s_watchdog_triggered = false;
-        mqtt_integration_config_t cfg;
-        mqtt_integration_get_config(&cfg);
-        char command_topic[128];
-        snprintf(command_topic, sizeof command_topic, "%s/command/#", cfg.base_topic);
-        esp_mqtt_client_subscribe(event->client, command_topic, 1);
-        publish(s_availability_topic, "online", 1);
-        publish_discovery();
-        publish_state();
-        ESP_LOGI(TAG, "connected; subscribed to %s", command_topic);
+        broker_clock_set(true, false);
+        __atomic_fetch_or(&s_connection_events, BROKER_CONNECTED, __ATOMIC_RELEASE);
     } else if (event_id == MQTT_EVENT_DISCONNECTED) {
-        s_connected = false;
-        /* The watchdog timeout starts when a previously responsive broker
-         * disappears, not at the older connection timestamp. */
-        s_last_broker_ok_us = esp_timer_get_time();
+        broker_clock_set(false, false);
+        __atomic_fetch_or(&s_connection_events, BROKER_DISCONNECTED, __ATOMIC_RELEASE);
         ESP_LOGW(TAG, "disconnected");
     } else if (event_id == MQTT_EVENT_DATA) {
         /* Command topics are edge-triggered controls, never state.  A retained
@@ -664,20 +731,21 @@ static void mqtt_event_handler(void *handler_args, esp_event_base_t base,
 
 static void stop_client(void)
 {
-    s_connected = false;
-    if (!s_client) return;
-    esp_mqtt_client_stop(s_client);
-    esp_mqtt_client_destroy(s_client);
-    s_client = NULL;
+    if (s_client) {
+        esp_mqtt_client_stop(s_client);
+        esp_mqtt_client_destroy(s_client);
+        s_client = NULL;
+    }
+    broker_clock_set(false, false);
+    __atomic_store_n(&s_connection_events, 0, __ATOMIC_RELEASE);
 }
 
-static void start_client(void)
+static bool start_client(void)
 {
     mqtt_integration_config_t cfg;
     mqtt_integration_get_config(&cfg);
-    if (!cfg.enabled || !cfg.uri[0] || !cfg.base_topic[0]) return;
-    s_last_broker_ok_us = esp_timer_get_time();
-    s_watchdog_triggered = false;
+    if (!cfg.enabled || !cfg.uri[0] || !cfg.base_topic[0]) return false;
+    if(!homelab_ops_admit())return false;
     snprintf(s_availability_topic, sizeof s_availability_topic, "%s/availability", cfg.base_topic);
     snprintf(s_state_topic, sizeof s_state_topic, "%s/state", cfg.base_topic);
     const esp_mqtt_client_config_t client_config = {
@@ -690,30 +758,55 @@ static void start_client(void)
         .session.last_will.qos = 1,
         .session.last_will.retain = 1,
         .session.keepalive = 60,
-        .network.reconnect_timeout_ms = 5000,
+        .network.disable_auto_reconnect = true,
+        .network.timeout_ms = 10000,
+        .outbox.limit = 8192,
         .task.stack_size = 6144,
         .buffer.size = 2048,
     };
     s_client = esp_mqtt_client_init(&client_config);
     if (!s_client) {
         ESP_LOGE(TAG, "esp_mqtt_client_init failed");
-        return;
+        return false;
     }
-    esp_mqtt_client_register_event(s_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
-    esp_err_t err = esp_mqtt_client_start(s_client);
+    esp_err_t err = esp_mqtt_client_register_event(s_client, ESP_EVENT_ANY_ID, mqtt_event_handler, NULL);
+    if (err == ESP_OK) err = esp_mqtt_client_start(s_client);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "start failed: %s", esp_err_to_name(err));
         esp_mqtt_client_destroy(s_client);
         s_client = NULL;
+        return false;
     } else {
-        ESP_LOGI(TAG, "connecting to %s", cfg.uri);
+        /* URI may contain embedded credentials: never copy it into logs. */
+        ESP_LOGI(TAG, "connecting to configured broker");
     }
+    return true;
+}
+
+static void status_update(const mqtt_integration_config_t *cfg, const service_retry_t *retry,
+                          bool discovery_pending, uint64_t now_ms)
+{
+    mqtt_integration_status_t next = {0};
+    next.configured = cfg->enabled && cfg->uri[0] && cfg->base_topic[0];
+    next.connected = next.configured && s_connected;
+    next.connecting = next.configured && !s_connected && retry->awaiting;
+    next.retry_level = retry->failures;
+    if (next.configured && !s_connected && !retry->awaiting && retry->next_ms > now_ms)
+        next.retry_in_seconds = (uint32_t)((retry->next_ms - now_ms + 999) / 1000);
+    next.discovery_pending = next.connected && discovery_pending;
+    next.discovery_entities = next.connected ? s_discovery.cursor : 0;
+    portENTER_CRITICAL(&s_status_mux);
+    s_status = next;
+    portEXIT_CRITICAL(&s_status_mux);
 }
 
 static void manager_task(void *arg)
 {
     (void)arg;
-    start_client();
+    service_retry_t retry = {0};
+    service_retry_t discovery_retry = {0};
+    bool discovery_pending = false;
+    broker_clock_set(false, true);
     int elapsed = 0;
     while (true) {
         uint32_t notified = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
@@ -731,11 +824,40 @@ static void manager_task(void *arg)
         }
         if (notified) {
             stop_client();
-            start_client();
+            service_retry_reset(&retry);
+            discovery_reset(&s_discovery);discovery_pending=false;service_retry_reset(&discovery_retry);
+            broker_clock_set(false, true);
+            s_watchdog_triggered = false;
             elapsed = 0;
         }
         mqtt_integration_config_t cfg;
         mqtt_integration_get_config(&cfg);
+        uint64_t now_ms = (uint64_t)esp_timer_get_time() / 1000;
+        uint32_t events = __atomic_exchange_n(&s_connection_events, 0, __ATOMIC_ACQ_REL);
+        if (events && s_connected) {
+            service_retry_reset(&retry);
+            s_watchdog_triggered = false;
+            char command_topic[128];
+            snprintf(command_topic, sizeof command_topic, "%s/command/#", cfg.base_topic);
+            esp_mqtt_client_subscribe(s_client, command_topic, 1);
+            publish(s_availability_topic, "online", 1);
+            s_discovery_requested = true;
+            s_publish_requested = true;
+        } else if (events & BROKER_DISCONNECTED) {
+            service_retry_failed(&retry, now_ms);
+        }
+        if (!s_connected && cfg.enabled && cfg.uri[0] && cfg.base_topic[0]) {
+            if (service_retry_timed_out(&retry, now_ms)) {
+                stop_client();
+                service_retry_failed(&retry, now_ms);
+            } else if (service_retry_due(&retry, now_ms)) {
+                service_retry_begin(&retry, now_ms);
+                bool started = s_client
+                    ? homelab_ops_admit() && esp_mqtt_client_reconnect(s_client) == ESP_OK
+                    : start_client();
+                if (!started) service_retry_failed(&retry, now_ms);
+            }
+        }
         elapsed++;
         if (s_connected && (s_publish_requested || elapsed >= cfg.interval_seconds)) {
             s_publish_requested = false;
@@ -744,11 +866,22 @@ static void manager_task(void *arg)
         }
         if (s_connected && s_discovery_requested) {
             s_discovery_requested = false;
-            publish_discovery();
+            discovery_reset(&s_discovery);discovery_pending=true;service_retry_reset(&discovery_retry);
         }
+        if (s_connected && discovery_pending && service_retry_due(&discovery_retry,now_ms)) {
+            discovery_begin(&s_discovery);
+            if(!homelab_ops_admit()){service_retry_failed(&discovery_retry,now_ms);}
+            else {
+                publish_discovery();
+                if(discovery_finished(&s_discovery))discovery_pending=false;
+                if(s_discovery.failed)service_retry_failed(&discovery_retry,now_ms);
+                else {service_retry_reset(&discovery_retry);discovery_retry.next_ms=now_ms+1000;}
+            }
+        }
+        status_update(&cfg, &retry, discovery_pending, now_ms);
         if (!s_connected && cfg.enabled && cfg.broker_watchdog_enabled
             && cfg.broker_watchdog_wol_mac[0] && !s_watchdog_triggered) {
-            int64_t silence_us = esp_timer_get_time() - s_last_broker_ok_us;
+            int64_t silence_us = broker_silence_us();
             if (silence_us >= (int64_t)cfg.broker_watchdog_timeout_seconds * 1000000LL) {
                 esp_err_t wake_err = wol_send_saved_mac_text(cfg.broker_watchdog_wol_mac);
                 s_watchdog_triggered = true; /* one three-packet burst per outage */
@@ -770,10 +903,14 @@ void mqtt_integration_init(void)
 {
     if (s_manager_task) return;
     if (!s_lock) s_lock = xSemaphoreCreateMutex();
+    if (!s_lock) { ESP_LOGE(TAG, "Cannot allocate MQTT configuration lock"); return; }
     xSemaphoreTake(s_lock, portMAX_DELAY);
     load_config();
     xSemaphoreGive(s_lock);
-    xTaskCreate(manager_task, "mqtt_bridge", 6144, NULL, 4, &s_manager_task);
+    if (xTaskCreate(manager_task, "mqtt_bridge", 6144, NULL, 4, &s_manager_task) != pdPASS) {
+        s_manager_task = NULL;
+        ESP_LOGE(TAG, "Cannot allocate MQTT manager stack");
+    }
 }
 
 void mqtt_integration_get_config(mqtt_integration_config_t *out)
@@ -827,6 +964,14 @@ bool mqtt_integration_connected(void)
     return s_connected;
 }
 
+void mqtt_integration_get_status(mqtt_integration_status_t *out)
+{
+    if (!out) return;
+    portENTER_CRITICAL(&s_status_mux);
+    *out = s_status;
+    portEXIT_CRITICAL(&s_status_mux);
+}
+
 bool mqtt_integration_watchdog_triggered(void)
 {
     return s_watchdog_triggered;
@@ -839,9 +984,7 @@ uint32_t mqtt_integration_watchdog_wake_count(void)
 
 uint32_t mqtt_integration_broker_silence_seconds(void)
 {
-    if (s_connected || s_last_broker_ok_us == 0) return 0;
-    int64_t elapsed = esp_timer_get_time() - s_last_broker_ok_us;
-    return elapsed > 0 ? (uint32_t)(elapsed / 1000000LL) : 0;
+    return (uint32_t)(broker_silence_us() / 1000000LL);
 }
 
 void mqtt_integration_publish_now(void)

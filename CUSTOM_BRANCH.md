@@ -1,5 +1,20 @@
 # Custom ESP32-S3 router branch
 
+## Development identity and operational increment: 1.14-dev.1
+
+Product name: **ESP32 Homelab Gateway — Mattboxx Edition**. The repository
+URL, app/update identity, licenses and existing NVS formats are unchanged.
+[Code-backed audit](docs/PRODUCT-AUDIT.md), [architecture](docs/ARCHITECTURE.md)
+and [value/risk roadmap](docs/ROADMAP.md) distinguish upstream protocol work
+from the fork's selective service gateway and operations surface.
+
+New passive rule explanations separate mapping installation from service
+reachability, show saved LAN exposure and distinguish unknown/draft states.
+WoL address-book changes now publish only after successful persistence; sent
+packets are not claimed as successful recovery. No extra monitoring worker,
+socket or mandatory service is introduced. This is unreleased source; stable
+1.13 assets and the device are not changed by this increment.
+
 ## Current stable: 0.1.38-Mattboxx-1.13
 
 All published v0.1.34–v0.1.38 changes are merged/adapted without replacing

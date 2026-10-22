@@ -133,11 +133,16 @@ bool portmap_listen_conflicts(uint8_t proto, uint16_t port)
 static esp_err_t set_all_locked(const portmap_entry_t *arr, int count)
 {
     if (!arr) return ESP_ERR_INVALID_ARG;
-    if (count < 0) count = 0;
-    if (count > PORTMAP_MAX) count = PORTMAP_MAX;
+    if (count < 0 || count > PORTMAP_MAX) return ESP_ERR_INVALID_ARG;
 
     for (int i = 0; i < count; i++) {
-        if (!entry_is_filled(&arr[i])) continue;
+        if(!entry_is_filled(&arr[i])){
+            if(!arr[i].valid&&!arr[i].proto&&!arr[i].ext_port&&!arr[i].int_port&&!arr[i].int_ip&&!arr[i].name[0])continue;
+            return ESP_ERR_INVALID_ARG;
+        }
+        /* Native callers historically omit valid; persistence normalizes it.
+         * Filled rows MUST still receive every conflict/name check. */
+        if(arr[i].valid>1)return ESP_ERR_INVALID_ARG;
         if (!memchr(arr[i].name, 0, sizeof arr[i].name)) return ESP_ERR_INVALID_ARG;
         if (tailnet_forward_listen_conflicts(arr[i].proto, arr[i].ext_port)) return ESP_ERR_INVALID_STATE;
         if (arr[i].proto == PORTMAP_PROTO_TCP && web_ui_port_reserved(arr[i].ext_port)) return ESP_ERR_INVALID_STATE;

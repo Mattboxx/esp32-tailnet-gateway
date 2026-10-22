@@ -34,6 +34,22 @@ async function fixture(browser, options = {}) {
     if (url.pathname === '/api/auth/status') {
       body = { password_set: true, auth_enabled: true, auth_required: true,
         authenticated: state.authenticated, session_timeout_s: 0 };
+    } else if (url.pathname === '/api/operations') {
+      if(route.request().method()==='POST') {
+        state.savedOperation=route.request().postDataJSON();body={ok:true};
+      } else {if(state.operationsDelay) await new Promise(resolve=>setTimeout(resolve,state.operationsDelay));
+        if(state.operationsFailures){state.operationsFailures--;status=503;}
+        body=state.operationsBody || {devices:[],events:[],monitoring:false,guard:false,remote_commands:false,
+        recovery_state:'idle',sockets_used:12,socket_limit:31,internal_min:14000,internal_largest:12000,
+        minimum_internal:16384,minimum_largest:8192,socket_reserve:4,interval_s:60,control_connected:true};}
+    } else if (url.pathname === '/api/capabilities') {
+      if(state.capabilityFailures){state.capabilityFailures--;status=503;}
+      body=state.capabilityBody || {schema:2,features:[{id:'smart-recovery',compiled:true,hardware_supported:true,configured:true,active:false,verified:false,experimental:true,evidence:'Fixture: no hardware qualification'}]};
+    } else if (url.pathname === '/api/health') {
+      if(state.healthFailures){state.healthFailures--;status=503;}
+      body=state.healthBody || {enabled:false,notify:false,interval_s:60,failure_threshold:3,gateway_port:0,dns_name:'',internet_ip:'',internet_port:0,tailnet_target:'',tailnet_port:0,checks:[]};
+    } else if (url.pathname === '/api/service-leases') {
+      body=state.leasesBody || [];
     } else if (url.pathname === '/api/mqtt') {
       if (state.mqttDelay) await new Promise(resolve => setTimeout(resolve, state.mqttDelay));
       if (state.mqttFailures) { state.mqttFailures--; status = 503; }
@@ -65,10 +81,56 @@ async function fixture(browser, options = {}) {
     } else if (url.pathname === '/api/system/updates/install' || url.pathname === '/api/system/updates/check') {
       state.updatesBody = { ...(state.updatesBody || updates), busy: true, status: 'Checking GitHub releases' };
       body = { ok: true }; status = 202;
+    } else if (url.pathname === '/api/profiles') {
+      const profiles=[{id:'gateway',title:'Gateway',summary:'Fixture gateway',enables:['service_expiry_notifications']},
+        {id:'monitoring',title:'Monitoring',summary:'Fixture monitoring',enables:['device_monitoring','health_monitor']},
+        {id:'advanced',title:'Advanced',summary:'Fixture advanced',enables:[]}];
+      state.profileActive=state.profileActive||'none';state.profileToken=state.profileToken||101;
+      if(route.request().method()==='POST'){
+        const input=route.request().postDataJSON();(state.profilePosts=state.profilePosts||[]).push(input);
+        if(input.action==='apply'&&state.profileConflict){state.profileConflict=0;state.profileToken++;status=409;body={ok:false,error:'settings changed since the preview; preview again',rolled_back:false,partial:false,left_changed:[]};}
+        else if(input.action==='apply'&&input.token===state.profileToken){state.profileActive=input.profile;state.profileRollback=true;state.profileToken++;body={ok:true,applied:true,rolled_back:false,changed:['device_monitoring','health_monitor'],kept:[]};}
+        else if(input.action==='rollback'&&state.profileRollback){state.profileActive='none';state.profileRollback=false;state.profileToken++;body={ok:true,applied:false,rolled_back:true,changed:['device_monitoring'],kept:['health_monitor']};}
+        else {status=input.action==='rollback'?404:409;body={ok:false,error:'rejected'};}
+      } else {
+        const preview=url.searchParams.get('preview');
+        body={schema:1,active:state.profileActive,rollback_available:!!state.profileRollback,rollback_to:'none',rollback_restores:[],profiles};
+        if(preview)body.preview={profile:preview,token:state.profileToken,disables_anything:false,changes_network_exposure:false,
+          changes:preview==='monitoring'?[{setting:'device_monitoring',current:false,proposed:true,change:'enable'},{setting:'health_monitor',current:true,proposed:true,change:'unchanged'}]:[],
+          manual_steps:['Fixture manual step']};
+      }
     } else if (url.pathname === '/api/tailscale') {
-      body = { settings: state.tailscaleSettings || {}, runtime: state.tailscaleRuntime || {}, peers: [] };
+      if (route.request().method() === 'POST') { state.savedTailscale = route.request().postDataJSON(); body = {ok: true}; }
+      else body = { settings: state.tailscaleSettings || {}, runtime: state.tailscaleRuntime || {}, peers: [] };
     } else if (url.pathname === '/api/status') {
       body = state.statusBody || {};
+    } else if (url.pathname === '/api/tailnet-forward/import') {
+      const input=route.request().postDataJSON();
+      if(state.importDelay)await new Promise(resolve=>setTimeout(resolve,state.importDelay));
+      const rules=input.rules.map(r=>({...r,enabled:false}));
+      body=state.importBody || {ok:true,applied:input.action==='apply',format:'homelab-service-rules/v1',rules,
+        expected_guard:'0000000000000001-0000000000000002',previous_count:1,previous_enabled:1};
+      if(input.action==='apply'){
+        state.savedImport=input;
+        if(state.importConflict){status=409;body={ok:false,error:'Saved table changed'};}
+        else state.forwardBody={rules:rules.map(r=>({...r,installed:false})),max:8};
+      }
+    } else if (url.pathname === '/api/tailnet-forward/export') {
+      body={format:'homelab-service-rules/v1',rules:(state.forwardBody||{rules:[]}).rules};
+    } else if (url.pathname === '/api/tailnet-forward/check') {
+      const input=route.request().postDataJSON();(state.checkPosts=state.checkPosts||[]).push(input);
+      if(state.checkStatus){status=state.checkStatus;body={ok:false,error:'another check is running'};}
+      else {status=202;body={ok:true,state:'pending'};
+        const rule=(state.forwardBody.rules||[]).find(r=>r.index===input.index&&r.rule_token===input.rule_token);
+        if(rule)rule.destination_check={state:'reachable',summary:'This gateway completed a TCP handshake with the Tailnet destination',next_step:'Enable the rule, then connect from an allowed LAN client',checked_ip:'100.64.0.9',latency_ms:42,age_s:0};}
+    } else if (url.pathname === '/api/tailnet-forward') {
+      if (state.forwardFailures) { state.forwardFailures--; status = 503; }
+      if (route.request().method() === 'POST') {
+        state.savedForward = route.request().postDataJSON();
+        body = {ok: true};
+      } else {
+        body = state.forwardBody || {rules: [], max: 8, uplink_ip: '192.0.2.20', observation: 'passive_snapshot'};
+      }
     } else if (url.pathname === '/api/wol') {
       if (state.wolFails) return route.abort('failed');
       if (state.wolDelay) await new Promise(resolve => setTimeout(resolve, state.wolDelay));
@@ -423,7 +485,235 @@ async function main() {
     await f.page.waitForFunction(() => document.getElementById('ts-page-badge').textContent.includes('Connected'));
     assert.equal(await f.page.locator('#ts-page-badge').getAttribute('title'), '');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
-    console.log(`PASS: ${count} browser scenarios (local-only responsive support, automation, SNMP/session labels, startup error/retry/recovery, exit DNS and GitHub updates)`);
+    // Selective service gateway: installed mapping != verified service.
+    const forwardRule = {name: 'Synthetic broker', enabled: true, installed: true,
+      protocol: 'tcp', listen_port: 18830, destination_port: 1883,
+      tailnet_destination: '100.64.0.2', allowed_source_subnet: '192.0.2.42/32',
+      accepted_packets: 5, blocked_packets: 2, error: '', diagnostic: {
+        code: 'mapping_installed', summary: 'Mapping installed; service not tested',
+        next_step: 'Connect from an allowed LAN client.', service_status: 'not_tested', data_plane_status: 'not_verified'}};
+    const forwardBody = {max: 8, rules: [forwardRule], uplink_ip: '192.0.2.20', observation: 'passive_snapshot'};
+    f = await fixture(browser, {page: 'network', forwardBody});
+    await f.page.waitForFunction(() => document.getElementById('tf-context').textContent.startsWith('Saved configuration'));
+    assert.equal(await f.page.locator('.tf-runtime-badge').textContent(), forwardRule.diagnostic.summary);
+    await f.page.locator('.tf-diagnostic summary').click();
+    assert.match(await f.page.locator('.tf-diag-body').textContent(), /192\.0\.2\.20:18830 → 100\.64\.0\.2:1883/);
+    assert.match(await f.page.locator('.tf-diag-body').textContent(), /not proof of service replies/);
+    assert.deepEqual(f.externalRequests, []);
+    await f.page.locator('.tf-name').fill('Draft name');
+    assert.equal(await f.page.locator('.tf-runtime-badge').textContent(), 'Unsaved');
+    assert.match(await f.page.locator('.tf-diag-body').textContent(), /Save and reload/);
+    f.state.forwardFailures = 1; await f.page.locator('#tf-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('tf-badge').textContent === 'Unavailable');
+    assert.equal(await f.page.locator('.tf-name').inputValue(), 'Draft name');
+    assert.equal(await f.page.locator('#tf-save').isDisabled(), true);
+    assert.equal(await f.page.locator('#tf-add').isDisabled(), true);
+    assert.match(await f.page.locator('.tf-diag-body').textContent(), /not evidence/);
+    await f.page.locator('#tf-reload').click();
+    await f.page.waitForFunction(() => document.getElementById('tf-context').textContent.startsWith('Saved configuration'));
+    await f.page.locator('#tf-add').click();
+    assert.equal(await f.page.locator('.tf-enabled').nth(1).isChecked(), false);
+    assert.equal(await f.page.locator('.tf-name').nth(0).inputValue(), forwardRule.name);
+    await f.page.locator('.tf-name').nth(1).fill('New service');
+    await f.page.locator('.tf-listen').nth(1).fill('2222.5');
+    await f.page.locator('.tf-dest').nth(1).fill('100.64.0.3');
+    await f.page.locator('.tf-dport').nth(1).fill('22');
+    await f.page.locator('.tf-cidr').nth(1).fill('192.0.2.42/32');
+    await f.page.locator('#tf-save').click();
+    assert.equal(f.state.savedForward, undefined);
+    await f.page.locator('.tf-listen').nth(1).fill('2222');
+    await f.page.locator('#tf-save').click();
+    await f.page.waitForFunction(() => document.getElementById('tf-context').textContent.startsWith('Saved configuration'));
+    assert.equal(f.state.savedForward.rules[1].enabled, false);
+    assert.deepEqual(Object.keys(f.state.savedForward.rules[0]).sort(),
+      ['name','enabled','protocol','listen_port','tailnet_destination','destination_port','allowed_source_subnet'].sort());
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Malformed status must not wipe the saved/draft rule table or enable Save.
+    f = await fixture(browser, {page: 'network', forwardBody: {rules: {}, max: 8}});
+    await f.page.waitForFunction(() => document.getElementById('tf-badge').textContent === 'Unavailable');
+    assert.equal(await f.page.locator('#tf-save').isDisabled(), true);
+    assert.equal(await f.page.locator('#tf-add').isDisabled(), true);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Remote fields are text, not HTML, and /0 exposure is explicit on mobile.
+    f = await fixture(browser, {page: 'network', viewport: {width: 390, height: 844}, forwardBody: {
+      ...forwardBody, rules: [{...forwardRule, name: '<img src=x onerror="window.tfInjected=1">',
+        allowed_source_subnet: '0.0.0.0/0', diagnostic: {...forwardRule.diagnostic,
+          next_step: '<img src=x onerror="window.tfInjected=1">'}}]}});
+    await f.page.waitForFunction(() => document.getElementById('tf-context').textContent.startsWith('Saved configuration'));
+    await f.page.locator('.tf-diagnostic summary').click();
+    assert.equal(await f.page.locator('#tf-list img').count(), 0);
+    assert.equal(await f.page.evaluate(() => window.tfInjected), undefined);
+    assert.match(await f.page.locator('.tf-diag-body').textContent(), /Broad exposure/);
+    const bounds = await f.page.locator('#tf-list').boundingBox();
+    assert.ok(bounds.width > 200 && bounds.x + bounds.width <= 391);
+    if (process.env.GATEWAY_SCREENSHOT === '1') {
+      await f.page.locator('.tf-row').screenshot({path: path.join(__dirname, '../build/gateway-diagnostics-mobile.png')});
+    }
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Template drafts are OFF and require actual destination/source parameters.
+    f=await fixture(browser,{page:'network'});
+    await f.page.waitForFunction(()=>!document.getElementById('tf-add').disabled);
+    await f.page.locator('#tf-template').selectOption('home-assistant');await f.page.locator('#tf-add').click();
+    assert.equal(await f.page.locator('.tf-enabled').isChecked(),false);
+    assert.equal(await f.page.locator('.tf-listen').inputValue(),'18123');
+    assert.equal(await f.page.locator('.tf-dport').inputValue(),'8123');
+    assert.equal(await f.page.locator('.tf-dest').inputValue(),'');assert.equal(await f.page.locator('.tf-cidr').inputValue(),'');
+    assert.equal(f.state.savedForward,undefined);assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Import preview cannot save; apply needs explicit confirmation, stays OFF,
+    // excludes concurrent editor writes, and never retries a stale-table conflict.
+    const importFile={name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({format:'homelab-service-rules/v1',rules:[{name:'Remote SSH',enabled:true,protocol:'tcp',listen_port:2222,tailnet_destination:'100.64.0.2',destination_port:22,allowed_source_subnet:'192.0.2.42/32'}]}))};
+    for(const conflict of [false,true]){
+      f=await fixture(browser,{page:'network',importConflict:conflict,importDelay:100});
+      await f.page.waitForFunction(()=>!document.getElementById('tf-add').disabled);
+      await f.page.getByText('Back up or import saved service rules',{exact:true}).click();
+      await f.page.locator('#tf-import-file').setInputFiles(importFile);
+      await f.page.waitForFunction(()=>!document.getElementById('tf-import-confirm').disabled);
+      assert.match(await f.page.locator('#tf-import-preview').textContent(),/DISABLED/);
+      assert.equal(f.state.savedImport,undefined);assert.equal(await f.page.locator('#tf-import-apply').isDisabled(),true);
+      await f.page.locator('#tf-import-confirm').check();await f.page.locator('#tf-import-apply').click();
+      assert.equal(await f.page.locator('#tf-add').isDisabled(),true);assert.equal(await f.page.locator('#tf-import-file').isDisabled(),true);
+      await f.page.waitForFunction(()=>document.getElementById('tf-import-preview').textContent.includes('Imported saved')||document.getElementById('tf-import-preview').textContent.includes('no automatic retry'));
+      assert.equal(f.state.savedImport.confirm_replace,true);assert.equal(f.state.savedImport.rules[0].enabled,false);
+      assert.equal(f.calls.filter(p=>p==='/api/tailnet-forward/import').length,2);
+      if(conflict){assert.equal(await f.page.locator('#tf-save').isDisabled(),true);assert.equal(await f.page.locator('#tf-import-apply').isDisabled(),true);}
+      else assert.equal(await f.page.locator('.tf-enabled').isChecked(),false);
+      assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    }
+    // Operational UI uses text nodes and MAC-bound submissions, never proof-of-boot labels.
+    f=await fixture(browser,{page:'operations'});
+    await f.page.waitForFunction(()=>document.getElementById('ops-settings-save').disabled===false);
+    assert.match(await f.page.locator('#ops-summary').textContent(),/sockets 12\/31/);
+    await f.page.locator('#ops-settings-save').click();
+    await f.page.waitForFunction(()=>document.getElementById('ops-refresh').disabled===false);
+    assert.equal(f.state.savedOperation.action,'settings');
+    assert.equal(f.state.savedOperation.remote_commands,false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    f=await fixture(browser,{page:'operations',operationsBody:{devices:{},events:[],monitoring:false,guard:false}});
+    await f.page.waitForFunction(()=>document.getElementById('ops-summary').textContent.includes('Incomplete'));
+    assert.equal(await f.page.locator('#ops-settings-save').isDisabled(),true);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    f=await fixture(browser,{page:'operations',operationsBody:{devices:[{index:0,mac:'02:00:00:00:00:01',name:'Fixture',target:'192.0.2.1',monitor:false,notify:false,host_port:22,service_port:0,timeout_s:60,interval_s:60,max_checks:10,kind:0,scope:0,state:'idle'}],events:[],monitoring:false,guard:false,remote_commands:false,recovery_state:'idle',packet_sent:false,minimum_internal:16384,minimum_largest:8192,socket_reserve:4,interval_s:60}});
+    await f.page.waitForFunction(()=>!document.getElementById('ops-settings-save').disabled);
+    assert.match(await f.page.locator('#ops-job').textContent(),/partial send may have occurred/);
+    await f.page.locator('#ops-devices input[type=text]').fill('draft.example');
+    f.state.operationsFailures=1;await f.page.locator('#ops-refresh').click();
+    await f.page.waitForFunction(()=>document.getElementById('ops-summary').textContent.includes('stale'));
+    assert.equal(await f.page.locator('#ops-devices input[type=text]').inputValue(),'draft.example');
+    for(const button of await f.page.locator('#ops-devices button').all()) assert.equal(await button.isDisabled(),true);
+    assert.equal(await f.page.locator('#ops-cancel').isDisabled(),true);
+    await f.page.locator('#ops-refresh').click();await f.page.waitForFunction(()=>!document.getElementById('ops-settings-save').disabled);
+    for(const button of await f.page.locator('#ops-devices button').all()) assert.equal(await button.isDisabled(),false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    f=await fixture(browser,{page:'operations'});
+    await f.page.waitForFunction(()=>!document.getElementById('health-save').disabled);
+    await f.page.locator('label:has(#health-enabled)').click();assert.equal(await f.page.locator('#health-enabled').isChecked(),true);await f.page.locator('#health-dns').fill('operator.example');
+    await f.page.locator('#health-save').click();await f.page.waitForFunction(()=>!document.getElementById('ops-refresh').disabled);
+    assert.equal(f.state.savedOperation.action,'health');assert.equal(f.state.savedOperation.enabled,true);
+    assert.equal(f.state.savedOperation.dns_name,'operator.example');
+    f.state.healthFailures=1;await f.page.locator('#ops-refresh').click();
+    await f.page.waitForFunction(()=>document.getElementById('health-status').textContent.includes('unavailable'));
+    assert.equal(await f.page.locator('#health-save').isDisabled(),true);
+    assert.equal(await f.page.locator('#ops-settings-save').isDisabled(),false); // Independent read failure.
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Profiles: token-bound preview, conflict re-preview, apply, rollback.
+    f=await fixture(browser,{page:'system'});
+    await f.page.waitForFunction(()=>document.getElementById('profile-select').options.length===3&&!document.getElementById('profile-preview').disabled);
+    assert.equal(await f.page.locator('#profile-apply').isDisabled(),true);
+    await f.page.locator('#profile-select').selectOption('monitoring');await f.page.locator('#profile-preview').click();
+    await f.page.waitForFunction(()=>document.getElementById('profile-changes').children.length===2&&!document.getElementById('profile-apply').disabled);
+    assert.match(await f.page.locator('#profile-changes').textContent(),/off → on.*already on \(unchanged\)/);
+    assert.equal(await f.page.locator('#profile-steps-title').isHidden(),false);
+    await f.page.locator('#profile-select').selectOption('gateway');assert.equal(await f.page.locator('#profile-apply').isDisabled(),true);
+    await f.page.locator('#profile-select').selectOption('monitoring');await f.page.locator('#profile-preview').click();
+    await f.page.waitForFunction(()=>!document.getElementById('profile-apply').disabled);
+    f.state.profileConflict=1;await f.page.locator('#profile-apply').click();
+    await f.page.waitForFunction(()=>document.getElementById('profile-status').textContent.includes('preview again'));
+    assert.equal(await f.page.locator('#profile-apply').isDisabled(),true); // stale preview cannot be reused
+    await f.page.locator('#profile-preview').click();await f.page.waitForFunction(()=>!document.getElementById('profile-apply').disabled);
+    await f.page.locator('#profile-apply').click();
+    await f.page.waitForFunction(()=>document.getElementById('profile-status').textContent.includes('Applied'));
+    assert.match(await f.page.locator('#profile-status').textContent(),/Active: Monitoring/);
+    const applied=f.state.profilePosts.filter(x=>x.action==='apply');assert.equal(applied.length,2);
+    assert.deepEqual(Object.keys(applied[1]).sort(),['action','profile','token']);assert.equal(applied[1].token,102);
+    f.page.once('dialog',d=>d.accept());await f.page.locator('#profile-rollback').click();
+    await f.page.waitForFunction(()=>document.getElementById('profile-status').textContent.includes('Rolled back'));
+    assert.match(await f.page.locator('#profile-status').textContent(),/Left as you changed them: Health Monitor worker/);
+    assert.equal(await f.page.locator('#profile-rollback').isDisabled(),true);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Guided setup: exposure confirmation, snapshot, focus, diff and restore.
+    f=await fixture(browser,{page:'status',tailscaleSettings:{hostname:'fixture',advertise_routes:'',auth_key:'never-sent'}});
+    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===12);
+    assert.equal(await f.page.locator('#wizard-panel').isHidden(),true);
+    await f.page.locator('#wizard-list button',{hasText:'Subnet router'}).click();
+    await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&!document.getElementById('wizard-checks').textContent.includes('checking'));
+    assert.match(await f.page.locator('#wizard-checks').textContent(),/✗ Connected to the Tailscale/);
+    assert.equal(await f.page.locator('#wizard-start').isDisabled(),true); // exposure needs explicit confirmation
+    await f.page.locator('#wizard-exposure').check();assert.equal(await f.page.locator('#wizard-start').isDisabled(),false);
+    await f.page.locator('#wizard-start').click();
+    await f.page.waitForFunction(()=>document.getElementById('page-tailscale').classList.contains('active')&&document.querySelector('.wizard-focus #ts-routes, #ts-routes.wizard-focus'));
+    await f.page.locator('#wizard-verify').click();
+    await f.page.waitForFunction(()=>document.getElementById('wizard-result').textContent.includes('No saved setting changed'));
+    assert.equal(await f.page.locator('#wizard-restore').isHidden(),true);
+    f.state.tailscaleSettings={hostname:'fixture',advertise_routes:'192.168.1.0/24',auth_key:'never-sent'};
+    await f.page.locator('#wizard-verify').click();
+    await f.page.waitForFunction(()=>document.getElementById('wizard-result').textContent.includes('advertise_routes'));
+    assert.doesNotMatch(await f.page.locator('#wizard-result').textContent(),/never-sent/);
+    f.page.once('dialog',d=>d.accept());await f.page.locator('#wizard-restore').click();
+    await f.page.waitForFunction(()=>document.getElementById('wizard-result').textContent.includes('restored'));
+    assert.deepEqual(f.state.savedTailscale,{settings:{hostname:'fixture',advertise_routes:''}}); // snapshot, no secret
+    await f.page.locator('#wizard-close').click();assert.equal(await f.page.locator('#wizard-panel').isHidden(),true);
+    assert.equal(await f.page.locator('.wizard-focus').count(),0);
+    assert.deepEqual(f.errors,[]);assert.deepEqual(f.externalRequests,[]);await f.context.close();count++;
+    // MQTT badge reports bounded backoff and incomplete settings honestly.
+    f=await fixture(browser,{mqttBody:{...mqtt,connected:false,status:{configured:true,connecting:false,retry_level:2,retry_in_seconds:17,discovery_pending:false,discovery_entities:0}}});
+    await f.page.waitForFunction(()=>document.getElementById('mqtt-badge').textContent==='Retry in 17 s');
+    await f.context.close();count++;
+    f=await fixture(browser,{mqttBody:{...mqtt,connected:false,status:{configured:false,connecting:false,retry_level:0,retry_in_seconds:0,discovery_pending:false,discovery_entities:0}}});
+    await f.page.waitForFunction(()=>document.getElementById('mqtt-badge').textContent==='Incomplete settings');
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Capability manifest gates controls (advisory) and guide buttons.
+    f=await fixture(browser,{capabilityBody:{schema:2,features:[
+      {id:'smart-recovery',compiled:true,hardware_supported:true,configured:true,active:false,verified:false,experimental:true,evidence:'Fixture'},
+      {id:'mqtt',compiled:false,hardware_supported:null,configured:false,active:false,verified:false,experimental:false,evidence:'Fixture: not compiled'},
+      {id:'ntfy',compiled:true,hardware_supported:true,configured:true,active:null,verified:false,experimental:false,evidence:'Fixture'}]}});
+    await f.page.waitForFunction(()=>document.getElementById('mqtt-card').classList.contains('capability-unavailable'));
+    assert.match(await f.page.locator('#mqtt-card .capability-note').textContent(),/Not available in this firmware — Fixture: not compiled/);
+    assert.equal(await f.page.locator('#mqtt-card .card-body').evaluate(e=>e.inert),true);
+    assert.equal(await f.page.locator('#ntfy-card').evaluate(e=>e.classList.contains('capability-unavailable')),false);
+    assert.equal(await f.page.locator('#wizard-list button',{hasText:/^MQTT$/}).isDisabled(),true);
+    assert.equal(await f.page.locator('#wizard-list button',{hasText:'ntfy'}).isDisabled(),false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Service Gateway: test a saved (still disabled) rule's Tailnet destination.
+    const tfRule=()=>({index:0,rule_token:77,name:'NAS',enabled:false,installed:false,protocol:'tcp',listen_port:15000,tailnet_destination:'100.64.0.9',
+      destination_port:5000,allowed_source_subnet:'192.168.1.20/32',accepted_packets:0,blocked_packets:0,error:'',diagnostic:{code:'disabled',summary:'Rule disabled',next_step:'Enable it'}});
+    f=await fixture(browser,{page:'network',forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
+    await f.page.waitForFunction(()=>document.querySelector('.tf-test')&&!document.querySelector('.tf-test').disabled);
+    assert.equal(await f.page.locator('.tf-check-state').textContent(),'Not tested');
+    await f.page.locator('.tf-test').click();
+    await f.page.waitForFunction(()=>document.querySelector('.tf-check-state')&&document.querySelector('.tf-check-state').textContent==='Reachable from gateway (42 ms)',null,{timeout:10000});
+    assert.deepEqual(f.state.checkPosts,[{index:0,rule_token:77}]);
+    assert.match(await f.page.locator('.tf-check-next').textContent(),/connect from an allowed LAN client/);
+    await f.page.locator('.tf-name').fill('NAS edited');
+    assert.equal(await f.page.locator('.tf-test').isDisabled(),true); // tests the saved rule only
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    f=await fixture(browser,{page:'network',checkStatus:429,forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
+    await f.page.waitForFunction(()=>document.querySelector('.tf-test')&&!document.querySelector('.tf-test').disabled);
+    await f.page.locator('.tf-test').click();
+    await f.page.waitForFunction(()=>document.querySelector('.tf-check-state').textContent.includes('Test not started: another check is running'));
+    assert.equal(await f.page.locator('.tf-test').isDisabled(),false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    f=await fixture(browser,{page:'status'});
+    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===12);
+    const first=f.page.locator('#wizard-list button').first();
+    assert.equal(await first.textContent(),'Publish a Tailnet service to the LAN');
+    assert.equal(await first.evaluate(e=>e.classList.contains('btn-primary')),true);
+    await f.page.waitForFunction(()=>document.getElementById('sg-home-summary').textContent.startsWith('No service rules yet'));
+    assert.equal(await f.page.locator('#sg-home-badge').textContent(),'0 / 8');
+    await f.page.locator('#sg-home-guide').click();
+    await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&document.getElementById('wizard-title').textContent==='Publish a Tailnet service to the LAN');
+    assert.equal(await f.page.locator('#wizard-exposure-row').isHidden(),false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });

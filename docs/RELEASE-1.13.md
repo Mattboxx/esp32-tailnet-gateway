@@ -30,8 +30,8 @@ with the Mattboxx automation, NAS recovery and gateway features.
   remote commands with configurable availability policies.
 - Configurable Web UI port, password/session policy, encrypted backups,
   CPU/temperature status, local diagnostics and optional read-only SNMP.
-- Hardware-dependent Ethernet support and optional WiFi power save, OFF by
-  default in this mod.
+- Optional WiFi power save, OFF by default in this mod. Ethernet uplink is not
+  implemented in this application; generic SNMP ETH counters are not a driver.
 - No external telemetry/log/crash uploads or forced update checks. Configured
   VPN, MQTT/ntfy and explicitly requested GitHub updates still use the network.
 

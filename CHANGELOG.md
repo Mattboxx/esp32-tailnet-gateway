@@ -6,6 +6,97 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.38-Mattboxx-1.14-dev.5 — bounded fragments and health, local/unqualified
+
+- Reassemble a bounded IPv4/IPv6 tunnel-ingress subset before original-address
+  policy/NAT checks. Require current key, source ownership and policy generation;
+  reject overlaps, stale/oversized/over-capacity input. Not full fragment parity.
+- Block traffic on control transport loss; only a complete fresh identical map
+  within 30 seconds can retain prior return-flow state. Explicit disconnect,
+  invalid authority and changed policy still revoke state. No offline bypass.
+- Disable stale operational UI actions on refresh errors and distinguish an
+  unconfirmed/possibly partial WoL send from a confirmed local send or boot.
+- Add OFF-by-default gateway TCP, DNS lookup and configured Internet/Tailnet TCP
+  checks sharing the recovery worker. Persist settings, bound cadence/backoff,
+  expose evidence/guidance, sanitized export, HA sensors and optional ntfy alerts.
+  No default public target, application-health promise or automatic reset.
+
+### 0.1.38-Mattboxx-1.14-dev.4 — operational integration, local/unqualified
+
+- Add bounded related ICMP error handling and IPv6 option/atomic-fragment
+  decoding; retain current key/ownership/return-flow authorization. Non-atomic
+  tunnel fragments and unsupported headers remain denied, not silently widened.
+- Refuse cross-origin browser writes in authenticated administration handlers.
+- Add MAC-bound registry profiles and an explicit, cancellable, bounded WoL /
+  TCP host/service recovery worker, IPv4 DNS/cache and local/Tailnet scopes.
+- Add opt-in monitoring/resource admission, socket counts and policy-authority
+  diagnostics. Optional jobs remain independent of routing and MQTT/ntfy.
+- Add persisted LAN→Tailnet exposure leases with monotonic/clock/restart guards,
+  changed-rule denial, explicit renewal/permanent action and retained closed
+  records. Automatic deletion is not implemented in this increment.
+- Integrate Devices & Recovery UI, Network lease controls, MQTT/HA state and
+  recovery controls, opt-in ntfy commands/results, capability and sanitized
+  operational export APIs. No automatic upload or mandatory public probe.
+- Prepare one log-saving offline validation runner and additional actual-C /
+  synthetic-browser tests. Final consolidated/hardware validation is pending;
+  this entry is not a completed-roadmap or stable-release claim.
+
+### 0.1.38-Mattboxx-1.14-dev.3 — bounded peer convergence, local candidate only
+
+- Fix valid replacement at the 16-peer limit: remove revoked identities in the
+  private policy candidate before upserts; reconcile the owning WG task before
+  installation without increasing capacity or trusting cached keys for access.
+- Suppress obsolete queued adds/removes against current authority. Propagate
+  coordinator allocation/queue failures into a blocked full-map refresh instead
+  of silently dropping work. Visibility is never a service-port permission.
+- Match reference nonempty full-peer precedence and ignore authorization/peer
+  mutations in keepalives. Preserve unrelated peers when an empty/null Peers
+  field accompanies a genuine delta.
+- Add actual-C peer/compiler/coordinator/manager regression fixtures with
+  explicitly simulated WG installation, queue and NVS boundaries.
+- Preserve the complete Master Prompt as a permanent development mandate,
+  goals, dependency-ordered roadmap, implementation matrix and exact handoff.
+- Add an opt-in external, read-only resource/continuity sampling tool. Its
+  offline tests are not a physical soak or a policy-compliance claim.
+- No push, flash, release, new firmware-facing feature or stable promotion.
+
+### 0.1.38-Mattboxx-1.14-dev.2 — bounded Tailnet authorization, local candidate only
+
+- Confirm and address missing per-port/protocol MapResponse enforcement in the
+  pinned MicroLink receive path. Separate peer cryptographic/source ownership,
+  locally owned destinations and inbound service authorization before NAT/4via6.
+- Compile legacy and incremental named filters atomically with bounded PSRAM
+  storage. Empty filters deny new inbound traffic; malformed, unsupported or
+  oversized policy updates fail closed, including allocation failure.
+- Invalidate authority and bounded return-flow state on new streams/reconnects;
+  process peer revocations/AllowedIPs independently of the asynchronous WG queue.
+- Add actual-C policy and receive-path regressions (mock crypto/netif), resource
+  bounds, and a separate two-real-client validation procedure. This is not a
+  claim of full Tailscale policy compliance or hardware qualification.
+- No new user-facing feature, automatic policy bypass, push, flash or release.
+
+### 0.1.38-Mattboxx-1.14-dev.1 — operational clarity, no new public release
+
+- Rename product-facing documentation/UI to ESP32 Homelab Gateway — Mattboxx
+  Edition, preserving repository URL, app identity, NVS layout and user names.
+- Add passive LAN → Tailnet rule diagnostics, saved exposure path/source
+  explanations and next steps. Do not equate installed mappings or counters
+  with service reachability. No new task, probe, socket or automatic poller.
+- New UI rules start disabled. Failed/malformed reads report unavailable,
+  preserve draft fields and prevent an unknown-state save. Drafts do not retain
+  misleading live-state labels. Add authenticated, no-store diagnostic fields.
+- Save/export/restore only forwarding configuration, not read-only runtime
+  diagnostics, keeping the saved request bounded independently of explanations.
+- Publish WoL address-book changes only after successful NVS persistence;
+  retain its original record layout, validate bounded records and malformed
+  API fields, and synchronize lazy initialization/read/save paths.
+- Strictly parse MAC octets/separators without signed or partial hex coercion.
+- Distinguish a sent magic packet from verified power/service state.
+- Correct the Ethernet support claim: no application driver/uplink integration
+  exists. Document upstream ownership of SNMP/metrics and protocol features.
+- Add code-backed product audit, architectural boundaries and prioritized
+  roadmap. No stable promotion, OTA upload or factory flash accompanies this work.
+
 ## [0.1.38-Mattboxx-1.13] - 2026-10-20
 
 Stable release of the 1.13 integration, with matching firmware/tag version

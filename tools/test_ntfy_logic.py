@@ -55,6 +55,12 @@ size_t log_capture_read(char *out,size_t capacity) {
 }
 static esp_err_t send_info(const ntfy_integration_config_t *c) { (void)c; return info_result; }
 static esp_err_t wake_argument(const ntfy_integration_config_t *c,const char *s) { (void)c; (void)s; return ESP_FAIL; }
+typedef struct {char name[32];uint8_t mac[6];} wol_device_t;
+static bool wol_parse_mac(const char *s,uint8_t out[6]){(void)s;(void)out;return false;}
+static int wol_count(void){return 0;}
+static bool wol_get(int i,wol_device_t *d){(void)i;(void)d;return false;}
+static void wol_format_mac(const uint8_t mac[6],char out[18]){(void)mac;strcpy(out,"00:00:00:00:00:01");}
+static int homelab_ops_command(const char *s,bool wake){(void)s;(void)wake;return ESP_FAIL;}
 static const char *esp_err_to_name(esp_err_t e) { (void)e; return "fixture error"; }
 '''
 tests = r'''

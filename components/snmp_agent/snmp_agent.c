@@ -34,10 +34,14 @@
  * squatted. Everything else that used to live here now has a standard
  * home above, so only the one value with no standard equivalent remains:
  *   1.3.6.1.4.1.99999.1.1.4.0  heapMinFreeBytes (all-time low watermark)
+ *   1.3.6.1.4.1.99999.2.N.0    Gauge32 operational metrics (snmp_operational.h);
+ *                              N=1 is 0 until the firmware registers a
+ *                              provider, and then every other value is 0 too.
  *
  * SPDX-License-Identifier: MIT
  */
 #include "snmp_agent.h"
+#include "snmp_operational.h"
 #include "nvs.h"
 #include "esp_log.h"
 #include "esp_timer.h"
@@ -776,6 +780,41 @@ static val_t g_ents_units(void)  { return (val_t){ .s = "C" }; }
 static val_t g_ents_ts(void)     { return g_sysuptime(); }
 static val_t g_ents_rate(void)   { return (val_t){ .i = 0 }; }  /* read on demand */
 
+/* --- operational snapshot (begin) --- */
+/* One provider call per second at most, from the agent task only; a burst
+ * of GETNEXT walks never multiplies the cost of collecting the snapshot. */
+static _Atomic(snmp_operational_provider_t) s_ops_provider;
+static snmp_operational_metrics_t s_ops;
+static int64_t s_ops_at_us;
+static bool    s_ops_valid;
+
+void snmp_agent_set_operational_provider(snmp_operational_provider_t provider)
+{
+    atomic_store(&s_ops_provider, provider);
+}
+
+static uint32_t ops_metric(unsigned id)
+{
+    int64_t now = esp_timer_get_time();
+    if (!s_ops_valid || now < s_ops_at_us || now - s_ops_at_us >= 1000000) {
+        snmp_operational_provider_t provider = atomic_load(&s_ops_provider);
+        memset(&s_ops, 0, sizeof s_ops);
+        if (provider) provider(&s_ops);
+        s_ops_at_us = now;
+        s_ops_valid = true;
+    }
+    return id > 0 && id < SNMP_OPS_LIMIT ? s_ops.value[id] : 0;
+}
+
+#define OPS_GETTER(n) static val_t g_ops_##n(void) { return (val_t){ .u = ops_metric(n) }; }
+OPS_GETTER(1)  OPS_GETTER(2)  OPS_GETTER(3)  OPS_GETTER(4)  OPS_GETTER(5)
+OPS_GETTER(6)  OPS_GETTER(7)  OPS_GETTER(8)  OPS_GETTER(9)  OPS_GETTER(10)
+OPS_GETTER(11) OPS_GETTER(12) OPS_GETTER(13) OPS_GETTER(14) OPS_GETTER(15)
+OPS_GETTER(16) OPS_GETTER(17) OPS_GETTER(18) OPS_GETTER(19) OPS_GETTER(20)
+OPS_GETTER(21)
+_Static_assert(SNMP_OPS_LIMIT == 22, "add a getter and a MIB row per metric");
+/* --- operational snapshot (end) --- */
+
 /* Must be in ascending OID lexicographic order. */
 static const mib_row_t s_mib[] = {
 /* sysDescr        */ {{{1,3,6,1,2,1,1,1,0},9},            VT_STRING,    g_sysdescr},
@@ -864,6 +903,27 @@ static const mib_row_t s_mib[] = {
 /* entPhySensRate.1*/ {{{1,3,6,1,2,1,99,1,1,1,8,1},12},    VT_INT32,     g_ents_rate},
 /* --- private tree: only what has no standard equivalent --- */
 /* heapMinFree     */ {{{1,3,6,1,4,1,99999,1,1,4,0},11},   VT_GAUGE32,   g_heap_minfree},
+/* ops.1           */ {{{1,3,6,1,4,1,99999,2,1,0},10},   VT_GAUGE32,   g_ops_1},
+/* ops.2           */ {{{1,3,6,1,4,1,99999,2,2,0},10},   VT_GAUGE32,   g_ops_2},
+/* ops.3           */ {{{1,3,6,1,4,1,99999,2,3,0},10},   VT_GAUGE32,   g_ops_3},
+/* ops.4           */ {{{1,3,6,1,4,1,99999,2,4,0},10},   VT_GAUGE32,   g_ops_4},
+/* ops.5           */ {{{1,3,6,1,4,1,99999,2,5,0},10},   VT_GAUGE32,   g_ops_5},
+/* ops.6           */ {{{1,3,6,1,4,1,99999,2,6,0},10},   VT_GAUGE32,   g_ops_6},
+/* ops.7           */ {{{1,3,6,1,4,1,99999,2,7,0},10},   VT_GAUGE32,   g_ops_7},
+/* ops.8           */ {{{1,3,6,1,4,1,99999,2,8,0},10},   VT_GAUGE32,   g_ops_8},
+/* ops.9           */ {{{1,3,6,1,4,1,99999,2,9,0},10},   VT_GAUGE32,   g_ops_9},
+/* ops.10          */ {{{1,3,6,1,4,1,99999,2,10,0},10},   VT_GAUGE32,   g_ops_10},
+/* ops.11          */ {{{1,3,6,1,4,1,99999,2,11,0},10},   VT_GAUGE32,   g_ops_11},
+/* ops.12          */ {{{1,3,6,1,4,1,99999,2,12,0},10},   VT_GAUGE32,   g_ops_12},
+/* ops.13          */ {{{1,3,6,1,4,1,99999,2,13,0},10},   VT_GAUGE32,   g_ops_13},
+/* ops.14          */ {{{1,3,6,1,4,1,99999,2,14,0},10},   VT_GAUGE32,   g_ops_14},
+/* ops.15          */ {{{1,3,6,1,4,1,99999,2,15,0},10},   VT_GAUGE32,   g_ops_15},
+/* ops.16          */ {{{1,3,6,1,4,1,99999,2,16,0},10},   VT_GAUGE32,   g_ops_16},
+/* ops.17          */ {{{1,3,6,1,4,1,99999,2,17,0},10},   VT_GAUGE32,   g_ops_17},
+/* ops.18          */ {{{1,3,6,1,4,1,99999,2,18,0},10},   VT_GAUGE32,   g_ops_18},
+/* ops.19          */ {{{1,3,6,1,4,1,99999,2,19,0},10},   VT_GAUGE32,   g_ops_19},
+/* ops.20          */ {{{1,3,6,1,4,1,99999,2,20,0},10},   VT_GAUGE32,   g_ops_20},
+/* ops.21          */ {{{1,3,6,1,4,1,99999,2,21,0},10},   VT_GAUGE32,   g_ops_21},
 };
 #define MIB_LEN ((int)(sizeof(s_mib)/sizeof(s_mib[0])))
 

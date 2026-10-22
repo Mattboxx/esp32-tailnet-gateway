@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "esp_err.h"
+struct httpd_req;
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,6 +17,8 @@ extern "C" {
 
 /* Start the HTTP server. Idempotent — subsequent calls are no-ops. */
 void web_ui_init(void);
+/* Shared session + browser write-origin gate for extension API handlers. */
+esp_err_t web_ui_require_auth(struct httpd_req *req);
 
 /* Persisted listener port (default 80); changes take effect after restart. */
 uint16_t web_ui_configured_port(void);

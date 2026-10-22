@@ -14,6 +14,38 @@ Tests live under `tools/test_lib/`, the driver is `tools/run_tests.py`.
 
 ## Prerequisites
 
+### Gateway operations increment (1.14 development)
+
+`python tools/test_gateway_operations.py` compiles the actual WoL persistence
+code, actual WoL HTTP handlers and actual forwarding diagnostic GET, with
+synthetic NVS/netif/HTTP services and real cJSON. Use `CJSON_SOURCE` for the
+SDK source on Windows or system libcjson on Linux. `GATEWAY_SANITIZE=1` enables
+ASan/UBSan where supported; CI is configured to run it. Configuration is not
+proof a CI or sanitizer run completed for your worktree.
+
+On older GCC/ASan under high-entropy WSL2 ASLR, first test an empty instrumented
+program if the runtime repeatedly emits `DEADLYSIGNAL` without a report.
+If that independent control also fails, `GATEWAY_SANITIZER_NO_PIE=1` builds
+only these host test executables as non-PIE while retaining ASan/UBSan/leak
+checks. Do not change system ASLR or production firmware flags. See the
+[sanitizer runtime issue](https://github.com/google/sanitizers/issues/1614).
+
+Coverage: original 60-byte WoL layout, sparse/partial/corrupt stored records,
+all write/commit failure paths, validation, 600 concurrent save/read cycles,
+100,000 arbitrary MAC-text inputs with transactional parse output,
+strict API types/bounds/authentication, truthful packet-sent responses, all
+64 passive diagnostic state combinations, eight-rule response bounds, JSON
+allocation failures and HTTP send errors. No network traffic or device writes.
+
+`node tools/test_automation_ui.cjs` also covers installed-versus-tested labels,
+saved exposure, unavailable reads retaining drafts, new rules OFF, saved false
+values, malformed responses and escaped remote fields/mobile layout.
+
+Before publication, separately run real NVS save/reload/restart checks, passive
+API/UI checks under route/integration load, live heap/largest-block/socket and
+latency measurements, and the existing roam/HA/ntfy/Headscale matrices. Host
+fixtures do not model flash power loss, real scheduler timing or reachability.
+
 ### Upstream v0.1.34–v0.1.38 ports
 
 `python tools/test_upstream_038.py` executes real C fragments for WireGuard
@@ -292,7 +324,77 @@ The original `exit_node_ip` is always restored at the end.
   the runner restores it in a `finally:`, but if the runner is killed
   hard, manually `POST /api/tailscale {"settings":{"exit_node_ip":""}}`.
 
+## 1.14 development authorization qualification
+
+Token-efficient execution: implement correlated blocks, prepare tests alongside
+code and defer complete campaigns to integration/final qualification. Current
+single offline runner (never selects invasive device-test modules):
+
+```powershell
+python tools/validate_all.py --build --browser
+# Linux GCC environment, with CJSON_SOURCE/libcjson and LWIP_SOURCE configured:
+python tools/validate_all.py --sanitizers --browser
+# Rerun only a failed driver after repair:
+python tools/validate_all.py --only ops_api
+```
+
+Logs and `summary.json` go to ignored `build/validation-<timestamp>/`. The summary
+records requested build/browser/sanitizer scopes and always distinguishes
+hardware and release qualification. A targeted PASS is not the full campaign.
+Current inventory: 32 Python drivers, scanner/upstream unit suites and two C
+validators; browser checks are optional in the runner but mandatory in final
+qualification. Existing real-device procedures remain separate and require
+permission, verified backup/recovery and appropriate real clients. CI uses the
+same offline runner; no CI run was triggered by these local changes.
+
+See [TAILNET-AUTHORIZATION.md](TAILNET-AUTHORIZATION.md) for source findings,
+actual-C policy/mock-crypto receive tests, resource bounds and a separate
+two-real-client TCP/UDP/direct-ESP/subnet/forwarding matrix. The manual probe
+helper never treats a timeout alone as proof of a policy denial. Real hardware,
+NVS/OTA migration, reconnect/heap/socket/stack measurements and soak runs still
+require authorization to install this local candidate. No such installation or
+real-client policy test is implied by the offline suite.
+
+Dev.3 adds `tools/test_peer_convergence.py`: actual coordinator/policy/manager
+C with explicit queue/WG-install/NVS sinks. Run it with the same `CJSON_SOURCE`
+and optional `POLICY_SANITIZE=1` settings. It is not an encrypted peer test.
+
+### Read-only candidate observation (opt-in, not executed on hardware here)
+
+`tools/observe_candidate.py` only authenticates and reads `/api/status` (every
+60 seconds by default) and `/api/system/diag` (every fifth successful sampling
+slot). It does not enable SNMP, restart, reconfigure, flash or generate traffic.
+Use the existing HTTP UI only over a trusted local/VPN path; it adds no TLS.
+Set `TEST_DEVICE_PASSWORD` locally in the process environment without putting
+the value into source/history. Example with a **synthetic** address:
+
+```powershell
+python tools/observe_candidate.py --host 192.0.2.10 --expected-version 0.1.38-Mattboxx-1.14-dev.3 --seconds 3600 --output build/candidate-observation.jsonl
+```
+
+The output must be a new private file in an existing ignored directory. Only
+allowlisted numbers/booleans and the matching expected version are persisted;
+no target address, SSID, host/task names, raw diagnostics or exception bodies.
+Unknown fields stay null. Socket limits are not socket usage; live usage is
+currently unavailable. Stack high-water values are labeled raw/unqualified.
+Control connected is not a data-plane check. An uptime decrease is observed,
+not assigned an invented crash cause. Missing samples are coverage gaps.
+Exit 0 means collection completed with matching status samples, **not** a
+qualification pass; diagnostic failures are counted separately. Wrong version
+stops collection. Real faults, load, authorization, NVS/OTA and continuous
+operation require separate experiments. Run `tools/test_candidate_observer.py`
+for the mocked HTTP/clock/whitelist/cadence/failure tests, not hardware evidence.
+
 ## Adding a test
+
+Dev.5 adds `test_policy_reassembly.py` (actual reassembly/policy and WG receive,
+mock crypto/netif), extends protocol tests with suspended/full-map return-state
+cases, and prepares `test_health_monitor.py` (actual state/persistence/sanitized
+snapshot with mock probes/platform). Lease/state/API fixtures cover stable
+binding across reindex/edit, strict migration, delete choice, cleanup save/OOM
+failure and bound commands. The consolidated offline allowlist now has 34 Python
+drivers. Browser scenarios use synthetic APIs and are separate from hardware;
+new stale-action and health scenarios are not qualification until actually run.
 
 1. Create `tools/test_lib/<new>.py` exporting `MODULE_ID`, `MODULE_DESC`,
    and `def run(ctx: Context) -> list[Result]`.

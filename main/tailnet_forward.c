@@ -1,4 +1,8 @@
 #include "tailnet_forward.h"
+#include "service_lease.h"
+#include "esp_heap_caps.h"
+#include "esp_timer.h"
+#include "mqtt_integration.h"
 #include "tailnet_reassembly.h"
 #include "control_validation.h"
 #include <ctype.h>
@@ -85,6 +89,7 @@ static bool resolve_rule(int i) {
     if (!cgnat(h)) { rt->resolved_ip=0;rt->installed=false;strlcpy(rt->error,"not a Tailnet IPv4 address",sizeof rt->error);return false; }
     rt->resolved_ip=h;rt->installed=(previous==h)&&was_installed;return true;
 }
+static bool remove_expired_rules(void);
 static void manager(void *arg) {
     (void)arg;
     for (;;) {
@@ -94,12 +99,15 @@ static void manager(void *arg) {
         UNLOCK();
         netif_hooks_refresh();
         tailnet_reassembly_refresh();
+        if(service_lease_tick())changed=true;
+        if(remove_expired_rules())changed=true;
         if(changed)portmap_install_all();
         vTaskDelay(pdMS_TO_TICKS(3000));
     }
 }
 void tailnet_forward_init(void) {
     if(s_loaded)return;
+    service_lease_init();
     if(!s_lock)s_lock=xSemaphoreCreateMutexStatic(&s_lock_storage);
     memset(s_rules,0,sizeof s_rules);memset(s_runtime,0,sizeof s_runtime);
     memset(s_active,0,sizeof s_active);s_generation++;
@@ -135,6 +143,26 @@ bool tailnet_forward_get(int i,tailnet_forward_rule_t *r,tailnet_forward_runtime
 static esp_err_t set_all_locked(const tailnet_forward_rule_t *rules,int count,char *error,size_t en);
 bool tailnet_forward_listen_conflicts(uint8_t proto,uint16_t port){LOCK();bool found=false;for(int i=0;i<s_count;i++)if(s_rules[i].valid&&s_rules[i].enabled&&s_rules[i].proto==proto&&s_rules[i].listen_port==port){found=true;break;}UNLOCK();return found;}
 
+static bool remove_expired_rules(void) {
+    static uint64_t retry_after;
+    uint64_t now=(uint64_t)esp_timer_get_time()/1000;
+    if(now<retry_after)return false;
+    forwarding_config_lock();LOCK();bool pending=false;
+    for(int i=0;i<s_count;i++)if(service_lease_delete_requested(&s_rules[i])){pending=true;break;}
+    UNLOCK();if(!pending){forwarding_config_unlock();return false;}
+    /* Expiry already denies packets; housekeeping is optional and bounded. */
+    tailnet_forward_rule_t *keep=heap_caps_malloc(TAILNET_FORWARD_MAX*sizeof *keep,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
+    if(!keep){retry_after=now+60000;forwarding_config_unlock();return false;}
+    int count=0;LOCK();
+    for(int i=0;i<s_count;i++)if(!service_lease_delete_requested(&s_rules[i]))keep[count++]=s_rules[i];
+    UNLOCK();
+    esp_err_t err=set_all_locked(keep,count,NULL,0);free(keep);
+    retry_after=err==ESP_OK?0:now+60000;
+    forwarding_config_unlock();
+    if(err==ESP_OK)mqtt_integration_tailnet_forward_changed();
+    return err==ESP_OK;
+}
+
 esp_err_t tailnet_forward_set_all(const tailnet_forward_rule_t *rules,int count,char *error,size_t en) {
     forwarding_config_lock();
     esp_err_t err=set_all_locked(rules,count,error,en);
@@ -142,7 +170,7 @@ esp_err_t tailnet_forward_set_all(const tailnet_forward_rule_t *rules,int count,
     if(err==ESP_OK)portmap_install_all();
     return err;
 }
-static esp_err_t set_all_locked(const tailnet_forward_rule_t *rules,int count,char *error,size_t en) {
+static esp_err_t validate_rules_locked(const tailnet_forward_rule_t *rules,int count,char *error,size_t en) {
     if(!rules||count<0||count>TAILNET_FORWARD_MAX)return ESP_ERR_INVALID_ARG;
     for(int i=0;i<count;i++){
         const tailnet_forward_rule_t *r=&rules[i];
@@ -153,6 +181,10 @@ static esp_err_t set_all_locked(const tailnet_forward_rule_t *rules,int count,ch
         if(r->enabled&&r->proto==TAILNET_FORWARD_PROTO_TCP&&web_ui_port_reserved(r->listen_port)){if(error)snprintf(error,en,"Rule %d conflicts with the Web UI port",i+1);return ESP_ERR_INVALID_STATE;}
         if(r->enabled&&r->proto==TAILNET_FORWARD_PROTO_TCP&&tailscale_exit_server_active()&&r->listen_port==tailscale_peerapi_port()){if(error)snprintf(error,en,"Rule %d conflicts with the exit-node DNS port",i+1);return ESP_ERR_INVALID_STATE;}
     }
+    return ESP_OK;
+}
+static esp_err_t set_all_locked(const tailnet_forward_rule_t *rules,int count,char *error,size_t en) {
+    esp_err_t checked=validate_rules_locked(rules,count,error,en);if(checked!=ESP_OK)return checked;
     store_t st={.magic=STORE_MAGIC};memcpy(st.rules,rules,count*sizeof rules[0]);nvs_handle_t nvs;esp_err_t err=nvs_open(NVS_NAMESPACE,NVS_READWRITE,&nvs);
     if(err==ESP_OK){err=nvs_set_blob(nvs,NVS_KEY,&st,sizeof st);if(err==ESP_OK)err=nvs_commit(nvs);nvs_close(nvs);}if(err!=ESP_OK)return err;
     LOCK();
@@ -162,12 +194,39 @@ static esp_err_t set_all_locked(const tailnet_forward_rule_t *rules,int count,ch
     UNLOCK();
     return ESP_OK;
 }
+static void table_guard_locked(char out[TAILNET_TABLE_GUARD_LEN]) {
+    uint64_t hash=14695981039346656037ULL;LOCK();
+    hash=(hash^(unsigned)s_count)*1099511628211ULL;
+    const uint8_t *bytes=(const uint8_t*)s_rules;
+    for(size_t i=0;i<(size_t)s_count*sizeof s_rules[0];i++)hash=(hash^bytes[i])*1099511628211ULL;
+    uint64_t generation=s_generation;UNLOCK();
+    snprintf(out,TAILNET_TABLE_GUARD_LEN,"%016llx-%016llx",(unsigned long long)generation,(unsigned long long)hash);
+}
+esp_err_t tailnet_forward_replace_guarded(const tailnet_forward_rule_t *rules,int count,const char *expected,bool apply,
+                                         tailnet_forward_preview_t *preview,char *error,size_t en) {
+    if(!preview)return ESP_ERR_INVALID_ARG;
+    if(!s_loaded)tailnet_forward_init();
+    forwarding_config_lock();table_guard_locked(preview->guard);
+    LOCK();preview->previous_count=s_count;preview->previous_enabled=0;
+    for(int i=0;i<s_count;i++)if(s_rules[i].enabled)preview->previous_enabled++;
+    UNLOCK();
+    esp_err_t err;
+    if(apply&&(!expected||strcmp(expected,preview->guard))){if(error)snprintf(error,en,"Configuration changed; preview again");err=ESP_ERR_INVALID_STATE;}
+    else err=apply?set_all_locked(rules,count,error,en):validate_rules_locked(rules,count,error,en);
+    if(err==ESP_OK&&apply)table_guard_locked(preview->guard);
+    forwarding_config_unlock();if(err==ESP_OK&&apply)portmap_install_all();return err;
+}
 esp_err_t tailnet_forward_set_enabled(int i,bool enabled)
+{
+    return tailnet_forward_set_enabled_bound(i,0,enabled);
+}
+esp_err_t tailnet_forward_set_enabled_bound(int i,uint32_t expected,bool enabled)
 {
     tailnet_forward_rule_t copy[TAILNET_FORWARD_MAX];
     forwarding_config_lock();
     LOCK();
     if(i<0||i>=s_count){UNLOCK();forwarding_config_unlock();return ESP_ERR_INVALID_ARG;}
+    if(expected&&service_lease_token(&s_rules[i])!=expected){UNLOCK();forwarding_config_unlock();return ESP_ERR_INVALID_STATE;}
     int count=s_count;memcpy(copy,s_rules,sizeof copy);
     UNLOCK();
     copy[i].enabled=enabled;char e[64];
@@ -182,7 +241,7 @@ int tailnet_forward_snapshot_mappings(tailnet_forward_mapping_t *out, int capaci
     if(!out||capacity<=0)return 0;
     LOCK();int count=0;
     for(int i=0;i<s_count&&count<capacity;i++) {
-        if(!s_rules[i].valid||!s_rules[i].enabled||!s_runtime[i].resolved_ip)continue;
+        if(!s_rules[i].valid||!s_rules[i].enabled||!s_runtime[i].resolved_ip||!service_lease_allowed(i,&s_rules[i]))continue;
         out[count++]=(tailnet_forward_mapping_t){.rule=s_rules[i],.destination_nbo=lwip_htonl(s_runtime[i].resolved_ip),.slot=i,.generation=s_generation};
     }
     UNLOCK();return count;
@@ -248,7 +307,8 @@ static bool allow_packet(struct pbuf *p, bool eth, uint32_t local_ip_nbo, bool u
         bool ok = false;
         if (r->source_prefix <= 32) {
             uint32_t mask = r->source_prefix == 0 ? 0 : (r->source_prefix == 32 ? UINT32_MAX : UINT32_MAX << (32 - r->source_prefix));
-            ok = uplink && local_ip_nbo==m->binding_ip_nbo && ((src & mask) == r->source_network);
+            ok = uplink && local_ip_nbo==m->binding_ip_nbo && ((src & mask) == r->source_network)
+                 && service_lease_allowed(i,r);
         }
         if(i<s_count&&m->generation==s_generation) {
             if (ok) s_runtime[i].accepted_packets++; else s_runtime[i].blocked_packets++;

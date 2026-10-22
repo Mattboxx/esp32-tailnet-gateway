@@ -111,7 +111,7 @@ def main():
     # Original 4MB layout: 64KB NVS at 0x9000; factory must contain no settings.
     assert full[0x9000:0x19000] == b'\xff' * 0x10000
     assert full[0x20000:0x20000 + args.tested_image.stat().st_size] == args.tested_image.read_bytes()
-    readme = f'''ESP32 TAILSCALE GATEWAY - {version}
+    readme = f'''ESP32 HOMELAB GATEWAY - MATTBOXX EDITION - {version}
 {'Beta development candidate' if args.prerelease else 'Stable community release'} for ESP32-S3 N16R8 (16MB flash, 8MB octal PSRAM).
 Uses the existing 4MB partition layout. NOT for an ESP32-C3, S2, no-PSRAM
 board, or an Ethernet-specific wiring configuration.

@@ -37,6 +37,9 @@
 #include "peer_dns.h"
 #include "ota_remote.h"
 #include "wol.h"
+#include "homelab_ops.h"
+#include "service_lease.h"
+#include "service_retry.h"
 #include "tailnet_forward.h"
 #include "web_ui.h"
 
@@ -48,6 +51,17 @@ static TaskHandle_t s_task;
 static char s_last_event_id[48];
 /* Changes invalidate queued replies, including a disable/re-enable cycle. */
 static uint64_t s_config_generation;
+static char s_operational_event[160];
+static uint64_t s_operational_generation;
+
+bool ntfy_integration_queue_event(const char *message)
+{
+    if(!s_lock || !message || strlen(message)>=sizeof s_operational_event)return false;
+    xSemaphoreTake(s_lock,portMAX_DELAY);
+    bool accepted=s_config.enabled && !s_operational_event[0];
+    if(accepted){strlcpy(s_operational_event,message,sizeof s_operational_event);s_operational_generation=s_config_generation;}
+    xSemaphoreGive(s_lock);return accepted;
+}
 
 /* TLS certificate verification needs its own stack reserve. Keep the large
  * reporting/polling frames out of task_main: GCC otherwise inlines them and
@@ -273,6 +287,7 @@ static NTFY_NOINLINE esp_err_t publish_message(const ntfy_integration_config_t *
                                  const char *title, const char *tags,
                                  const char *message)
 {
+    if(!homelab_ops_admit())return ESP_ERR_NO_MEM;
     char url[288];
     build_url(c, NULL, url, sizeof url);
     esp_http_client_config_t config = {
@@ -332,6 +347,25 @@ static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
     appendf(text, 8192, "Socket limit: %d\nSNMP: %s (%s)\n",
             CONFIG_LWIP_MAX_SOCKETS, snmp_agent_is_enabled() ? "enabled" : "disabled",
             snmp_agent_is_running() ? "running" : "stopped");
+    ops_resources_t resources;homelab_ops_resources(&resources);
+    appendf(text,8192,"Operational resources: sockets %d/%d, internal min %lu B, largest block %lu B\n",
+        resources.sockets_used,resources.socket_limit,(unsigned long)resources.internal_min,(unsigned long)resources.internal_largest);
+    cJSON *operations=homelab_ops_snapshot(false);
+    if(operations){
+        const cJSON *state=cJSON_GetObjectItemCaseSensitive(operations,"recovery_state");
+        appendf(text,8192,"Recovery/check: %s (sending WoL is not proof of boot)\n",cJSON_IsString(state)?state->valuestring:"unavailable");
+        const cJSON *health=cJSON_GetObjectItemCaseSensitive(operations,"health"),*check;
+        cJSON_ArrayForEach(check,cJSON_GetObjectItemCaseSensitive(health,"checks")){
+            const cJSON *role=cJSON_GetObjectItemCaseSensitive(check,"role"),*status=cJSON_GetObjectItemCaseSensitive(check,"state");
+            appendf(text,8192,"Configured %s: %s\n",cJSON_IsString(role)?role->valuestring:"check",cJSON_IsString(status)?status->valuestring:"unknown");
+        }
+        cJSON_Delete(operations);
+    }
+    cJSON *leases=service_lease_snapshot();
+    if(leases){const cJSON *lease;cJSON_ArrayForEach(lease,leases){
+        const cJSON *status=cJSON_GetObjectItemCaseSensitive(lease,"status"),*index=cJSON_GetObjectItemCaseSensitive(lease,"index"),*remaining=cJSON_GetObjectItemCaseSensitive(lease,"remaining_s");
+        appendf(text,8192,"LAN→Tailnet rule %d lease: %s, %.0f seconds remaining\n",cJSON_IsNumber(index)?index->valueint+1:0,cJSON_IsString(status)?status->valuestring:"unknown",cJSON_IsNumber(remaining)?remaining->valuedouble:0);
+    }cJSON_Delete(leases);}
 
     esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     esp_netif_ip_info_t ip = {0};
@@ -478,6 +512,17 @@ static NTFY_NOINLINE void handle_command(const ntfy_integration_config_t *c, con
     esp_err_t err = ESP_ERR_INVALID_ARG;
     if (c->info_enabled && strcasecmp(message, "info") == 0) {
         err = send_info(c);
+    } else if (strncasecmp(message,"recover ",8)==0 || strncasecmp(message,"check ",6)==0) {
+        bool wake=strncasecmp(message,"recover ",8)==0;
+        const char *selector=message+(wake?8:6);uint8_t mac[6];
+        if(wol_parse_mac(selector,mac))err=homelab_ops_command(selector,wake);
+        else for(int i=0;i<wol_count();i++){
+            wol_device_t d;if(wol_get(i,&d)&&d.name[0]&&!strcasecmp(selector,d.name)){
+                char address[18];wol_format_mac(d.mac,address);err=homelab_ops_command(address,wake);break;
+            }
+        }
+        (void)publish_message(c,"ESP32 recovery response","mattboxx-response",
+            err==ESP_OK?"Recovery/check accepted; completion must be verified in Devices & Recovery.":"Recovery/check rejected; verify target, remote-command permission, cooldown and resources.");
     } else if (strncasecmp(message, "wol ", 4) == 0) {
         err = wake_argument(c, message + 4);
         char reply[160];
@@ -487,7 +532,8 @@ static NTFY_NOINLINE void handle_command(const ntfy_integration_config_t *c, con
     }
     xSemaphoreTake(s_lock, portMAX_DELAY);
     if (err == ESP_OK) s_status.commands_received++;
-    else if (strncasecmp(message, "wol ", 4) == 0 || strcasecmp(message, "info") == 0)
+    else if (strncasecmp(message, "wol ", 4) == 0 || strcasecmp(message, "info") == 0
+        || strncasecmp(message,"recover ",8)==0 || strncasecmp(message,"check ",6)==0)
         s_status.command_errors++;
     xSemaphoreGive(s_lock);
 }
@@ -557,12 +603,13 @@ static bool poll_current_locked(const ntfy_integration_config_t *c, uint64_t gen
             (tailscale_enabled && !tailscale_is_connected()));
 }
 
-static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
+static NTFY_NOINLINE bool poll_commands(const ntfy_integration_config_t *c)
 {
+    if(!homelab_ops_admit())return false;
     char cursor[sizeof s_last_event_id];
     xSemaphoreTake(s_lock, portMAX_DELAY);
     uint64_t generation = s_config_generation;
-    if (!poll_current_locked(c, generation)) { xSemaphoreGive(s_lock); return; }
+    if (!poll_current_locked(c, generation)) { xSemaphoreGive(s_lock); return false; }
     strlcpy(cursor, s_last_event_id, sizeof cursor);
     xSemaphoreGive(s_lock);
 
@@ -579,12 +626,12 @@ static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
      * response size nor individual notification text grows the task stack. */
     char url[352];
     command_batch_t *batch = calloc(1, sizeof *batch);
-    if (!batch) return;
+    if (!batch) return false;
     build_url(c, suffix, url, sizeof url);
     esp_http_client_config_t config = {.url=url,.method=HTTP_METHOD_GET,.timeout_ms=12000,
         .crt_bundle_attach=esp_crt_bundle_attach,.disable_auto_redirect=true};
     esp_http_client_handle_t client = esp_http_client_init(&config);
-    if (!client) { free(batch); return; }
+    if (!client) { free(batch); return false; }
     esp_err_t err = set_auth(client, c);
     if (err == ESP_OK) err = read_command_batch(client, batch);
     int status = err == ESP_OK ? esp_http_client_get_status_code(client) : 0;
@@ -592,13 +639,14 @@ static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
     if (err != ESP_OK || status != 200) {
         ESP_LOGW(TAG, "command poll failed: %s HTTP %d", esp_err_to_name(err), status);
         free(batch);
-        return;
+        return false;
     }
+    bool completed = true;
     for (size_t i = 0; i < batch->count; ++i) {
             const ntfy_json_event_t *event = &batch->events[i];
             xSemaphoreTake(s_lock, portMAX_DELAY);
             if (!poll_current_locked(c, generation)) {
-                xSemaphoreGive(s_lock); break;
+                xSemaphoreGive(s_lock); completed = false; break;
             }
             bool duplicate = strcmp(s_last_event_id, event->id) == 0;
             /* Persist BEFORE dispatch; otherwise a flash error followed by a
@@ -610,6 +658,7 @@ static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
             xSemaphoreGive(s_lock);
             if (saved != ESP_OK) {
                 ESP_LOGW(TAG, "Cannot persist command cursor; dispatch deferred");
+                completed = false;
                 break;
             }
             if (!duplicate && event->has_message && !event->message_too_long &&
@@ -617,6 +666,7 @@ static NTFY_NOINLINE void poll_commands(const ntfy_integration_config_t *c)
                 handle_command(c, event->message);
     }
     free(batch);
+    return completed;
 }
 
 static bool uplink_connected(void)
@@ -644,7 +694,9 @@ static NTFY_NOINLINE esp_err_t send_tailscale_alert(const ntfy_integration_confi
 static void task_main(void *arg)
 {
     (void)arg;
-    uint32_t down_seconds = 0, poll_seconds = 0, retry_seconds = 0;
+    uint32_t down_seconds = 0, retry_seconds = 0;
+    service_retry_t polling = {0};
+    uint64_t polling_generation = 0;
     bool alerted = false;
     bool could_poll_before = false;
     while (true) {
@@ -652,11 +704,18 @@ static void task_main(void *arg)
         ntfy_integration_config_t c;
         snapshot(&c);
         if (!c.enabled || !uplink_connected()) {
-            down_seconds = poll_seconds = retry_seconds = 0;
+            down_seconds = retry_seconds = 0;
+            service_retry_reset(&polling);
             alerted = false;
             could_poll_before = false;
             continue;
         }
+        char operational[160]={0};
+        xSemaphoreTake(s_lock,portMAX_DELAY);
+        if(s_operational_generation==s_config_generation)strlcpy(operational,s_operational_event,sizeof operational);
+        s_operational_event[0]=0;
+        xSemaphoreGive(s_lock);
+        if(operational[0])(void)publish_message(&c,"ESP32 operational result","mattboxx-response",operational);
         bool ts_down = tailscale_enabled && !tailscale_is_connected();
         if (ts_down) down_seconds++; else { down_seconds = 0; alerted = false; }
         if (retry_seconds) retry_seconds--;
@@ -667,15 +726,27 @@ static void task_main(void *arg)
         }
         bool can_poll = c.commands_enabled
                      && (!c.commands_only_when_tailscale_down || ts_down);
+        xSemaphoreTake(s_lock,portMAX_DELAY);
+        uint64_t generation = s_config_generation;
+        xSemaphoreGive(s_lock);
         /* Arm immediately after enabling commands (or after the
          * Tailscale-down condition becomes true) instead of waiting one
          * complete poll interval before establishing the server cursor. */
-        if (can_poll && !could_poll_before)
-            poll_seconds = c.poll_interval_seconds;
+        if (can_poll && (!could_poll_before || generation != polling_generation))
+            service_retry_reset(&polling);
+        polling_generation = generation;
         could_poll_before = can_poll;
-        if (can_poll && ++poll_seconds >= c.poll_interval_seconds) {
-            poll_seconds = 0; poll_commands(&c);
-        } else if (!can_poll) poll_seconds = 0;
+        uint64_t now = (uint64_t)esp_timer_get_time()/1000;
+        if (can_poll && service_retry_due(&polling,now)) {
+            bool ok = poll_commands(&c);
+            now = (uint64_t)esp_timer_get_time()/1000;
+            if(ok){service_retry_reset(&polling);polling.next_ms=now+(uint64_t)c.poll_interval_seconds*1000;}
+            else {
+                service_retry_failed(&polling,now);
+                uint64_t configured_min=now+(uint64_t)c.poll_interval_seconds*1000;
+                if(polling.next_ms<configured_min)polling.next_ms=configured_min;
+            }
+        } else if (!can_poll) service_retry_reset(&polling);
     }
 }
 
