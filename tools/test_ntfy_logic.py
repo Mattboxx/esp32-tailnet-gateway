@@ -10,7 +10,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/ntfy_integration.c').read_text()
 command = 'static NTFY_NOINLINE void handle_command' + source.split('static NTFY_NOINLINE void handle_command', 1)[1].split('static void collect_line', 1)[0]
-alert = 'static NTFY_NOINLINE esp_err_t send_tailscale_alert' + source.split('static NTFY_NOINLINE esp_err_t send_tailscale_alert', 1)[1].split('static void task_main', 1)[0]
+alert = 'static NTFY_NOINLINE esp_err_t send_tailscale_alert' + source.split('static NTFY_NOINLINE esp_err_t send_tailscale_alert', 1)[1].split('static NTFY_NOINLINE uint32_t available_update_id', 1)[0]
 fixture = r'''
 #include <assert.h>
 #include <stdbool.h>
@@ -97,4 +97,40 @@ with tempfile.TemporaryDirectory(prefix='ntfy-logic-') as directory:
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     binary = path / ('test.exe' if os.name == 'nt' else 'test')
     subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary)], check=True)
+    subprocess.run([str(binary)], check=True)
+
+# Actual opt-in system-event scheduler (main/ntfy_events.h).
+EVENTS = r'''
+#include <assert.h>
+#include <stdio.h>
+#include "ntfy_events.h"
+int main(void){
+    ntfy_events_t s;ntfy_events_init(&s);
+    assert(ntfy_events_due(&s)==NTFY_EVENT_BOOT);
+    ntfy_events_tick(&s,true,false,0);assert(ntfy_events_due(&s)==NTFY_EVENT_BOOT);
+    ntfy_events_result(&s,NTFY_EVENT_BOOT,false);assert(!ntfy_events_due(&s)&&s.retry_s==60); /* bounded retry */
+    for(int i=0;i<59;i++)ntfy_events_tick(&s,true,false,0);
+    assert(!ntfy_events_due(&s));ntfy_events_tick(&s,true,false,0);assert(ntfy_events_due(&s)==NTFY_EVENT_BOOT);
+    ntfy_events_result(&s,NTFY_EVENT_BOOT,true);assert(!ntfy_events_due(&s));
+    /* Restored and update both pending: one message per call, boot-restored-update order. */
+    ntfy_events_tick(&s,true,true,0xabc);assert(ntfy_events_due(&s)==NTFY_EVENT_RESTORED);
+    ntfy_events_result(&s,NTFY_EVENT_RESTORED,true);assert(ntfy_events_due(&s)==NTFY_EVENT_UPDATE);
+    ntfy_events_result(&s,NTFY_EVENT_UPDATE,true);assert(!ntfy_events_due(&s));
+    ntfy_events_tick(&s,true,false,0xabc);assert(!ntfy_events_due(&s)); /* same version announced once */
+    ntfy_events_tick(&s,true,false,0);ntfy_events_tick(&s,true,false,0xabc);assert(!ntfy_events_due(&s)); /* vanished+returned: still once */
+    ntfy_events_tick(&s,true,false,0xdef);assert(ntfy_events_due(&s)==NTFY_EVENT_UPDATE);
+    /* Disabled: nothing queued, versions seen while off are not replayed later. */
+    ntfy_events_init(&s);ntfy_events_tick(&s,false,true,0x111);assert(!s.pending&&!ntfy_events_due(&s));
+    ntfy_events_tick(&s,true,false,0x111);assert(!ntfy_events_due(&s));
+    ntfy_events_result(&s,NTFY_EVENT_UPDATE,false);ntfy_events_tick(&s,false,false,0);assert(!s.retry_s); /* disable clears retry */
+    puts("PASS: actual ntfy system events: boot once, bounded 60 s retry, ordering, update announced once per version, no backlog while disabled");
+}
+'''
+with tempfile.TemporaryDirectory(prefix='ntfy-events-') as directory:
+    path = Path(directory); (path / 'events.c').write_text(EVENTS)
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-I', str(ROOT / 'main')]
+    if os.environ.get('NTFY_SANITIZE') == '1':
+        flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+    binary = path / ('events.exe' if os.name == 'nt' else 'events')
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'events.c'), '-o', str(binary)], check=True)
     subprocess.run([str(binary)], check=True)

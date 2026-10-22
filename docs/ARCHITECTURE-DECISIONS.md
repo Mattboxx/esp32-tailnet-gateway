@@ -199,3 +199,12 @@ events, duplicate leases); level 2 publishes rules without names, destinations
 and ports. Every field a Home Assistant template reads is kept, and
 `state_compact_level` tells consumers. A still-oversize state is published
 and logged, never dropped silently or retried in a loop.
+
+## ADR-018 — ntfy system events are opt-in and downgrade-safe (2026-10-22)
+
+Boot (firmware and reset reason), "Tailscale restored" (only after an outage
+alert was actually delivered) and "update available" (announced once per
+version, never installed) are sent by the existing ntfy worker, one message per
+event with a 60 s retry and nothing queued while disabled. The switch lives in
+a separate NVS key: the versioned ntfy record keeps its flag mask, so stable
+1.13 still accepts it after a downgrade and simply ignores the new key.

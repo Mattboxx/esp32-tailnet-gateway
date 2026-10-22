@@ -89,7 +89,8 @@ def check_elf(objdump, elf):
     disassembly = subprocess.check_output([objdump, '-d', str(elf)], text=True)
     limits = {'task_main': 768, 'poll_commands': 1280, 'send_info': 2048,
               'send_tailscale_alert': 256, 'handle_command': 512,
-              'publish_message': 1024, 'save_state': 768, 'read_command_batch': 256}
+              'publish_message': 1024, 'save_state': 768, 'read_command_batch': 256,
+              'send_system_event': 768, 'available_update_id': 768}
     frames = {}
     # Some Windows objdump packages emit undecoded words for Xtensa. Inspect
     # the same function's real entry opcode instead; never skip the budgets.

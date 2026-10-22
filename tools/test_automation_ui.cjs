@@ -56,7 +56,8 @@ async function fixture(browser, options = {}) {
       body = state.mqttBody || mqtt;
     } else if (url.pathname === '/api/ntfy') {
       if (state.ntfyFailures) { state.ntfyFailures--; status = 503; }
-      body = state.ntfyBody || ntfy;
+      if (route.request().method() === 'POST') { state.savedNtfy = route.request().postDataJSON(); state.ntfyBody = {...(state.ntfyBody || ntfy), ...state.savedNtfy}; body = {ok: true}; }
+      else body = state.ntfyBody || ntfy;
     } else if (url.pathname === '/api/snmp') {
       if (state.snmpFailures) { state.snmpFailures--; status = 503; }
       body = state.snmpBody || { enabled: false, running: false, community: 'fixture' };
@@ -744,6 +745,15 @@ async function main() {
       leasesBody:[{index:0,rule_token:5,temporary:true,effective_enabled:true,remaining_s:840,status:'active'},{index:1,rule_token:6,temporary:true,effective_enabled:false,remaining_s:0,status:'expired'}]});
     await f.page.waitForFunction(()=>document.getElementById('sg-home-summary').textContent.includes('temporary'));
     assert.match(await f.page.locator('#sg-home-summary').textContent(),/1 rule\(s\) · 1 enabled · 1 installed .* 1 temporary rule\(s\) open; the next closes in 14 min\./);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // ntfy system events are opt-in and saved with the rest of the card.
+    f=await fixture(browser,{});await loaded(f.page);
+    assert.equal(await f.page.locator('#ntfy-system-events').isChecked(),false);
+    await f.page.locator('label:has(#ntfy-system-events)').click();
+    await f.page.waitForFunction(()=>!document.getElementById('ntfy-save').disabled);
+    await f.page.locator('#ntfy-save').click();
+    for(let i=0;i<50&&!f.state.savedNtfy;i++)await f.page.waitForTimeout(100);
+    assert.equal(f.state.savedNtfy.system_events,true);assert.equal(f.state.savedNtfy.tailscale_alerts,false); // other switches unchanged
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }

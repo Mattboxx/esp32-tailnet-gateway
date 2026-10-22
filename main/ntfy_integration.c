@@ -40,6 +40,7 @@
 #include "homelab_ops.h"
 #include "service_lease.h"
 #include "service_retry.h"
+#include "ntfy_events.h"
 #include "tailnet_forward.h"
 #include "web_ui.h"
 
@@ -589,6 +590,7 @@ static bool config_equal(const ntfy_integration_config_t *a, const ntfy_integrat
            a->commands_only_when_tailscale_down == b->commands_only_when_tailscale_down &&
            a->allow_direct_mac == b->allow_direct_mac && a->info_enabled == b->info_enabled &&
            a->info_include_details == b->info_include_details &&
+           a->system_events == b->system_events &&
            a->failure_delay_seconds == b->failure_delay_seconds &&
            a->poll_interval_seconds == b->poll_interval_seconds &&
            strcmp(a->server, b->server) == 0 && strcmp(a->topic, b->topic) == 0 &&
@@ -691,6 +693,41 @@ static NTFY_NOINLINE esp_err_t send_tailscale_alert(const ntfy_integration_confi
     return err;
 }
 
+/* Kept out of task_main's frame: the OTA state copy is several hundred bytes. */
+static NTFY_NOINLINE uint32_t available_update_id(void)
+{
+    ota_remote_state_t update;
+    ota_remote_get_state(&update);
+    if (!update.update_available || !update.latest_version[0]) return 0;
+    uint32_t hash = 2166136261u;
+    for (const char *p = update.latest_version; *p; p++) hash = (hash ^ (uint8_t)*p) * 16777619u;
+    return hash | 1u;
+}
+
+static NTFY_NOINLINE esp_err_t send_system_event(const ntfy_integration_config_t *c, unsigned event,
+                                                uint32_t outage_seconds)
+{
+    char message[192];
+    const char *title = "ESP32 gateway event";
+    if (event == NTFY_EVENT_BOOT) {
+        const esp_app_desc_t *app = esp_app_get_description();
+        snprintf(message, sizeof message, "Gateway started: firmware %s, reset reason %d.",
+                 app ? app->version : "unknown", (int)esp_reset_reason());
+        title = "ESP32 gateway started";
+    } else if (event == NTFY_EVENT_RESTORED) {
+        snprintf(message, sizeof message, "Tailscale control connection restored after about %lu s. "
+                 "This does not prove every peer or service is reachable.", (unsigned long)outage_seconds);
+        title = "ESP32 Tailscale restored";
+    } else {
+        ota_remote_state_t update;
+        ota_remote_get_state(&update);
+        snprintf(message, sizeof message, "Firmware %.31s is available. Nothing was installed; review the release and update from the Web UI.",
+                 update.latest_version);
+        title = "ESP32 firmware update available";
+    }
+    return publish_message(c, title, "mattboxx-response", message);
+}
+
 static void task_main(void *arg)
 {
     (void)arg;
@@ -699,10 +736,14 @@ static void task_main(void *arg)
     uint64_t polling_generation = 0;
     bool alerted = false;
     bool could_poll_before = false;
+    ntfy_events_t events;
+    ntfy_events_init(&events);
+    uint32_t restored_after = 0;
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));
         ntfy_integration_config_t c;
         snapshot(&c);
+        if (!c.enabled || !c.system_events) ntfy_events_tick(&events, false, false, 0);
         if (!c.enabled || !uplink_connected()) {
             down_seconds = retry_seconds = 0;
             service_retry_reset(&polling);
@@ -717,7 +758,14 @@ static void task_main(void *arg)
         xSemaphoreGive(s_lock);
         if(operational[0])(void)publish_message(&c,"ESP32 operational result","mattboxx-response",operational);
         bool ts_down = tailscale_enabled && !tailscale_is_connected();
+        bool restored = alerted && !ts_down;
+        if (restored) restored_after = down_seconds;
         if (ts_down) down_seconds++; else { down_seconds = 0; alerted = false; }
+        if (c.system_events) {
+            ntfy_events_tick(&events, true, restored, available_update_id());
+            unsigned due = ntfy_events_due(&events);
+            if (due) ntfy_events_result(&events, due, send_system_event(&c, due, restored_after) == ESP_OK);
+        }
         if (retry_seconds) retry_seconds--;
         if (c.tailscale_alerts && ts_down && down_seconds >= c.failure_delay_seconds
             && !alerted && retry_seconds == 0) {
@@ -756,6 +804,8 @@ void ntfy_integration_init(void)
     s_lock = xSemaphoreCreateMutex();
     if (!s_lock) return;
     load_state(&s_config);
+    uint8_t system_events = 0;
+    s_config.system_events = nvs_param_get_u8("ntfy_sysev", &system_events) == ESP_OK && system_events == 1;
     if (xTaskCreate(task_main, "ntfy", NTFY_TASK_STACK_BYTES, NULL, 3, &s_task) != pdPASS) {
         s_task = NULL;
         ESP_LOGE(TAG, "Cannot allocate ntfy worker stack");
@@ -788,7 +838,12 @@ esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *c)
     xSemaphoreTake(s_lock, portMAX_DELAY);
     bool endpoint_changed = strcmp(s_config.server, c->server) != 0
                          || strcmp(s_config.topic, c->topic) != 0;
-    esp_err_t e = save_state(c, endpoint_changed ? "" : s_last_event_id);
+    /* Separate key: older firmware ignores it and keeps the main record valid. */
+    bool events_changed = c->system_events != s_config.system_events;
+    esp_err_t e = events_changed ? nvs_param_set_u8("ntfy_sysev", c->system_events ? 1 : 0) : ESP_OK;
+    if (e != ESP_OK) {xSemaphoreGive(s_lock); return e;}
+    e = save_state(c, endpoint_changed ? "" : s_last_event_id);
+    if (e != ESP_OK && events_changed) (void)nvs_param_set_u8("ntfy_sysev", s_config.system_events ? 1 : 0);
     if (e == ESP_OK) {
         memcpy(&s_config, c, sizeof *c);
         s_config_generation++;
