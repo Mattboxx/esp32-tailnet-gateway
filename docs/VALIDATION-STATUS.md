@@ -176,6 +176,8 @@ over from the interrupted Codex session without resetting anything.
   7.8–13.0 KB (minimum during TLS handshakes), DERP stack ≥ 5,300 B.
   Updater variant isolation: WiFi image contains no `firmware-eth.bin`, the
   Ethernet image does.
+- Black/green identity + translation fixes (`438ff77`): consolidated offline run
+  `validate_all.py --browser` 58/58 PASS (`build/validation-20261022-212248-437288/`).
 - Pending:
   sanitizers, the BLOCKED hardware items above, Lighthouse on the deployed
   site, a native-speaker review of the it/es/zh wording.
