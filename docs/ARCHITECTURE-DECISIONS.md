@@ -178,3 +178,13 @@ same remote leg and ACL; it does not test the LAN client's path, the local
 source filter or the application, and UDP is reported unverifiable. Results
 bind to the rule identity, so edits hide stale evidence; it works for disabled
 rules so a service can be verified before exposure is enabled.
+
+## ADR-016 — Reply evidence comes from admitted return flows (2026-10-22)
+
+The policy gate already keeps bounded return flows for traffic this node sent.
+A flow now records when a reply was actually *admitted* (normal RX path only;
+related-ICMP quotes do not count; a reused slot clears it). A read-only query by
+protocol, remote IPv4 and port returns the newest current-epoch reply age and
+nothing while suspended. It is evidence, never a grant, and not per LAN client.
+Per-rule last accepted/rejected stamps are uptime seconds set under the
+forwarder lock on the TCP/IP path (no extra I/O). No new task, socket or timer.

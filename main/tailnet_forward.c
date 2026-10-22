@@ -43,6 +43,9 @@ static active_mapping_t s_active[TAILNET_FORWARD_MAX];
 #define LOCK() do { if (s_lock) xSemaphoreTake(s_lock, portMAX_DELAY); } while (0)
 #define UNLOCK() do { if (s_lock) xSemaphoreGive(s_lock); } while (0)
 
+#ifndef TF_UPTIME_S
+#define TF_UPTIME_S() ((uint32_t)(esp_timer_get_time() / 1000000) + 1u)
+#endif
 static bool cgnat(uint32_t hbo) { return (hbo & 0xffc00000u) == 0x64400000u; }
 static bool hostname_valid(const char *s) {
     if (!s || !memchr(s, 0, TAILNET_FORWARD_DEST_LEN)) return false;
@@ -311,7 +314,9 @@ static bool allow_packet(struct pbuf *p, bool eth, uint32_t local_ip_nbo, bool u
                  && service_lease_allowed(i,r);
         }
         if(i<s_count&&m->generation==s_generation) {
-            if (ok) s_runtime[i].accepted_packets++; else s_runtime[i].blocked_packets++;
+            uint32_t seen = TF_UPTIME_S();
+            if (ok) {s_runtime[i].accepted_packets++; s_runtime[i].last_accepted_s = seen;}
+            else {s_runtime[i].blocked_packets++; s_runtime[i].last_blocked_s = seen;}
         }
         UNLOCK();
         return ok;

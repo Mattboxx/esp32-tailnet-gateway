@@ -48,6 +48,7 @@
 #include "tailnet_forward.h"
 #include "service_lease.h"
 #include "service_check.h"
+#include "ml_policy.h"
 #include "service_diagnostics.h"
 #include "mac_deny.h"
 #include "reset_history.h"
@@ -2580,6 +2581,13 @@ static const httpd_uri_t uri_portmap_save = {
 
 /* Dedicated uplink-LAN -> Tailnet forwarding. This API intentionally has
  * no AP/client-WiFi fields and persists a wholly separate rule table. */
+/* Uptime-seconds stamp (0 = never) as an age, or null: never a fake zero. */
+static bool json_age(cJSON *parent, const char *name, uint32_t stamp, uint32_t now_s)
+{
+    return stamp ? cJSON_AddNumberToObject(parent, name, now_s >= stamp ? now_s - stamp : 0) != NULL
+                 : cJSON_AddNullToObject(parent, name) != NULL;
+}
+
 static esp_err_t tailnet_forward_handler(httpd_req_t *req)
 {
     if (require_auth(req) != ESP_OK) return ESP_FAIL;
@@ -2608,11 +2616,20 @@ static esp_err_t tailnet_forward_handler(httpd_req_t *req)
         if (rt.resolved_ip) snprintf(resolved, sizeof resolved, "%u.%u.%u.%u",
             (unsigned)(rt.resolved_ip>>24), (unsigned)((rt.resolved_ip>>16)&255),
             (unsigned)((rt.resolved_ip>>8)&255), (unsigned)(rt.resolved_ip&255));
-        service_diagnostic_t d = service_diagnose(r.enabled, uplink, control,
-                                                 rt.resolved_ip != 0, rt.installed, rt.error[0] != 0);
         uint32_t token = service_lease_token(&r);
         service_check_result_t check = {0};
         bool checked = service_check_get(i, token, &check);
+        /* Reply evidence is per remote service tuple (shared by rules
+         * with the same destination), from the policy gate's flows. */
+        uint32_t now_s = (uint32_t)(esp_timer_get_time() / 1000000) + 1u, reply_ms = 0;
+        const uint8_t remote[4] = {(uint8_t)(rt.resolved_ip >> 24), (uint8_t)(rt.resolved_ip >> 16),
+                                   (uint8_t)(rt.resolved_ip >> 8), (uint8_t)rt.resolved_ip};
+        bool replied = rt.resolved_ip && ml_policy_reply_age(r.proto, remote, r.destination_port, &reply_ms);
+        service_diagnostic_t d = service_diagnose_evidence(
+            service_diagnose(r.enabled, uplink, control, rt.resolved_ip != 0, rt.installed, rt.error[0] != 0),
+            checked && check.state == SC_REACHABLE ? SERVICE_EVIDENCE_REACHABLE
+                : checked && check.state == SC_NO_ANSWER ? SERVICE_EVIDENCE_NO_ANSWER : SERVICE_EVIDENCE_NONE,
+            replied, rt.last_accepted_s != 0, rt.last_blocked_s != 0);
         cJSON *j = cJSON_CreateObject(), *diagnostic = cJSON_CreateObject();
         bool ok = j && diagnostic
             && cJSON_AddNumberToObject(j, "index", i)
@@ -2634,6 +2651,13 @@ static esp_err_t tailnet_forward_handler(httpd_req_t *req)
             && cJSON_AddNumberToObject(j, "rule_token", token)
             && cJSON_AddStringToObject(diagnostic, "service_status", service_check_state_name(check.state))
             && cJSON_AddStringToObject(diagnostic, "data_plane_status", "not_verified");
+        if (ok) {
+            cJSON *activity = cJSON_AddObjectToObject(j, "activity");
+            ok = activity && json_age(activity, "last_accepted_age_s", rt.last_accepted_s, now_s)
+                && json_age(activity, "last_rejected_age_s", rt.last_blocked_s, now_s)
+                && (replied ? cJSON_AddNumberToObject(activity, "service_reply_age_s", reply_ms / 1000) != NULL
+                            : cJSON_AddNullToObject(activity, "service_reply_age_s") != NULL);
+        }
         if (ok && checked) {
             uint64_t now_ms = (uint64_t)esp_timer_get_time() / 1000;
             char ip[16] = "";

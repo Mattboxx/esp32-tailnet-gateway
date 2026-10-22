@@ -685,10 +685,12 @@ async function main() {
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Service Gateway: test a saved (still disabled) rule's Tailnet destination.
     const tfRule=()=>({index:0,rule_token:77,name:'NAS',enabled:false,installed:false,protocol:'tcp',listen_port:15000,tailnet_destination:'100.64.0.9',
-      destination_port:5000,allowed_source_subnet:'192.168.1.20/32',accepted_packets:0,blocked_packets:0,error:'',diagnostic:{code:'disabled',summary:'Rule disabled',next_step:'Enable it'}});
+      destination_port:5000,allowed_source_subnet:'192.168.1.20/32',accepted_packets:0,blocked_packets:0,error:'',diagnostic:{code:'disabled',summary:'Rule disabled',next_step:'Enable it'},
+      activity:{last_accepted_age_s:null,last_rejected_age_s:12,service_reply_age_s:null}});
     f=await fixture(browser,{page:'network',forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
     await f.page.waitForFunction(()=>document.querySelector('.tf-test')&&!document.querySelector('.tf-test').disabled);
     assert.equal(await f.page.locator('.tf-check-state').textContent(),'Not tested');
+    assert.match(await f.page.locator('.tf-activity').textContent(),/Last accepted: never this boot · last rejected: 12 s ago · reply from the Tailnet service: none seen/);
     await f.page.locator('.tf-test').click();
     await f.page.waitForFunction(()=>document.querySelector('.tf-check-state')&&document.querySelector('.tf-check-state').textContent==='Reachable from gateway (42 ms)',null,{timeout:10000});
     assert.deepEqual(f.state.checkPosts,[{index:0,rule_token:77}]);
@@ -701,6 +703,19 @@ async function main() {
     await f.page.locator('.tf-test').click();
     await f.page.waitForFunction(()=>document.querySelector('.tf-check-state').textContent.includes('Test not started: another check is running'));
     assert.equal(await f.page.locator('.tf-test').isDisabled(),false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Primary guide runs one destination test inline from "Check result".
+    f=await fixture(browser,{page:'status',forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
+    await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===12);
+    await f.page.locator('#sg-home-guide').click();
+    await f.page.waitForFunction(()=>!document.getElementById('wizard-checks').textContent.includes('checking'));
+    assert.match(await f.page.locator('#wizard-checks').textContent(),/✓ A free service rule slot/);
+    await f.page.locator('#wizard-exposure').check();await f.page.locator('#wizard-start').click();
+    await f.page.waitForFunction(()=>document.getElementById('page-network').classList.contains('active'));
+    await f.page.locator('#wizard-verify').click();
+    await f.page.waitForFunction(()=>document.getElementById('wizard-result').textContent.includes('Destination test for “NAS”'),null,{timeout:10000});
+    assert.deepEqual(f.state.checkPosts,[{index:0,rule_token:77}]);
+    assert.match(await f.page.locator('#wizard-result').textContent(),/1 with a reachable destination test/);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     f=await fixture(browser,{page:'status'});
     await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===12);

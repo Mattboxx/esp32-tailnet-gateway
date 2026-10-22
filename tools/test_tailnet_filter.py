@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT/'main/tailnet_forward.c').read_text(encoding='utf-8')
 filter_functions = 'static bool packet_fields' + source.split('static bool packet_fields', 1)[1]
 conflicts = 'bool tailnet_forward_listen_conflicts' + source.split(
-    'bool tailnet_forward_listen_conflicts', 1)[1].split('esp_err_t tailnet_forward_set_all', 1)[0]
+    'bool tailnet_forward_listen_conflicts', 1)[1].split('static bool remove_expired_rules', 1)[0]
 policy='int tailnet_forward_snapshot_mappings'+source.split('int tailnet_forward_snapshot_mappings',1)[1].split('static bool packet_fields',1)[0]
 fixture = r'''
 #include <assert.h>
@@ -34,6 +34,8 @@ static active_mapping_t s_active[TAILNET_FORWARD_MAX];
 static tailnet_forward_rule_t s_rules[TAILNET_FORWARD_MAX];
 static tailnet_forward_runtime_t s_runtime[TAILNET_FORWARD_MAX];
 static int s_count, lock_depth;
+static uint32_t fixture_uptime_s=1;
+#define TF_UPTIME_S() fixture_uptime_s
 #define LOCK() do { assert(!lock_depth); ++lock_depth; } while(0)
 #define UNLOCK() do { assert(lock_depth==1); --lock_depth; } while(0)
 static uint32_t swap32(uint32_t x) { return ((x&255)<<24)|((x&0xff00)<<8)|((x>>8)&0xff00)|(x>>24); }
@@ -88,6 +90,11 @@ int main(void) {
     packet(bytes,true,6,0xc6336402,local_hbo,2222); assert(!ALLOW_UP(&p));
     packet(bytes,true,6,0xc0000263,local_hbo,2222); assert(ALLOW_UP(&p));
     assert(s_runtime[0].blocked_packets==1 && s_runtime[0].accepted_packets==1);
+    assert(s_runtime[0].last_blocked_s==1 && s_runtime[0].last_accepted_s==1);
+    fixture_uptime_s=40;packet(bytes,true,6,0xc6336402,local_hbo,2222); assert(!ALLOW_UP(&p));
+    assert(s_runtime[0].last_blocked_s==40 && s_runtime[0].last_accepted_s==1); /* each outcome keeps its own time */
+    packet(bytes,true,6,0xc0000263,local_hbo,2222); fixture_uptime_s=41; assert(ALLOW_UP(&p));
+    assert(s_runtime[0].last_accepted_s==41 && s_runtime[0].blocked_packets==2 && s_runtime[0].accepted_packets==2);
     lease_fixture_denied=true;assert(!ALLOW_UP(&p));lease_fixture_denied=false;assert(ALLOW_UP(&p));
     tailnet_forward_prepare_install(); assert(ALLOW_UP(&p)); install();
     for(unsigned prefix=0;prefix<=32;prefix++) {

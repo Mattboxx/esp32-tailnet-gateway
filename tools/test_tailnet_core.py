@@ -15,7 +15,7 @@ ROOT=Path(__file__).resolve().parents[1]
 source=(ROOT/'main/tailnet_forward.c').read_text(encoding='utf-8')
 functions='static bool packet_fields'+source.split('static bool packet_fields',1)[1]
 policy='int tailnet_forward_snapshot_mappings'+source.split('int tailnet_forward_snapshot_mappings',1)[1].split('static bool packet_fields',1)[0]
-conflicts='bool tailnet_forward_listen_conflicts'+source.split('bool tailnet_forward_listen_conflicts',1)[1].split('esp_err_t tailnet_forward_set_all',1)[0]
+conflicts='bool tailnet_forward_listen_conflicts'+source.split('bool tailnet_forward_listen_conflicts',1)[1].split('static bool remove_expired_rules',1)[0]
 core_path=ROOT/'main/tailnet_input.c'
 cmake=(ROOT/'main/CMakeLists.txt').read_text(encoding='utf-8')
 assert '"tailnet_input.c"' in cmake and '"-Wl,--wrap=ip4_input"' in cmake, 'IPv4 policy wrapper must be compiled and linked'
@@ -43,6 +43,8 @@ static int core_depth, lock_depth;
 static tailnet_forward_rule_t s_rules[TAILNET_FORWARD_MAX];
 static tailnet_forward_runtime_t s_runtime[TAILNET_FORWARD_MAX];
 static int s_count;
+static uint32_t fixture_uptime_s=1;
+#define TF_UPTIME_S() fixture_uptime_s
 static uint64_t s_generation=1;
 typedef struct { bool installed; tailnet_forward_mapping_t mapping; } active_mapping_t;
 static active_mapping_t s_active[TAILNET_FORWARD_MAX];

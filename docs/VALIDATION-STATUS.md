@@ -34,6 +34,14 @@ over from the interrupted Codex session without resetting anything.
   SHA-256 `49a6e582333fb259cb7f4663f5ec19293b2895ccac5fe3d278ae2d524ae33dce`;
   ELF 16,671,932 B SHA-256 `a309ea1c78176e74f772e3ab3569435a90207606d4c46e6ced6a6bf27f0c1d57`.
   Browser 47/47 PASS after the last SPA edit. Not flashed; no hardware evidence.
+- Local checkpoint commits (no push): microlink `a3d712a`, root `ce11271`.
+  After them: admitted-reply evidence (ml_policy), per-rule activity stamps,
+  evidence-aware diagnosis, inline guide test. Drivers PASS: policy_protocols,
+  tailnet_filter/core/sdk (fixtures repaired for Codex's housekeeping split),
+  gateway_operations (incl. evidence states and every-allocation failure),
+  service_check, tailnet_api, ops_api. Build PASS app **1,814,296 (92.3%)**.
+  Snapshot `build/development-0.1.38-Mattboxx-1.14-dev.6/service-evidence/`:
+  BIN SHA-256 `fc8a2fa60f310fae5687bb7a9c06e1681e633b56b5b10f87a39c1f93dca4e101`, ELF SHA-256 `296846b218fac611e61977d8979b60257b6b53f57545cdfd612d8322c8837b83`. Browser 48/48.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 
