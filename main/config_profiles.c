@@ -264,6 +264,15 @@ esp_err_t config_profiles_preview(profile_id_t profile, profile_plan_t *out) {LO
 esp_err_t config_profiles_apply(profile_id_t profile, uint32_t token, profile_result_t *out) {LOCKED(apply_locked(profile, token, out));}
 esp_err_t config_profiles_rollback(profile_result_t *out) {LOCKED(rollback_locked(out));}
 
+void config_profiles_status(profile_id_t *active, bool *rollback_available)
+{
+    config_profiles_init();
+    xSemaphoreTake(lock, portMAX_DELAY);
+    *active = (profile_id_t)record.active;
+    *rollback_available = record.has_backup;
+    xSemaphoreGive(lock);
+}
+
 /* --- HTTP --- */
 static const char *const profile_titles[PROFILE_COUNT] = {
     "No profile", "Gateway", "Recovery", "IoT", "Monitoring", "Advanced"};

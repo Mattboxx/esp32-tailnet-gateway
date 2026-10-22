@@ -99,6 +99,9 @@ over from the interrupted Codex session without resetting anything.
 - Commit `beaa161`. Then optional-module supervisor (ADR-022): service_retry
   (+actual supervisor backoff), ops_core PASS; build PASS. Low-memory start
   failure itself not reproduced on hardware.
+- Commits `563b0cb`..`4bf99e1` (supervisor, guides). Then F26 export system
+  summary: ops_api (+exclusion/OOM of the summary) and config_profiles PASS;
+  build PASS 1,831,900 (93.2%). Whole export handler not host-tested end-to-end.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 
