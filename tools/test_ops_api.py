@@ -217,3 +217,64 @@ with tempfile.TemporaryDirectory(prefix='ops-summary-') as directory:
     if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run(['gcc',*flags,str(c),'-o',str(binary),*libs],check=True)
     subprocess.run([str(binary)],check=True,timeout=20)
+
+# Fourth program: actual Service watch HTTP handlers (strict body, limits,
+# persistence failure mapping, auth) against fixture watch state.
+WATCH=r'''
+#include <assert.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "cJSON.h"
+#include "json_guard.h"
+#define ESP_OK 0
+#define ESP_FAIL -1
+#define ESP_ERR_NO_MEM 0x101
+#define ESP_ERR_INVALID_ARG 0x102
+typedef int esp_err_t;
+typedef struct {int content_len,offset,status;const char *body;bool authorized;char reply[256];} httpd_req_t;
+typedef struct {bool enabled, notify; uint32_t interval_s;} service_watch_config_t;
+#define SERVICE_WATCH_MIN_S 60u
+#define SERVICE_WATCH_MAX_S 86400u
+static service_watch_config_t saved={.interval_s=900};static esp_err_t set_result;static int sets;
+static void service_watch_get(service_watch_config_t *o){*o=saved;}
+static esp_err_t service_watch_set(const service_watch_config_t *c){sets++;if(c->interval_s<SERVICE_WATCH_MIN_S||c->interval_s>SERVICE_WATCH_MAX_S)return ESP_ERR_INVALID_ARG;if(set_result)return set_result;saved=*c;return ESP_OK;}
+static const char *esp_err_to_name(esp_err_t e){return e==ESP_ERR_NO_MEM?"ESP_ERR_NO_MEM":"ESP_FAIL";}
+static int web_ui_require_auth(httpd_req_t *r){if(r->authorized)return ESP_OK;r->status=401;return ESP_FAIL;}
+static void httpd_resp_set_status(httpd_req_t *r,const char *s){r->status=atoi(s);}
+static void httpd_resp_set_type(httpd_req_t *r,const char *s){(void)r;(void)s;}
+static void httpd_resp_set_hdr(httpd_req_t *r,const char *k,const char *v){(void)r;(void)k;(void)v;}
+static void httpd_resp_send_500(httpd_req_t *r){r->status=500;}
+static int httpd_resp_sendstr(httpd_req_t *r,const char *s){snprintf(r->reply,sizeof r->reply,"%s",s);if(!r->status)r->status=200;return ESP_OK;}
+static int httpd_req_recv(httpd_req_t *r,char *out,int n){memcpy(out,r->body+r->offset,n);r->offset+=n;return n;}
+''' + ''.join(function(source,s) for s in ('static bool integer(','static bool boolean(','static esp_err_t send_json(','static cJSON *watch_json(','static esp_err_t post_service_watch(')) + r'''
+static httpd_req_t post(const char *body){httpd_req_t r={.content_len=(int)strlen(body),.body=body,.authorized=true};post_service_watch(&r);return r;}
+int main(void){
+    httpd_req_t r=post("{\"enabled\":true,\"notify\":false,\"interval_s\":300}");
+    assert(r.status==200&&saved.enabled&&saved.interval_s==300&&strstr(r.reply,"\"interval_s\":300"));
+    const char *bad[]={"{\"enabled\":true,\"notify\":false}","{\"enabled\":1,\"notify\":false,\"interval_s\":300}",
+        "{\"enabled\":true,\"notify\":false,\"interval_s\":300.5}","{\"enabled\":true,\"notify\":false,\"interval_s\":-1}",
+        "{\"enabled\":true,\"notify\":false,\"interval_s\":86401}","{\"enabled\":true,\"notify\":false,\"interval_s\":59}",
+        "{\"enabled\":true,\"notify\":false,\"interval_s\":300,\"x\":1}","{\"enabled\":true,\"enabled\":false,\"interval_s\":300}",
+        "[1]","{","{\"enabled\":true,\"notify\":false,\"interval_s\":\"300\"}"};
+    for(unsigned i=0;i<sizeof bad/sizeof *bad;i++){r=post(bad[i]);assert(r.status==400&&saved.interval_s==300);}
+    char big[200];memset(big,' ',sizeof big-1);big[sizeof big-1]=0;r=post(big);assert(r.status==400);
+    set_result=ESP_ERR_NO_MEM;r=post("{\"enabled\":true,\"notify\":true,\"interval_s\":600}");assert(r.status==503&&saved.interval_s==300&&!saved.notify);
+    set_result=ESP_FAIL;r=post("{\"enabled\":true,\"notify\":true,\"interval_s\":600}");assert(r.status==500&&saved.interval_s==300);set_result=ESP_OK;
+    httpd_req_t denied={.content_len=2,.body="{}",.authorized=false};int before=sets;post_service_watch(&denied);assert(denied.status==401&&sets==before);
+    httpd_req_t empty={.content_len=0,.body="",.authorized=true};post_service_watch(&empty);assert(empty.status==400);
+    puts("PASS: actual Service watch POST: strict fields/types/limits/duplicates/size, 503/500 mapping without RAM change, auth (fixtures)");
+}
+'''
+with tempfile.TemporaryDirectory(prefix='ops-watch-') as directory:
+    path=Path(directory);c=path/'watch.c';c.write_text(WATCH,encoding='utf-8');binary=path/('watch.exe' if os.name=='nt' else 'watch')
+    flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-function','-g','-I',str(ROOT/'main')];libs=['-lm'];dep=os.environ.get('CJSON_SOURCE')
+    if dep:flags+=['-I',str(Path(dep).parent),dep]
+    else:
+        flags+=subprocess.check_output(['pkg-config','--cflags','libcjson'],text=True).split();libs+=subprocess.check_output(['pkg-config','--libs','libcjson'],text=True).split()
+    if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
+    subprocess.run(['gcc',*flags,str(c),'-o',str(binary),*libs],check=True)
+    subprocess.run([str(binary)],check=True,timeout=20)
