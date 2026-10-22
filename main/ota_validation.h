@@ -4,9 +4,32 @@
 #include <stdint.h>
 #include <string.h>
 
-#define OTA_FORK_REPO "Mattboxx/esp32-tailscale-gateway-NAS-recovery"
+/* Repository rename bridge. Firmware up to 1.14-dev.6 requests the releases
+ * API of the previous name with redirects disabled and requires HTTP 200, so
+ * it cannot follow a GitHub rename. This bridge looks up releases under the
+ * current name first and falls back to the previous name only when the
+ * current one answers 404 (before the rename). Downloads are accepted from
+ * either fixed release path, so GitHub's previous->current redirect stays
+ * inside the allowlist. Never reuse the previous name for another repository. */
+#define OTA_REPO_CURRENT "Mattboxx/esp32-tailnet-gateway"
+#define OTA_REPO_PREVIOUS "Mattboxx/esp32-tailscale-gateway-NAS-recovery"
+#define OTA_REPO_COUNT 2u
+#define OTA_FORK_REPO OTA_REPO_CURRENT
 #define OTA_FORK_URL "https://github.com/" OTA_FORK_REPO
-#define OTA_FORK_API "https://api.github.com/repos/" OTA_FORK_REPO "/releases?per_page=10"
+
+static inline const char *ota_repo(unsigned index)
+{
+    return index == 0 ? OTA_REPO_CURRENT : index == 1 ? OTA_REPO_PREVIOUS : NULL;
+}
+
+/* Returns the part after ".../<repo>/releases/download/", or NULL. */
+static inline const char *ota_release_download_tail(const char *url, const char *repo)
+{
+    static const char host[] = "https://github.com/", path[] = "/releases/download/";
+    size_t h = sizeof host - 1, r = strlen(repo), d = sizeof path - 1;
+    if (strncmp(url, host, h) || strncmp(url + h, repo, r) || strncmp(url + h + r, path, d)) return NULL;
+    return url + h + r + d;
+}
 
 typedef struct { uint32_t upstream[3], edition[2], stage, serial; } ota_version_t;
 
@@ -84,13 +107,14 @@ static inline bool ota_download_url_allowed(const char *url)
     if (!url || strlen(url) >= 2048) return false;
     for (const unsigned char *p = (const unsigned char *)url; *p; ++p)
         if (*p <= 32 || *p >= 127 || *p == '\\') return false;
-    const char *prefix = OTA_FORK_URL "/releases/download/";
-    if (!strncmp(url, prefix, strlen(prefix))) {
-        const char *tag = url + strlen(prefix), *slash = strchr(tag, '/');
+    const char *tag = NULL;
+    for (unsigned i = 0; i < OTA_REPO_COUNT && !tag; ++i) tag = ota_release_download_tail(url, ota_repo(i));
+    if (tag) {
+        const char *slash = strchr(tag, '/');
         if (!slash || (size_t)(slash - tag) >= 32 || strcmp(slash, "/firmware.bin")) return false;
         char version[32] = {0}; memcpy(version, tag, (size_t)(slash - tag));
         ota_version_t v; return ota_version_parse(version, &v);
     }
-    prefix = "https://release-assets.githubusercontent.com/github-production-release-asset/";
+    const char *prefix = "https://release-assets.githubusercontent.com/github-production-release-asset/";
     return !strncmp(url, prefix, strlen(prefix)) && url[strlen(prefix)] != '\0';
 }

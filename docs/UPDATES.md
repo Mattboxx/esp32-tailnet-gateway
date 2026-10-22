@@ -30,6 +30,12 @@ open while downloading. Settings persist in an atomic `ota_fork_v1` NVS blob.
 Legacy upstream preferences stay erased/inert. Backup snapshots record policy
 as information; restore cannot activate it through the ordinary System API.
 
+## Repository rename
+
+The repository is moving to `Mattboxx/esp32-tailnet-gateway`. Firmware before
+the bridge release cannot follow the rename automatically; see the
+[migration plan](MIGRATION-RENAME.md).
+
 ## Which releases qualify?
 
 Fixed repository:

@@ -44,7 +44,7 @@ typedef struct { uint32_t magic_word,secure,pad[2]; char version[32],project_nam
 typedef struct { uint32_t size; } esp_partition_t;
 typedef unsigned esp_ota_handle_t;
 typedef struct { bool enabled,auto_install,beta_channel; int install_hour; } ota_remote_config_t;
-typedef struct { ota_remote_config_t config; bool busy,checked,update_available; uint32_t last_check,asset_size; unsigned progress; char latest_version[32],status[96],release_url[192]; } ota_remote_state_t;
+typedef struct { ota_remote_config_t config; bool busy,checked,update_available; uint32_t last_check,asset_size; unsigned progress; uint8_t repo; char latest_version[32],status[96],release_url[192]; } ota_remote_state_t;
 static ota_remote_state_t s_state;
 static unsigned char s_digest[32];
 static int s_lock;
@@ -129,6 +129,15 @@ int main(void) {
     const char *stages[]={"dev","alpha1","beta.1","rc2",""};
     for(int i=0;i<5;i++) { char v[32]; snprintf(v,sizeof v,"0.1.31-Mattboxx-1.10%s%s",i==4?"":"-",stages[i]); assert(ota_version_parse(v,&a)); if(i) assert(ota_version_compare(&a,&b)>0); b=a; }
     assert(ota_download_url_allowed(OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin"));
+    /* Rename bridge: both fixed release paths, nothing that merely shares a prefix. */
+    assert(!strcmp(ota_repo(0),OTA_REPO_CURRENT)&&!strcmp(ota_repo(1),OTA_REPO_PREVIOUS)&&!ota_repo(2));
+    assert(ota_download_url_allowed("https://github.com/" OTA_REPO_PREVIOUS "/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin"));
+    const char *near[]={"https://github.com/Mattboxx/esp32-tailnet-gatewayX/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin",
+        "https://github.com/Mattboxx/esp32-tailnet/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin",
+        "https://github.com/Csontikka/esp32-tailscale-subnet-router/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin",
+        "https://github.com/mattboxx/esp32-tailnet-gateway/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin",
+        "https://github.com/" OTA_REPO_PREVIOUS "/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin.sig"};
+    for(unsigned i=0;i<sizeof near/sizeof near[0];i++) assert(!ota_download_url_allowed(near[i]));
     const char *bad[]={"http://github.com/x","https://github.com@evil.example/x","https://release-assets.githubusercontent.com.evil.example/github-production-release-asset/x","https://release-assets.githubusercontent.com:443/github-production-release-asset/x",OTA_FORK_URL "/releases/download/v0.1.31/firmware.bin",OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/firmware-factory.bin"};
     for(unsigned i=0;i<sizeof bad/sizeof bad[0];i++) assert(!ota_download_url_allowed(bad[i]));
     const char *hash="sha256:1111111111111111111111111111111111111111111111111111111111111111";
@@ -146,6 +155,8 @@ int main(void) {
     assert(ota_remote_select_release(rows,running.version,true,2048,tag,&size,digest)); assert(!strcmp(tag,"v0.1.31-Mattboxx-1.11-beta.1"));
     assert(!ota_remote_select_release(rows,"0.1.31-Mattboxx-1.11",true,2048,tag,&size,digest));
     cJSON_Delete(rows);
+    reset(); s_state.repo=2; assert(!install_release()); assert(!opens&&!begins&&!s_writer_active);
+    reset(); s_state.repo=1; assert(install_release()&&boots==1); /* previous name, before the rename */
     reset(); assert(ota_writer_try_acquire()); assert(!install_release()); assert(!opens&&!begins&&s_writer_active); ota_writer_release();
     for(int f=1;f<=13;f++) { if(f==11)continue; reset(); fault=f; assert(!install_release()); assert(!restarts&&!s_writer_active); if(f!=7)assert(!boots); assert(aborts<=1&&ends<=1); }
     for(int f=0;f<=11;f+=11) { reset(); fault=f; assert(install_release()); assert(boots==1&&restarts==1&&!aborts&&ends==1&&s_writer_active&&s_state.progress==100); }
@@ -169,6 +180,86 @@ with tempfile.TemporaryDirectory(prefix='ota-remote-') as directory:
     binary = path / ('test.exe' if os.name == 'nt' else 'test')
     subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary), *libs], check=True)
     subprocess.run([str(binary)], check=True)
+
+# Second program: actual check_release() repository lookup across the rename.
+checker = 'static OTA_NOINLINE bool check_release' + source.split('static OTA_NOINLINE bool check_release', 1)[1].split('/* Check the app descriptor', 1)[0]
+CHECK = r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "cJSON.h"
+#include "ota_validation.h"
+#define OTA_NOINLINE
+#define ESP_OK 0
+#define ESP_FAIL -1
+#define ESP_ERR_NO_MEM 0x101
+#define JSON_LIMIT 4096u
+#define MALLOC_CAP_SPIRAM 1
+#define MALLOC_CAP_8BIT 2
+#define portMAX_DELAY 0
+#define xSemaphoreTake(a,b) ((void)(a),(void)(b))
+#define xSemaphoreGive(a) ((void)(a))
+typedef int esp_err_t;
+static size_t strlcpy(char *d,const char *s,size_t n){size_t l=strlen(s);if(n){size_t k=l<n-1?l:n-1;memcpy(d,s,k);d[k]=0;}return l;}
+typedef struct { bool enabled,auto_install,beta_channel; int install_hour; } ota_remote_config_t;
+typedef struct { ota_remote_config_t config; bool busy,checked,update_available; uint32_t last_check,asset_size; unsigned progress; uint8_t repo; char latest_version[32],status[96],release_url[192]; } ota_remote_state_t;
+static ota_remote_state_t s_state; static unsigned char s_digest[32]; static int s_lock;
+static void status_set(const char *s){strlcpy(s_state.status,s,sizeof s_state.status);}
+typedef struct { char *body; size_t used; bool overflow; char *location; } http_buffer_t;
+typedef http_buffer_t *esp_http_client_handle_t;
+typedef struct { uint32_t size; } esp_partition_t;
+typedef struct { char version[32]; } esp_app_desc_t;
+static esp_partition_t part={1u<<20}; static esp_app_desc_t app={"0.1.38-Mattboxx-1.14-dev.6"};
+static const esp_partition_t *esp_ota_get_next_update_partition(void *p){(void)p;return &part;}
+static const esp_app_desc_t *esp_app_get_description(void){return &app;}
+static void *heap_caps_malloc(size_t n,int caps){(void)caps;return malloc(n);}
+static int answers[3],calls; static char urls[3][128]; static int fail_transport;
+static esp_http_client_handle_t http_client(const char *url,http_buffer_t *b){assert(calls<3);snprintf(urls[calls],sizeof urls[0],"%s",url);return b;}
+static esp_err_t esp_http_client_perform(esp_http_client_handle_t c){
+    if(fail_transport==calls+1){calls++;return ESP_FAIL;}
+    if(answers[calls]==200)strcpy(c->body,"[{\"tag_name\":\"v0.1.38-Mattboxx-1.14\",\"prerelease\":false,\"draft\":false,\"assets\":[{\"name\":\"firmware.bin\",\"state\":\"uploaded\",\"size\":1024,\"digest\":\"sha256:1111111111111111111111111111111111111111111111111111111111111111\"}]}]");
+    else strcpy(c->body,"{\"message\":\"Not Found\"}");
+    c->used=strlen(c->body);calls++;return ESP_OK;}
+static int esp_http_client_get_status_code(esp_http_client_handle_t c){(void)c;return answers[calls-1];}
+static void esp_http_client_cleanup(esp_http_client_handle_t c){(void)c;}
+static int time(void *p){(void)p;return 1800000000;}
+bool ota_remote_select_release(const cJSON *releases,const char *running,bool beta,uint32_t partition_size,char tag[32],uint32_t *size,unsigned char digest[32]);
+''' + selector + checker + r'''
+static bool run(int a,int b){memset(&s_state,0,sizeof s_state);calls=0;fail_transport=0;answers[0]=a;answers[1]=b;memset(urls,0,sizeof urls);return check_release();}
+int main(void){
+    /* After the rename: the current name answers; the previous one is never asked. */
+    assert(run(200,0)&&calls==1&&s_state.repo==0&&s_state.update_available&&strstr(urls[0],"/repos/" OTA_REPO_CURRENT "/"));
+    assert(!strcmp(s_state.release_url,"https://github.com/" OTA_REPO_CURRENT "/releases/tag/v0.1.38-Mattboxx-1.14"));
+    /* Before the rename: 404 for the current name, then the previous name. */
+    assert(run(404,200)&&calls==2&&s_state.repo==1&&strstr(urls[1],"/repos/" OTA_REPO_PREVIOUS "/"));
+    assert(!strcmp(s_state.release_url,"https://github.com/" OTA_REPO_PREVIOUS "/releases/tag/v0.1.38-Mattboxx-1.14"));
+    /* Any other failure of the current name never falls back (rate limit, 5xx, moved, transport). */
+    int other[]={403,429,500,301};
+    for(unsigned i=0;i<4;i++){assert(!run(other[i],200)&&calls==1&&!s_state.checked&&!s_state.update_available);}
+    memset(&s_state,0,sizeof s_state);calls=0;answers[0]=200;fail_transport=1;assert(!check_release()&&calls==1);
+    /* Both names missing: clean failure, nothing cached. */
+    assert(!run(404,404)&&calls==2&&!s_state.checked&&!s_state.latest_version[0]);
+    puts("PASS: actual release check across the repository rename: current first, previous only on 404, no fallback on other errors (fixtures)");
+}
+'''
+with tempfile.TemporaryDirectory(prefix='ota-check-') as directory:
+    path = Path(directory); (path / 'check.c').write_text(CHECK, encoding='utf-8')
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-I', str(ROOT / 'main')]
+    libs = []
+    cjson = os.environ.get('CJSON_SOURCE')
+    if cjson:
+        flags += ['-I', str(Path(cjson).parent), cjson]
+    else:
+        flags += subprocess.check_output(['pkg-config', '--cflags', 'libcjson'], text=True).split()
+        libs += subprocess.check_output(['pkg-config', '--libs', 'libcjson'], text=True).split()
+    if os.environ.get('OTA_SANITIZE') == '1':
+        flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
+    binary = path / ('check.exe' if os.name == 'nt' else 'check')
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'check.c'), '-o', str(binary), *libs], check=True)
+    subprocess.run([str(binary)], check=True, timeout=30)
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--objdump')
