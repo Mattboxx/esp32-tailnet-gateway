@@ -14,6 +14,14 @@ ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/web_ui.c').read_text(encoding='utf-8')
 start = '/* Browser-request screening'
 screening = start + source.split(start, 1)[1].split('static esp_err_t require_auth(httpd_req_t *req)', 1)[0]
+# Wiring regression (hardware finding 2026-10-22: the check had landed in the
+# GET challenge handler, not login). Every state-changing auth entry point must
+# screen the request before reading its body.
+for handler in ('auth_login_handler', 'auth_logout_handler', 'auth_setup_handler', 'auth_change_password_handler', 'auth_clear_password_handler'):
+    body = source.split('static esp_err_t %s(httpd_req_t *req)' % handler, 1)[1].split('\n}', 1)[0]
+    first = body.find('recv_body(') if 'recv_body(' in body else len(body)
+    guard = min([i for i in (body.find('browser_request_refused('), body.find('require_auth('), body.find('require_password_session(')) if i >= 0] or [len(body)])
+    assert guard < first and guard < len(body), handler + ' does not screen browser requests before processing'
 console = (ROOT / 'components/remote_console/remote_console.c').read_text(encoding='utf-8')
 tunnel = 'static bool rc_tunnel_destination' + console.split('static bool rc_tunnel_destination', 1)[1].split('static uint32_t netif_ip_by_key', 1)[0]
 
