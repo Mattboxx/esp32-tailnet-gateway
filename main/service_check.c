@@ -7,6 +7,11 @@
 #include "microlink.h"
 #include "ml_policy.h"
 #include "esp_timer.h"
+#include "nvs.h"
+#include "nvs_params.h"
+#include "ntfy_integration.h"
+#include "mqtt_integration.h"
+#include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "lwip/sockets.h"
@@ -23,6 +28,7 @@ static void sc_path(const tailnet_forward_rule_t *rule, sc_path_t *out);
 static int sc_connect(uint32_t ip_hbo, uint16_t port, uint32_t timeout_ms);
 static bool sc_admit(void);
 static esp_err_t sc_start_worker(void);
+static void sc_notify(int index, bool recovered);
 #define SC_LOCK() xSemaphoreTake(sc_lock, portMAX_DELAY)
 #define SC_UNLOCK() xSemaphoreGive(sc_lock)
 static SemaphoreHandle_t sc_lock;
@@ -30,6 +36,47 @@ static SemaphoreHandle_t sc_lock;
 /* --- service check core (begin) --- */
 static service_check_result_t sc_results[TAILNET_FORWARD_MAX];
 static struct {bool active; int index; uint32_t token;} sc_pending;
+static service_watch_config_t sc_watch = {.interval_s = 900};
+static uint64_t sc_watch_next;
+static int sc_watch_cursor;
+static uint8_t sc_watch_fails[TAILNET_FORWARD_MAX];
+static bool sc_watch_alerted[TAILNET_FORWARD_MAX];
+
+static bool sc_watch_valid(const service_watch_config_t *c)
+{
+    return c && c->interval_s >= SERVICE_WATCH_MIN_S && c->interval_s <= SERVICE_WATCH_MAX_S;
+}
+
+/* Locked: when due, queue the next enabled TCP rule (manual requests win). */
+static void sc_watch_schedule_locked(uint64_t now)
+{
+    if (!sc_watch.enabled || sc_pending.active || now < sc_watch_next) return;
+    sc_watch_next = now + (uint64_t)sc_watch.interval_s * 1000u;
+    for (int n = 0; n < TAILNET_FORWARD_MAX; n++) {
+        int i = (sc_watch_cursor + n) % TAILNET_FORWARD_MAX;
+        tailnet_forward_rule_t rule;
+        if (!sc_rule(i, &rule) || !rule.enabled || rule.proto != TAILNET_FORWARD_PROTO_TCP) continue;
+        uint32_t token = service_lease_token(&rule);
+        sc_watch_cursor = (i + 1) % TAILNET_FORWARD_MAX;
+        sc_pending.active = true; sc_pending.index = i; sc_pending.token = token;
+        sc_results[i] = (service_check_result_t){.state = SC_PENDING, .token = token};
+        return;
+    }
+}
+
+/* Locked: 0 nothing, 1 newly unreachable, 2 recovered. Only handshake
+ * outcomes count; tunnel/resource states are not evidence about the service. */
+static int sc_watch_observe_locked(int index, uint8_t state)
+{
+    if (state == SC_REACHABLE) {
+        sc_watch_fails[index] = 0;
+        if (sc_watch_alerted[index]) {sc_watch_alerted[index] = false; return 2;}
+    } else if (state == SC_NO_ANSWER) {
+        if (sc_watch_fails[index] < UINT8_MAX) sc_watch_fails[index]++;
+        if (sc_watch_fails[index] >= 2 && !sc_watch_alerted[index]) {sc_watch_alerted[index] = true; return 1;}
+    }
+    return 0;
+}
 
 static const char *const sc_names[SC_STATE_COUNT] = {
     "not_tested", "pending", "reachable", "no_tcp_answer", "udp_unverifiable", "control_offline",
@@ -91,6 +138,7 @@ static bool sc_get_locked(int index, uint32_t current, service_check_result_t *o
 static void sc_run(void)
 {
     SC_LOCK();
+    sc_watch_schedule_locked(sc_now_ms());
     bool active = sc_pending.active;
     int index = sc_pending.index;
     uint32_t token = sc_pending.token;
@@ -117,12 +165,17 @@ static void sc_run(void)
     r.observed_ms = sc_now_ms();
     if (!r.observed_ms) r.observed_ms = 1;
     r.latency_ms = (uint32_t)(r.observed_ms >= started ? r.observed_ms - started : 0);
+    int event = 0;
+    bool notify = false;
     SC_LOCK();
     if (sc_pending.active && sc_pending.index == index && sc_pending.token == token) {
         sc_results[index] = r;
         sc_pending.active = false;
+        event = sc_watch_observe_locked(index, r.state);
+        notify = sc_watch.enabled && sc_watch.notify;
     }
     SC_UNLOCK();
+    if (event && notify) sc_notify(index, event == 2);
 }
 /* --- service check core (end) --- */
 
@@ -155,6 +208,74 @@ bool service_check_get(int index, uint32_t current_token, service_check_result_t
 }
 
 void service_check_poll(void) {sc_init(); sc_run();}
+
+typedef struct {uint8_t enabled, notify, reserved[2]; uint32_t interval_s;} sc_watch_blob_t;
+
+void service_check_init(void)
+{
+    sc_init();
+    nvs_handle_t nvs;
+    sc_watch_blob_t blob;
+    size_t size = sizeof blob;
+    bool loaded = false;
+    if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs) == ESP_OK) {
+        /* Missing or invalid means OFF, never an inferred interval. */
+        loaded = nvs_get_blob(nvs, "svc_watch", &blob, &size) == ESP_OK && size == sizeof blob
+            && blob.enabled <= 1 && blob.notify <= 1 && !blob.reserved[0] && !blob.reserved[1];
+        nvs_close(nvs);
+    }
+    service_watch_config_t stored = {.enabled = blob.enabled, .notify = blob.notify, .interval_s = blob.interval_s};
+    if (!loaded || !sc_watch_valid(&stored)) return;
+    SC_LOCK();
+    sc_watch = stored;
+    sc_watch_next = sc_now_ms() + (uint64_t)stored.interval_s * 1000u;
+    SC_UNLOCK();
+    if (stored.enabled) (void)sc_start_worker();
+}
+
+void service_watch_get(service_watch_config_t *out)
+{
+    sc_init();
+    SC_LOCK();
+    *out = sc_watch;
+    SC_UNLOCK();
+}
+
+esp_err_t service_watch_set(const service_watch_config_t *config)
+{
+    sc_init();
+    if (!sc_watch_valid(config)) return ESP_ERR_INVALID_ARG;
+    if (config->enabled && sc_start_worker() != ESP_OK) return ESP_ERR_NO_MEM;
+    service_watch_config_t stored = *config;
+    sc_watch_blob_t blob = {.enabled = stored.enabled, .notify = stored.notify, .interval_s = stored.interval_s};
+    nvs_handle_t nvs;
+    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
+    if (err == ESP_OK) {
+        err = nvs_set_blob(nvs, "svc_watch", &blob, sizeof blob);
+        if (err == ESP_OK) err = nvs_commit(nvs);
+        nvs_close(nvs);
+    }
+    if (err != ESP_OK) return err;   /* RAM keeps the previous watch */
+    SC_LOCK();
+    sc_watch = stored;
+    sc_watch_next = sc_now_ms() + (uint64_t)stored.interval_s * 1000u;
+    if (!stored.enabled) {memset(sc_watch_fails, 0, sizeof sc_watch_fails); memset(sc_watch_alerted, 0, sizeof sc_watch_alerted);}
+    SC_UNLOCK();
+    return ESP_OK;
+}
+
+static void sc_notify(int index, bool recovered)
+{
+    tailnet_forward_rule_t rule;
+    char message[160];
+    bool named = sc_rule(index, &rule) && rule.name[0];
+    snprintf(message, sizeof message, recovered
+             ? "Service watch: rule %d%s%.31s%s answers again (TCP handshake from this gateway)."
+             : "Service watch: rule %d%s%.31s%s gave no TCP answer twice in a row. This is not proof the peer is offline.",
+             index + 1, named ? " (" : "", named ? rule.name : "", named ? ")" : "");
+    (void)ntfy_integration_queue_event(message);
+    mqtt_integration_publish_now();
+}
 
 static uint64_t sc_now_ms(void) {return (uint64_t)esp_timer_get_time() / 1000;}
 static bool sc_rule(int index, tailnet_forward_rule_t *rule) {return tailnet_forward_get(index, rule, NULL);}

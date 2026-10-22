@@ -54,6 +54,16 @@ waits for them. A result belongs to the rule's exact settings: editing the
 destination, port, protocol or source hides it. Requires a board with PSRAM
 for the optional worker.
 
+## Service watch (development line, optional)
+
+Network → LAN → Tailnet → **Service watch** periodically repeats the destination
+test for enabled TCP rules, one rule per interval (60–86400 s, default 900),
+round-robin, in the same single bounded slot as manual tests (a manual test is
+never displaced). Two consecutive "no TCP answer" results send one ntfy notice
+(and refresh MQTT); the next answer sends one recovery notice. Tunnel, policy
+or resource states are not counted as service evidence. OFF by default; it
+never enables, disables or edits rules. UDP rules are not watched.
+
 ## Activity and reply evidence (development line)
 
 Each rule shows when the gateway last **accepted** and last **rejected** a LAN
