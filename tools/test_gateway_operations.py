@@ -26,7 +26,7 @@ def run(program, *, cjson=False):
         source.write_text(program, encoding='utf-8')
         binary = path / ('test.exe' if os.name == 'nt' else 'test')
         flags = ['-std=c11', '-pthread', '-Wall', '-Wextra', '-Werror',
-                 '-I', str(path), '-I', str(ROOT / 'main')]
+                 '-I', str(path), '-I', str(ROOT / 'main'), '-I', str(ROOT / 'external/microlink/components/microlink/include')]
         libs = ['-lws2_32'] if os.name == 'nt' else []
         if cjson:
             dependency = os.environ.get('CJSON_SOURCE')
@@ -189,6 +189,7 @@ run(HEAD + r'''
 #include "tailnet_forward.h"
 #include "service_diagnostics.h"
 #include "service_check.h"
+#include "service_evidence.h"
 typedef struct {int status;char *response;} httpd_req_t;
 static int64_t fixture_us=100000000; /* uptime 100 s -> now_s 101 */
 static int64_t esp_timer_get_time(void){return fixture_us;}

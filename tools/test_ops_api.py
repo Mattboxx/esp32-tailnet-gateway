@@ -108,6 +108,7 @@ EXPORT=r'''
 #include <string.h>
 #include "cJSON.h"
 #include "service_check.h"
+#include "service_evidence.h"
 #include "service_diagnostics.h"
 static int rows=2;static bool replied=true;
 static tailnet_forward_rule_t rules[2]={
@@ -150,7 +151,7 @@ with tempfile.TemporaryDirectory(prefix='ops-export-') as directory:
     path=Path(directory);(path/'lwip').mkdir()
     for name,text in STUBS.items():(path/name).write_text(text)
     c=path/'export.c';c.write_text(EXPORT,encoding='utf-8');binary=path/('export.exe' if os.name=='nt' else 'export')
-    flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-function','-g','-I',str(path),'-I',str(ROOT/'main')];libs=['-lm'];dep=os.environ.get('CJSON_SOURCE')
+    flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-function','-g','-I',str(path),'-I',str(ROOT/'main'),'-I',str(ROOT/'external/microlink/components/microlink/include')];libs=['-lm'];dep=os.environ.get('CJSON_SOURCE')
     if dep:flags+=['-I',str(Path(dep).parent),dep]
     else:
         flags+=subprocess.check_output(['pkg-config','--cflags','libcjson'],text=True).split();libs+=subprocess.check_output(['pkg-config','--libs','libcjson'],text=True).split()

@@ -6,7 +6,7 @@
 #include "service_transfer.h"
 #include "config_profiles.h"
 #include "service_check.h"
-#include "service_diagnostics.h"
+#include "service_evidence.h"
 #include "ml_policy.h"
 #include "esp_timer.h"
 #include "portmap.h"
@@ -67,14 +67,10 @@ static bool export_service_rules(cJSON *root) {
     uint32_t now_s=(uint32_t)(esp_timer_get_time()/1000000)+1u;
     for(int i=0;i<TAILNET_FORWARD_MAX;i++){
         tailnet_forward_rule_t r;tailnet_forward_runtime_t rt;if(!tailnet_forward_get(i,&r,&rt))continue;
-        service_check_result_t check={0};bool checked=service_check_get(i,service_lease_token(&r),&check);
-        uint32_t reply_ms=0;const uint8_t remote[4]={(uint8_t)(rt.resolved_ip>>24),(uint8_t)(rt.resolved_ip>>16),(uint8_t)(rt.resolved_ip>>8),(uint8_t)rt.resolved_ip};
-        bool replied=rt.resolved_ip&&ml_policy_reply_age(r.proto,remote,r.destination_port,&reply_ms);
         /* Uplink/control are reported elsewhere in the export; treat them as up
          * here so the code describes the rule, not a global fault. */
-        service_diagnostic_t d=service_diagnose_evidence(service_diagnose(r.enabled,true,true,rt.resolved_ip!=0,rt.installed,rt.error[0]!=0),
-            checked&&check.state==SC_REACHABLE?SERVICE_EVIDENCE_REACHABLE:checked&&check.state==SC_NO_ANSWER?SERVICE_EVIDENCE_NO_ANSWER:SERVICE_EVIDENCE_NONE,
-            replied,rt.last_accepted_s!=0,rt.last_blocked_s!=0);
+        service_evidence_t ev;service_evidence_collect(i,service_lease_token(&r),&r,&rt,true,true,&ev);
+        service_diagnostic_t d=ev.diag;service_check_result_t check=ev.check;bool checked=ev.checked,replied=ev.replied;uint32_t reply_ms=ev.reply_ms;
         cJSON *item=cJSON_CreateObject();
         if(!item||!cJSON_AddItemToArray(rules,item)){cJSON_Delete(item);return false;}
         if(!cJSON_AddNumberToObject(item,"index",i)||!cJSON_AddStringToObject(item,"protocol",r.proto==TAILNET_FORWARD_PROTO_UDP?"udp":"tcp")

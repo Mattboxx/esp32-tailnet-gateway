@@ -74,6 +74,15 @@ temporary rules and the soonest closure. The local diagnostic export includes
 per-rule state, diagnosis, test state, counters and ages, never names,
 destinations, ports, source networks or runtime error text.
 
+## MQTT and Home Assistant (development line)
+
+The MQTT state lists each rule's `status` (the same diagnosis code as the Web
+UI), `destination_check` and `service_reply_age_s` (null when no reply was
+seen). Home Assistant Discovery adds a "Tailnet rule status" sensor next to
+each rule's switch and expiry sensor; unused slots are cleared. The switch
+topic still requires the rule binding token. Real Home Assistant behavior and
+the state payload size budget are not yet qualified.
+
 ## Performance and limits
 
 IPv4 TCP/UDP, up to 8 rules, destination in `100.64.0.0/10`. Clients connect to
