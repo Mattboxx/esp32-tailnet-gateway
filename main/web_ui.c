@@ -23,7 +23,6 @@
 #include "web_ui.h"
 #include "json_guard.h"
 #include "web_origin.h"
-#include "login_budget.h"
 #include "homelab_ops.h"
 #include "tailscale_config.h"
 #include "peer_dns.h"
@@ -4739,7 +4738,6 @@ typedef struct {
 
 #define LOGIN_GUARD_SLOTS 16
 static login_guard_t s_login_guards[LOGIN_GUARD_SLOTS];
-static login_budget_t s_login_budget;
 
 static uint32_t request_peer_ipv4(httpd_req_t *req)
 {
@@ -4780,7 +4778,7 @@ static bool login_guard_reject(httpd_req_t *req, login_guard_t **out)
     uint64_t now = (uint64_t)esp_timer_get_time();
     guard->last_seen_us = now;
     if (out) *out = guard;
-    uint64_t wait_us = login_budget_wait_us(&s_login_budget, now);
+    uint64_t wait_us = web_password_attempt_wait_us(now);
     if (now < guard->blocked_until_us && guard->blocked_until_us - now > wait_us)
         wait_us = guard->blocked_until_us - now;
     if (!wait_us) return false;
@@ -4797,7 +4795,7 @@ static bool login_guard_reject(httpd_req_t *req, login_guard_t **out)
 static void login_guard_failed(login_guard_t *guard)
 {
     if (!guard) return;
-    login_budget_failed(&s_login_budget, (uint64_t)esp_timer_get_time());
+    web_password_attempt_failed((uint64_t)esp_timer_get_time());
     if (guard->failures < UINT8_MAX) guard->failures++;
     if (guard->failures < 3) return;
     unsigned shift = guard->failures - 3;

@@ -14,6 +14,8 @@ ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/web_ui.c').read_text(encoding='utf-8')
 start = '/* Browser-request screening'
 screening = start + source.split(start, 1)[1].split('static esp_err_t require_auth(httpd_req_t *req)', 1)[0]
+console = (ROOT / 'components/remote_console/remote_console.c').read_text(encoding='utf-8')
+tunnel = 'static bool rc_tunnel_destination' + console.split('static bool rc_tunnel_destination', 1)[1].split('static uint32_t netif_ip_by_key', 1)[0]
 
 PROGRAM = r'''
 #include <assert.h>
@@ -46,7 +48,7 @@ static esp_err_t httpd_req_get_hdr_value_str(httpd_req_t *r, const char *name, c
 static esp_err_t httpd_resp_send_err(httpd_req_t *r, httpd_err_code_t code, const char *msg) {
     (void)r; (void)msg; last_error = code; return ESP_OK;
 }
-''' + screening + r'''
+''' + screening + tunnel + r'''
 static bool refused(int method, bool open, const char *host, const char *origin, const char *site) {
     httpd_req_t r = {.method = method}; int n = 0;
     if (host) {r.hdr[n][0] = "Host"; r.hdr[n++][1] = host;}
@@ -107,13 +109,19 @@ int main(void) {
     assert(login_budget_wait_us(&c, 1000) == LOGIN_BUDGET_REFILL_US); /* clock regression rebases */
     login_budget_t d = {.used = 3, .since_us = 0};
     assert(!login_budget_wait_us(&d, UINT64_MAX / 2) && d.used == 0);
-    puts("PASS: actual request screening (CSRF/cross-site/DNS rebinding, header limits), host trust, login budget saturation/refill/clock");
+    /* Remote console VPN binding: tunnel address only, not a CGNAT-looking LAN. */
+    assert(rc_tunnel_destination(0x64400005u,false));
+    assert(!rc_tunnel_destination(0x64500005u,true)); /* STA on a CGNAT LAN (LTE/Starlink) */
+    assert(!rc_tunnel_destination(0xc0a80105u,false)&&!rc_tunnel_destination(0x647fffffu+1u,false));
+    assert(rc_tunnel_destination(0x647fffffu,false)&&!rc_tunnel_destination(0x643fffffu,false));
+    puts("PASS: actual request screening (CSRF/cross-site/DNS rebinding, header limits), host trust, login budget saturation/refill/clock, console tunnel-address binding");
 }
 '''
 
 with tempfile.TemporaryDirectory(prefix='web-security-') as folder:
     path = Path(folder)
-    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-I', str(ROOT / 'main')]
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-I', str(ROOT / 'main'),
+             '-I', str(ROOT / 'components/web_password/include')]
     if os.environ.get('WEB_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     (path / 'screen.c').write_text(PROGRAM, encoding='utf-8')

@@ -82,6 +82,10 @@ over from the interrupted Codex session without resetting anything.
   (95.7%)**, BIN `60c8109224b82ce7a3a1657675d6ce65c4d8c91b7bfc5c48106b7636028c705b` (`build/validation-20261022-eth-env/`). Driver,
   link, DHCP, ACL hooks and uplink switching are NOT exercised on hardware.
   Reproducibility fix: four inherited options pinned in sdkconfig.defaults.
+- Commit `1ce98d2`. Then F08: shared login budget (web + remote console) and
+  console VPN binding by tunnel address (ADR-020); web_security PASS (incl.
+  tunnel binding cases); build PASS 1,828,444 (93.0%). Console path itself
+  not host-tested end-to-end.
 - Pending:
   sanitizers, full suite, hardware. Nothing here is hardware evidence.
 

@@ -39,6 +39,12 @@ bool verify_web_password_proof(const uint8_t *message, size_t message_len,
 /* Salt + hash + persist. Empty string disables protection. */
 esp_err_t set_web_password_hashed(const char *plaintext);
 
+/* One device-wide failed-login budget shared by every password entry point
+ * (web login, password change, remote console), so alternating channels or
+ * source addresses cannot reset online guessing. Thread-safe. */
+uint64_t web_password_attempt_wait_us(uint64_t now_us);
+void web_password_attempt_failed(uint64_t now_us);
+
 #ifdef __cplusplus
 }
 #endif
