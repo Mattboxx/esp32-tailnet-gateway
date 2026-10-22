@@ -13,6 +13,9 @@ enum {
     SNMP_OPS_MQTT_CONNECTED, SNMP_OPS_CONTROL_CONNECTED, SNMP_OPS_RESET_REASON,
     SNMP_OPS_FORWARD_REACHABLE, /* rules whose current destination test was reachable */
     SNMP_OPS_FORWARD_REPLIED,   /* rules with an admitted reply from their service */
+    /* Health checks: 0 disabled 1 not configured 2 unverified 3 ok 4 degraded
+     * 5 down 6 unknown 7 resource-deferred 8 stale */
+    SNMP_OPS_HEALTH_GATEWAY, SNMP_OPS_HEALTH_DNS, SNMP_OPS_HEALTH_INTERNET, SNMP_OPS_HEALTH_TAILNET,
     SNMP_OPS_LIMIT
 };
 typedef struct {uint32_t value[SNMP_OPS_LIMIT];} snmp_operational_metrics_t;

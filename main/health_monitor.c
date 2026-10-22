@@ -195,6 +195,15 @@ void health_monitor_poll(void){
     if(notify){char message[160];snprintf(message,sizeof message,"Configured %s check is down after repeated failures. This is not proof of a whole-network outage.",health_roles[role]);(void)ntfy_integration_queue_event(message);}
     if(changed)mqtt_integration_publish_now();
 }
+void health_monitor_codes(uint8_t out[4]){
+    health_monitor_init();HLOCK();health_config_t c=configuration;health_result r[4];memcpy(r,observations,sizeof r);HUNLOCK();
+    uint64_t now=health_now();
+    for(unsigned i=0;i<4;i++){
+        if(!c.enabled)out[i]=0;else if(!health_configured(&c,i))out[i]=1;
+        else if(r[i].observed&&now-r[i].observed>((uint64_t)c.interval_s*16+30)*1000)out[i]=8;
+        else out[i]=(uint8_t)(2+r[i].state);
+    }
+}
 cJSON *health_monitor_snapshot(bool detailed){
     health_monitor_init();HLOCK();health_config_t c=configuration;health_result r[4];memcpy(r,observations,sizeof r);HUNLOCK();
     cJSON *root=cJSON_CreateObject();if(!root)return NULL;

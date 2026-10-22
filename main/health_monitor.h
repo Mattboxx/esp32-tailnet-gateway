@@ -17,3 +17,7 @@ esp_err_t health_monitor_set_enabled(bool enabled);
 void health_monitor_poll(void);
 /* Detailed includes user targets; sanitized never includes those identifiers. */
 cJSON *health_monitor_snapshot(bool detailed);
+/* Per check (gateway, DNS, Internet, Tailnet): 0 disabled, 1 not configured,
+ * 2 unverified, 3 ok, 4 degraded, 5 down, 6 unknown, 7 resource-deferred,
+ * 8 stale. Same derivation as the snapshot; no targets or identifiers. */
+void health_monitor_codes(uint8_t out[4]);

@@ -811,8 +811,9 @@ OPS_GETTER(1)  OPS_GETTER(2)  OPS_GETTER(3)  OPS_GETTER(4)  OPS_GETTER(5)
 OPS_GETTER(6)  OPS_GETTER(7)  OPS_GETTER(8)  OPS_GETTER(9)  OPS_GETTER(10)
 OPS_GETTER(11) OPS_GETTER(12) OPS_GETTER(13) OPS_GETTER(14) OPS_GETTER(15)
 OPS_GETTER(16) OPS_GETTER(17) OPS_GETTER(18) OPS_GETTER(19) OPS_GETTER(20)
-OPS_GETTER(21) OPS_GETTER(22) OPS_GETTER(23)
-_Static_assert(SNMP_OPS_LIMIT == 24, "add a getter and a MIB row per metric");
+OPS_GETTER(21) OPS_GETTER(22) OPS_GETTER(23) OPS_GETTER(24) OPS_GETTER(25)
+OPS_GETTER(26) OPS_GETTER(27)
+_Static_assert(SNMP_OPS_LIMIT == 28, "add a getter and a MIB row per metric");
 /* --- operational snapshot (end) --- */
 
 /* Must be in ascending OID lexicographic order. */
@@ -926,6 +927,10 @@ static const mib_row_t s_mib[] = {
 /* ops.21          */ {{{1,3,6,1,4,1,99999,2,21,0},10},   VT_GAUGE32,   g_ops_21},
 /* ops.22          */ {{{1,3,6,1,4,1,99999,2,22,0},10},   VT_GAUGE32,   g_ops_22},
 /* ops.23          */ {{{1,3,6,1,4,1,99999,2,23,0},10},   VT_GAUGE32,   g_ops_23},
+/* ops.24          */ {{{1,3,6,1,4,1,99999,2,24,0},10},   VT_GAUGE32,   g_ops_24},
+/* ops.25          */ {{{1,3,6,1,4,1,99999,2,25,0},10},   VT_GAUGE32,   g_ops_25},
+/* ops.26          */ {{{1,3,6,1,4,1,99999,2,26,0},10},   VT_GAUGE32,   g_ops_26},
+/* ops.27          */ {{{1,3,6,1,4,1,99999,2,27,0},10},   VT_GAUGE32,   g_ops_27},
 };
 #define MIB_LEN ((int)(sizeof(s_mib)/sizeof(s_mib[0])))
 
