@@ -1517,6 +1517,81 @@
     #wizard-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .capability-unavailable > .card-body { opacity: 0.55; }
     .capability-note { margin: 0.5rem 1rem 0; color: var(--warning); }
+
+    /* =====================================================================
+       DESIGN SYSTEM — one set of sizes for original and newer screens.
+       Buttons without an explicit size get the standard size; touch and
+       narrow screens get 44 px targets and 16 px inputs (no iOS zoom).
+       ===================================================================== */
+    .btn      { font-size: var(--text-md); padding: 8px 14px; min-height: 40px; line-height: 1.2; }
+    .btn-sm   { font-size: 0.8125rem; padding: 5px 10px; min-height: 32px; }
+    .btn-md   { font-size: var(--text-md); padding: 8px 14px; }
+    .btn-lg   { font-size: var(--text-md); padding: 10px 20px; min-height: 42px; }
+    .btn-icon { padding: 6px; min-width: 40px; }
+    .btn-primary { font-weight: var(--weight-semibold); }
+    .btn-danger-text { color: var(--danger); }
+    .page-header-actions, .form-footer-actions { flex-wrap: wrap; }
+    .page-header-actions { flex-shrink: 1; justify-content: flex-end; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; margin-top: var(--sp-3); }
+    .card-body details { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; margin-top: var(--sp-3); background: var(--bg-elevated); }
+    .card-body details > summary { cursor: pointer; font-weight: var(--weight-medium); color: var(--fg-primary); min-height: 28px; display: list-item; }
+    .card-body details[open] > summary { margin-bottom: var(--sp-2); }
+    .card-body details details { background: var(--bg-card); }
+    .form-hint { line-height: 1.5; }
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    [hidden] { display: none !important; }
+
+    /* Goal launcher on the Status page */
+    .goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3); }
+    .goal-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; width: 100%;
+      background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg, 10px); padding: 14px 16px;
+      color: var(--fg-primary); cursor: pointer; font: inherit; min-height: 88px;
+      transition: border-color var(--transition-fast), background var(--transition-fast); }
+    .goal-tile:hover { border-color: var(--accent); background: var(--bg-hover); }
+    .goal-tile:disabled { opacity: .5; cursor: not-allowed; }
+    .goal-tile strong { font-size: var(--text-md); }
+    .goal-tile span { font-size: 0.8125rem; color: var(--fg-secondary); line-height: 1.45; }
+    .goal-tile.primary { border-color: var(--accent-border); background: var(--accent-muted); }
+
+    /* Service Gateway rules: summary row (table on wide screens, card on phones) + editor */
+    .tf-row { border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: var(--sp-2); background: var(--bg-card); }
+    .tf-sum { display: grid; grid-template-columns: minmax(150px, 1.3fr) minmax(200px, 2fr) auto; gap: var(--sp-3); align-items: center; padding: 12px 14px; }
+    .tf-sum-name { font-weight: var(--weight-semibold); color: var(--fg-primary); overflow-wrap: anywhere; }
+    .tf-sum-route { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--fg-secondary); overflow-wrap: anywhere; line-height: 1.5; }
+    .tf-sum-actions { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; justify-content: flex-end; }
+    .tf-sum .badge { white-space: normal; margin-top: 4px; }
+    .tf-editor { border-top: 1px solid var(--border); padding: 12px 14px; }
+    .tf-evidence { padding: 0 14px 12px; }
+    .tf-del { color: var(--danger); }
+
+    @media (max-width: 1023px), (pointer: coarse) {
+      .btn, .btn-sm, .btn-md, .btn-lg, .btn-lock, .nav-ham-btn { min-height: 44px; }
+      .btn-icon, .btn-lock, .nav-ham-btn { min-width: 44px; justify-content: center; }
+      .btn-sm { font-size: var(--text-md); padding: 8px 12px; }
+      .input, .select, .textarea, select.input { min-height: 44px; font-size: 16px; }
+      .feature-switch { min-height: 44px; }
+      .form-hint, .form-footer-hint { font-size: 0.8125rem; }
+      .card-body details > summary { min-height: 44px; padding: 10px 0; }
+      .tf-check .tf-test { flex: 1 1 auto; }
+      input[type="file"] { min-height: 44px; width: 100%; max-width: 100%; padding: 8px 0; font-size: 15px; }
+    }
+    @media (max-width: 380px) {
+      .nav-support-compact, .btn-lock > span { display: none; }
+      .nav-support { width: 44px; padding: 8px; }
+      .nav-actions { gap: 2px; }
+    }
+    @media (max-width: 760px) {
+      .page-header-actions { width: 100%; justify-content: stretch; }
+      .page-header-actions .btn, .form-footer-actions .btn { flex: 1 1 auto; }
+      .form-footer { flex-direction: column; align-items: stretch; }
+      .form-footer-actions { justify-content: stretch; }
+      .tf-sum { grid-template-columns: 1fr; }
+      .tf-sum-actions { justify-content: stretch; }
+      .tf-sum-actions .btn { flex: 1 1 auto; }
+      .goal-grid { grid-template-columns: 1fr; }
+      .card-header { flex-wrap: wrap; row-gap: var(--sp-2); }
+      .card-header-actions { flex-wrap: wrap; gap: var(--sp-2); }
+    }
   </style>
 </head>
 <body>
@@ -6574,6 +6649,16 @@
         +(r.error?'<p>Runtime report: '+escapeHtml(r.error)+'</p>':'')
         +'<p>'+(r.destination_check?'Destination check: '+escapeHtml(r.destination_check.summary)+'.':'Destination: not tested.')+' The gateway only probes when you press Test destination; LAN clients and the application itself are not verified. A source IP filter is not authentication.</p></div></details>';
     }
+    var s_tf_open={};
+    function tfRouteHtml(r){
+      return escapeHtml((s_tf_context.uplink_ip||'this gateway')+':'+(r.listen_port||'?'))+' → '+escapeHtml((r.tailnet_destination||'?')+':'+(r.destination_port||'?'))
+        +' · '+escapeHtml((r.protocol||'tcp').toUpperCase())+'<br>from '+escapeHtml(r.allowed_source_subnet||'no source set');
+    }
+    function tfSummary(row){
+      var v=function(c){var e=row.querySelector(c);return e?e.value.trim():'';};
+      row.querySelector('.tf-sum-name').textContent=v('.tf-name')||'Unnamed rule';
+      row.querySelector('.tf-sum-route').innerHTML=tfRouteHtml({listen_port:v('.tf-listen'),tailnet_destination:v('.tf-dest'),destination_port:v('.tf-dport'),protocol:v('.tf-proto'),allowed_source_subnet:v('.tf-cidr')});
+    }
     function renderTf(){
       var box=document.getElementById('tf-list'),badge=document.getElementById('tf-badge');
       badge.textContent=s_tf_list.length+' / '+s_tf_max;
@@ -6581,18 +6666,27 @@
       if(!s_tf_list.length){box.innerHTML='<div style="padding:1rem;color:var(--text-muted);border:1px dashed var(--border);border-radius:var(--radius-md);">No LAN → Tailnet rules. New rules start disabled.</div>';return;}
       box.innerHTML=s_tf_list.map(function(r,i){
         var state=!r.enabled?'Disabled':(r.diagnostic?r.diagnostic.summary:(r.installed?'Mapping installed; service not tested':'Waiting for runtime status'));
-        return '<div class="tf-row" data-idx="'+i+'" style="border:1px solid var(--border);border-radius:var(--radius-md);padding:.75rem;margin-bottom:.5rem;">'
-          +'<div style="display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.5rem;"><span class="badge badge-neutral tf-runtime-badge" style="white-space:normal;">'+escapeHtml(state)+'</span><button class="btn btn-ghost btn-sm text-danger tf-del" type="button" aria-label="Remove rule">×</button></div>'
-          +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Name</label><input class="input tf-name" maxlength="31" value="'+escapeHtml(r.name||'')+'" placeholder="Remote MQTT"></div><div class="form-group"><label class="feature-switch"><input type="checkbox" class="tf-enabled" '+(r.enabled?'checked':'')+'><span class="feature-switch-track" aria-hidden="true"></span><span>Enabled after Save</span></label></div></div>'
-          +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Protocol</label><select class="select tf-proto"><option value="tcp" '+(r.protocol!=='udp'?'selected':'')+'>TCP</option><option value="udp" '+(r.protocol==='udp'?'selected':'')+'>UDP</option></select></div><div class="form-group"><label class="form-label">Listen port</label><input class="input mono tf-listen" type="number" min="1" max="65535" value="'+escapeHtml(r.listen_port||'')+'" placeholder="18830"></div></div>'
-          +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label">Tailnet destination</label><input class="input mono tf-dest" maxlength="95" value="'+escapeHtml(r.tailnet_destination||'')+'" placeholder="100.64.0.2 or broker.tailnet.ts.net"><span class="form-hint">Must resolve to 100.64.0.0/10.</span></div><div class="form-group"><label class="form-label">Destination port</label><input class="input mono tf-dport" type="number" min="1" max="65535" value="'+escapeHtml(r.destination_port||'')+'" placeholder="1883"></div></div>'
-          +'<div class="form-group"><label class="form-label">Allowed source subnet</label><input class="input mono tf-cidr" value="'+escapeHtml(r.allowed_source_subnet||'')+'" placeholder="192.168.50.42/32"><span class="form-hint">Prefer a single client (/32) when possible. This is an address filter, not client identity.</span></div>'
-          +tfCheckHtml(r)+tfActivityHtml(r)+tfDiagnosticHtml(r)+'</div>';
+        var tone=!r.enabled?'badge-neutral':r.error?'badge-danger':r.installed?'badge-success':'badge-warning';
+        var open=s_tf_open[i]||r._new===true;
+        return '<div class="tf-row" data-idx="'+i+'">'
+          +'<div class="tf-sum"><div><div class="tf-sum-name">'+escapeHtml(r.name||'Unnamed rule')+'</div><span class="badge '+tone+' tf-runtime-badge">'+escapeHtml(state)+'</span></div>'
+          +'<div class="tf-sum-route">'+tfRouteHtml(r)+'</div>'
+          +'<div class="tf-sum-actions"><label class="feature-switch"><input type="checkbox" class="tf-enabled" '+(r.enabled?'checked':'')+'><span class="feature-switch-track" aria-hidden="true"></span><span>Enabled after Save</span></label>'
+          +'<button class="btn btn-secondary btn-sm tf-edit" type="button" aria-expanded="'+open+'" aria-controls="tf-editor-'+i+'">'+(open?'Close editor':'Edit')+'</button></div></div>'
+          +'<div class="tf-editor" id="tf-editor-'+i+'"'+(open?'':' hidden')+'>'
+          +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label" for="tf-name-'+i+'">Name</label><input class="input tf-name" id="tf-name-'+i+'" maxlength="31" value="'+escapeHtml(r.name||'')+'" placeholder="Remote MQTT"></div><div class="form-group"><label class="form-label" for="tf-proto-'+i+'">Protocol</label><select class="select tf-proto" id="tf-proto-'+i+'"><option value="tcp" '+(r.protocol!=='udp'?'selected':'')+'>TCP</option><option value="udp" '+(r.protocol==='udp'?'selected':'')+'>UDP</option></select></div></div>'
+          +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label" for="tf-dest-'+i+'">Tailnet destination</label><input class="input mono tf-dest" id="tf-dest-'+i+'" maxlength="95" autocapitalize="off" spellcheck="false" value="'+escapeHtml(r.tailnet_destination||'')+'" placeholder="100.64.0.2 or broker.tailnet.ts.net"><span class="form-hint">Must resolve to 100.64.0.0/10.</span></div><div class="form-group"><label class="form-label" for="tf-dport-'+i+'">Destination port</label><input class="input mono tf-dport" id="tf-dport-'+i+'" type="number" inputmode="numeric" min="1" max="65535" value="'+escapeHtml(r.destination_port||'')+'" placeholder="1883"></div></div>'
+          +'<div class="grid grid-cols-2"><div class="form-group"><label class="form-label" for="tf-listen-'+i+'">Listen port on this gateway</label><input class="input mono tf-listen" id="tf-listen-'+i+'" type="number" inputmode="numeric" min="1" max="65535" value="'+escapeHtml(r.listen_port||'')+'" placeholder="18830"></div>'
+          +'<div class="form-group"><label class="form-label" for="tf-cidr-'+i+'">Allowed source subnet</label><input class="input mono tf-cidr" id="tf-cidr-'+i+'" autocapitalize="off" spellcheck="false" value="'+escapeHtml(r.allowed_source_subnet||'')+'" placeholder="192.168.50.42/32"><span class="form-hint">Prefer a single client (/32). This is an address filter, not client identity.</span></div></div>'
+          +'<div class="btn-row"><button class="btn btn-ghost btn-sm tf-del" type="button">Delete rule</button><span class="form-hint">Changes apply when you press Save below.</span></div></div>'
+          +'<div class="tf-evidence">'+tfCheckHtml(r)+tfActivityHtml(r)+tfDiagnosticHtml(r)+'</div></div>';
       }).join('');
       document.querySelectorAll('.tf-row').forEach(function(row){
-        row.querySelectorAll('input,select').forEach(function(el){el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',tfDirty);});
-        row.querySelector('.tf-del').addEventListener('click',function(){snapshotTf();s_tf_list.splice(+row.dataset.idx,1);renderTf();tfDirty();});
-        var test=row.querySelector('.tf-test');if(test)test.addEventListener('click',function(){tfTestDestination(+row.dataset.idx);});
+        var idx=+row.dataset.idx;
+        row.querySelectorAll('input,select').forEach(function(el){el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',function(){tfDirty();tfSummary(row);});});
+        row.querySelector('.tf-del').addEventListener('click',function(){if(!window.confirm('Delete this rule? It is removed when you press Save.'))return;snapshotTf();s_tf_list.splice(idx,1);s_tf_open={};renderTf();tfDirty();});
+        row.querySelector('.tf-edit').addEventListener('click',function(){var ed=row.querySelector('.tf-editor'),show=ed.hidden;ed.hidden=!show;s_tf_open[idx]=show;this.setAttribute('aria-expanded',String(show));this.textContent=show?'Close editor':'Edit';if(show)ed.querySelector('.tf-name').focus();});
+        var test=row.querySelector('.tf-test');if(test)test.addEventListener('click',function(){tfTestDestination(idx);});
       });
       if(s_tf_dirty)tfDirty();
     }
@@ -6641,7 +6735,7 @@
     function tfTemplateHint(){var t=TF_TEMPLATES[document.getElementById('tf-template').value];
       document.getElementById('tf-template-hint').textContent=t?t[4]:'Fill every field yourself. New rules always start disabled.';}
     document.getElementById('tf-template').addEventListener('change',tfTemplateHint);tfTemplateHint();
-    document.getElementById('tf-add').addEventListener('click',function(){if(!s_tf_loaded||s_tf_mutating)return;if(s_tf_list.length>=s_tf_max){showToast('error','List full','Maximum '+s_tf_max+' rules.',4000);return;}snapshotTf();var t=TF_TEMPLATES[document.getElementById('tf-template').value];s_tf_list.push({name:t?t[0]:'',enabled:false,protocol:t?t[1]:'tcp',listen_port:t?tfFreeListenPort(t[1],t[2]):'',tailnet_destination:'',destination_port:t?t[3]:'',allowed_source_subnet:''});resetTfImport();renderTf();tfDirty();});
+    document.getElementById('tf-add').addEventListener('click',function(){if(!s_tf_loaded||s_tf_mutating)return;if(s_tf_list.length>=s_tf_max){showToast('error','List full','Maximum '+s_tf_max+' rules.',4000);return;}snapshotTf();var t=TF_TEMPLATES[document.getElementById('tf-template').value];s_tf_list.push({name:t?t[0]:'',enabled:false,protocol:t?t[1]:'tcp',listen_port:t?tfFreeListenPort(t[1],t[2]):'',tailnet_destination:'',destination_port:t?t[3]:'',allowed_source_subnet:'',_new:true});resetTfImport();renderTf();tfDirty();});
     document.getElementById('tf-save').addEventListener('click',function(){
       if(!s_tf_loaded||s_tf_mutating)return;
       snapshotTf();var seen={};
@@ -7168,10 +7262,10 @@
         +     '<div class="card-header-left">'
         +       '<span class="card-title">' + escapeHtml(list.name) + ' — ' + escapeHtml(list.desc) + '</span>'
         +     '</div>'
-        +     '<div class="card-header-actions" style="display:flex; align-items:center;">'
+        +     '<div class="card-header-actions" style="display:flex; align-items:center; gap:0.5rem;">'
         +       statsBadge
         +       '<button class="btn btn-secondary btn-sm fw-add-toggle" data-acl="' + list.index + '">Add rule</button>'
-        +       '<button class="btn btn-ghost btn-sm text-danger fw-clear-btn" data-acl="' + list.index + '" style="margin-left:0.5rem;">Clear</button>'
+        +       '<button class="btn btn-ghost btn-sm text-danger fw-clear-btn" data-acl="' + list.index + '">Clear</button>'
         +     '</div>'
         +   '</div>'
         +   '<div class="card-body-flush">'
