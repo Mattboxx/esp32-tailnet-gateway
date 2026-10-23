@@ -31,8 +31,17 @@ removed. A factory reset erases everything, so the setup returns.
    gateway's own Wi-Fi, offer an exit node, keep the gateway Wi-Fi always on
    or only as a recovery network, its name and password, Simple or Advanced
    interface.
-8. **Finish:** the gateway saves everything and restarts (about 30 seconds).
-   Reconnect to the home Wi-Fi and open the address shown, or the tailnet name.
+8. **Finish:** the summary shows where the gateway will be after the restart.
+   It saves everything and restarts (about 30 seconds). Reconnect to the home
+   Wi-Fi and open one of the links shown:
+   - **http://192.168.x.y/**: the address the Wi-Fi test received. Routers
+     normally give the gateway the same address again.
+   - **http://esp32-tailnet-xxxx.local/**: the gateway's own name on the home
+     network, ending with the same code as its setup Wi-Fi. Only that gateway
+     answers to it, so several gateways on one network never collide. It works
+     on phones and computers that resolve `.local` names (iPhone, iPad, Mac,
+     Windows 10 and later, most Linux and recent Android systems).
+   - The tailnet name, once the gateway has joined the tailnet.
 
 If the home Wi-Fi later disappears, the gateway opens its own **protected**
 Wi-Fi (the name and password chosen in step 7) after 60 seconds; this

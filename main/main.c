@@ -74,6 +74,7 @@
 #include "esp_ota_ops.h"
 #include "task_reaper.h"
 #include "first_boot.h"
+#include "lan_name.h"
 
 /* The examples use WiFi configuration that you can set via project configuration menu.
 
@@ -535,6 +536,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         s_retry_num = 0;
         s_net_retries = 0;   /* successful association — clear the rotation counter */
         ap_connect = 1;
+        lan_name_uplink_up();
 
         /* Single radio: the softAP always sits on the STA's channel -- the
          * WiFi driver moves it there itself whenever the STA (re)connects,
@@ -748,6 +750,12 @@ esp_netif_t *wifi_init_sta(void)
     if (nvs_hostname && nvs_hostname[0]) {
         esp_netif_set_hostname(esp_netif_sta, nvs_hostname);
         ESP_LOGI(TAG_STA, "STA hostname → '%s'", nvs_hostname);
+    } else {
+        /* Unique per board (the setup Wi-Fi's suffix) instead of the IDF
+         * default "espressif", so routers list each gateway by its name. */
+        static char lan[LAN_NAME_MAX + 1];
+        lan_name_get(lan, sizeof lan);
+        esp_netif_set_hostname(esp_netif_sta, lan);
     }
     free(nvs_hostname);
 

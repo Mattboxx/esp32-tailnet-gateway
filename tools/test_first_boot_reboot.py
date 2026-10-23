@@ -85,7 +85,10 @@ static esp_err_t esp_wifi_get_config(wifi_interface_t i, wifi_config_t *c) { ass
 static esp_err_t esp_wifi_set_storage(wifi_storage_t s) { drv_storage = s; return ESP_OK; }
 static esp_netif_t sta_netif;
 static esp_netif_t *esp_netif_create_default_wifi_sta(void) { return &sta_netif; }
-static void esp_netif_set_hostname(esp_netif_t *n, const char *h) { (void)n; (void)h; }
+static char sta_hostname[40];
+static void esp_netif_set_hostname(esp_netif_t *n, const char *h) { (void)n; snprintf(sta_hostname, sizeof sta_hostname, "%s", h); }
+#define LAN_NAME_MAX 32
+static void lan_name_get(char *out, size_t cap) { snprintf(out, cap, "esp32-tailnet-c63d"); }
 static int s_net_current, s_net_retries;
 static void wifi_apply_network(int idx) { applied_network = idx; }
 static StaticSemaphore_t s_lock_storage; static SemaphoreHandle_t s_lock;
@@ -101,7 +104,7 @@ tests = r'''
  * (loads the driver's flash copy, FLASH storage), set_mode, the first-boot
  * storage rule, then wifi_init_sta(). */
 static void boot(void) {
-    s_active = false; applied_network = -1;
+    s_active = false; applied_network = -1; sta_hostname[0] = 0;
     drv_ram = drv_flash; drv_storage = WIFI_STORAGE_FLASH;
     first_boot_init();
     wifi_first_boot_storage();
@@ -121,6 +124,7 @@ int main(void) {
     /* Blank board: setup mode, STA idle, driver storage RAM-only. */
     factory(); boot();
     assert(first_boot_active() && drv_storage == WIFI_STORAGE_RAM && !drv_ram.sta.ssid[0] && applied_network < 0);
+    assert(!strcmp(sta_hostname, "esp32-tailnet-c63d"));   /* per-board DHCP name, also during the Wi-Fi test */
 
     /* Wi-Fi test, then power loss or crash before finishing (the regression). */
     wizard_wifi_test("HomeNet", "home-password");

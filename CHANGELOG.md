@@ -4,6 +4,34 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] — 2026-10-23
+
+### Fixed
+
+- First-boot setup could not pair on real hardware: every setup request was
+  refused with "setup is only available through the device AP". The web
+  server receives IPv4 clients as IPv4-mapped IPv6 addresses; the same defect
+  made the sign-in attempt limit treat all clients as one address.
+- The BOOT-button watcher of the setup could overflow its stack and restart
+  the gateway, which also discarded the pairing in progress.
+- A restart during setup after the Wi-Fi test (power loss, unplugging) could
+  leave the gateway in normal mode without an admin password. The Wi-Fi test
+  is no longer stored before Finish; the setup simply starts again.
+
+### Added
+
+- Each gateway answers to its own name on the home network,
+  **esp32-tailnet-xxxx.local** (the code of its setup Wi-Fi), and uses it as
+  its DHCP name unless a hostname is set. The setup summary and final page
+  link to the address received during the Wi-Fi test and to this name.
+
+### Improved
+
+- Pairing window extended to 10 minutes, with clearer messages when the
+  gateway restarted or the setup was opened in a second window.
+- Crash diagnostics keep working when code cannot be fetched from external
+  memory (panic handler in internal RAM).
+
 ## [2.0.0] — 2026-10-23
 
 ### Added

@@ -41,6 +41,10 @@ if(NOT _gz_rc EQUAL 0)
 endif()
 message(STATUS "index.html: ${_gz_out}")
 
+# Per-board "<name>.local" (lan_name.c): lwIP's own mDNS responder from the
+# pinned SDK, compiled here; ESP-IDF builds only its separate mdns component.
+set(_lwip_mdns "${IDF_PATH}/components/lwip/lwip/src/apps/mdns")
+
 idf_component_register(SRCS "main.c"
                             "ap_policy.c"
                             "log_capture.c"
@@ -81,6 +85,10 @@ idf_component_register(SRCS "main.c"
                             "ota_remote.c"
                             "first_boot.c"
                             "first_boot_core.c"
+                            "lan_name.c"
+                            "${_lwip_mdns}/mdns.c"
+                            "${_lwip_mdns}/mdns_domain.c"
+                            "${_lwip_mdns}/mdns_out.c"
                             "index_html_data.c"
                     PRIV_REQUIRES esp_wifi nvs_flash esp_event esp_netif esp_timer
                                   lwip microlink wpa_supplicant
@@ -122,6 +130,9 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
 if(EXISTS "${_mtg_root}/.git/logs/HEAD")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_mtg_root}/.git/logs/HEAD")
 endif()
+
+# Address changes are announced from the GOT_IP handler (lan_name_uplink_up).
+target_compile_definitions(${COMPONENT_LIB} PRIVATE LWIP_MDNS_RESPONDER=1 MDNS_RESP_USENETIF_EXTCALLBACK=0)
 
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip_napt_forward")
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip4_input")
