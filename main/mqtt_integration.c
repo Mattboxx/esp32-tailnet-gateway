@@ -43,6 +43,9 @@
 #include "tailnet_forward.h"
 
 static const char *TAG = "mqtt_bridge";
+/* Synchronous SDK publish/error logging can exhaust a 6 KiB manager stack
+ * during WiFi loss. Keep 3 KiB extra headroom in PSRAM, not internal RAM. */
+#define MQTT_MANAGER_STACK_BYTES 9216
 static mqtt_integration_config_t s_config;
 static SemaphoreHandle_t s_lock;
 static TaskHandle_t s_manager_task;
@@ -1007,7 +1010,7 @@ void mqtt_integration_init(void)
     xSemaphoreTake(s_lock, portMAX_DELAY);
     load_config();
     xSemaphoreGive(s_lock);
-    if (xTaskCreateWithCaps(manager_task, "mqtt_bridge", 6144, NULL, 4,
+    if (xTaskCreateWithCaps(manager_task, "mqtt_bridge", MQTT_MANAGER_STACK_BYTES, NULL, 4,
                           &s_manager_task, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS) {
         s_manager_task = NULL;
         ESP_LOGE(TAG, "Cannot allocate MQTT manager stack");
