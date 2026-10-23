@@ -27,8 +27,10 @@ void task_reaper_self_delete(void) __attribute__((noreturn));
  * through the reaper, another task is deleted directly (no allocation). */
 void task_reaper_delete(TaskHandle_t handle);
 
-/* Tasks handed over but not yet deleted, and fallbacks to the SDK path. */
+/* Tasks handed over but not yet deleted, deleted so far, and fallbacks to
+ * the SDK path. */
 unsigned task_reaper_pending(void);
+unsigned task_reaper_reaped(void);
 unsigned task_reaper_fallbacks(void);
 
 #ifdef __cplusplus

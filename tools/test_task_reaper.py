@@ -109,7 +109,7 @@ int main(void){
     assert(run_self_delete((void*)0x31)==1 && task_reaper_pending()==2);
     run_reaper();
     assert(deleted_count==2 && deleted[0]==(void*)0x30 && deleted[1]==(void*)0x31);
-    assert(!task_reaper_pending() && !queued && sdk_deletes==2);
+    assert(!task_reaper_pending() && !queued && sdk_deletes==2 && task_reaper_reaped()==2);
     /* task_reaper_delete(NULL) and (self) both self-delete via the reaper. */
     current=(void*)0x40; if(!setjmp(suspended_jump)) task_reaper_delete(NULL);
     current=(void*)0x41; if(!setjmp(suspended_jump)) task_reaper_delete((void*)0x41);
@@ -122,7 +122,7 @@ int main(void){
     assert(task_reaper_pending()==8);
     unsigned fb=task_reaper_fallbacks();
     assert(run_self_delete((void*)0x70)==3 && task_reaper_fallbacks()==fb+1 && task_reaper_pending()==8);
-    run_reaper(); assert(!task_reaper_pending() && deleted_count==13);
+    run_reaper(); assert(!task_reaper_pending() && deleted_count==13 && task_reaper_reaped()==12);
     /* The reaper never queues itself: it uses the SDK path. */
     assert(run_self_delete(reaper_handle)==3 && !queued);
     assert(!critical);

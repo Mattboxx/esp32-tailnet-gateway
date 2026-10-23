@@ -16,7 +16,7 @@ const html = builtHtml();
 const PKCS8 = Buffer.from('302e020100300506032b656e04220420', 'hex');
 const SPKI = Buffer.from('302a300506032b656e032100', 'hex');
 const LABEL = Buffer.from('mattboxx-tailnet-gateway-setup-v1');
-const SECRETS = { admin: 'Blue-Lantern-42-river', wifi: 'home-wifi-passphrase-9', key: 'synthetic-preauth-0123456789' };
+const SECRETS = { admin: 'Blue-Lantern-42-river', wifi: 'home-wifi-passphrase-9', key: 'synthetic-headscale-preauth-0123456789' };
 const shots = process.argv[2];
 
 function mockGateway(opts = {}) {
