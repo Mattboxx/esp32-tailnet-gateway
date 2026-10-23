@@ -27,5 +27,5 @@ order: 7
 <p>The separate <code>esp32-s3-eth</code> image supports an explicitly wired W5500 SPI module: off by default, explicit pins, DHCP or static IPv4, WiFi-first or Ethernet-first. It is host-tested only and <strong>not validated on real hardware</strong>. Never flash it onto a board without the module wired as documented in <a href="{{repo}}/blob/Main/docs/ETHERNET.md">docs/ETHERNET.md</a>.</p>
 
 <h2>Single radio</h2>
-<p>Firmware v2.0.1 keeps all four interface languages in the WiFi build. The experimental W5500 build serves English only to stay within its application partition.</p>
+<p>Firmware v2.0.2 keeps all four interface languages in the WiFi build. The experimental W5500 build serves English only to stay within its application partition.</p>
 <p>The uplink and the access point share one 2.4 GHz radio and channel. After a roam to a different channel the device realigns the AP, which briefly interrupts AP clients.</p>

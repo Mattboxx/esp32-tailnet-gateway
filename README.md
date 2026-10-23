@@ -9,11 +9,12 @@
 All-in-one ESP32-S3 Tailscale/Headscale gateway with selective LAN-to-Tailnet
 access, subnet routing, remote recovery and optional automation.
 
-> **Firmware v2.0.1 is available.** [Download the release](../../releases/tag/v2.0.1),
+> **Firmware v2.0.2 is available.** [Download the release](../../releases/tag/v2.0.2),
 > use the browser installer, or choose the Easy Install package below.
-> Existing gateways can update without resetting their settings. New
-> installations should use 2.0.1: it fixes first-boot pairing on real boards
-> and shows where to find the gateway after setup.
+> Existing gateways keep their settings. **From v2.0.0 or v2.0.1, update once
+> by hand** (upload `firmware.bin` in System → Firmware, or Easy Install keep
+> settings): their built-in GitHub updater restarts without installing. Later
+> updates work from the Web UI again.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0B7A4B.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
@@ -40,7 +41,7 @@ access, subnet routing, remote recovery and optional automation.
 
 ### What's new in Firmware v2?
 
-| Legacy 1.13 | Firmware v2.0.1 |
+| Legacy 1.13 | Firmware v2.0.2 |
 |---|---|
 | LAN → Tailnet TCP/UDP forwarding with source restrictions and MagicDNS | Destination tests, timed access, Service Watch and guided rule setup |
 | Subnet routing, AP gateway, exit-node roles and 4via6 | Refreshed goal-oriented UI, Simple/Advanced modes and profiles |
@@ -49,8 +50,10 @@ access, subnet routing, remote recovery and optional automation.
 | Existing setup and Windows flash package | Physically paired first-boot wizard, browser installation and Easy Install for Windows/macOS/Linux |
 | Find the gateway's address in the router | Per-board `esp32-tailnet-xxxx.local` name and the address shown at the end of setup |
 
-**2.0.1** fixes first-boot pairing (every setup request was refused on real
-hardware), a BOOT-button watcher crash and a restart during setup that could
+**2.0.2** fixes the built-in GitHub firmware update (it restarted with a
+panic while beginning the update, or could hang under low memory) and returns
+internal memory to the VPN. **2.0.1** fixed first-boot pairing on real
+hardware, a BOOT-button watcher crash and a restart during setup that could
 leave a gateway without an admin password. See the [changelog](CHANGELOG.md).
 
 The advanced workflows described below require Firmware v2.0.0 or later unless listed in
@@ -125,7 +128,7 @@ their changes and can be rolled back.
 
 ## 6. Quick start
 
-These steps apply to Firmware v2.0.1. For legacy installations use
+These steps apply to Firmware v2.0.2. For legacy installations use
 the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
 
 1. **Install** by desktop browser, Easy Install or advanced download below.
@@ -164,7 +167,7 @@ Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailnet-gateway
 | **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/) |
 | **Advanced downloads** | Web UI OTA, manual flashing or experimental W5500 | [Downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/) with exact checksums, variant labels and recovery notes |
 
-Use the releases page for available Firmware v2.0.1 builds. The
+Use the releases page for available Firmware v2.0.2 builds. The
 [legacy 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13) retains its original files:
 
 | Asset | Use |
@@ -334,11 +337,11 @@ packaging. The full list is in [CUSTOM_BRANCH.md](CUSTOM_BRANCH.md) and the
 
 ## 18. Installation and OTA updates
 
-For **Firmware v2.0.1**, the browser route is the easiest first install. Safari,
+For **Firmware v2.0.2**, the browser route is the easiest first install. Safari,
 Firefox and phone browsers should use a desktop computer and Easy Install.
 
 **Easy Install:** unzip
-`ESP32-Tailnet-Gateway-v2.0.1-EASY-INSTALL-Windows-macOS-Linux.zip` and read
+`ESP32-Tailnet-Gateway-v2.0.2-EASY-INSTALL-Windows-macOS-Linux.zip` and read
 `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3 and
 esptool 5. The scripts verify checksums and the ESP32-S3 target first.
 

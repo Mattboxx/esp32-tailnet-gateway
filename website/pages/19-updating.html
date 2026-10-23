@@ -1,7 +1,7 @@
 <!--
 slug: updating/
 title: Updating
-description: Update ESP32 Tailnet Gateway to Firmware v2.0.1 over the air or by USB, keeping settings. Learn how earlier versions migrate and how to preserve recovery options.
+description: Update ESP32 Tailnet Gateway to Firmware v2.0.2 over the air or by USB, keeping settings. Learn how earlier versions migrate and how to preserve recovery options.
 group: Start
 order: 3
 -->
@@ -15,6 +15,9 @@ order: 3
   <li>The gateway writes the free slot, restarts into it and keeps the previous image. If the new image does not start correctly, it returns to the previous one.</li>
 </ol>
 <p>The Ethernet variant updates only from <code>firmware-eth.bin</code>; the two images are never mixed.</p>
+
+<h2 id="from-v2-0">From v2.0.0 or v2.0.1</h2>
+<p>Update <strong>once by hand</strong>: upload <code>firmware.bin</code> in <strong>System → Firmware</strong>, or use USB keeping settings. The built-in GitHub updater of those two versions restarts the gateway without installing anything; with automatic installation enabled it may do so at its install hour until you update. From v2.0.2 the GitHub update works again.</p>
 
 <h2 id="usb">By USB, keeping settings</h2>
 <p>Use the <a href="{{root}}install-firmware/">browser installer</a> with <strong>Erase device</strong> unticked, or <code>UPDATE-KEEP-SETTINGS</code> / <code>install.sh update</code> from the <a href="{{root}}easy-install/">Easy Install package</a>.</p>
