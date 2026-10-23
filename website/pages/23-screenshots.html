@@ -1,0 +1,30 @@
+<!--
+slug: screenshots/
+title: Firmware screenshots
+search_title: ESP32 Tailscale Gateway Web UI — Real Firmware Screenshots
+description: See the real ESP32 Tailnet Gateway Web UI: role selection, selective LAN-to-Tailnet service setup and Wake-on-LAN recovery guides on Firmware v2.0.0.
+group: Project
+order: 23
+image: assets/screenshots/esp32-tailnet-gateway-live-goals.jpg
+-->
+<h1>The real firmware Web UI</h1>
+<p>These screenshots were captured from <strong>Firmware v2.0.0 running on an ESP32-S3</strong>. They are not design mockups or AI-generated images. Only the relevant panels are shown: addresses, peer names, credentials and browser chrome are outside the capture.</p>
+<p>The same built-in interface works in a desktop or mobile browser. English is shown here; Italian, Spanish and Simplified Chinese are also available. No separate administration app is required.</p>
+
+<h2 id="roles">Choose the job, not a wall of settings</h2>
+<div class="ui-preview">
+  <figure class="ui-shot"><a href="{{root}}assets/screenshots/esp32-tailnet-gateway-live-goals.jpg"><img src="{{root}}assets/screenshots/esp32-tailnet-gateway-live-goals.jpg" alt="Live firmware role selection: connect a LAN device to a Tailnet service, reach this network, create an IoT WiFi, recover a NAS or connect Home Assistant" width="604" height="1051" decoding="async"></a><figcaption>Actual goal selection panel. Open an image to see it at full size.</figcaption></figure>
+  <div><h3>One device, optional roles</h3><p>The dashboard links to guides for the Service Gateway, subnet routing, an IoT access point, recovery and Home Assistant. Choosing a guide does not automatically change the device configuration.</p><p><a href="{{root}}network-modes/">Understand the different network roles</a></p><p><a href="{{root}}install-firmware/" class="btn primary">Install Firmware</a></p></div>
+</div>
+
+<h2 id="simple-mode">Start simple, reveal advanced controls when needed</h2>
+<div class="ui-preview">
+  <figure class="ui-shot"><a href="{{root}}assets/screenshots/esp32-tailnet-gateway-live-interface-mode.jpg"><img src="{{root}}assets/screenshots/esp32-tailnet-gateway-live-interface-mode.jpg" alt="Live firmware interface settings with Simple and Advanced mode switch and browser-local language selection" width="603" height="349" loading="lazy" decoding="async"></a><figcaption>Actual interface preferences. Language and visibility choices stay in the browser.</figcaption></figure>
+  <div><h3>The same firmware, less visual clutter</h3><p>Simple mode hides expert sections without disabling their existing settings. Advanced mode reveals the additional controls. Technical values and addresses are never translated.</p><p><a href="{{root}}getting-started/">Get started with the firmware</a></p></div>
+</div>
+
+<h2 id="profiles">Preview a profile before applying it</h2>
+<div class="ui-preview">
+  <figure class="ui-shot"><a href="{{root}}assets/screenshots/esp32-tailnet-gateway-live-profiles.jpg"><img src="{{root}}assets/screenshots/esp32-tailnet-gateway-live-profiles.jpg" alt="Live Gateway profile selector with Preview changes, disabled Apply previewed changes, and Roll back last profile change controls" width="603" height="432" loading="lazy" decoding="async"></a><figcaption>Actual profile panel. The selected preset is not applied until you preview and confirm it.</figcaption></figure>
+  <div><h3>Presets, not separate downloads</h3><p>Gateway, Recovery, IoT and Monitoring are profiles of the same firmware. Presets enable low-risk optional settings after a preview; they do not silently open network access.</p><p><a href="{{root}}service-gateway/">Use selective service forwarding</a> or <a href="{{root}}remote-recovery/">wake a NAS or PC over Tailscale</a>.</p></div>
+</div>

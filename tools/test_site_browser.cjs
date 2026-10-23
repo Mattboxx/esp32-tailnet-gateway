@@ -15,7 +15,7 @@ const expectsPreviewNotice = homepage.includes('aria-label="Firmware availabilit
 const projectPath = new URL(canonical).pathname;
 const remoteBase = process.env.SITE_TEST_BASE_URL;
 const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml',
-  '.png': 'image/png', '.xml': 'application/xml', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json' };
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.xml': 'application/xml', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((req, res) => {
   const requestPath = decodeURIComponent(req.url.split('?')[0]);
   if (!requestPath.startsWith(projectPath)) { res.writeHead(404); return res.end('wrong project path'); }
@@ -84,6 +84,17 @@ pages.unshift('');
       const hits = await page.locator('#search-results a').count();
       if (!hits) failures.push(`${width}: search found nothing for "headscale"`);
       await page.keyboard.press('Escape');
+      await page.goto(base + 'screenshots/', { waitUntil: 'load' });
+      const uiImages = page.locator('main img');
+      for (let i = 0; i < await uiImages.count(); i++) {
+        const img = uiImages.nth(i);
+        await img.scrollIntoViewIfNeeded();
+        await img.evaluate(el => el.decode());
+        const dimensions = await img.evaluate(el => ({w:el.naturalWidth,h:el.naturalHeight,
+          expectedW:Number(el.getAttribute('width')),expectedH:Number(el.getAttribute('height'))}));
+        if (dimensions.w !== dimensions.expectedW || dimensions.h !== dimensions.expectedH)
+          failures.push(`${width}: screenshot dimensions mismatch ${await img.getAttribute('src')}`);
+      }
       if (errors.length) failures.push(`${width}: console/page errors ${[...new Set(errors)].slice(0, 3).join(' | ')}`);
       await context.close();
     }

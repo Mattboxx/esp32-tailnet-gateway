@@ -1,6 +1,7 @@
 <!--
 slug: automation/
 title: Automation and integrations
+search_title: ESP32 Tailscale Gateway with MQTT & Home Assistant Discovery
 description: Optional MQTT, Home Assistant Discovery, ntfy and SNMP integration for the ESP32 Tailnet Gateway, isolated from routing and administration.
 nav: Automation
 group: Guides
@@ -15,6 +16,7 @@ order: 5
 </figure>
 
 <h2>MQTT and Home Assistant</h2>
+<p>Two different jobs: the <strong>gateway's MQTT integration</strong> exposes its own controls and status to Home Assistant; <strong>LAN → Tailnet forwarding</strong> lets an ordinary LAN device reach a remote MQTT broker. You can use either independently. <a href="{{root}}mqtt-across-networks/">Connect MQTT devices across two homes</a>.</p>
 <ul>
   <li>Retained availability and state with Last Will; bounded snapshot size.</li>
   <li>Discovery entities: Service Gateway rule switches and destination-test buttons, Wake-on-LAN and recovery buttons, Service watch, profile and status sensors.</li>

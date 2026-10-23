@@ -1,6 +1,7 @@
 <!--
 slug: remote-recovery/
 title: Remote recovery
+search_title: Wake a NAS or PC Over Tailscale — ESP32 Wake-on-LAN
 description: Wake a NAS or PC over Tailscale with an independently powered ESP32: Wake-on-LAN, bounded Smart Recovery checks and a recovery access point.
 nav: Recovery
 group: Guides
@@ -15,6 +16,7 @@ order: 4
 </figure>
 
 <h2>Requirements</h2>
+<p>If Tailscale runs only on your NAS, shutting the NAS down also removes that access point. The ESP32 runs as a separate Tailnet node: open its Web UI remotely and send Wake-on-LAN without keeping another Linux server or Home Assistant running. <a href="{{root}}screenshots/">See the actual firmware interface</a>.</p>
 <ul>
   <li>A target that supports Wake-on-LAN, with WoL enabled in its firmware/OS and standby power.</li>
   <li>The ESP32 powered independently of the target, on the same LAN broadcast domain.</li>
