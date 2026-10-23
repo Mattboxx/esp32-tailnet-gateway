@@ -280,6 +280,12 @@ CONFIG_LWIP_TCPIP_TASK_STACK_SIZE=6144
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
 CONFIG_ESP_COREDUMP_CHECKSUM_CRC32=y
+# Panic handler in IRAM: a spare board reset three times (TG1WDT) during
+# setup without printing a single panic line or saving a core dump
+# ("Panic handler entered multiple times"). Code runs from PSRAM (XiP), so
+# a handler that cannot fetch its own code leaves no evidence. Costs
+# internal RAM; log_capture.c refuses a stale sdkconfig without it.
+CONFIG_ESP_PANIC_HANDLER_IRAM=y
 
 # --- Compiler ---------------------------------------------------------------
 # Perf opt buys ~10-15% tunnel throughput on the WG userspace stack
