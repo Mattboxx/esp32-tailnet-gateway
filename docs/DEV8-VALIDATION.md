@@ -122,7 +122,9 @@ Physical dev.8 results:
 `tools/test_mqtt_lab_device.py` with the local lab broker on the bench PC's
 tailnet address and a synthetic locally administered WoL MAC sent only to the
 bench PC. Password typed by the owner in a hidden prompt; nothing stored.
-Concurrent passive serial capture (no reset): private `dev8-lab-serial-45min.log`.
+Concurrent passive serial capture (no reset): private `dev8-lab-serial-45min.log`,
+requested 45 min, stopped deliberately at 1466 s after both runs (PARTIAL by
+design, no summary file); COM3 released and verified free afterwards.
 
 Run 1 (09:17, private `mqtt-lab-20261023-092841.json`):
 - PASS: runtime MQTT reconfiguration connected; 74 Home Assistant Discovery
@@ -140,8 +142,32 @@ Run 1 (09:17, private `mqtt-lab-20261023-092841.json`):
 - RAM during the run: internal free 13.0–13.4 KB, largest block 3456 B and
   lifetime minimum 8043 B unchanged in every phase, sockets 8–9.
 
-Run 2 (WoL over MQTT, two Wi-Fi/DERP reconnect cycles): **PENDING** — the
-corrected tool is waiting for the owner to type the password once more.
+Run 2 (09:35, private `mqtt-lab-20261023-093918.json`, serial captured), no reboot:
+- Repeated run-1 MQTT/HA/outage checks: same PASS results (74 configs, 0
+  invalid, broker reconnect 3.2 s); board resubscribed before commands.
+- **WoL over MQTT PASS** (`wol/<mac>` with `PRESS`), WoL over HTTP PASS, list
+  restored exactly.
+- **In-session Wi-Fi / DERP / control stream loss PASS, 2 of 2 cycles** via the
+  existing `reconnect_wifi` command: loss seen after 7.1 s, control connected
+  and policy authority ready again after **16.1 s and 13.4 s**. Serial shows
+  each time: STA disconnect, `coord_recv` failure, DERP read error and
+  reconnect, Got IP after 2–3 s, DERP TLS reconnected ~5.5 s after the drop,
+  new Noise handshake, full MapResponse (10 peers) and long-poll resumed; MQTT
+  reconnected and republished Discovery; the second cycle's command was
+  received over that reconnected session. No panic/WDT/reboot/allocation
+  failure in the capture; internal heap ≥ 9407 B; largest block 3456 B and
+  lifetime minimum 8043 B unchanged.
+- Tool result exit 1 only because its new per-cycle "fresh online" check
+  started its clock after control recovery, while MQTT had already reconnected
+  and published "online" before that point. Not a firmware failure; the check
+  needs to start at the drop (follow-up for the tool).
+- Hardware confirmation of the `ts_connect` analysis below: two `Got IP`
+  events produced no `ts_connect` log line, consistent with its 4096 B internal
+  stack not being allocatable (largest block 3456 B). Harmless here because
+  the VPN instance was already running.
+- Scope: one tailnet client, Wi-Fi drop of a few seconds on the same AP. Not a
+  forced-DERP data path, a long outage, a control-plane-only failure or an
+  identity matrix.
 
 ## Internal RAM analysis (Claude, 2026-10-23)
 
@@ -163,8 +189,11 @@ Where reconnect paths allocate (source and `sdkconfig.esp32-s3` review):
   are created once at start; DERP/control reconnects reuse them.
 - Every Wi-Fi `GOT_IP` spawns `ts_connect` with a 4096 B internal stack
   (`main/main.c`). After the first start it is a no-op ("Already initialized");
-  if the stack cannot be allocated the failure is silent and harmless, except
-  that it is also the only retry when the very first start failed. Low risk.
+  on hardware the spawn evidently failed silently after both reconnects (no log
+  line). Harmless while the instance runs, but it is also the only retry when
+  the very first start failed. Low risk; suggested fix for Codex: skip the
+  spawn when the instance exists, create it with a PSRAM stack
+  (`xTaskCreateWithCaps`) and log a failed creation, with a unit test.
 - **Residual risk:** esp-mqtt creates `mqtt_task` with a 6144 B internal stack
   on every client start (first enable, configuration change, or after the 30 s
   connect timeout destroys the client); ESP-IDF 5.5 esp-mqtt has no PSRAM stack

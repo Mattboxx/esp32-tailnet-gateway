@@ -12,8 +12,8 @@ HERE" of [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md); gate table in
 - Installed dev.8 WiFi `b70ff745…08e1361f` on ota_0, stable 1.13 on ota_1; no
   reflash by Claude. COM3 released. No push/release/rename/Pages.
 - Qualified this session: one-hour observation, MQTT/HA lab, broker outage,
-  WoL over HTTP, Windows 64/64, Linux 60/60. Integrations lab run 2 (WoL over
-  MQTT, in-session Wi-Fi/DERP reconnect): see DEV8-VALIDATION.
+  WoL over HTTP and MQTT, two in-session Wi-Fi/DERP/control reconnects
+  (authority back in 16.1 s / 13.4 s), Windows 64/64, Linux 60/60.
 - Open: two independent identities, recovery AP, power loss during OTA/NVS,
   W5500, MQTT enable-from-OFF RAM risk, real HA/ntfy, authenticated UI review,
   final-version image and its requalification/package (ADR-026).
