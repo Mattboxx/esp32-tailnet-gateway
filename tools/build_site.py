@@ -39,10 +39,10 @@ DESCRIPTION = ('All-in-one ESP32-S3 Tailscale/Headscale gateway with selective '
                'LAN-to-Tailnet access, subnet routing, remote recovery and optional automation.')
 STABLE_VERSION = '0.1.38-Mattboxx-1.13'
 STABLE_TAG = 'v' + STABLE_VERSION
-# Firmware v2.0.0: keep NEXT_PUBLISHED False until the qualified release
+# Current firmware: keep NEXT_PUBLISHED False until the qualified release
 # exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
 # released files (see website/firmware/README.md); the build verifies them.
-NEXT_VERSION = '2.0.0'
+NEXT_VERSION = '2.0.1'
 NEXT_PUBLISHED = True
 FIRMWARE_DIR = SRC / 'firmware'
 EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/

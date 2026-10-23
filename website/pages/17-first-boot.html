@@ -19,7 +19,7 @@ order: 1
   <li><strong>Connect to Wi-Fi:</strong> pick your home network from the list, enter its password and press <em>Test connection</em>. Your phone may lose the setup network for a moment; it reconnects by itself.</li>
   <li><strong>Connect your Tailnet:</strong> paste a Tailscale or Headscale auth key, or skip and do it later from the dashboard.</li>
   <li><strong>Choose your gateway role:</strong> connect a device to your Tailnet, connect a network, IoT gateway, wake or recover a NAS/PC, Home Assistant &amp; automation, or advanced configuration. Also name the gateway's own Wi-Fi and set its password.</li>
-  <li><strong>Finish:</strong> the gateway saves everything and restarts. Rejoin your home Wi-Fi and open the address shown, or the gateway's name on your tailnet. Sign in, and the guide for the role you chose opens once.</li>
+  <li><strong>Finish:</strong> the summary shows where the gateway will be, then it saves everything and restarts. Rejoin your home Wi-Fi and open one of the links on the last page: the address received during the Wi-Fi test, or <code>http://esp32-tailnet-xxxx.local/</code>, where <code>xxxx</code> is the code of its setup Wi-Fi. Only that gateway answers to the name, so several gateways on one network never collide; it works on iPhone, Mac, Windows 10 and later and most Linux and recent Android devices. Once enrolled, the gateway's tailnet name works too. Sign in, and the guide for the role you chose opens once.</li>
 </ol>
 
 <h2 id="security">Why the setup network is open, and how it is protected</h2>
