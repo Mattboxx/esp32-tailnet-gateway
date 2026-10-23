@@ -225,10 +225,10 @@ def scenarios(exe):
     # Idle claimed session expires after 30 minutes.
     assert d.cmd(f'state {a.sid} {(18 + 1800) * S}') == 'S 0'
     assert a.open(9, msg, (18 + 1801) * S) == 'ERR 3'
-    # Pending pairing expires after 2 minutes; presence then finds nothing.
+    # Pending pairing expires after 10 minutes; presence then finds nothing.
     assert b.begin(4000 * S) == 'OK'
-    assert d.cmd(f'presence {(4000 + 121) * S}') == 'R 3'
-    assert d.cmd(f'state {b.sid} {(4000 + 121) * S}') == 'S 0'
+    assert d.cmd(f'presence {(4000 + 601) * S}') == 'R 3'
+    assert d.cmd(f'state {b.sid} {(4000 + 601) * S}') == 'S 0'
     # Same client may re-pair (lost page); the old key stops working.
     assert a.begin(5000 * S) == 'OK'; assert d.cmd(f'presence {5001 * S}') == 'R 0'
     old_key, old_sid = a.key, a.sid

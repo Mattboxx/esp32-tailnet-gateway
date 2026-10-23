@@ -208,6 +208,15 @@ async function flow(browser, [width, height, locale], failures, full) {
     await p2.waitForFunction(() => /Attempts left: 4/.test(document.getElementById('fb-error').textContent));
     await p2.fill('#fb-code', '1234 5678'); await p2.click('#fb-code-btn');
     await p2.waitForSelector('#fb-pw', { state: 'visible' });
+    // Gateway restarted during pairing (real board: console opened): the page says
+    // so instead of "expired", the code is refused cleanly, and Try again recovers.
+    const p4 = await context.newPage(); const g4 = mockGateway(); await p4.route('http://esp32.test/**', g4.handle);
+    await p4.goto('http://esp32.test/'); await p4.waitForFunction(() => document.getElementById('fb-pair-status').textContent.includes('BOOT'));
+    g4.sid = 'restarted';
+    await p4.waitForFunction(() => /pairing was reset/.test(document.getElementById('fb-pair-status').textContent));
+    assert.ok(await p4.isVisible('#fb-retry'));
+    await p4.click('#fb-retry'); await p4.waitForFunction(() => document.getElementById('fb-pair-status').textContent.includes('BOOT'));
+    g4.press(); await p4.waitForSelector('#fb-pw', { state: 'visible' });
     // Another device already pairing: clear message and a retry button.
     const p3 = await context.newPage(); const g3 = mockGateway({ busy: true }); await p3.route('http://esp32.test/**', g3.handle);
     await p3.goto('http://esp32.test/'); await p3.waitForSelector('#fb-retry', { state: 'visible' });
