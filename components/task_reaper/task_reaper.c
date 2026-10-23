@@ -17,7 +17,7 @@ static uint8_t s_queue_buffer[REAPER_QUEUE_LEN * sizeof(TaskHandle_t)];
 static QueueHandle_t s_queue;
 static TaskHandle_t s_reaper;
 static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
-static unsigned s_pending, s_fallbacks;
+static unsigned s_pending, s_fallbacks, s_reaped;
 
 static void reaper_task(void *arg)
 {
@@ -31,6 +31,7 @@ static void reaper_task(void *arg)
         vTaskDeleteWithCaps(victim);
         taskENTER_CRITICAL(&s_lock);
         if (s_pending) s_pending--;
+        s_reaped++;
         taskEXIT_CRITICAL(&s_lock);
     }
 }
@@ -97,6 +98,14 @@ unsigned task_reaper_pending(void)
 {
     taskENTER_CRITICAL(&s_lock);
     unsigned n = s_pending;
+    taskEXIT_CRITICAL(&s_lock);
+    return n;
+}
+
+unsigned task_reaper_reaped(void)
+{
+    taskENTER_CRITICAL(&s_lock);
+    unsigned n = s_reaped;
     taskEXIT_CRITICAL(&s_lock);
     return n;
 }

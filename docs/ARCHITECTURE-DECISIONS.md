@@ -2,6 +2,27 @@
 
 Decisions are explicit, revisable with evidence and never remove approved scope.
 
+## ADR-029 — First-boot setup: open AP, physical pairing, sealed requests (2026-10-23)
+
+The owner asked for an AP + captive-portal first boot with no default admin
+password. A secured setup AP would need a pre-shared secret the board cannot
+show (no display or label), so the setup AP is open but only on a truly
+unconfigured device (no admin password, Wi-Fi, tailnet key or `setup_done`
+marker); every existing installation writes the marker once and never opens it.
+Abusive configuration is blocked by physical presence (BOOT button, or an
+8-digit console code with five attempts per boot), one pairing at a time.
+Interception is blocked by an X25519 session key and AES-256-GCM sealing of
+every setup request with an increasing sequence; plain WebCrypto is not
+available on http, so the page uses the bundled SJCL for GCM/SHA-256 and a
+TweetNaCl-derived X25519, the firmware MicroLink's X25519 and mbedTLS. All
+other APIs answer 403 in setup mode and the AP forwards nothing. The final
+apply saves the protected AP and the admin password first, then the rest, then
+the marker, and restarts. Residual risk accepted and documented: an attacker
+present during setup can impersonate the AP and serve a modified page. The
+recovery AP is unchanged and always protected. Existing `/api/auth/setup`
+stays for configured devices without a password (1.13 behaviour) but is
+refused in setup mode. Flash cost about 30 KB (WiFi 97.1 %, Ethernet 99.9 %).
+
 ## ADR-028 — WithCaps workers exit through a persistent reaper (2026-10-23)
 
 ESP-IDF 5.5.3 `vTaskDeleteWithCaps(NULL)` (a task deleting itself) creates a

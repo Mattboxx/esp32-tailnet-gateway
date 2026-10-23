@@ -121,7 +121,7 @@ def phase(result, name, fn):
         return False
 
 
-def main():
+def arguments():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('host')
     ap.add_argument('--bench-ip', required=True)
@@ -132,12 +132,23 @@ def main():
     ap.add_argument('--wifi-reconnect', type=int, nargs='?', const=1, default=0, metavar='CYCLES',
                     help='Also send the existing reconnect_wifi command CYCLES times (default 1) and '
                     'time in-session recovery of Wi-Fi, control, policy authority and MQTT')
+    return ap
+
+
+def main():
+    ap = arguments()
     a = ap.parse_args()
     if not 0 <= a.wifi_reconnect <= 5:
         ap.error('--wifi-reconnect accepts 0..5 cycles')
     password = getpass.getpass('Device password (not saved): ')
     api = login(a.host, password=password)
     password = None
+    ok, _ = run(api, a)
+    return 0 if ok else 1
+
+
+def run(api, a):
+    """Whole lab exercise on an authenticated session; returns (passed, result)."""
     before = api('/api/mqtt')
     snapshot = {k: before[k] for k in KEYS if k in before}
     result = {'version': api('/api/system')['version'], 'started': time.strftime('%Y-%m-%dT%H:%M:%S'),
@@ -145,7 +156,7 @@ def main():
               'phase_errors': {}}
     if before.get('broker_watchdog_enabled'):
         result['blocked'] = 'broker watchdog enabled: test not started to avoid a real Wake-on-LAN after restore'
-        print(json.dumps(result, indent=2)); return 2
+        print(json.dumps(result, indent=2)); return False, result
     checks = result['checks']; mem = result['memory']
     mem['start'] = memory(api)
     uptime_start = api('/api/status')['uptime_s']
@@ -272,7 +283,7 @@ def main():
         cyc['mqtt_back_seconds'] = round(time.monotonic() - t1, 1)
         # A fresh "online" means command topics are subscribed again (next cycle).
         cyc['resubscribed'] = wait(lambda: any(
-            ts > t1 and t.endswith('/availability') and p.strip().lower() in (b'online', b'"online"')
+            ts > t0 and t.endswith('/availability') and p.strip().lower() in (b'online', b'"online"')
             for ts, t, p, _ in state['observer'].topics(base + '/')), 60, 0.5)
         time.sleep(20)  # let DERP/TLS settle before sampling
         mem[f'after_wifi_cycle_{i}'] = memory(api)
@@ -326,7 +337,7 @@ def main():
         ok = ok and len(cycles) == a.wifi_reconnect and all(
             c['loss_observed'] and c['recovered_seconds'] is not None and c['no_reboot'] and c['mqtt_back'] and c['resubscribed']
             for c in cycles)
-    return 0 if ok else 1
+    return bool(ok), result
 
 
 if __name__ == '__main__':

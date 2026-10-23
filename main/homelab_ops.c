@@ -396,7 +396,7 @@ cJSON *homelab_ops_snapshot(bool detailed) {
     cJSON_AddBoolToObject(root,"lease_notifications",s.lease_notifications);
     cJSON_AddNumberToObject(root,"service_closures",service_closures);
     cJSON_AddNumberToObject(root,"module_restarts",supervisor.restarts);
-    cJSON_AddNumberToObject(root,"task_reaper_pending",task_reaper_pending());cJSON_AddNumberToObject(root,"task_reaper_fallbacks",task_reaper_fallbacks());
+    cJSON_AddNumberToObject(root,"task_reaper_pending",task_reaper_pending());cJSON_AddNumberToObject(root,"task_reaper_fallbacks",task_reaper_fallbacks());cJSON_AddNumberToObject(root,"task_reaper_reaped",task_reaper_reaped());
     cJSON_AddNumberToObject(root,"minimum_internal",s.minimum_internal);cJSON_AddNumberToObject(root,"minimum_largest",s.minimum_largest);
     cJSON_AddNumberToObject(root,"socket_reserve",s.socket_reserve);cJSON_AddNumberToObject(root,"interval_s",s.interval_s);
     cJSON *history=cJSON_AddArrayToObject(root,"events");

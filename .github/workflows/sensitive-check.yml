@@ -39,5 +39,14 @@ jobs:
           ref: 6af4446a48ea7fa54948edc4e62277ed70abb6e1
           path: .test-deps/esp-mqtt
           persist-credentials: false
+      - name: Espressif mbedTLS 3.6.5 for first-boot setup crypto regressions (AES-GCM/SHA-256 only)
+        uses: actions/checkout@v7
+        with:
+          repository: espressif/mbedtls
+          ref: c3db4124ce35e6a698019bd62a281f16ddb677a6
+          path: .test-deps/mbedtls
+          persist-credentials: false
+      - name: Independent client crypto for first-boot setup regressions
+        run: python3 -m pip install cryptography==44.0.2
       - name: Consolidated offline validation
-        run: LWIP_SOURCE=.test-deps/esp-lwip MQTT_SOURCE=.test-deps/esp-mqtt/mqtt_client.c python3 tools/validate_all.py --sanitizers
+        run: LWIP_SOURCE=.test-deps/esp-lwip MQTT_SOURCE=.test-deps/esp-mqtt/mqtt_client.c MBEDTLS_DIR=.test-deps/mbedtls python3 tools/validate_all.py --sanitizers
