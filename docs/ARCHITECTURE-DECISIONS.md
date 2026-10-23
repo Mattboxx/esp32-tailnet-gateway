@@ -2,6 +2,30 @@
 
 Decisions are explicit, revisable with evidence and never remove approved scope.
 
+## ADR-026 — Package the exact tested image; builds are not bit-reproducible (2026-10-23)
+
+Four consecutive links of unchanged dev.8 sources produced four different
+`.flash.text` sizes (1,178,720 / 1,178,548 / 1,178,324 / 1,178,328 B) and
+hashes, also with `PYTHONHASHSEED=0`. The verbose link commands contain the
+same 372 arguments in a different library order. That order comes from the
+PlatformIO espidf builder (`find_lib_deps`), outside this repository. The
+symbol set and types are identical (12,410 symbols); only placement changes,
+and with it the Xtensa linker relaxation (`call8` versus `l32r`+`callx8`,
+narrow versus wide instructions). The bootloader, partition table and OTA data
+images are reproducible.
+
+Decision: a package contains the byte-identical image that was installed and
+tested, never a rebuild of it. `package_release.py` already refuses a build
+whose `firmware.bin` differs from `--tested-sha256`; for a candidate whose build
+directory has since been relinked, stage the saved snapshot with the same-source
+bootloader/partition/OTA data and build description, and record that staging.
+Any rebuild, including a version-string change for a stable release, is a new
+image that needs its own install and qualification. Do not patch the
+third-party PlatformIO builder in place. Library order within one
+`--start-group` is not a functional dependency today; if duplicate global
+definitions are ever introduced, the varying order could select a different
+one, so the identical-symbol check stays part of the comparison.
+
 ## ADR-025 — Optional SNMP stack uses PSRAM on supported builds (2026-10-23)
 
 Dev.7 physically failed its 4096-byte internal task-stack allocation while the

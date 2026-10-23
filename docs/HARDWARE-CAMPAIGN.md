@@ -110,3 +110,37 @@ Credentials and sessions stay in memory and out of reports.
 
 If Windows Firewall drops the echo port on the tailnet interface, record the
 test as BLOCKED; do not change host firewall settings for the test.
+
+## 8. Integrations lab (MQTT/Home Assistant, Wake-on-LAN, Wi-Fi reconnect)
+
+`python tools/test_mqtt_lab_device.py <board-tailnet-ip> --bench-ip <pc-tailnet-ip> --wol-lan-ip <pc-lan-ip> --wifi-reconnect`
+
+The tool asks for the device password in a hidden prompt, starts
+`tools/lab_mqtt_broker.py` on the bench address only, points the board at it
+(the stored MQTT password is neither sent nor changed), checks connection,
+Discovery, availability, strict command handling and broker-outage recovery,
+sends Wake-on-LAN for a synthetic locally administered MAC to the bench PC
+only (HTTP and MQTT), times an in-session Wi-Fi reconnect through the existing
+`reconnect_wifi` command, then restores the exact MQTT settings and WoL list.
+It refuses to start when the broker watchdog is enabled. Results (counts and
+booleans only) go to ignored `build/private-device/mqtt-lab-*.json`. This is a
+local lab broker, not a real Home Assistant installation.
+
+## 9. Two independent Tailnet identities (needs an owner-provided lab node)
+
+One PC is one identity: its CIDR refusal test does not prove identity-based
+authorization. The gate needs a second node owned by a **different user or a
+distinct tag**, reserved for the lab, plus a policy that allows exactly one
+of the two. Do not use family or other people's devices, and do not change
+production policy just to run the test; the owner prepares the lab node and
+the policy rule. Then, with the board unchanged:
+
+1. Identity A (allowed): TCP/UDP echo through a Service Gateway rule, direct
+   board access and an advertised subnet target: expect success.
+2. Identity B (not allowed): the same probes: expect refusal, a growing
+   rejected counter and no NAT/4via6 state created for B.
+3. Revocation: remove A's grant in the policy; after the new netmap A is refused
+   without a reboot; restore the grant and A succeeds again.
+4. Repeat 1–2 with one client forced to DERP (for example by blocking its UDP
+   locally on that client, not on the board) to cover both paths.
+5. Restore the owner's original policy and record exact counts.

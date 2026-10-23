@@ -95,14 +95,51 @@ Physical dev.8 results:
   Advanced profile changes metadata only; it is not another Monitoring-profile
   behaviour proof. Rollback to none, watch OFF, both lab rules removed and
   original eight-group snapshot restored. Private `dev8-gateway-campaign.json`.
-- Dev.8 60-minute passive serial and API collection STARTED around 05:04;
-  not yet complete at handoff. COM3 is held exclusively by the serial collector.
-  Opening API sample: authority ready, 11/31 sockets, lifetime internal minimum
-  8043 B, largest block3456 B, raw minimum task HWM484. Do not call these final
-  minima or a reliability PASS. Files: `dev8-soak-60min.log` / `.jsonl` under
-  private-device. Owned echo server stopped after cleanup.
+- Dev.8 60-minute passive serial and API collection **COMPLETED** 05:03–06:04
+  (collector processes identified by command line, exited normally). Serial,
+  no reset: 3600.27 s, capture completed, 360 heap samples, 0 panic/WDT/reboot/
+  allocation/worker-start/brownout, 0 error lines, internal heap 9155–11695 B,
+  minimum task stack free 5296 B, 43 direct handshakes, largest marker gap 2.6 s.
+  API, 30 s: 120/120 correct-version samples, uptime monotonic (no reset),
+  control connected 120/120 with 0 state transitions, authority ready 24/24
+  diagnostic samples, 0 diagnostic failures; lifetime internal minimum 8043 B
+  (reached before the capture), current internal free 10403–12951 B, largest
+  internal block 3456 B throughout, PSRAM largest 4.3 MB, sockets ≤ 11/31,
+  raw task HWM 484, request time ≤ 255 ms. **Scope:** the DERP connection stayed
+  on the same socket for the whole hour and no long-poll closure occurred, so
+  stream-loss recovery was NOT exercised; the observer's data-plane check is
+  `false` by design (API over the tailnet only). A clean hour, not an
+  availability or recovery qualification. Observation (pre-existing, also in
+  the dev.6 hour: 214 vs 213): about one TLS certificate validation every
+  17 s alongside 156 endpoint MapRequests; not a regression, cost not measured.
+  Files: private `dev8-soak-60min.log`, `.log.summary.json`, `.jsonl`.
+  The largest internal block (3456 B) stays below one 4 KB internal stack:
+  any new internal allocation of that size would still fail. The owned echo
+  server used by the gateway campaign was stopped after cleanup.
+
+## Build reproducibility and local package (Claude, 2026-10-23)
+
+Rebuilding dev.8 from unchanged sources does not reproduce `b70ff745…`: each
+link orders the component libraries differently, so code placement and hash
+change while the symbol set stays identical (ADR-026). The installed snapshot
+is therefore the only dev.8 WiFi image that may be packaged.
+
+Local pre-release package `build/release-0.1.38-Mattboxx-1.14-dev.8/` (ignored,
+not published): `firmware.bin` = `b70ff745…` (exact tested image),
+`firmware-factory.bin` `9591bf46933be052679bbfaaac119ed99eadcab7a65bbf4d684390a377bfab46`,
+ZIP `4babfaa1363a36d2d0eeaa91aba9168c29ca497b28d74221c53cfa11a6ce82e8`. Inputs were
+staged in `build/development-0.1.38-Mattboxx-1.14-dev.8/package-input/esp32-s3/`:
+the snapshot BIN plus bootloader/partitions/OTA data and build description from
+the same sources (bootloader and partition images match the dev.6 package
+byte for byte). Ethernet is not packaged: no W5500 qualification.
 
 ## Offline results actually executed
+
+- Claude continuation, after the dev.8 hour (sources = dev.8 firmware plus
+  tool/document changes only): Windows **64/64 PASS** with build and browser,
+  `build/validation-20261023-060645-818351/`; Linux **60/60 PASS** with
+  ASan/UBSan, `build/linux-validation-20261023-061207/`. The Windows build in
+  that run is a relink, not the installed image (ADR-026).
 
 - Windows **64/64 PASS**, including WiFi build, 75 synthetic browser cases,
   layout/site/i18n, SDK/authorization and root/dependency scans:
