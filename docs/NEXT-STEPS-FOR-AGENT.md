@@ -1,6 +1,6 @@
 # Maintainer continuation
 
-Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware v2.0.0.
+Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware v2.0.1.
 Preserve the full feature roadmap, upstream credits and existing configuration.
 
 The exact operational handover, artifact hashes, device qualification records,
