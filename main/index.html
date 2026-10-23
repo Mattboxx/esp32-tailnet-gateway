@@ -1917,6 +1917,7 @@
           <ol class="fb-next">
             <li>Reconnect this device to your home Wi-Fi.</li>
             <li id="fb-done-open">Open the gateway from the tailnet by its name, or find its address in your router.</li>
+            <li id="fb-done-name" hidden>Only this gateway answers to <b class="mono" id="fb-done-host" data-no-i18n></b>: the name ends with the same code as its setup Wi-Fi. Phones and computers that support <span class="mono">.local</span> names open it even if the router changes the address.</li>
             <li>Sign in with your new admin password.</li>
           </ol>
           <p class="form-hint">If the home Wi-Fi is unavailable, the gateway opens its own protected Wi-Fi so you can fix the settings.</p>
@@ -10238,6 +10239,8 @@
         var dl = $('fb-summary'); dl.textContent = '';
         var yes = T('Yes'), no = T('No');
         row(dl, 'Home Wi-Fi', $('fb-ssid').value + (st.wifiOk ? ' (' + T('tested') + ')' : ' (' + T('not tested') + ')'));
+        var lan = st.defaults.lan_name ? 'http://' + st.defaults.lan_name + '.local/' : '';
+        row(dl, 'Address after the restart', st.wifiIp ? 'http://' + st.wifiIp + '/' + (lan ? '  ·  ' + lan : '') : (lan || T('Test the Wi-Fi to see it')));
         row(dl, 'Tailnet', $('fb-key').value.trim() ? (document.querySelector('input[name="fb-ctl"]:checked').value === 'hs' ? $('fb-server').value.trim() : 'Tailscale') : T('Join later'));
         row(dl, 'Device name in the tailnet', $('fb-host').value.trim() || 'tailnet-gateway');
         row(dl, 'Share home network', $('fb-share-lan').checked ? yes : no);
@@ -10262,8 +10265,25 @@
           st.finished = true; st.key = null;
           ['fb-pw', 'fb-pw2', 'fb-wpw', 'fb-key'].forEach(function (id) { $(id).value = ''; });
           $('fb-review').hidden = true; $('fb-done').hidden = false; show(5);
-          if (st.wifiIp) $('fb-done-open').textContent = T('Open the gateway at ') + 'http://' + st.wifiIp + '/' + T(', or from the tailnet by its name.');
+          doneLinks(d.lan_name || st.defaults.lan_name || '');
         }).catch(function () { $('fb-next').disabled = false; });
+      }
+      /* Where to find the gateway after the restart: the address the Wi-Fi
+       * test received (routers normally keep it) and the per-board .local
+       * name. Built as nodes: no markup from the device is interpreted. */
+      function doneLinks(name) {
+        var li = $('fb-done-open'), urls = [];
+        if (st.wifiIp) urls.push('http://' + st.wifiIp + '/');
+        if (name) urls.push('http://' + name + '.local/');
+        if (!urls.length) return;
+        li.textContent = T('Reconnected to your home Wi-Fi, open ');
+        urls.forEach(function (u, i) {
+          if (i) li.appendChild(document.createTextNode(T(' or ')));
+          var a = document.createElement('a'); a.href = u; a.textContent = u; a.className = 'mono'; a.setAttribute('data-no-i18n', '');
+          li.appendChild(a);
+        });
+        li.appendChild(document.createTextNode(T(', or reach it from the tailnet by its name.')));
+        if (name) { $('fb-done-host').textContent = name + '.local'; $('fb-done-name').hidden = false; }
       }
       function roles() { return Array.prototype.map.call(document.querySelectorAll('#fb-roles input:checked'), function (i) { return i.value; }); }
       function next() {

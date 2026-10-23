@@ -32,7 +32,7 @@ function mockGateway(opts = {}) {
       case '/api/auth/status': return send(200, { setup_mode: true, password_set: false, auth_enabled: true, auth_required: false, authenticated: false, device_name: 'Tailnet Gateway' });
       case '/api/setup/state': {
         const mine = sidHeader && sidHeader === g.sid;
-        const out = { setup: true, setup_ssid: 'ESP32-Tailnet-Setup-1A2B', default_ap_ssid: 'ESP32-Tailnet-1A2B', version: 'synthetic',
+        const out = { setup: true, setup_ssid: 'ESP32-Tailnet-Setup-1A2B', default_ap_ssid: 'ESP32-Tailnet-1A2B', version: 'synthetic', lan_name: 'esp32-tailnet-1a2b',
           session: mine ? g.state : 'none', other_pairing: false, code_locked: false, finished: !!g.finish };
         if (mine && g.state === 'claimed') {
           if (g.wifi === 'testing' && ++g.polls >= 2) g.wifi = 'ok';
@@ -73,7 +73,7 @@ function mockGateway(opts = {}) {
         catch (e) { return send(403, { error: 'seal' }); }
         g.seq = m.seq;
         if (cmd.action === 'wifi_test') { g.wifi = 'testing'; g.polls = 0; g.tested = cmd.wifi; return send(200, { wifi: 'testing' }); }
-        if (cmd.action === 'finish') { g.finish = cmd; return send(200, { ok: true, restart_in_s: 3, tailnet: !!cmd.tailnet.auth_key }); }
+        if (cmd.action === 'finish') { g.finish = cmd; return send(200, { ok: true, restart_in_s: 3, tailnet: !!cmd.tailnet.auth_key, lan_name: 'esp32-tailnet-1a2b' }); }
         return send(400, { error: 'action' });
       }
       case '/api/network/scan': return send(200, { status: 'scanning' });
@@ -182,6 +182,7 @@ async function flow(browser, [width, height, locale], failures, full) {
     await page.waitForSelector('#fb-summary dt');
     const summaryText = await page.textContent('#fb-summary');
     assert.ok(summaryText.includes('HomeNetwork'));
+    assert.ok(summaryText.includes('http://192.168.1.77/') && summaryText.includes('http://esp32-tailnet-1a2b.local/'), 'address after the restart in the summary');
     for (const s of [...Object.values(SECRETS), await page.inputValue('#fb-appw')]) assert.ok(!summaryText.includes(s), 'secret in summary');
     await check(5);
     await page.click('#fb-next');
@@ -194,6 +195,9 @@ async function flow(browser, [width, height, locale], failures, full) {
     assert.equal(g.finish.ap_ssid, 'ESP32-Tailnet-1A2B');
     assert.deepEqual(g.finish.roles, ['subnet-router', 'wol', 'advanced']); assert.equal(g.finish.advanced_ui, true); assert.ok(g.finish.ap_password.length >= 8 && g.finish.ap_password !== SECRETS.admin);
     assert.ok((await page.textContent('#fb-done-open')).includes('http://192.168.1.77/'));
+    assert.equal(await page.getAttribute('#fb-done-open a[href="http://192.168.1.77/"]', 'href'), 'http://192.168.1.77/', 'tested address is a link');
+    assert.equal(await page.getAttribute('#fb-done-open a[href="http://esp32-tailnet-1a2b.local/"]', 'href'), 'http://esp32-tailnet-1a2b.local/', 'per-board .local link');
+    assert.equal(await page.isVisible('#fb-done-name'), true); assert.equal(await page.textContent('#fb-done-host'), 'esp32-tailnet-1a2b.local');
     assert.equal(await page.inputValue('#fb-pw'), '', 'secrets cleared from the form');
     for (const b of g.bodies) for (const s of [...Object.values(SECRETS), g.finish.ap_password])
       assert.ok(!b.includes(s), 'secret sent in clear');

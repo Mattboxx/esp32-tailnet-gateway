@@ -21,6 +21,7 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "json_guard.h"
+#include "lan_name.h"
 #include "mbedtls/gcm.h"
 #include "mbedtls/sha256.h"
 #include "lwip/sockets.h"
@@ -272,6 +273,9 @@ static esp_err_t state_handler(httpd_req_t *req)
     first_boot_default_ssid(ssid, sizeof ssid);
     cJSON_AddStringToObject(root, "default_ap_ssid", ssid);
     cJSON_AddStringToObject(root, "version", esp_app_get_description()->version);
+    char lan[LAN_NAME_MAX + 1];
+    lan_name_get(lan, sizeof lan);
+    cJSON_AddStringToObject(root, "lan_name", lan);   /* "<lan_name>.local" after setup */
     uint8_t sid[FB_SID_BYTES];
     bool have_sid = get_sid(NULL, req, sid);
     xSemaphoreTake(s_lock, portMAX_DELAY);
@@ -481,6 +485,9 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
         cJSON_AddBoolToObject(out, "ok", true);
         cJSON_AddNumberToObject(out, "restart_in_s", 3);
         cJSON_AddBoolToObject(out, "tailnet", join);
+        char lan[LAN_NAME_MAX + 1];
+        lan_name_get(lan, sizeof lan);
+        cJSON_AddStringToObject(out, "lan_name", lan);
     }
     return send_json(req, NULL, out);
 }

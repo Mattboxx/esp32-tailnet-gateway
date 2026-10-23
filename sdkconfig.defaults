@@ -272,6 +272,11 @@ CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=6144
 # enough headroom for nested netif input/output paths.
 CONFIG_LWIP_TCPIP_TASK_STACK_SIZE=6144
 
+# --- Home network name (mDNS) ----------------------------------------------
+# lwIP's mDNS responder keeps its per-interface state in a netif client-data
+# slot; lan_name.c answers "<name>.local" on the Wi-Fi uplink only.
+CONFIG_LWIP_NUM_NETIF_CLIENT_DATA=1
+
 # --- Coredump to flash ------------------------------------------------------
 # After a PANIC/WDT the kernel writes a full backtrace + task state to
 # the dedicated "coredump" partition so the next boot can surface it
