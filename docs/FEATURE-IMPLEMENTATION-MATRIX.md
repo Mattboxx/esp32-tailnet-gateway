@@ -1,5 +1,20 @@
 # Feature implementation and validation matrix
 
+Latest **2026-10-23 dev.8 hardware** evidence supersedes older cells below;
+all 42 rows remain, none promoted to stable-ready. F14: guarded 1.13→dev.7→
+1.13→dev.8 HTTP OTA and eight configuration-group checks PASS, stable preserved;
+not interrupted-OTA/bootloader rollback. F20/F21: TCP/UDP20/20, OFF refusal,
+same-client CIDR0/3 and source diagnosis PASS, not two identities. F22: expiry
+plus actual reboot kept TCP closed and UDP lease live. F23: Advanced metadata
+persisted then rolled back (Monitoring runtime changes only qualified on
+dev.6). F32: corrected PSRAM SNMP stack; real109-object v1/v2c walks, malformed
+rejection, cycles, 27 operational OIDs and12 Tailnet replies PASS. F33: dev.8
+one-hour collectors RUNNING, no final verdict yet. F35: exact dev.8 snapshots,
+not stable packages. F38: boot authority ready; exact in-session stream-loss
+recovery still pending. Source/tool evidence and remaining gates:
+[DEV8-VALIDATION.md](DEV8-VALIDATION.md). Windows64/64, Linux60/60 PASS;
+later tool-only changes targeted PASS. Do not repeat completed tests blindly.
+
 Latest scoped evidence (2026-10-22 evening): F20/F21/F22/F23/F33 now include
 real forced-LAN TCP/UDP echo, same-client source denial, lease expiry and profile
 rollback on installed dev.6. F20 diagnosis corrected in source, not installed.

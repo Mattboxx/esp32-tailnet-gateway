@@ -1,5 +1,13 @@
 # Validation ledger
 
+> **Authoritative 2026-10-23 continuation:** [DEV8-VALIDATION.md](DEV8-VALIDATION.md).
+> WiFi dev.8 is installed, stable ota_1 preserved and settings match. Real SNMP
+> worker allocation failure on dev.7 corrected and dev.8 v1/v2c 109-object walks,
+> malformed rejection and enable/disable cycles PASS. Windows 64/64 (build +
+> browser), Linux sanitizer 60/60, Ethernet compile PASS. Later tool checks pass.
+> NOT READY: unfinished real policy/recovery/resource/integration gates remain.
+> Historical pending-install/Linux/session statements below are superseded.
+
 > **Newest actual evidence:** [TAKEOVER-VALIDATION.md](TAKEOVER-VALIDATION.md):
 > real forced-LAN TCP/UDP echo, source refusal, expiry and profile rollback;
 > diagnostic regression fixed; Linux 55/57 then corrected targeted 2/2 PASS.

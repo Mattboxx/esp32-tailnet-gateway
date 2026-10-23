@@ -52,6 +52,7 @@
 #include "driver/temperature_sensor.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/idf_additions.h"
 #include "freertos/semphr.h"
 #include "lwip/netif.h"
 #include "lwip/pbuf.h"
@@ -1141,11 +1142,34 @@ static void start_telemetry_timer(void)
 
 static void snmp_task(void *arg);
 
+/* Keep the optional 4 KiB stack out of the fragmented internal heap on
+ * PSRAM-stack builds. The SDK still allocates its TCB in internal memory.
+ * Never fall back to an internal stack on those builds: preserve routing RAM. */
+static BaseType_t create_snmp_worker(void)
+{
+#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+    return xTaskCreateWithCaps(snmp_task, "snmp_agent", TASK_STACK, NULL,
+                              tskIDLE_PRIORITY + 2, NULL,
+                              MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
+    return xTaskCreate(snmp_task, "snmp_agent", TASK_STACK, NULL,
+                       tskIDLE_PRIORITY + 2, NULL);
+#endif
+}
+
+static void delete_snmp_worker(void)
+{
+#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+    vTaskDeleteWithCaps(NULL);
+#else
+    vTaskDelete(NULL);
+#endif
+}
+
 /* The caller has already set s_starting while holding s_mutex. */
 static void start_snmp_task_reserved(void)
 {
-    if (xTaskCreate(snmp_task, "snmp_agent", TASK_STACK, NULL,
-                    tskIDLE_PRIORITY + 2, NULL) == pdPASS)
+    if (create_snmp_worker() == pdPASS)
         return;
 
     ESP_LOGE(TAG, "failed to create task");
@@ -1265,7 +1289,7 @@ done:
 
     if (buf) heap_caps_free(buf);
     if (restart) start_snmp_task_reserved();
-    vTaskDelete(NULL);
+    delete_snmp_worker();
 }
 
 /* ------------------------------------------------------------------ */

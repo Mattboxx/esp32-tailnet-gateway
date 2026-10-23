@@ -6,6 +6,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### 0.1.38-Mattboxx-1.14-dev.8 — local stability correction, not released
+
+- Move the optional SNMP task stack to PSRAM on supported builds, with matching
+  SDK teardown, so a fragmented internal heap need not allocate its 4 KiB stack.
+  The control block still requires internal RAM; failed starts remain explicit.
+- Correct local SNMP qualification to walk all 109 current objects and detect
+  worker-creation failures separately from generic allocation log messages.
+- Preserve the stable OTA slot with explicit LAN-bound test transport and
+  pinned-version/image/layout guards. No policy or authentication relaxation.
+
 ### 0.1.38-Mattboxx-1.14-dev.7 — local correction candidate, not released
 
 - Request a fresh peer map when the streaming coordinator starts without

@@ -1,5 +1,23 @@
 # Codex publish handoff — ESP32 Tailnet Gateway, Mattboxx Edition
 
+> **LATEST — handoff to Claude, 2026-10-23:** start with
+> [CLAUDE-CONTINUATION-HANDOFF.md](CLAUDE-CONTINUATION-HANDOFF.md) and the CURRENT
+> section of NEXT-STEPS. Dev.8 is installed; SNMP and gateway/reboot/profile/
+> watch campaigns completed with cleanup. New 60-minute captures RUNNING and
+> holding COM3; do not interrupt or duplicate. Owner now reserves public
+> operations/rebranding for Codex: Claude stops just before publication.
+> The earlier in-progress/pending-install statements below are historical.
+
+> **Current continuation (2026-10-23):** [DEV8-VALIDATION.md](DEV8-VALIDATION.md)
+> and NEXT-STEPS supersede the historical rows below. Dev.8 `b70ff745…08e1361f`
+> is installed on ota_0 after guarded HTTP OTA from preserved 1.13. Real SNMP
+> stack-allocation failure reproduced on dev.7 and corrected/physically retested
+> on dev.8. Windows 64/64, Linux sanitizer 60/60 and both builds PASS. Eight
+> saved-setting groups unchanged. Owner authorizes eventual complete publishing
+> only AFTER the stable Quality Gate; no remote write has occurred. Current
+> gateway/reboot/watch campaign is running; do not start another or touch COM3
+> without checking processes. Preserve the owner's untracked COMMUNITY-POSTS.
+
 > **Active takeover:** [TAKEOVER-VALIDATION.md](TAKEOVER-VALIDATION.md) supersedes
 > older session/Linux/missing-echo statements below. It records current lab
 > cleanup, running soak, exact new tests and uninstalled diagnostic correction.

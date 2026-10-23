@@ -7,6 +7,7 @@ from pathlib import Path
 import os
 import subprocess
 import tempfile
+from test_snmp_device import SNMP_OBJECT_COUNT
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / "components/snmp_agent/snmp_agent.c").read_text(encoding="utf-8")
@@ -159,13 +160,69 @@ int main(void){
 '''
 mib_program = (HEADER + '#include <stdatomic.h>\n' + constants + operational_h + types + codec
                + 'static int64_t esp_timer_get_time(void);\n' + stubs + ops + table + lookup + ops_tests)
+mib_program = mib_program.replace('assert(visited==MIB_LEN);',
+    f'assert(visited==MIB_LEN && MIB_LEN=={SNMP_OBJECT_COUNT});')
+
+# Real worker allocation/reservation functions; only SDK calls are fixtures.
+worker = 'static void snmp_task(void *arg);' + section(
+    'static void snmp_task(void *arg);', 'static void start_snmp_task_if_needed')
+worker_fixture = r'''
+typedef int BaseType_t;
+#define pdPASS 1
+#define tskIDLE_PRIORITY 0
+#define portMAX_DELAY 100
+#define MALLOC_CAP_SPIRAM 1
+#define MALLOC_CAP_8BIT 2
+#define ESP_LOGE(...) ((void)0)
+static bool s_starting;
+static int s_mutex, requested_result, internal_calls, caps_calls, takes, gives;
+static int internal_deletes, caps_deletes;
+static void check_task(void (*fn)(void *), const char *name, unsigned stack,
+                       void *arg, unsigned priority, void *handle) {
+    assert(fn && !strcmp(name,"snmp_agent") && stack==4096);
+    assert(!arg && priority==2 && !handle);
+}
+static int xTaskCreate(void (*fn)(void *), const char *name, unsigned stack,
+                       void *arg, unsigned priority, void *handle) {
+    check_task(fn,name,stack,arg,priority,handle); internal_calls++;
+    return requested_result;
+}
+static int xTaskCreateWithCaps(void (*fn)(void *), const char *name, unsigned stack,
+                       void *arg, unsigned priority, void *handle, unsigned caps) {
+    check_task(fn,name,stack,arg,priority,handle); caps_calls++;
+    assert(caps==(MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT)); return requested_result;
+}
+static void xSemaphoreTake(int mutex, int delay) {assert(mutex==s_mutex && delay==portMAX_DELAY);takes++;}
+static void xSemaphoreGive(int mutex) {assert(mutex==s_mutex);gives++;}
+static void vTaskDelete(void *handle) {assert(!handle);internal_deletes++;}
+static void vTaskDeleteWithCaps(void *handle) {assert(!handle);caps_deletes++;}
+'''
+worker_tests = r'''
+static void snmp_task(void *arg) {(void)arg;}
+int main(void) {
+    s_starting=true; requested_result=0; start_snmp_task_reserved();
+    assert(!s_starting && takes==1 && gives==1); /* OOM releases reservation */
+    s_starting=true; requested_result=pdPASS; start_snmp_task_reserved();
+    assert(s_starting && takes==1 && gives==1); /* worker publishes state */
+    delete_snmp_worker();
+#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+    assert(caps_calls==2 && !internal_calls && caps_deletes==1 && !internal_deletes);
+#else
+    assert(internal_calls==2 && !caps_calls && internal_deletes==1 && !caps_deletes);
+#endif
+    puts("PASS: actual SNMP worker allocation caps, matching teardown and OOM reservation release (SDK fixtures)");
+}
+'''
 
 with tempfile.TemporaryDirectory(prefix="snmp-codec-") as directory:
     path = Path(directory)
     flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function']
     if os.environ.get("SNMP_SANITIZE") == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
-    for stem, text in (('test', program), ('mib', mib_program)):
+    worker_programs = tuple(('worker'+str(enabled), HEADER + constants +
+        '#define CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY '+str(enabled)+'\n' +
+        worker_fixture + worker + worker_tests) for enabled in (0, 1))
+    for stem, text in (('test', program), ('mib', mib_program), *worker_programs):
         (path / (stem + '.c')).write_text(text, encoding="utf-8")
         binary = path / (stem + ('.exe' if os.name == 'nt' else ''))
         subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path/(stem + '.c')), '-o', str(binary)], check=True)

@@ -2,6 +2,19 @@
 
 Decisions are explicit, revisable with evidence and never remove approved scope.
 
+## ADR-025 — Optional SNMP stack uses PSRAM on supported builds (2026-10-23)
+
+Dev.7 physically failed its 4096-byte internal task-stack allocation while the
+largest observed internal block was 3328 bytes. Move that stack, not its TCB,
+to PSRAM using the SDK caps create/delete pair when external stacks are enabled.
+Do not fall back to consuming scarce internal routing memory on those builds.
+Keep existing OFF/configuration/failed-start semantics and bound buffers. Actual
+helper tests cover both compile-time paths, OOM reservation release and matching
+deletion; both targets compile. Dev.8 real v1/v2c walks, malformed rejection and
+three enable/disable cycles pass with original settings restored. Longer stack/
+cache/resource qualification remains separate; this does not guarantee all task
+allocation failures are eliminated. Evidence: DEV8-VALIDATION.md.
+
 ## ADR-001 — Preserve the complete mandate and stable identity (2026-10-21)
 
 Status: accepted. Archive the user's Master Prompt verbatim; map every section

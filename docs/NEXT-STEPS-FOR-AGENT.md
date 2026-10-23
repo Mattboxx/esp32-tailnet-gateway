@@ -1,4 +1,103 @@
-# Continuation — dev.7 source / dev.6 hardware checkpoint (2026-10-22)
+# Continuation — dev.8 installed / Claude handoff (2026-10-23)
+
+## CURRENT — read this before the historical checkpoints below
+
+Owner requests a complete checkpoint and prompt for Claude. Claude continues
+fixes, qualification, artifacts/UI/site/docs up to immediately BEFORE public
+operations; Codex will perform publication/rebranding. **No push, release,
+GitHub rename, Pages activation or announcement by Claude.** Do not restart
+Claude's old checkpoint or roll back local work. No further feature additions.
+
+Exact handoff: [CLAUDE-CONTINUATION-HANDOFF.md](CLAUDE-CONTINUATION-HANDOFF.md).
+Actual evidence: [DEV8-VALIDATION.md](DEV8-VALIDATION.md). Source starts from
+root `9a4a85b` plus this session's local changes, MicroLink clean `fa3153b`;
+the final handoff commit contains those changes (read `git log -1`).
+
+- **Installed dev.8** WiFi BIN `b70ff745…08e1361f`, ota_0; stable 1.13 ota_1
+  preserved, new private NVS backup and verified stable-slot digest.
+- Full Windows build/browser **64/64**, Linux sanitizer **60/60**, Ethernet
+  compile PASS. Later tool-only fixes have targeted PASS; no repeated full
+  final campaign after those tool/document edits. Do not call Ethernet tested.
+- SNMP stack failure on dev.7 corrected in dev.8: real 109-object v1/v2c
+  walks, 27 operational OIDs, 12 Tailnet replies, malformed rejection and
+  three enable/disable cycles PASS; restored OFF unchanged.
+- Dev.8 gateway campaign COMPLETE: forced-LAN TCP/UDP20/20; OFF refusal;
+  same-client CIDR denial0/3; expiry with UDP control; real software reboot
+  retained rules, expired TCP closed, UDP lease live, Advanced profile and
+  Service Watch settings persisted. Automatic watch verified owned TCP echo.
+  Profile rolled back to none; watch OFF; lab rules removed; original snapshot
+  restored. No two-independent-identity or forced-DERP/stream-loss claim.
+- **RUNNING:** dev.8 60-minute passive serial + Tailnet API collectors. Serial
+  owns COM3: launcher PID42268, worker PID30600 at 05:04; API PID35788.
+  Check identities/liveness, not PID alone. Logs `dev8-soak-60min.log` and
+  `dev8-soak-60min.jsonl` under ignored `build/private-device/`; expected finish
+  about 06:04–06:05 local. Do not reset/flash/use COM3 while collection runs.
+  Opening samples show ready authority, largest internal block3456 B, lifetime
+  min8043 B, sockets11/31, raw task HWM484: not a completed soak result.
+- Completed echo server PID33368 stopped specifically. No live lab listener
+  remains. Original owner rule and integration credentials untouched.
+
+**First action:** inspect collector completion/liveness and recover summaries,
+not reflash/rebuild. If interrupted, label partial capture honestly. Then
+continue independent remaining gates in the handoff, preserving all 42 items.
+Long-soak, exact stream recovery, two real identities/direct+DERP and controlled
+integration/AP/recovery qualification remain open. Stable Quality Gate NOT READY.
+
+## Historical checkpoints — retained context, NOT current instructions
+
+> **Resumed after interruption, 04:51 local:** HEAD `9a4a85b`, MicroLink clean
+> `fa3153b`. Local SNMP fix and device-tool changes preserved, not yet committed.
+> Latest owner explicitly authorizes eventual push/release/rename/Pages ONLY
+> after the stable Quality Gate; not permission to bypass it. Test installs on
+> the identified board are authorized; preserve stable 1.13 and private backups.
+> Dev.7 is installed; dev.8 WiFi built (SHA `b70ff745…08e1361f`) but NOT installed.
+> Full dev.8 Windows build/browser campaign 64/64 PASS and Linux sanitizers
+> 60/60 PASS; Ethernet compile PASS, physical Ethernet still unavailable.
+> SNMP on dev.7 FAILED task creation (4 KiB contiguous internal stack); restored
+> OFF. Dev.8 uses paired SDK PSRAM-stack create/delete APIs with actual helper
+> host tests including OOM. Do not claim this fix physically verified yet.
+> Dev.7 600 s serial and API runs completed: 20/20 API samples, no observed reset;
+> largest internal block min 3328 B, lifetime min 7939 B, serial min 7419 B.
+> The allocation summary's old pattern missed task-creation failure; this is NOT
+> a zero-allocation-error qualification. All test jobs ended, COM3 free; no lab
+> rules and SNMP OFF. Stable post-OTA flash digest matches verified backup.
+> NEXT: identify board/version again, record dev.7 config fingerprints, boot
+> preserved stable and guarded OTA dev.8 into ota_0; rerun SNMP and only affected
+> hardware cases. Do not rerun the old gateway harness waiting for a USB flag.
+> Never upload with ota_0 running: that would target protected ota_1.
+
+> **Current authoritative checkpoint (04:34 local):** owner explicitly authorized
+> exact WiFi dev.7 `32485125…01efa1c1`. Guarded OTA from stable ota_1 into ota_0
+> completed; dev.7 runs with control connected and policy authority ready. Eight
+> original configuration groups match pre-update fingerprints. Stable ota_1 was
+> verified before OTA; post-install read-only device digest verification is now
+> running (115200 baud), after a bulk USB read failed without flash writes.
+> Two identical new 4 MiB mapped-flash backups are preserved privately.
+> Dev.7 forced-LAN TCP/UDP 20/20, source denial 0/3 each, actual source-rejected
+> diagnosis and TCP lease expiry with UDP positive control PASS. The combined
+> reset/UDP-lease test timed out during USB transfer: NOT PASSED. Subsequent
+> login verified saved rules, expired TCP closed and authority restored. Both
+> lab rules removed; exact eight original configuration groups restored;
+> SNMP remains OFF. Three-minute serial collection completed without observed
+> panic/WDT/reset/allocation failure. No push/publication. Detailed evidence:
+> `build/private-device/backup-20261023-before-dev7/`, `dev7-gateway-checks/`.
+> Continue: finish stable-slot digest, then bounded read-only dev.7 resource/
+> request-screening and temporarily authorized SNMP checks; restore OFF and
+> remove owned echo listener. Exact in-session stream-loss recovery and two
+> independent Tailnet identities remain unqualified. Older pending-install
+> text below is historical and must not trigger another OTA.
+
+> **2026-10-23 active installation:** owner explicitly authorized WiFi dev.7
+> `32485125…01efa1c1`, preserving stable ota_1. Not permission for another image.
+> LAN-bound preflight PASS: dev.6 active/boot ota_0, WiFi/control/authority ready,
+> SNMP OFF, one owner rule; eight configuration groups fingerprinted privately.
+> New backup under ignored `build/private-device/backup-20261023-before-dev7/`.
+> First 16 MiB USB read failed at ~42% (corrupt/incomplete transfer); no flash
+> writes. Reduced-speed 4 MiB mapped-region read running, session 85257, COM3
+> held in loader. Do not open another serial reader. Finish/verify backups and
+> stable-slot hash before booting ota_1, then guarded LAN OTA into ota_0.
+> Firmware image unchanged; three targeted host drivers PASS for LAN-only HTTP
+> helper and stable-slot guard. New test-tool edits are not firmware changes.
 
 > **Newest checkpoint:** [TAKEOVER-VALIDATION.md](TAKEOVER-VALIDATION.md).
 > Authenticated echo/source-denial/expiry/profile checks now have real results;
