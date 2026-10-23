@@ -48,6 +48,7 @@ recovery network is never the open setup network.
 | Using the open network to reach the home LAN | The setup network forwards nothing: only ARP and IPv4 to the gateway itself (or DHCP broadcast) pass, and NAT is not enabled. |
 | Other APIs while unconfigured | Every other API answers 403 until setup is finished. |
 | Power loss while saving | The protected access point and the admin password are saved first; an interrupted save either restarts the setup or leaves a password-protected gateway with its protected Wi-Fi. |
+| Restart before Finish (power loss, crash, unplugging) | Nothing typed in the wizard is stored before Finish: the Wi-Fi test runs from RAM only, so the gateway restarts into the same open setup with a new code. Pair again and repeat the steps. |
 
 **Residual risk:** an attacker who is present during the few minutes of setup
 can run a fake access point with the same name and serve a modified page; no
