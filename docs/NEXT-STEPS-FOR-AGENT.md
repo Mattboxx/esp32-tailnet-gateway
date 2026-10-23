@@ -1,5 +1,7 @@
 # Continuation — presentation public / dev.9 local (2026-10-23)
 
+> **NEWEST (2026-10-23, v2 preparation): read [CODEX-V2-RELEASE-PLAN.md](CODEX-V2-RELEASE-PLAN.md) first.** FIRMWARE NOT READY — remaining blockers listed there; candidate 2.0.0-rc.1 installed on ota_0, stable 1.13 on ota_1.
+
 ## OWNER'S LATEST DIVISION OF WORK — read first
 
 **Claude owns firmware; Codex owns public presentation and future authorized

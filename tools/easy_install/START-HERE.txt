@@ -1,0 +1,56 @@
+ESP32 TAILNET GATEWAY - MATTBOXX EDITION
+Firmware v{VERSION}{CHANNEL}
+EASY INSTALL - Windows, macOS & Linux
+One ESP32. Multiple Tailnet roles. Enable only what you need.
+
+FOR: ESP32-S3 with 16 MB flash and 8 MB PSRAM (N16R8), USB data cable.
+NOT FOR: other ESP32 chips. Ethernet (W5500) boards use the separate,
+experimental Ethernet image from the release page, not this package.
+
+1. CHOOSE
+   New device, or start over ...... INSTALL (erases everything)
+   Gateway already set up ......... UPDATE (keeps all settings)
+   Already set up? The Web UI update is even easier: System > Firmware,
+   upload firmware/firmware.bin. It keeps the previous image as a fallback.
+
+2. RUN
+   Windows (nothing to install; esptool.exe is included):
+     windows\INSTALL-NEW-DEVICE.bat      or   windows\UPDATE-KEEP-SETTINGS.bat
+     Add the port if needed:  windows\UPDATE-KEEP-SETTINGS.bat COM5
+
+   macOS / Linux (needs Python 3 and esptool 5, once):
+     python3 -m pip install --user "esptool>=5,<6"
+     sh macos-linux/install.sh new        or   sh macos-linux/install.sh update
+     Add the port if several are found:  sh macos-linux/install.sh update /dev/ttyACM0
+
+   Every script verifies SHA256SUMS.txt, checks that the board is an
+   ESP32-S3, and asks you to type ERASE before erasing anything.
+
+3. FIRST START (new device)
+   Join the open Wi-Fi ESP32-Tailnet-Setup-XXXX. The setup page opens by
+   itself on most phones and PCs; otherwise open http://192.168.4.1/
+   Press the BOOT button on the board when asked, create the admin
+   password, choose your Wi-Fi, your Tailnet and the gateway role.
+
+TROUBLESHOOTING
+   No port found ........ use a data cable and a direct USB port; boards with
+                          a CP210x/CH34x chip need its driver; then hold
+                          BOOT, tap RESET, release BOOT and retry.
+   Not an ESP32-S3 ...... this firmware cannot run on that board.
+   Checksum mismatch .... download the package again.
+   Linux "permission" ... add your user to the dialout (Debian/Ubuntu) or
+                          uucp (Arch) group, log out and in again.
+   Interrupted flashing . run the same script again; nothing is bricked.
+   Never erase to fix a cable or port problem: it deletes your settings.
+
+FILES
+   firmware/*-WiFi-factory.bin   full image for a new device (offset 0x0)
+   firmware/bootloader.bin, partitions.bin, ota_data_initial.bin,
+   firmware/firmware.bin         update set (0x0, 0x8000, 0x19000, 0x20000)
+   windows/esptool.exe           Espressif esptool v5.3.1, GPL-2.0-or-later,
+                                 source: https://github.com/espressif/esptool
+   SHA256SUMS.txt, release-manifest.json, FIRMWARE-LICENSES.txt
+
+Based on Csontikka/esp32-tailscale-subnet-router and Csontikka/microlink.
+Not an official Tailscale client. No telemetry. Release notes:
+{NOTES_URL}
