@@ -1,5 +1,15 @@
 # Continuation — presentation public / dev.9 local (2026-10-23)
 
+## LATEST — owner-authorized v2 publication in progress
+
+Read V2-RELEASE-ACCEPTANCE.md first. Publication/bridge/rename are now explicitly
+authorized; immediate rename selected with legacy manual-update risk accepted.
+Never call the waived hardware cases PASS. rc.1 qualification completed four
+phases PASS, Windows integrated 71 checks PASS. Build exact final and bridge
+versions from this clean sanitized graph, preserve stable ota_1, qualify/package
+exact saved images; publish bridge before rename. Serial collector still owns
+COM3 until its 75-minute run ends. Do not push the raw historical mattboxx graph.
+
 ## NEWEST — Codex v2 publication preparation
 
 Read CODEX-V2-PUBLICATION-CHECKPOINT.md before older checkpoints. Raw mattboxx

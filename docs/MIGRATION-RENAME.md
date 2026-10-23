@@ -1,5 +1,16 @@
 # Repository rename and OTA migration plan
 
+## Current v2 owner decision (2026-10-23)
+
+The approved bridge version is **0.1.38-Mattboxx-1.99**, followed by **2.0.0**.
+The owner explicitly chose immediate rename after publishing the bridge rather
+than the previously suggested four-week window. Devices still on 1.13 or older
+will need a manual Web UI/USB update if they miss that bridge; this limitation
+must remain visible. Missing physical tests are accepted risks, not PASS;
+see V2-RELEASE-ACCEPTANCE.md. No rename has been performed at this checkpoint.
+The historical sequence and version examples below are retained for context,
+but this decision and CODEX-V2-RELEASE-PLAN.md govern the v2 publication.
+
 > **1.14 development preview.** This guide includes unreleased features; it
 > does not imply a new firmware download. Public stable remains
 > [Mattboxx 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).

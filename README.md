@@ -9,11 +9,10 @@
 All-in-one ESP32-S3 Tailscale/Headscale gateway with selective LAN-to-Tailnet
 access, subnet routing, remote recovery and optional automation.
 
-> **Firmware v2.0.0 — release preparation, not yet published.** The current public
-> stable download remains **[0.1.38-Mattboxx-1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13)**.
-> The browser installer, Easy Install package and guided first boot described
-> below belong to the upcoming firmware, not the stable 1.13 download. They
-> become downloadable only after qualification and an actual release.
+> **Firmware v2.0.0.** Check the [release page](../../releases) for available
+> images, checksums and compatibility notes before installing. The browser
+> installer and Easy Install package described here belong to this generation,
+> not to [legacy 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0B7A4B.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
@@ -36,9 +35,9 @@ access, subnet routing, remote recovery and optional automation.
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
-### What can I download today?
+### What's new in Firmware v2.0.0?
 
-| Public stable 1.13 | Firmware v2.0.0 — release preparation |
+| Legacy 1.13 | Firmware v2.0.0 |
 |---|---|
 | LAN → Tailnet TCP/UDP forwarding with source restrictions and MagicDNS | Destination tests, timed access, Service Watch and guided rule setup |
 | Subnet routing, AP gateway, exit-node roles and 4via6 | Refreshed goal-oriented UI, Simple/Advanced modes and profiles |
@@ -46,8 +45,8 @@ access, subnet routing, remote recovery and optional automation.
 | WiFi build for ESP32-S3 N16R8 | Optional W5500 build: experimental, not hardware-qualified |
 | Existing setup and Windows flash package | Physically paired first-boot wizard, browser installation and Easy Install for Windows/macOS/Linux |
 
-The advanced workflows described below preview Firmware v2.0.0 unless listed in the
-stable column. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
+The advanced workflows described below require Firmware v2.0.0 unless listed in
+the legacy column. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
 remain available; [release notes](docs/RELEASE-1.13.md) explain what is shipped.
 
 ## 1. What it is
@@ -118,7 +117,7 @@ their changes and can be rolled back.
 
 ## 6. Quick start
 
-These steps apply to the upcoming firmware. For today's stable download use
+These steps apply to Firmware v2.0.0. For legacy installations use
 the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
 
 1. **Install** by desktop browser, Easy Install or advanced download below.
@@ -151,8 +150,8 @@ Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailscale-gatew
 | **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/easy-install/) |
 | **Advanced downloads** | Web UI OTA, manual flashing or experimental W5500 | [Downloads](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/downloads/) with exact checksums, variant labels and recovery notes |
 
-Firmware v2.0.0 artifacts are **not yet public**. The current
-[stable 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13) contains:
+Use the releases page for available Firmware v2.0.0 builds. The
+[legacy 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13) retains its original files:
 
 | Asset | Use |
 |---|---|
@@ -335,10 +334,10 @@ use it to overwrite a deliberately protected recovery image.
 Back up your configuration first; see [Updates](docs/UPDATES.md) and
 [Backup and restore](docs/BACKUP-RESTORE.md).
 
-**Legacy OTA migration:** a bridge is planned under the current repository
-name before any rename. Older updaters cannot be assumed to follow GitHub
-redirects; devices that miss the migration window need a manual Web UI/USB
-update. No repository rename or bridge release has happened yet.
+**Legacy OTA migration:** the bridge uses version `0.1.38-Mattboxx-1.99` and must
+be published under the old repository name before the rename. Older updaters
+cannot follow the renamed API. The owner selected immediate rename, so devices
+that miss the bridge need one manual Web UI/USB update; settings can be kept.
 
 **Build from source:**
 

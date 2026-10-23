@@ -1,4 +1,9 @@
-> **NEWEST Codex continuation:** [CODEX-V2-PUBLICATION-CHECKPOINT.md](CODEX-V2-PUBLICATION-CHECKPOINT.md).
+> **NEWEST owner decision:** [V2-RELEASE-ACCEPTANCE.md](V2-RELEASE-ACCEPTANCE.md).
+> Bridge, stable firmware and immediate rename explicitly authorized, with the
+> missing hardware tests accepted as risk (NOT marked PASS). rc.1 four phases
+> PASS; final exact-version builds/qualification and public verification pending.
+>
+> **Previous Codex continuation:** [CODEX-V2-PUBLICATION-CHECKPOINT.md](CODEX-V2-PUBLICATION-CHECKPOINT.md).
 > FIRMWARE NOT READY — B1 prepared sanitized graph PASS (originals retained),
 > three rc.1 phases PASS, observation/serial still running; B3/B4 physical gates
 > BLOCKED. README/site v2 local tests PASS; no new push/release/rename/Pages.
