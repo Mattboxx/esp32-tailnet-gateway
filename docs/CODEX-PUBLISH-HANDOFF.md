@@ -9,7 +9,7 @@
 >   in it). MicroLink `fa3153b`, clean, gitlink matches. Nothing pushed.
 > - **ESP32:** dev.8 WiFi on **ota_0**, booted, never reflashed by Claude; stable
 >   **1.13 on ota_1** untouched. Uptime continuous since about 05:00 (no reset).
-> - **COM3:** released at the end of the session (no collector running).
+> - **COM3:** released and verified free; no Python test process running.
 > - **Installed image:** `0.1.38-Mattboxx-1.14-dev.8`, BIN SHA-256
 >   `b70ff745fb0328be8f98b9ec7fe9b1ce1468501d082bf083ebdf336c08e1361f` (1,878,880 B),
 >   ELF `dfc0bed0e299aec2ec76c0d2941d29d0079acd870934f7f8bb3bc648b4908ccf`.
@@ -25,15 +25,17 @@
 > - **RAM (measured):** lifetime internal min 8043 B, largest internal block
 >   3456 B (constant), internal free 10.4–13.4 KB, min task stack free 5296 B,
 >   sockets ≤ 11/31. Main residual risk: esp-mqtt's 6 KB internal task stack
->   when MQTT is enabled from OFF after boot (analysis and candidate fix in
->   DEV8-VALIDATION "Internal RAM analysis").
+>   when MQTT is enabled from OFF after boot; also the per-reconnect
+>   `ts_connect` 4 KB internal stack fails silently (harmless while running).
+>   Analysis and candidate fixes in DEV8-VALIDATION "Internal RAM analysis".
 > - **PASS:** Windows 64/64, Linux sanitizers 60/60, one-hour observation,
 >   gateway/SNMP/OTA campaigns (Codex), MQTT/HA lab (74 Discovery configs, strict
 >   commands, broker outage → reconnect 3.2 s with tailnet up), WoL over HTTP,
 >   exact restore of MQTT settings and WoL list.
-> - **Integrations lab run 2** (WoL over MQTT and two in-session Wi-Fi/DERP
->   reconnect cycles): result recorded in DEV8-VALIDATION; if marked pending the
->   owner had not yet entered the password.
+> - **Integrations lab run 2 PASS:** WoL over MQTT; two in-session Wi-Fi drops
+>   with DERP TLS and control long-poll re-established, authority ready again
+>   after 16.1 s and 13.4 s, MQTT reconnected, no reboot, RAM unchanged. One
+>   client, short drop: forced-DERP data path and long outages still open.
 > - **BLOCKED / NOT TESTED:** two independent Tailnet identities (needs an owner
 >   lab node), recovery AP with Wi-Fi absent, power loss during OTA/NVS write,
 >   W5500 hardware, MQTT enable-from-OFF at runtime, real Home Assistant and ntfy

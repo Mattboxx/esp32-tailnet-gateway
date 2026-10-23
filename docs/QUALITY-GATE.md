@@ -15,9 +15,9 @@
 | SNMP v1/v2c 109 objects, malformed, cycles | PASS (Codex) | DEV8-VALIDATION |
 | One-hour passive serial + API observation | PASS as observation | 3600.27 s, 0 panic/WDT/reboot/errors, control 120/120; no stream closure occurred |
 | MQTT / HA Discovery / strict commands / broker outage | PASS, local lab broker | 74 configs, 0 invalid, reconnect 3.2 s, tailnet up meanwhile, exact restore; not a real HA instance |
-| Wake-on-LAN | HTTP PASS; MQTT see LATEST | synthetic MAC to the bench PC only |
-| Wi-Fi reconnect / DERP stream loss in session | see LATEST | via the existing `reconnect_wifi` command |
-| Internal RAM headroom | RISK | lifetime min 8043 B, largest block 3456 B; runtime MQTT enable from OFF needs ~6.5 KB contiguous: NOT TESTED |
+| Wake-on-LAN | PASS, HTTP and MQTT | synthetic MAC to the bench PC only; list restored exactly |
+| Wi-Fi reconnect / DERP + control stream loss in session | PASS, 2/2 cycles | authority back in 16.1 s and 13.4 s, no reboot, MQTT back; short drop on one AP, one client; forced-DERP data path and long outages NOT TESTED |
+| Internal RAM headroom | RISK | lifetime min 8043 B, largest block 3456 B, unchanged through all reconnects; runtime MQTT enable from OFF needs ~6.5 KB contiguous: NOT TESTED; `ts_connect` respawn fails silently (harmless today) |
 | Two independent Tailnet identities, direct + DERP | BLOCKED | needs an owner-provided lab node/identity (HARDWARE-CAMPAIGN §9) |
 | Recovery AP with Wi-Fi absent | NOT TESTED on hardware | host scheduler tests PASS; needs a controlled uplink outage |
 | Power loss during OTA / NVS write | NOT TESTED | rollback enabled and OTA writes the inactive slot; physical test needs a planned USB power cut |
