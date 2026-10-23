@@ -72,4 +72,49 @@ class HarnessTests(unittest.TestCase):
         self.assertLess(clock.now, 200)
 
 
+class CommandProofTests(unittest.TestCase):
+    def test_manager_stack_budget_is_external_and_not_reduced(self):
+        # Structural guard; actual post-outage high-water marks are device tests.
+        source = (ROOT/'main/mqtt_integration.c').read_text(encoding='utf-8')
+        self.assertIn('#define MQTT_MANAGER_STACK_BYTES 9216', source)
+        self.assertIn('manager_task, "mqtt_bridge", MQTT_MANAGER_STACK_BYTES', source)
+        self.assertIn('&s_manager_task, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT)', source)
+    def setUp(self):
+        lab_tree = ast.parse((ROOT/'tools/test_mqtt_lab_device.py').read_text(encoding='utf-8'))
+        fn = next(n for n in lab_tree.body if isinstance(n, ast.FunctionDef) and n.name == 'confirm_command_delivery')
+        ns = {'LAB_MAC': '02:4c:41:42:57:4f', 'magic_listener': None, 'wait': None}
+        exec(compile(ast.Module(body=[fn], type_ignores=[]), 'actual-command-proof', 'exec'), ns)
+        self.proof = ns['confirm_command_delivery']
+        self.saved = [{'name': 'synthetic', 'mac': '02:00:00:00:00:01'}]
+        self.devices = self.saved.copy()
+        self.writes = []
+    def api(self, path, payload=None):
+        self.assertEqual(path, '/api/wol')
+        if payload is not None:
+            self.devices = payload['devices'].copy(); self.writes.append(self.devices)
+        return {'devices': self.devices.copy()}
+    def run_proof(self, delivered, observer=None):
+        class Observer:
+            def publish(inner, topic, payload):
+                self.assertEqual(topic, 'synthetic/command/wol/024c4142574f')
+                self.assertEqual(payload, b'PRESS')
+        return self.proof(self.api, observer or Observer(), 'synthetic', '192.0.2.1', 47010,
+                          listen=lambda ip, port, seconds: [delivered],
+                          waiter=lambda predicate, seconds, step: predicate())
+    def test_packet_is_required_and_catalog_is_restored(self):
+        for delivered in (False, True):
+            self.assertEqual(self.run_proof(delivered), delivered)
+            self.assertEqual(self.devices, self.saved)
+            self.assertEqual(self.writes[-2][1]['broadcast'], '192.0.2.1')
+    def test_command_failure_still_restores_catalog(self):
+        class Broken:
+            def publish(inner, topic, payload): raise OSError('synthetic')
+        with self.assertRaises(OSError): self.run_proof(False, Broken())
+        self.assertEqual(self.devices, self.saved)
+    def test_full_catalog_is_not_modified(self):
+        self.devices = self.saved * 12
+        with self.assertRaises(AssertionError): self.run_proof(True)
+        self.assertEqual(self.writes, [])
+
+
 if __name__ == '__main__': unittest.main()

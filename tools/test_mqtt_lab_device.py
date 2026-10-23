@@ -98,6 +98,22 @@ class Observer:
         self.client.loop_stop(); self.client.disconnect()
 
 
+def confirm_command_delivery(api, observer, base, ip, port, *, listen=magic_listener, waiter=wait):
+    """Prove command subscription using a synthetic WoL packet to the bench only."""
+    saved = api('/api/wol')['devices']
+    assert len(saved) < 12 and not any(d.get('mac', '').lower() == LAB_MAC for d in saved), \
+        'No disposable registry slot available for command proof'
+    device = {'name': 'lab-command-proof', 'mac': LAB_MAC, 'broadcast': ip, 'port': port}
+    try:
+        api('/api/wol', {'devices': saved + [device]})
+        got = listen(ip, port, 20)
+        observer.publish(f"{base}/command/wol/{LAB_MAC.replace(':', '')}", b'PRESS')
+        return waiter(lambda: any(got), 15, 0.5)
+    finally:
+        api('/api/wol', {'devices': saved})
+        assert api('/api/wol')['devices'] == saved, 'Command-proof registry restore failed'
+
+
 def start_broker(bench_ip, port, seconds):
     return subprocess.Popen([sys.executable, str(ROOT / 'tools/lab_mqtt_broker.py'), '--bind', bench_ip,
                              '--port', str(port), '--seconds', str(seconds)],
@@ -202,9 +218,9 @@ def run(api, a):
     def strict_command():
         # An invalid switch payload must change nothing and only republish state.
         routes_before = api('/api/tailscale')['settings'].get('accept_routes', None)
-        n0 = len(state['observer'].topics(base + '/'))
+        n0 = len(state['observer'].topics(base + '/state'))
         state['observer'].publish(f'{base}/command/accept_routes', b'maybe')
-        checks['invalid_command_republished'] = wait(lambda: len(state['observer'].topics(base + '/')) > n0, 15)
+        checks['invalid_command_republished'] = wait(lambda: len(state['observer'].topics(base + '/state')) > n0, 15)
         checks['invalid_command_no_change'] = api('/api/tailscale')['settings'].get('accept_routes', None) == routes_before
 
     def broker_outage():
@@ -281,12 +297,25 @@ def run(api, a):
         t1 = time.monotonic()
         cyc['mqtt_back'] = wait(lambda: api('/api/mqtt')['connected'], 120, 3)
         cyc['mqtt_back_seconds'] = round(time.monotonic() - t1, 1)
-        # A fresh "online" means command topics are subscribed again (next cycle).
-        cyc['resubscribed'] = wait(lambda: any(
+        # A short WiFi outage can leave MQTT's TCP session/subscriptions intact.
+        # Fresh availability is informative, not proof that commands work.
+        cyc['fresh_availability'] = any(
             ts > t0 and t.endswith('/availability') and p.strip().lower() in (b'online', b'"online"')
-            for ts, t, p, _ in state['observer'].topics(base + '/')), 60, 0.5)
+            for ts, t, p, _ in state['observer'].topics(base + '/'))
+        if a.wol_lan_ip:
+            cyc['command_delivered'] = confirm_command_delivery(
+                api, state['observer'], base, a.wol_lan_ip, a.wol_port + i)
+            cyc['resubscribed'] = cyc['command_delivered']
+        else:
+            cyc['resubscribed'] = wait(lambda: any(
+                ts > t0 and t.endswith('/availability') and p.strip().lower() in (b'online', b'"online"')
+                for ts, t, p, _ in state['observer'].topics(base + '/')), 60, 0.5)
         time.sleep(20)  # let DERP/TLS settle before sampling
         mem[f'after_wifi_cycle_{i}'] = memory(api)
+        tasks = api('/api/system/diag').get('tasks', [])
+        cyc['manager_stack_hwm'] = next((t.get('stack_hwm') for t in tasks if t.get('name') == 'mqtt_bridge'), None)
+        assert isinstance(cyc['manager_stack_hwm'], int) and cyc['manager_stack_hwm'] >= 2048, \
+            'MQTT manager has less than 2 KiB measured stack headroom after reconnect'
         checks.setdefault('wifi_cycles', []).append(cyc)
 
     try:
@@ -331,7 +360,7 @@ def run(api, a):
         required += ('wol_http_delivered', 'wol_mqtt_delivered', 'wol_list_restored')
     ok = all(checks.get(k) for k in required) and checks.get('discovery_configs', 0) > 0 \
         and checks.get('discovery_invalid', 1) == 0 and result.get('restored_exactly') \
-        and result.get('password_still_present') and not result['phase_errors']
+        and result.get('password_still_present') and result.get('no_reboot_overall') and not result['phase_errors']
     if a.wifi_reconnect:
         cycles = checks.get('wifi_cycles', [])
         ok = ok and len(cycles) == a.wifi_reconnect and all(
