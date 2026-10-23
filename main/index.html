@@ -1817,7 +1817,7 @@
         </div>
         <p class="form-hint" id="fb-pair-status" role="status">Preparing a secure pairing…</p>
         <details class="fb-details"><summary>No BOOT button? Use the setup code</summary>
-          <p class="form-hint">Connect the gateway by USB and open a serial console at 115200 baud: the setup code is printed every 30 seconds.</p>
+          <p class="form-hint">Connect the gateway by USB and open a serial console at 115200 baud: the setup code is printed when pairing starts and every 30 seconds. The code changes every time the gateway restarts, and opening a serial console can restart it: always use the latest code, then tap Try again here if the page says the pairing expired.</p>
           <div class="fb-row"><input class="input" id="fb-code" inputmode="numeric" maxlength="9" autocomplete="one-time-code" placeholder="8-digit setup code" aria-label="8-digit setup code">
             <button class="btn btn-secondary" id="fb-code-btn" type="button">Confirm code</button></div>
         </details>
@@ -10137,11 +10137,19 @@
           var key = FBX.deriveKey(st.kp.priv, st.kp.pub, FBX.unhex(d.device_pub));
           st.kp.priv.fill(0);
           st.sid = d.sid;
-          status('Waiting for the BOOT button…');
+          st.began = Date.now();
+          status('Waiting for the BOOT button or the setup code…');
           st.poll = setInterval(function () {
             json('GET', '/api/setup/state').then(function (s) {
               if (s.session === 'claimed') { clearInterval(st.poll); st.key = key; paired(s); }
-              else if (s.session === 'none') { clearInterval(st.poll); status('The pairing expired. Press Try again.'); $('fb-retry').hidden = false; }
+              else if (s.session === 'none') {
+                clearInterval(st.poll); $('fb-retry').hidden = false;
+                /* Lost long before its window ended: the gateway restarted, or this
+                 * setup was started again in another window on this device. */
+                var early = Date.now() - st.began < ((d.expires_s || 600) - 5) * 1000;
+                status(early ? 'The pairing was reset: the gateway restarted or the setup is open in another window. Use one window and tap Try again.'
+                             : 'The pairing expired. Tap Try again.');
+              }
             }).catch(function () {});
           }, 1200);
           st.pendingKey = key;
@@ -10156,7 +10164,8 @@
       }
       function claimCode() {
         var code = $('fb-code').value.replace(/\D/g, '');
-        if (code.length !== 8 || !st.sid) { err('Enter the 8-digit setup code.'); return; }
+        if (code.length !== 8) { err('Enter the 8-digit setup code.'); return; }
+        if (!st.sid) { err('Pairing is not ready. Tap Try again, then enter the latest code.'); $('fb-retry').hidden = false; return; }
         json('POST', '/api/setup/claim', { sid: st.sid, code: code }).then(function (d) {
           if (d.claimed) { clearInterval(st.poll); st.key = st.pendingKey; json('GET', '/api/setup/state').then(paired, function () { paired({}); }); }
           else if (d.error === 'bad_code') err(T('Wrong setup code. Attempts left: ') + (d.detail || '0'));

@@ -28,7 +28,7 @@ extern "C" {
 #define FB_IV_BYTES         12
 #define FB_TAG_BYTES        16
 #define FB_CODE_DIGITS      8
-#define FB_PENDING_TTL_US   (120ULL * 1000000ULL)   /* pairing must be confirmed within 2 min */
+#define FB_PENDING_TTL_US   (600ULL * 1000000ULL)   /* pairing must be confirmed within 10 min */
 #define FB_CLAIMED_IDLE_US  (30ULL * 60ULL * 1000000ULL)
 #define FB_CODE_MAX_FAILS   5
 #define FB_MAX_PLAINTEXT    1536

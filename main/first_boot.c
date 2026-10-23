@@ -35,6 +35,10 @@ int ml_x25519(unsigned char out[32], const unsigned char scalar[32], const unsig
 #define TAG "first_boot"
 #define FB_BUTTON_GPIO GPIO_NUM_0      /* BOOT button on ESP32-S3 DevKit boards */
 #define FB_BODY_MAX 4096
+/* The watcher logs through the console/capture hooks (vfprintf), which needed
+ * more than the original 3 KiB: a real board overflowed it on a BOOT press.
+ * PSRAM stack, so internal RAM is unchanged; headroom reported in the state. */
+#define FB_TASK_STACK 6144
 
 static bool s_active;
 static bool s_finished;
@@ -42,6 +46,7 @@ static fb_ctx_t s_ctx;
 static StaticSemaphore_t s_lock_storage;
 static SemaphoreHandle_t s_lock;
 static uint32_t s_ap_ip_nbo;
+static TaskHandle_t s_task;
 
 /* ---------------------------------------------------------------- crypto */
 
@@ -157,8 +162,9 @@ void first_boot_start(void)
     if (ap && esp_netif_get_ip_info(ap, &info) == ESP_OK) s_ap_ip_nbo = info.ip.addr;
     if (!dns_relay_is_enabled()) dns_relay_set_enabled(true);
     dns_relay_set_captive(s_ap_ip_nbo);
-    if (xTaskCreateWithCaps(button_task, "first_boot", 3072, NULL, 3, NULL,
+    if (xTaskCreateWithCaps(button_task, "first_boot", FB_TASK_STACK, NULL, 3, &s_task,
                             MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS) {
+        s_task = NULL;
         ESP_LOGE(TAG, "presence task not started: setup code unavailable on the console");
     }
 }
@@ -276,6 +282,8 @@ static esp_err_t state_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "other_pairing", busy);
     cJSON_AddBoolToObject(root, "code_locked", locked);
     cJSON_AddBoolToObject(root, "finished", s_finished);
+    if (s_task) cJSON_AddNumberToObject(root, "presence_stack_free", uxTaskGetStackHighWaterMark(s_task));
+    cJSON_AddNumberToObject(root, "pairing_window_s", (double)(FB_PENDING_TTL_US / 1000000ULL));
     if (st == FB_CLAIMED) {
         fb_wifi_state_t ws; uint32_t ip = 0, mask = 0; int reason = 0;
         wifi_setup_test_get(&ws, &ip, &mask, &reason);
@@ -307,12 +315,18 @@ static esp_err_t begin_handler(httpd_req_t *req)
     if (!ok) return send_error(req, "400 Bad Request", "client_pub", NULL);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     fb_result_t r = fb_begin(&s_ctx, client_ip(req), pub, (uint64_t)esp_timer_get_time());
-    char sid[FB_SID_BYTES * 2 + 1], dpub[65];
+    char sid[FB_SID_BYTES * 2 + 1], dpub[65], code[FB_CODE_DIGITS + 1] = "";
     if (r == FB_OK) {
         fb_hex_encode(s_ctx.s.sid, FB_SID_BYTES, sid);
         fb_hex_encode(s_ctx.s.device_pub, 32, dpub);
+        memcpy(code, s_ctx.code, sizeof code);
     }
     xSemaphoreGive(s_lock);
+    if (r == FB_OK) {
+        /* Print at once so nobody waits for the 30 s reminder. */
+        ESP_LOGW(TAG, "Pairing waiting: press BOOT, or enter setup code %.4s %.4s", code, code + 4);
+        memset(code, 0, sizeof code);
+    }
     if (r == FB_ERR_BUSY) return send_error(req, "409 Conflict", "busy", "another device is pairing");
     if (r == FB_ERR_CLAIMED) return send_error(req, "409 Conflict", "claimed", "already paired with another device");
     if (r != FB_OK) return send_error(req, "400 Bad Request", "client_pub", NULL);
