@@ -25,7 +25,7 @@ install an image. Releases before 1.10 have no GitHub updater.
 Update once manually:
 
 1. Back up your configuration.
-2. Download **`firmware.bin`** from the [v2.0.0 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.0).
+2. Download **`firmware.bin`** from the [latest release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/latest).
 3. Upload it in **System → Firmware** and allow the gateway to restart.
 4. Alternatively use the Easy Install **keep-settings** option over USB.
 

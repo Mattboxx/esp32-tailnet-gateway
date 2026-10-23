@@ -5,7 +5,7 @@ One ESP32. Multiple Tailnet roles. Enable only what you need.
 
 ## Current downloads
 
-- [Firmware v2.0.1](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.1)
+- [Firmware v2.0.2](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.2)
 - [Browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
   for desktop Chrome/Edge and USB-connected ESP32-S3 N16R8 boards.
 - [Easy Install guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/)
