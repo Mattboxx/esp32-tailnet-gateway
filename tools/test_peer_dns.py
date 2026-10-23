@@ -35,6 +35,7 @@ static uint8_t mapped_prefix[12]={0,0,0,0,0,0,0,0,0,0,255,255};
 #define IN6_IS_ADDR_V4MAPPED(a) (!memcmp((a)->s6_addr,mapped_prefix,12))
 static uint32_t swap32(uint32_t x) { return ((x&255)<<24)|((x&0xff00)<<8)|((x>>8)&0xff00)|(x>>24); }
 #define ntohl swap32
+#include "sockaddr_ipv4.h"
 static bool active=true,connected=true,have_instance=true,socket_error;
 static uint32_t own_ip=0x64500001, peer_ip=0x64500002;
 static struct sockaddr_storage local_address,remote_address;
@@ -104,7 +105,7 @@ int main(void) {
 with tempfile.TemporaryDirectory(prefix='peer-dns-') as directory:
     path = Path(directory)
     (path/'test.c').write_text(fixture+functions+tests)
-    flags = ['-std=c11','-Wall','-Wextra','-Werror']
+    flags = ['-std=c11','-Wall','-Wextra','-Werror','-I',str(ROOT/'main')]
     if os.environ.get('PEER_DNS_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     binary = path/('test.exe' if os.name=='nt' else 'test')

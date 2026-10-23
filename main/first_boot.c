@@ -24,6 +24,7 @@
 #include "mbedtls/gcm.h"
 #include "mbedtls/sha256.h"
 #include "lwip/sockets.h"
+#include "sockaddr_ipv4.h"
 #include "nvs_params.h"
 #include "web_password.h"
 #include "web_ui.h"
@@ -203,9 +204,10 @@ static uint32_t client_ip(httpd_req_t *req)
 {
     struct sockaddr_storage peer = {0};
     socklen_t len = sizeof peer;
+    uint32_t ip = 0;
     int fd = httpd_req_to_sockfd(req);
-    if (fd < 0 || getpeername(fd, (struct sockaddr *)&peer, &len) != 0 || peer.ss_family != AF_INET) return 0;
-    return ((struct sockaddr_in *)&peer)->sin_addr.s_addr;
+    if (fd < 0 || getpeername(fd, (struct sockaddr *)&peer, &len) != 0 || !sockaddr_ipv4_nbo(&peer, &ip)) return 0;
+    return ip;
 }
 
 /* Setup endpoints exist only on an unconfigured device, only through its
