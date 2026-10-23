@@ -20,6 +20,7 @@
 #include "cJSON.h"
 #include "lwip/ip4_addr.h"
 #include "lwip/sockets.h"
+#include "sockaddr_ipv4.h"
 #include "web_ui.h"
 #include "json_guard.h"
 #include "web_origin.h"
@@ -4810,10 +4811,11 @@ static uint32_t request_peer_ipv4(httpd_req_t *req)
 {
     struct sockaddr_storage addr = {0};
     socklen_t len = sizeof addr;
+    uint32_t ip = 0;
     int fd = httpd_req_to_sockfd(req);
     if (fd < 0 || getpeername(fd, (struct sockaddr *)&addr, &len) != 0
-        || addr.ss_family != AF_INET) return 0;
-    return ((struct sockaddr_in *)&addr)->sin_addr.s_addr;
+        || !sockaddr_ipv4_nbo(&addr, &ip)) return 0;
+    return ip;
 }
 
 static login_guard_t *login_guard_for(httpd_req_t *req)
@@ -5089,14 +5091,15 @@ static bool request_arrived_on_ap(httpd_req_t *req)
 
     struct sockaddr_storage local = {0};
     socklen_t local_len = sizeof local;
+    uint32_t local_ip = 0;
     int fd = httpd_req_to_sockfd(req);
     if (fd < 0 || getsockname(fd, (struct sockaddr *)&local, &local_len) != 0
-        || local.ss_family != AF_INET) return false;
+        || !sockaddr_ipv4_nbo(&local, &local_ip)) return false;
 
     esp_netif_t *ap = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
     esp_netif_ip_info_t ap_ip = {0};
     if (!ap || esp_netif_get_ip_info(ap, &ap_ip) != ESP_OK) return false;
-    return ((struct sockaddr_in *)&local)->sin_addr.s_addr == ap_ip.ip.addr;
+    return ap_ip.ip.addr && local_ip == ap_ip.ip.addr;
 }
 
 bool web_ui_setup_request_ok(httpd_req_t *req)

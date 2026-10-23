@@ -28,6 +28,7 @@
 #include <strings.h>
 
 #include "dns_relay.h"
+#include "sockaddr_ipv4.h"
 #include "esp_heap_caps.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
@@ -73,27 +74,15 @@ static bool advertises_exit_node(void)
     return tailscale_exit_server_active();
 }
 
-/* ESP-IDF's HTTP server listens with PF_INET6 when lwIP IPv6 support is
- * enabled, so an IPv4 connection is exposed by getsockname/getpeername as an
- * IPv4-mapped IPv6 sockaddr.  Normalize only the two IPv4 representations;
- * native IPv6 remains outside this IPv4 PeerAPI contract. */
+/* IPv4 or IPv4-mapped (see sockaddr_ipv4.h); native IPv6 remains outside
+ * this IPv4 PeerAPI contract. */
 static bool sockaddr_ipv4_host(const struct sockaddr_storage *address,
                                uint32_t *ipv4_host)
 {
-    if (address->ss_family == AF_INET) {
-        const struct sockaddr_in *v4 = (const struct sockaddr_in *)address;
-        *ipv4_host = ntohl(v4->sin_addr.s_addr);
-        return true;
-    }
-    if (address->ss_family == AF_INET6) {
-        const struct sockaddr_in6 *v6 = (const struct sockaddr_in6 *)address;
-        if (!IN6_IS_ADDR_V4MAPPED(&v6->sin6_addr)) return false;
-        uint32_t ipv4_network;
-        memcpy(&ipv4_network, &v6->sin6_addr.s6_addr[12], sizeof(ipv4_network));
-        *ipv4_host = ntohl(ipv4_network);
-        return true;
-    }
-    return false;
+    uint32_t ipv4_network;
+    if (!sockaddr_ipv4_nbo(address, &ipv4_network)) return false;
+    *ipv4_host = ntohl(ipv4_network);
+    return true;
 }
 
 /* Requests are accepted only on the tunnel address and only when the remote
