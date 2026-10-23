@@ -134,8 +134,13 @@ class UpstreamIntegrationTests(unittest.TestCase):
         self.assertIn('.disable_auto_redirect = true', source)
         self.assertIn('ota_download_url_allowed(b.location)', source)
         installer = source.split('static OTA_NOINLINE bool install_release', 1)[1].split('static void worker', 1)[0]
-        self.assertLess(installer.index('image_matches('), installer.index('esp_ota_begin('))
-        self.assertLess(installer.index('memcmp(actual, s_digest'), installer.index('esp_ota_set_boot_partition('))
+        self.assertLess(installer.index('image_matches('), installer.index('ota_flash_begin('))
+        self.assertLess(installer.index('memcmp(actual, s_digest'), installer.index('ota_flash_set_boot_partition('))
+        # The HTTPS worker must not regress to direct cache-sensitive SDK calls.
+        # Actual dispatch/domain/error behavior is exercised by test_ota_flash.
+        for call in ('esp_ota_get_next_update_partition', 'esp_ota_begin', 'esp_ota_write',
+                     'esp_ota_end', 'esp_ota_abort', 'esp_ota_set_boot_partition', 'esp_restart'):
+            self.assertNotIn(call + '(', source)
         self.assertIn('ota_writer_try_acquire()', installer)
         self.assertIn('ota_writer_release()', installer)
         self.assertNotIn('s_state.config.enabled = true', source)
