@@ -4,6 +4,7 @@
 #include "ota_remote.h"
 #include "ota_validation.h"
 #include "ota.h"
+#include "ota_flash.h"
 #include "nvs_params.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,6 +36,7 @@
 static StaticSemaphore_t s_lock_storage;
 static SemaphoreHandle_t s_lock;
 static TaskHandle_t s_task;
+static bool s_flash_ready;
 static ota_remote_state_t s_state;
 static unsigned char s_digest[32];
 typedef struct { uint8_t schema, enabled, automatic, beta; int32_t hour; } saved_config_t;
@@ -164,7 +166,8 @@ static OTA_NOINLINE bool check_release(void)
     cJSON *json = cJSON_ParseWithLengthOpts(b.body, b.used + 1, &end, true);
     free(b.body);
     if (!cJSON_IsArray(json)) { cJSON_Delete(json); status_set("Invalid GitHub release response"); return false; }
-    const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
+    const esp_partition_t *target = ota_flash_next_partition();
+    if (!target) { cJSON_Delete(json); status_set("OTA flash worker unavailable or no update slot"); return false; }
     char tag[32] = {0}; uint32_t size = 0; unsigned char digest[32];
     const esp_app_desc_t *app = esp_app_get_description();
     bool found = target && app && ota_remote_select_release(json, app->version, beta, target->size, tag, &size, digest);
@@ -238,14 +241,14 @@ static OTA_NOINLINE bool install_release(void)
         used += (size_t)n;
     }
     if (!image_matches(buffer, used, state.latest_version)) { status_set("Rejected: wrong board, firmware or version"); goto done; }
-    const esp_partition_t *target = esp_ota_get_next_update_partition(NULL);
-    if (!target || state.asset_size > target->size || esp_ota_begin(target, state.asset_size, &writer) != ESP_OK) goto done;
-    if (mbedtls_sha256_update(&hash, buffer, used) != 0 || esp_ota_write(writer, buffer, used) != ESP_OK) goto done;
+    const esp_partition_t *target = ota_flash_next_partition();
+    if (!target || state.asset_size > target->size || ota_flash_begin(target, state.asset_size, &writer) != ESP_OK) goto done;
+    if (mbedtls_sha256_update(&hash, buffer, used) != 0 || ota_flash_write(writer, buffer, used) != ESP_OK) goto done;
     while (used < state.asset_size && esp_timer_get_time() < deadline) {
         size_t wanted = state.asset_size - used;
         if (wanted > 2048) wanted = 2048;
         int n = esp_http_client_read(client, (char *)buffer, wanted);
-        if (n <= 0 || mbedtls_sha256_update(&hash, buffer, n) != 0 || esp_ota_write(writer, buffer, n) != ESP_OK) goto done;
+        if (n <= 0 || mbedtls_sha256_update(&hash, buffer, n) != 0 || ota_flash_write(writer, buffer, n) != ESP_OK) goto done;
         used += (size_t)n;
         xSemaphoreTake(s_lock, portMAX_DELAY);
         s_state.progress = (unsigned)(used * 100 / state.asset_size);
@@ -256,16 +259,16 @@ static OTA_NOINLINE bool install_release(void)
         mbedtls_sha256_finish(&hash, actual) != 0 || memcmp(actual, s_digest, sizeof actual)) {
         status_set("Rejected: incomplete download or SHA-256 mismatch"); goto done;
     }
-    esp_err_t err = esp_ota_end(writer); writer = 0;
-    if (err != ESP_OK || esp_ota_set_boot_partition(target) != ESP_OK) goto done;
+    esp_err_t err = ota_flash_end(writer); writer = 0;
+    if (err != ESP_OK || ota_flash_set_boot_partition(target) != ESP_OK) goto done;
     success = true;
 done:
-    if (writer) esp_ota_abort(writer);
+    if (writer) ota_flash_abort(writer);
     if (client) esp_http_client_cleanup(client);
     mbedtls_sha256_free(&hash); free(b.location); free(buffer);
     if (success) {
         status_set("Installed; restarting");
-        vTaskDelay(pdMS_TO_TICKS(2000)); esp_restart();
+        vTaskDelay(pdMS_TO_TICKS(2000)); ota_flash_restart();
     } else {
         ota_writer_release();
         ota_remote_get_state(&state);
@@ -328,6 +331,7 @@ static void worker(void *unused)
 
 static bool start_worker_locked(void)
 {
+    if (!s_flash_ready) return false;
     if (s_task) return true;
     return xTaskCreateWithCaps(worker, "ota_fork", WORKER_STACK, NULL, 4, &s_task,
                                MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) == pdPASS;
@@ -374,6 +378,9 @@ void ota_remote_init(void)
     if (s_lock) return;
     s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
     s_state.config.install_hour = -1;
+    /* Reserve the small internal-stack executor before network fragmentation.
+     * Remote requests fail closed if it cannot start; local upload is separate. */
+    s_flash_ready = ota_flash_init() == ESP_OK;
     strlcpy(s_state.status, "Periodic checks disabled", sizeof s_state.status);
     nvs_handle_t nvs; saved_config_t saved; size_t length = sizeof saved;
     if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs) == ESP_OK) {
@@ -383,5 +390,6 @@ void ota_remote_init(void)
             (!saved.automatic || saved.enabled))
             s_state.config = (ota_remote_config_t){saved.enabled, saved.automatic, saved.beta, saved.hour};
     }
-    if (s_state.config.enabled && !start_worker_locked()) status_set("Update worker failed to start");
+    if (!s_flash_ready) status_set("OTA flash worker failed to start");
+    else if (s_state.config.enabled && !start_worker_locked()) status_set("Update worker failed to start");
 }
