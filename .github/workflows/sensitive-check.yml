@@ -32,5 +32,12 @@ jobs:
           python3 -m pip install PyYAML==6.0.2
           sudo apt-get update
           sudo apt-get install -y libcjson-dev
+      - name: Pinned ESP-IDF 5.5.3 MQTT task ownership regressions
+        uses: actions/checkout@v7
+        with:
+          repository: espressif/esp-mqtt
+          ref: 6af4446a48ea7fa54948edc4e62277ed70abb6e1
+          path: .test-deps/esp-mqtt
+          persist-credentials: false
       - name: Consolidated offline validation
-        run: LWIP_SOURCE=.test-deps/esp-lwip python3 tools/validate_all.py --sanitizers
+        run: LWIP_SOURCE=.test-deps/esp-lwip MQTT_SOURCE=.test-deps/esp-mqtt/mqtt_client.c python3 tools/validate_all.py --sanitizers

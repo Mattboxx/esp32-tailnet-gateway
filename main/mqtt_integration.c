@@ -22,6 +22,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
+#include "freertos/idf_additions.h"
 #include "lwip/ip4_addr.h"
 #include "mqtt_client.h"
 #include "microlink.h"
@@ -1006,7 +1007,8 @@ void mqtt_integration_init(void)
     xSemaphoreTake(s_lock, portMAX_DELAY);
     load_config();
     xSemaphoreGive(s_lock);
-    if (xTaskCreate(manager_task, "mqtt_bridge", 6144, NULL, 4, &s_manager_task) != pdPASS) {
+    if (xTaskCreateWithCaps(manager_task, "mqtt_bridge", 6144, NULL, 4,
+                          &s_manager_task, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS) {
         s_manager_task = NULL;
         ESP_LOGE(TAG, "Cannot allocate MQTT manager stack");
     }

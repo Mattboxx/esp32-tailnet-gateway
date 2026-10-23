@@ -72,6 +72,7 @@
 #include "ota_remote.h"
 #include "cli.h"
 #include "esp_ota_ops.h"
+#include "task_reaper.h"
 
 /* The examples use WiFi configuration that you can set via project configuration menu.
 
@@ -502,7 +503,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
          * responsible for waiting on SNTP, dialing the control plane and
          * staying online; we just kick it off here. */
         if (tailscale_enabled) {
-            xTaskCreate(tailscale_connect_task, "ts_connect", 4096, NULL, 5, NULL);
+            (void)tailscale_request_connect(); /* Allocation failures are logged. */
         }
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 
@@ -788,6 +789,8 @@ void app_main(void)
 {
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+    /* Before any PSRAM-stack worker: their exits must not allocate. */
+    (void)task_reaper_init();
 
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();

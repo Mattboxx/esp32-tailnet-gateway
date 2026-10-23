@@ -6,6 +6,7 @@ $qaRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $qaSdk = Join-Path $env:USERPROFILE '.platformio/packages/framework-espidf@3.50503.0/components'
 $qaJson = (Resolve-Path (Join-Path $qaSdk 'json/cJSON')).Path
 $qaLwip = (Resolve-Path (Join-Path $qaSdk 'lwip/lwip')).Path
+$qaMqtt = (Resolve-Path (Join-Path $qaSdk 'mqtt/esp-mqtt')).Path
 $qaStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $qaOutput = Join-Path $qaRoot "build/linux-validation-$qaStamp"
 New-Item -ItemType Directory -Path $qaOutput | Out-Null
@@ -33,7 +34,9 @@ $qaCommand = $qaCommand.Replace('__DRIVERS__', $(if ($Only) { "--only $Only" } e
     --mount "type=bind,source=$qaOutput,target=/work/build" `
     --mount "type=bind,source=$qaJson,target=/deps/cJSON,readonly" `
     --mount "type=bind,source=$qaLwip,target=/deps/lwip,readonly" `
+    --mount "type=bind,source=$qaMqtt,target=/deps/esp-mqtt,readonly" `
     --workdir /work -e CJSON_SOURCE=/deps/cJSON/cJSON.c -e LWIP_SOURCE=/deps/lwip `
+    -e MQTT_SOURCE=/deps/esp-mqtt/mqtt_client.c `
     -e GATEWAY_SANITIZER_NO_PIE=1 ubuntu:24.04 bash -lc $qaCommand *> (Join-Path $qaOutput 'container.log')
 $qaExit = $LASTEXITCODE
 Get-Content (Join-Path $qaOutput 'container.log') | Where-Object { $_ -match '^(PASS|FAIL|SKIP)' }

@@ -1,5 +1,12 @@
 # Quality gate — dev.8 installed candidate (2026-10-23, Claude final handoff)
 
+> **Codex dev.9 continuation:** presentation-only Main `a85681a` and Pages are
+> public and verified. No firmware/source release or rename. Local dev.9 fixes
+> MQTT/task memory (build and four Windows/Linux host drivers PASS); its physical
+> install/qualification and full campaign results are pending. Owner authorized
+> this exact dev.9 WiFi image; stable ota_1 must remain intact. See
+> [DEV9-CONTINUATION.md](DEV9-CONTINUATION.md). This does not clear any gate below.
+
 > **Current:** this section and [DEV8-VALIDATION.md](DEV8-VALIDATION.md)
 > supersede the older rows further below. Installed image dev.8 WiFi
 > `b70ff745fb0328be8f98b9ec7fe9b1ce1468501d082bf083ebdf336c08e1361f` on ota_0,

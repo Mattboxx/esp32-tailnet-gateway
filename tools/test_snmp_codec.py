@@ -196,6 +196,9 @@ static void xSemaphoreTake(int mutex, int delay) {assert(mutex==s_mutex && delay
 static void xSemaphoreGive(int mutex) {assert(mutex==s_mutex);gives++;}
 static void vTaskDelete(void *handle) {assert(!handle);internal_deletes++;}
 static void vTaskDeleteWithCaps(void *handle) {assert(!handle);caps_deletes++;}
+/* Project reaper: worker exit without an SDK exit-time internal allocation. */
+static int reaper_deletes;
+static void task_reaper_self_delete(void) {reaper_deletes++;}
 '''
 worker_tests = r'''
 static void snmp_task(void *arg) {(void)arg;}
@@ -206,9 +209,9 @@ int main(void) {
     assert(s_starting && takes==1 && gives==1); /* worker publishes state */
     delete_snmp_worker();
 #if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
-    assert(caps_calls==2 && !internal_calls && caps_deletes==1 && !internal_deletes);
+    assert(caps_calls==2 && !internal_calls && reaper_deletes==1 && !caps_deletes && !internal_deletes);
 #else
-    assert(internal_calls==2 && !caps_calls && internal_deletes==1 && !caps_deletes);
+    assert(internal_calls==2 && !caps_calls && internal_deletes==1 && !caps_deletes && !reaper_deletes);
 #endif
     puts("PASS: actual SNMP worker allocation caps, matching teardown and OOM reservation release (SDK fixtures)");
 }

@@ -65,6 +65,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdatomic.h>
+#include "task_reaper.h"
 #include <errno.h>
 
 #define TAG          "snmp_agent"
@@ -1160,7 +1161,7 @@ static BaseType_t create_snmp_worker(void)
 static void delete_snmp_worker(void)
 {
 #if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
-    vTaskDeleteWithCaps(NULL);
+    task_reaper_self_delete(); /* no allocation/abort on exit */
 #else
     vTaskDelete(NULL);
 #endif
