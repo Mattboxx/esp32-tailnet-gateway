@@ -22,22 +22,22 @@
 
   <rect class="box" x="40" y="100" width="260" height="88" rx="10"/>
   <text class="h" x="56" y="128">LAN client</text>
-  <text class="s" x="56" y="150">192.168.1.20 · no Tailscale client</text>
-  <text class="s" x="56" y="172">connects to 192.168.1.50:18830</text>
+  <text class="s" x="56" y="150">192.0.2.20 · no Tailscale client</text>
+  <text class="s" x="56" y="172">connects to 192.0.2.50:18830</text>
 
   <rect class="box" x="40" y="236" width="260" height="88" rx="10"/>
   <text class="h" x="56" y="264">Other LAN device</text>
-  <text class="s" x="56" y="286">192.168.1.30</text>
+  <text class="s" x="56" y="286">192.0.2.30</text>
   <text class="s r" x="56" y="308">refused: source not in the rule</text>
 
   <rect class="hot" x="360" y="96" width="240" height="232" rx="12"/>
   <text class="h" x="376" y="124">Rule: TCP 18830 → :1883</text>
   <text class="s" x="376" y="154"><tspan class="t">✓</tspan> enabled and not expired</text>
-  <text class="s" x="376" y="178"><tspan class="t">✓</tspan> source in 192.168.1.20/32</text>
+  <text class="s" x="376" y="178"><tspan class="t">✓</tspan> source in 192.0.2.20/32</text>
   <text class="s" x="376" y="202"><tspan class="t">✓</tspan> protocol and port match</text>
   <text class="s" x="376" y="226"><tspan class="t">✓</tspan> sent over WireGuard</text>
   <path d="M376 244H584" stroke="#1C2A22"/>
-  <text class="s" x="376" y="268">listens on 192.168.1.50:18830</text>
+  <text class="s" x="376" y="268">listens on 192.0.2.50:18830</text>
   <text class="s" x="376" y="290">accepted / rejected counters</text>
   <text class="s" x="376" y="312">optional destination test</text>
 

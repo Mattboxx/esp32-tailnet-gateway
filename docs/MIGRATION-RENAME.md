@@ -1,11 +1,18 @@
 # Repository rename and OTA migration plan
 
-> **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
+> **1.14 development preview.** This guide includes unreleased features; it
+> does not imply a new firmware download. Public stable remains
+> [Mattboxx 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
+
+
+> Presentation publication is separate from firmware publication. Current scope:
+> [presentation status](PRESENTATION-STATUS.md). No repository rename yet.
 
 From `Mattboxx/esp32-tailscale-gateway-NAS-recovery` to
 `Mattboxx/esp32-tailnet-gateway` (product: ESP32 Tailnet Gateway — Mattboxx
-Edition). Nothing here has been executed on GitHub; every public step needs
-the owner's explicit authorization.
+Edition). The README and presentation website may be published early under
+the current name. The firmware bridge and rename sequence below have not been
+executed; each belongs to the separately authorized firmware release phase.
 
 ## Why a bridge release is required
 
@@ -18,9 +25,9 @@ Verified in source (`main/ota_remote.c`, `main/ota_validation.h`) for stable
 | Download | Fixed `github.com/<old>/releases/download/<tag>/firmware.bin`; redirects only to the same path or the release-asset CDN | Redirect to `<new>` is refused |
 
 Stable 1.13 and development builds **before bridge commit `5b797f8` cannot
-update themselves after the rename**. The installed dev.6 `aaf166ed…` and
-current dev.7 sources include that bridge; do not classify every dev.6 image
-as pre-bridge based on its version alone. Affected older firmware
+update themselves after the rename**. Some development images already include
+the bridge; check the actual source and image, not just a development version
+label. Affected older firmware
 fails closed (no partial install, no damage): the device keeps running and can
 still be updated manually.
 

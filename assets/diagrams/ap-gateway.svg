@@ -25,7 +25,7 @@
   <text class="h" x="56" y="197">Thermostat</text>
   <rect class="box" x="40" y="232" width="240" height="56" rx="10"/>
   <text class="h" x="56" y="258">Sensor hub</text>
-  <text class="s" x="56" y="278">own subnet, e.g. 192.168.4.0/24</text>
+  <text class="s" x="56" y="278">own subnet, e.g. AP subnet /24</text>
 
   <rect class="hot" x="360" y="96" width="240" height="192" rx="12"/>
   <text class="h" x="376" y="124">DHCP · DNS · NAT · ACL</text>

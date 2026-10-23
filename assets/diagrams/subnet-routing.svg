@@ -27,7 +27,7 @@
   <text class="s" x="56" y="228">another tailnet node</text>
 
   <rect class="hot" x="360" y="96" width="240" height="192" rx="12"/>
-  <text class="h" x="376" y="124">Advertises 192.168.1.0/24</text>
+  <text class="h" x="376" y="124">Advertises 192.0.2.0/24</text>
   <text class="s" x="376" y="150">approved in the admin console</text>
   <text class="s" x="376" y="176">Tailnet authorization checked on</text>
   <text class="s" x="376" y="196">original packets, before NAT</text>

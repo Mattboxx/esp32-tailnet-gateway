@@ -7,25 +7,74 @@ group: Start
 order: 8
 -->
 <h1>Downloads</h1>
+<!-- if:v2 -->
+<p class="lead">Three ways to install Firmware v{{next_version}}. Beginners: start with A.</p>
+<h2 id="availability">Choose an installation method</h2>
+<div class="grid">
+  <div class="card"><h3>A. Install from browser <span class="badge on">recommended</span></h3>
+    <p>Connect the ESP32-S3 by USB and install from this site in desktop Chrome or Edge.</p>
+    <a class="btn primary" href="{{root}}install-firmware/">Install Firmware</a></div>
+  <div class="card"><h3>B. Easy Install — Windows, macOS &amp; Linux</h3>
+    <p>A download with guided scripts for every desktop system.</p>
+    <a class="btn" href="{{repo}}/releases/download/v{{next_version}}/ESP32-Tailnet-Gateway-v{{next_version}}-EASY-INSTALL-Windows-macOS-Linux.zip">Download Easy Install</a>
+    <p><a href="{{root}}easy-install/">Instructions</a></p></div>
+  <div class="card"><h3>C. Advanced downloads</h3>
+    <p>Factory and OTA images, the experimental Ethernet image, checksums and manifest.</p>
+    <a class="btn" href="#advanced">Advanced downloads</a></div>
+</div>
+<h2 id="advanced">C. Advanced downloads</h2>
+<table>
+  <thead><tr><th>File</th><th>Use</th></tr></thead>
+  <tbody>
+    <tr><td><code>ESP32-Tailnet-Gateway-v{{next_version}}-WiFi-factory.bin</code></td><td>New device: esptool at <code>0x0</code>. Erases all settings.</td></tr>
+    <tr><td><code>firmware.bin</code></td><td>Wi-Fi OTA image: Web UI upload, GitHub updater, keep-settings USB update. Name kept for older updaters.</td></tr>
+    <tr><td><code>firmware-eth.bin</code>, <code>ESP32-Tailnet-Gateway-v{{next_version}}-Ethernet-EXPERIMENTAL-factory.bin</code></td><td>W5500 Ethernet build. <strong>Experimental, not hardware-qualified.</strong> Only for boards with the module wired as documented.</td></tr>
+    <tr><td><code>SHA256SUMS.txt</code>, <code>release-manifest.json</code></td><td>Checksums and machine-readable build metadata.</td></tr>
+    <tr><td>Source code and <a href="{{repo}}/releases/tag/v{{next_version}}">release notes</a></td><td>Exact sources of this release.</td></tr>
+  </tbody>
+</table>
+<p>Advanced flashing (new device): <code>esptool --chip esp32s3 write-flash 0x0 ESP32-Tailnet-Gateway-v{{next_version}}-WiFi-factory.bin</code>.</p>
+<!-- endif -->
+<!-- if:stable -->
+<p class="note">Firmware v{{next_version}} — with the <a href="{{root}}install-firmware/">browser installer</a>, the <a href="{{root}}easy-install/">Easy Install package</a> and the <a href="{{root}}first-boot/">guided first start</a> — is in preparation. Until it is released, the download below is the stable 1.13.</p>
+<h2 id="availability">Available now: stable Mattboxx 1.13</h2>
+<p>The new identity is live; Firmware v{{next_version}} is still in preparation. The download below is <strong>0.1.38-Mattboxx-1.13</strong>, not the preview firmware. Existing users can keep their stable installation.</p>
+<table>
+  <thead><tr><th>In public stable 1.13</th><th>Firmware v{{next_version}} — not yet released</th></tr></thead>
+  <tbody>
+    <tr><td>LAN → Tailnet TCP/UDP rules, source restrictions and MagicDNS</td><td>Destination tests, timed rules, Service Watch and rule guides</td></tr>
+    <tr><td>Subnet router, AP gateway, exit-node roles and 4via6</td><td>Refreshed UI, Simple/Advanced modes and configuration profiles</td></tr>
+    <tr><td>Saved WoL devices, MQTT/HA, ntfy, read-only SNMP</td><td>Smart Recovery, layered Health Monitor and diagnostic export</td></tr>
+    <tr><td>ESP32-S3 N16R8 WiFi build</td><td>Experimental W5500 variant; no hardware-qualification claim</td></tr>
+  </tbody>
+</table>
 <p>Firmware is published only on the GitHub releases page. Always check the SHA-256 checksum before flashing.</p>
 <p><a class="btn primary" href="{{repo}}/releases/latest">Latest stable release</a> <a class="btn" href="{{repo}}/releases">All releases</a></p>
 
-<h2>Release assets</h2>
+<h2>Current 1.13 release assets</h2>
 <table>
   <thead><tr><th>File</th><th>When to use it</th></tr></thead>
   <tbody>
     <tr><td><code>firmware-factory.bin</code></td><td>First install with esptool at offset <code>0x0</code>. Erases all settings.</td></tr>
     <tr><td><code>firmware.bin</code></td><td>Updates: Web UI upload, the opt-in GitHub updater, or keep-settings flashing.</td></tr>
-    <tr><td><code>ESP32-Tailnet-Gateway-&lt;version&gt;-windows.zip</code></td><td>Guided Windows package with esptool and batch files.</td></tr>
-    <tr><td><code>SHA256SUMS.txt</code>, <code>release-manifest.json</code>, <code>FIRMWARE-LICENSES.txt</code></td><td>Checksums, build metadata and third-party notices.</td></tr>
-    <tr><td><code>firmware-eth.bin</code>, <code>firmware-eth-factory.bin</code></td><td>Ethernet (W5500) variant only, when published; it updates only from its own asset.</td></tr>
+    <tr><td><code>ESP32-S3-router-0.1.38-Mattboxx-1.13-windows.zip</code></td><td>Guided Windows package with esptool and batch files.</td></tr>
+    <tr><td><code>RELEASE-SHA256SUMS.txt</code>, <code>FIRMWARE-LICENSES.txt</code></td><td>Published checksums and third-party notices.</td></tr>
   </tbody>
 </table>
 
+<!-- endif -->
 <h2>Verify a download</h2>
+<!-- if:v2 -->
 <pre><code>sha256sum -c SHA256SUMS.txt        # Linux
 shasum -a 256 -c SHA256SUMS.txt    # macOS
 Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
+<p><a href="{{repo}}/releases/tag/v0.1.38-Mattboxx-1.13">Previous stable 1.13 and its original installation assets</a> remain available in the release archive.</p>
+<!-- endif -->
+<!-- if:stable -->
+<pre><code>sha256sum -c RELEASE-SHA256SUMS.txt        # Linux
+shasum -a 256 -c RELEASE-SHA256SUMS.txt    # macOS
+Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
+<!-- endif -->
 
 <h2>WiFi and Ethernet variants</h2>
 <p>The default images are the WiFi build. An Ethernet (W5500) variant, when published, has <code>eth</code> in its name and is only for boards with that module wired as documented. It is experimental.</p>

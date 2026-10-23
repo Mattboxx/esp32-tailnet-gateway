@@ -1,5 +1,10 @@
 # Configuration reference
 
+> **1.14 development preview.** This guide includes unreleased features; it
+> does not imply a new firmware download. Public stable remains
+> [Mattboxx 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
+
+
 Every setting below is configured from the device web UI. Changes are
 written to NVS; some require a reboot to take effect (the UI flags a
 pending reboot when so).
