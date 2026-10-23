@@ -1,7 +1,7 @@
 # Codex publish handoff — ESP32 Tailnet Gateway, Mattboxx Edition
 
 > **LATEST — handoff to Claude, 2026-10-23:** start with
-> [CLAUDE-CONTINUATION-HANDOFF.md](CLAUDE-CONTINUATION-HANDOFF.md) and the CURRENT
+> [DEV8-CONTINUATION.md](DEV8-CONTINUATION.md) and the CURRENT
 > section of NEXT-STEPS. Dev.8 is installed; SNMP and gateway/reboot/profile/
 > watch campaigns completed with cleanup. New 60-minute captures RUNNING and
 > holding COM3; do not interrupt or duplicate. Owner now reserves public

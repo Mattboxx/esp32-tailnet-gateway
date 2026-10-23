@@ -3,7 +3,7 @@
 > **Handoff update:** dev.8 gateway/reboot/profile/watch campaign completed and
 > original configuration restored. SNMP regression PASS. New 60-minute serial/
 > API capture is running, NOT yet qualified. COM3 exclusively occupied until
-> completion. See DEV8-VALIDATION and CLAUDE-CONTINUATION-HANDOFF. NOT READY
+> completion. See DEV8-VALIDATION and DEV8-CONTINUATION. NOT READY
 > remains for uncompleted essential real-policy/recovery/integration gates;
 > Claude is authorized for local preparation, not public operations.
 
