@@ -19,7 +19,7 @@ typedef enum { FB_WIFI_IDLE = 0, FB_WIFI_TESTING, FB_WIFI_OK, FB_WIFI_FAILED } f
  * are loaded and before the access point starts. */
 void first_boot_init(void);
 bool first_boot_active(void);
-/* "Tailnet-Gateway-Setup-XXXX" (setup) and "Tailnet-Gateway-XXXX" (proposed
+/* "ESP32-Tailnet-Setup-XXXX" (setup) and "ESP32-Tailnet-XXXX" (proposed
  * protected access point after setup); XXXX from the AP MAC. */
 void first_boot_setup_ssid(char *out, size_t cap);
 void first_boot_default_ssid(char *out, size_t cap);

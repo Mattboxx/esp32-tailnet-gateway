@@ -99,6 +99,30 @@ idf_component_register(SRCS "main.c"
 # (100.64/10) destinations. Otherwise NAPT rewrites the AP-client
 # source IP to the WG netif's CGNAT address and breaks the TCP
 # 4-tuple at the tailnet peer.
+# Provenance shown in System > About: exact source commit of this build and
+# of the MicroLink dependency ("-dirty" when tracked files differ). Re-run on
+# every commit so a stale value cannot be reported.
+get_filename_component(_mtg_root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+foreach(_mtg_dir IN ITEMS "${_mtg_root}" "${_mtg_root}/external/microlink")
+    execute_process(COMMAND git -C "${_mtg_dir}" rev-parse --short=12 HEAD
+                    OUTPUT_VARIABLE _mtg_rev OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    execute_process(COMMAND git -C "${_mtg_dir}" status --porcelain --untracked-files=no
+                    OUTPUT_VARIABLE _mtg_dirty OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    if(NOT _mtg_rev)
+        set(_mtg_rev "unknown")
+    elseif(_mtg_dirty)
+        set(_mtg_rev "${_mtg_rev}-dirty")
+    endif()
+    list(APPEND _mtg_revs "${_mtg_rev}")
+endforeach()
+list(GET _mtg_revs 0 _mtg_build_commit)
+list(GET _mtg_revs 1 _mtg_microlink_commit)
+target_compile_definitions(${COMPONENT_LIB} PRIVATE
+    MTG_BUILD_COMMIT="${_mtg_build_commit}" MTG_MICROLINK_COMMIT="${_mtg_microlink_commit}")
+if(EXISTS "${_mtg_root}/.git/logs/HEAD")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_mtg_root}/.git/logs/HEAD")
+endif()
+
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip_napt_forward")
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip4_input")
 
