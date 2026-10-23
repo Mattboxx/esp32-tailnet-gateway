@@ -1,7 +1,8 @@
 """Actual ota_flash.c with a pthread RTOS/SDK model, NOT a cache/hardware test.
 
 Checks the execution domain, synchronous buffer lifetime, single mailbox,
-concurrent callers, errors, admission timeout and consumed-handle cleanup.
+concurrent callers, errors, admission timeout and consumed-handle cleanup,
+plus control-socket deliveries that lwIP drops silently or delivers late.
 OTAFLASH_SANITIZE=1 enables Linux ASan/UBSan.
 """
 from pathlib import Path
@@ -20,12 +21,15 @@ FIXTURE = r'''
 #include <stdio.h>
 #include <string.h>
 #include <sched.h>
+#include <time.h>
+#include <errno.h>
+#define START_WAIT_MS 200
 typedef int esp_err_t;
 typedef unsigned TickType_t;
 typedef unsigned char StackType_t;
 typedef void (*TaskFunction_t)(void *);
 typedef struct { pthread_t thread; pthread_mutex_t lock; pthread_cond_t changed;
-    unsigned notifications; bool stop; TaskFunction_t function; } StaticTask_t;
+    unsigned notifications; bool stop; TaskFunction_t function[4]; } StaticTask_t;
 typedef StaticTask_t *TaskHandle_t;
 typedef TaskHandle_t httpd_handle_t;
 typedef TaskFunction_t httpd_work_fn_t;
@@ -52,6 +56,9 @@ static atomic_int injected_error;
 static bool begin_error_with_handle;
 static bool no_partition;
 static atomic_bool queue_failure;
+static atomic_int drop_deliveries;   /* sent, then lost by lwIP: no work runs */
+static atomic_bool httpd_busy;       /* server serving another request: work waits */
+static atomic_uint deliveries;
 static const esp_partition_t partition = {0x400000};
 static SemaphoreHandle_t make_sem(StaticSemaphore_t *s, unsigned count) {
     if (!s->valid) { assert(!pthread_mutex_init(&s->lock,NULL));
@@ -61,9 +68,17 @@ static SemaphoreHandle_t make_sem(StaticSemaphore_t *s, unsigned count) {
 static SemaphoreHandle_t xSemaphoreCreateMutexStatic(StaticSemaphore_t *s) { return make_sem(s,1); }
 static SemaphoreHandle_t xSemaphoreCreateBinaryStatic(StaticSemaphore_t *s) { return make_sem(s,0); }
 static int xSemaphoreTake(SemaphoreHandle_t s, TickType_t wait) {
-    if (reject_admission && wait!=portMAX_DELAY) return 0;
+    if (reject_admission && wait==1000) return 0;
+    struct timespec until; assert(!clock_gettime(CLOCK_REALTIME,&until));
+    until.tv_sec+=wait/1000; until.tv_nsec+=(long)(wait%1000)*1000000L;
+    if (until.tv_nsec>=1000000000L) { until.tv_sec++; until.tv_nsec-=1000000000L; }
     assert(!pthread_mutex_lock(&s->lock));
-    while (!s->count) assert(!pthread_cond_wait(&s->changed,&s->lock));
+    while (!s->count) {
+        if (wait==portMAX_DELAY) assert(!pthread_cond_wait(&s->changed,&s->lock));
+        else { int e=pthread_cond_timedwait(&s->changed,&s->lock,&until);
+            if (e==ETIMEDOUT && !s->count) { assert(!pthread_mutex_unlock(&s->lock)); return 0; }
+            assert(!e || e==ETIMEDOUT); }
+    }
     --s->count; assert(!pthread_mutex_unlock(&s->lock)); return pdTRUE;
 }
 static int xSemaphoreGive(SemaphoreHandle_t s) {
@@ -81,8 +96,12 @@ static void *entry(void *p) {
         assert(!pthread_mutex_lock(&t->lock));
         while (!t->notifications && !t->stop) assert(!pthread_cond_wait(&t->changed,&t->lock));
         if (t->stop) { assert(!pthread_mutex_unlock(&t->lock)); return NULL; }
-        assert(t->notifications==1); t->notifications=0;
-        TaskFunction_t work=t->function;
+        assert(!pthread_mutex_unlock(&t->lock));
+        while (atomic_load(&httpd_busy)) sched_yield();
+        assert(!pthread_mutex_lock(&t->lock));
+        TaskFunction_t work=t->function[0];
+        for (unsigned i=1;i<t->notifications;i++) t->function[i-1]=t->function[i];
+        t->notifications--;
         assert(!pthread_mutex_unlock(&t->lock)); work(NULL);
     }
 }
@@ -94,8 +113,10 @@ static void start_httpd(TaskHandle_t server) {
 static esp_err_t httpd_queue_work(httpd_handle_t server, httpd_work_fn_t fn, void *arg) {
     assert(server && fn && !arg && current_task!=server);
     if (atomic_load(&queue_failure)) return ESP_FAIL;
-    assert(!pthread_mutex_lock(&server->lock)); assert(!server->notifications);
-    server->function=fn; server->notifications=1;
+    atomic_fetch_add(&deliveries,1);
+    if (atomic_load(&drop_deliveries)>0) { atomic_fetch_sub(&drop_deliveries,1); return ESP_OK; }
+    assert(!pthread_mutex_lock(&server->lock)); assert(server->notifications<4);
+    server->function[server->notifications++]=fn;
     assert(!pthread_cond_signal(&server->changed)); assert(!pthread_mutex_unlock(&server->lock));
     return ESP_OK;
 }
@@ -200,6 +221,41 @@ int main(void) {
     TaskHandle_t save=current_task; current_task=server;
     assert(ota_flash_end(&handle)==ESP_ERR_INVALID_STATE); /* no self-dispatch deadlock */
     current_task=save;
+    /* lwIP dropped the first delivery: the job is withdrawn and resent. */
+    before=atomic_load(&write_calls); unsigned sent=atomic_load(&deliveries);
+    atomic_store(&drop_deliveries,1);
+    assert(ota_flash_write(42,"OTA!",4)==ESP_OK);
+    assert(atomic_load(&write_calls)==before+1 && atomic_load(&deliveries)==sent+2);
+    /* Both deliveries lost: a timeout, no SDK call, the handle is not consumed
+     * and the dispatcher is usable again (no stale completion left behind). */
+    unsigned calls=atomic_load(&sdk_calls);
+    atomic_store(&drop_deliveries,2); handle=42;
+    assert(ota_flash_end(&handle)==ESP_ERR_TIMEOUT && handle==42 && atomic_load(&sdk_calls)==calls);
+    atomic_store(&drop_deliveries,2);
+    assert(ota_flash_begin(&partition,128,&handle)==ESP_ERR_TIMEOUT && !handle);
+    atomic_store(&drop_deliveries,2);
+    assert(!ota_flash_next_partition() && atomic_load(&sdk_calls)==calls);
+    assert(ota_flash_next_partition()==&partition && atomic_load(&sdk_calls)==calls+1);
+    /* Late, not lost: the server was busy past the start wait. The withdrawn
+     * first delivery and the resent one both arrive; exactly one runs. */
+    before=atomic_load(&write_calls); atomic_store(&httpd_busy,true);
+    writer_t late={0}; pthread_t l;
+    assert(!pthread_create(&l,NULL,write_thread,&late));
+    struct timespec pause={0,(START_WAIT_MS+50)*1000000L}; nanosleep(&pause,NULL);
+    assert(!atomic_load(&late.done)); atomic_store(&httpd_busy,false);
+    assert(!pthread_join(l,NULL) && late.result==ESP_OK && atomic_load(&write_calls)==before+1);
+    assert(ota_flash_write(42,"OTA!",4)==ESP_OK && atomic_load(&write_calls)==before+2);
+    /* Busy past both deliveries: a timeout; the late messages run nothing. */
+    before=atomic_load(&write_calls); calls=atomic_load(&sdk_calls); atomic_store(&httpd_busy,true);
+    assert(ota_flash_write(42,"OTA!",4)==ESP_ERR_TIMEOUT);
+    atomic_store(&httpd_busy,false);
+    for (int spin=0; spin<200; spin++) {
+        assert(!pthread_mutex_lock(&server->lock)); unsigned pending=server->notifications;
+        assert(!pthread_mutex_unlock(&server->lock)); if (!pending) break; sched_yield();
+        struct timespec tick={0,1000000L}; nanosleep(&tick,NULL);
+    }
+    assert(atomic_load(&write_calls)==before && atomic_load(&sdk_calls)==calls);
+    assert(ota_flash_write(42,"OTA!",4)==ESP_OK && atomic_load(&write_calls)==before+1);
     atomic_store(&hold_write,true); atomic_store(&write_started,false);
     writer_t first={0},second={0}; pthread_t a,b;
     assert(!pthread_create(&a,NULL,write_thread,&first));
@@ -213,7 +269,7 @@ int main(void) {
     assert(!pthread_mutex_lock(&server->lock)); server->stop=true;
     assert(!pthread_cond_signal(&server->changed)); assert(!pthread_mutex_unlock(&server->lock));
     assert(!pthread_join(server->thread,NULL));
-    puts("PASS: actual OTA dispatch on existing HTTPD, domain, lifetime, concurrency, queue failure and consumed handles (host model)");
+    puts("PASS: actual OTA dispatch on existing HTTPD, domain, lifetime, concurrency, queue failure, lost and late deliveries and consumed handles (host model)");
 }
 '''
 
