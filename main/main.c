@@ -719,6 +719,22 @@ esp_netif_t *wifi_init_softap(void)
  * migrated the legacy single-network keys into slot 0 on first boot),
  * applies slot 0, and falls back to the Kconfig defaults only when the
  * list is completely empty (genuinely fresh device). */
+/* While first boot runs, nothing may reach the Wi-Fi driver's own NVS: the
+ * network typed for the wizard's Wi-Fi test used to be persisted there, and
+ * after a reboot in the middle of setup (power loss, crash) wifi_init_sta()
+ * migrated it into wifi_nets. The device then left setup mode with no admin
+ * password and setup_done set, so the protected setup could never reopen.
+ * A stale cached STA network (older builds) is purged for the same reason.
+ * The wizard's finish step saves the real settings in our own namespace. */
+static void wifi_first_boot_storage(void)
+{
+    if (!first_boot_active()) return;
+    wifi_config_t empty;
+    memset(&empty, 0, sizeof empty);
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &empty));
+    ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+}
+
 esp_netif_t *wifi_init_sta(void)
 {
     esp_netif_t *esp_netif_sta = esp_netif_create_default_wifi_sta();
@@ -768,7 +784,8 @@ esp_netif_t *wifi_init_sta(void)
          * so we own it going forward. Otherwise fall through to the
          * Kconfig default. Never blindly overwrite a working config. */
         wifi_config_t cur;
-        if (esp_wifi_get_config(WIFI_IF_STA, &cur) == ESP_OK && cur.sta.ssid[0]
+        if (!first_boot_active()
+            && esp_wifi_get_config(WIFI_IF_STA, &cur) == ESP_OK && cur.sta.ssid[0]
             && !(strcmp((const char *)cur.sta.ssid, EXAMPLE_ESP_WIFI_STA_SSID) == 0
                  && strcmp((const char *)cur.sta.password, EXAMPLE_ESP_WIFI_STA_PASSWD) == 0)) {
             wifi_network_t n = {0};
@@ -1044,6 +1061,7 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_APSTA));
+    wifi_first_boot_storage();
 
     /* Initialize AP */
     ESP_LOGI(TAG_AP, "ESP_WIFI_MODE_AP");
