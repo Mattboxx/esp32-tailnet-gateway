@@ -31,7 +31,8 @@ from package_release import collect_release_notices, validate_build_description
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = Path(__file__).resolve().parent / 'easy_install'
 PRODUCT = 'ESP32 Tailnet Gateway - Mattboxx Edition'
-SOURCE_URL = 'https://github.com/Mattboxx/esp32-tailnet-gateway'
+CURRENT_REPOSITORY = 'Mattboxx/esp32-tailscale-gateway-NAS-recovery'
+RENAMED_REPOSITORY = 'Mattboxx/esp32-tailnet-gateway'
 # Offsets from sdkconfig (bootloader, partition table) and partitions.csv.
 LAYOUT = {'bootloader.bin': 0x0, 'partitions.bin': 0x8000, 'ota_data_initial.bin': 0x19000, 'firmware.bin': 0x20000}
 NVS = (0x9000, 0x19000)
@@ -40,6 +41,12 @@ FLASH_ARGS = ['--flash-mode', 'dio', '--flash-freq', '80m', '--flash-size', '4MB
 
 def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def repository_url(repository):
+    """Do not ship premature renamed URLs during the bridge migration window."""
+    assert repository in (CURRENT_REPOSITORY, RENAMED_REPOSITORY), 'Unknown release repository'
+    return 'https://github.com/' + repository
 
 
 def validate_version(version, project_version, prerelease):
@@ -107,6 +114,8 @@ def main():
     p.add_argument('--esptool', type=Path, required=True)
     p.add_argument('--esptool-license', type=Path, required=True)
     p.add_argument('--out', type=Path)
+    p.add_argument('--repository', choices=(CURRENT_REPOSITORY, RENAMED_REPOSITORY),
+                   default=CURRENT_REPOSITORY, help='Use the current repository until the rename really occurs')
     a = p.parse_args()
     project = re.search(r'set\(PROJECT_VER "([^"]+)"\)', (ROOT / 'CMakeLists.txt').read_text())[1]
     validate_version(a.version, project, a.prerelease)
@@ -119,7 +128,8 @@ def main():
     out = (a.out or ROOT / 'build' / f'release-v{v}').resolve()
     out.mkdir(parents=True, exist_ok=False)
     stem = f'ESP32-Tailnet-Gateway-v{v}'
-    notes = f'{SOURCE_URL}/releases/tag/v{v}'
+    source_url = repository_url(a.repository)
+    notes = f'{source_url}/releases/tag/v{v}'
     channel = ' (release candidate, pre-release)' if a.prerelease else ''
 
     # Easy Install package.
@@ -145,7 +155,7 @@ def main():
     manifest = {'product': PRODUCT, 'version': v, 'channel': 'pre-release' if a.prerelease else 'stable',
                 'variant': 'wifi', 'chip': 'esp32s3', 'board': 'ESP32-S3 N16R8 (16MB flash, 8MB octal PSRAM)',
                 'app_identity': description.get('project_name'), 'flash': {k: hex(o) for k, o in LAYOUT.items()},
-                'flash_args': FLASH_ARGS, 'tested_image_sha256': a.tested_sha256.lower(), 'source': SOURCE_URL,
+                'flash_args': FLASH_ARGS, 'tested_image_sha256': a.tested_sha256.lower(), 'source': source_url,
                 'files': {f: {'sha256': sha(pkg / f), 'bytes': (pkg / f).stat().st_size} for f in files}}
     (pkg / 'release-manifest.json').write_text(json.dumps(manifest, indent=1) + '\n', encoding='utf-8')
     write_sums(pkg, files + ['release-manifest.json'])

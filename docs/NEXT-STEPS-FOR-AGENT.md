@@ -1,5 +1,15 @@
 # Continuation — presentation public / dev.9 local (2026-10-23)
 
+## NEWEST — Codex v2 publication preparation
+
+Read CODEX-V2-PUBLICATION-CHECKPOINT.md before older checkpoints. Raw mattboxx
+history is retained as backup and must NOT be pushed/merged into the prepared
+sanitized publication graph. Site-v2 README/tests are ready locally, flags OFF;
+no new public operation. Collect the existing rc.1 qualification observation
+and serial summaries; COM3 is owned by the running serial collector. Three
+phases PASS, remaining physical gates BLOCKED. Do not rebuild/reflash or relabel
+rc.1 just to manufacture a stable result. Latest git logs override old hashes.
+
 > **NEWEST (2026-10-23, v2 preparation): read [CODEX-V2-RELEASE-PLAN.md](CODEX-V2-RELEASE-PLAN.md) first.** FIRMWARE NOT READY — remaining blockers listed there; candidate 2.0.0-rc.1 installed on ota_0, stable 1.13 on ota_1.
 
 ## OWNER'S LATEST DIVISION OF WORK — read first

@@ -1,5 +1,11 @@
 # Validation ledger
 
+> **Newest v2 continuation:** CODEX-V2-PUBLICATION-CHECKPOINT.md. B1 prepared
+> history scan PASS, original raw history retained (two synthetic findings).
+> rc.1 identity/activation/lab PASS, observation and serial not complete yet.
+> Site 23×9 browser checks and installer fixtures PASS; targeted packaging
+> drivers 3/3 PASS with Git Bash. Physical gates remain BLOCKED; NOT READY.
+
 > **Codex continuation 2026-10-23:** [DEV9-CONTINUATION.md](DEV9-CONTINUATION.md)
 > records the selective presentation publication, exact dev.9 task-memory fix
 > and checks. WiFi build and targeted Windows 4/4 plus Linux ASan/UBSan 4/4 PASS.

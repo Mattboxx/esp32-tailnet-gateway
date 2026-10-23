@@ -1,4 +1,11 @@
-> **NEWEST (2026-10-23, v2 preparation): read [CODEX-V2-RELEASE-PLAN.md](CODEX-V2-RELEASE-PLAN.md) first.** FIRMWARE NOT READY — remaining blockers listed there; candidate 2.0.0-rc.1 installed on ota_0, stable 1.13 on ota_1.
+> **NEWEST Codex continuation:** [CODEX-V2-PUBLICATION-CHECKPOINT.md](CODEX-V2-PUBLICATION-CHECKPOINT.md).
+> FIRMWARE NOT READY — B1 prepared sanitized graph PASS (originals retained),
+> three rc.1 phases PASS, observation/serial still running; B3/B4 physical gates
+> BLOCKED. README/site v2 local tests PASS; no new push/release/rename/Pages.
+> The per-gate table there supersedes the historical dev.8/dev.9 rows below.
+>
+> **v2 preparation:** read [CODEX-V2-RELEASE-PLAN.md](CODEX-V2-RELEASE-PLAN.md).
+> Candidate 2.0.0-rc.1 installed on ota_0, stable 1.13 on ota_1.
 
 # Quality gate — dev.8 installed candidate (2026-10-23, Claude final handoff)
 
