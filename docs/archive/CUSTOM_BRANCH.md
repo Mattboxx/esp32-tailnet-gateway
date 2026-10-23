@@ -4,8 +4,8 @@
 
 Product name: **ESP32 Homelab Gateway — Mattboxx Edition**. The repository
 URL, app/update identity, licenses and existing NVS formats are unchanged.
-[Code-backed audit](docs/PRODUCT-AUDIT.md), [architecture](docs/ARCHITECTURE.md)
-and [value/risk roadmap](docs/ROADMAP.md) distinguish upstream protocol work
+[Code-backed audit](PRODUCT-AUDIT.md), [architecture](../ARCHITECTURE.md)
+and [value/risk roadmap](../ROADMAP.md) distinguish upstream protocol work
 from the fork's selective service gateway and operations surface.
 
 New passive rule explanations separate mapping installation from service
@@ -22,11 +22,11 @@ custom microlink hooks or application services. Includes relay TLS verification,
 WireGuard state/nonce/Noise fixes, corrected relay measurement/reporting,
 silent-peer recovery, bounded control stalls, synchronized TCPIP teardown and
 copy-free TX. Retain restart-based published-instance lifetime and add guarded
-local SD snapshots. [Full change mapping and limits](docs/UPSTREAM-0.1.38.md).
+local SD snapshots. [Full change mapping and limits](../upstream/UPSTREAM-0.1.38.md).
 
 The stable tag matches the embedded version and is eligible for the opt-in
 stable updater without beta enrollment. Manual OTA preserves saved settings.
-See [release notes and download instructions](docs/RELEASE-1.13.md).
+See [release notes and download instructions](../releases/RELEASE-1.13.md).
 
 ## Previous release: 0.1.33-Mattboxx-1.12-dev.1
 
@@ -38,10 +38,10 @@ Integrates the published upstream v0.1.32/v0.1.33 fixes and optional live WiFi
 power-save policy, preserving this fork's low-latency OFF default. Includes
 MQTT/HA and ntfy policy visibility and the optional one-click Ko-fi window.
 All custom forwarding, AP, automation, routing, privacy and update controls
-are retained. See [release validation and limits](docs/RELEASE-1.12.md) and
-the [upstream integration record](docs/UPSTREAM-0.1.33.md).
+are retained. See [release validation and limits](../releases/RELEASE-1.12.md) and
+the [upstream integration record](../upstream/UPSTREAM-0.1.33.md).
 
-The [NAS recovery checklist](docs/NAS-RECOVERY.md) explains independent power,
+The [NAS recovery checklist](../NAS-RECOVERY.md) explains independent power,
 WoL requirements and why this is not a hard-reset/data-recovery appliance.
 
 ## New in 1.10 development: operator-controlled GitHub updates
@@ -53,12 +53,12 @@ OFF; manual GitHub actions work without enabling periodic checks. Local binary
 upload remains. Require compatible newer Mattboxx tags, firmware.bin, GitHub
 SHA-256, board/project/version validation and exclusive OTA writing. Configuration
 and actions require the password-backed UI session; HA and ntfy expose status,
-not unauthenticated install commands. [Full policy and limits](docs/UPDATES.md).
+not unauthenticated install commands. [Full policy and limits](../UPDATES.md).
 
 ## Upstream v0.1.31 alignment (1.9 development)
 
 All changes in the published v0.1.30/v0.1.31 tags are accounted for in
-[the integration record](docs/UPSTREAM-0.1.31.md). This includes CGNAT LAN,
+[the integration record](../upstream/UPSTREAM-0.1.31.md). This includes CGNAT LAN,
 resolver and DHCP routing exceptions; lifecycle-leased TCP/IP route updates;
 microlink stop/netcheck cleanup; received UDP packet storage in PSRAM; and
 the exit-node DNS PeerAPI with control-plane service advertisement.
@@ -76,16 +76,16 @@ flash or hardware stability claim accompanies this source alignment.
 ## Upstream v0.1.29 alignment (1.8 stable)
 
 The v0.1.20-v0.1.29 improvements are integrated on top of the Mattboxx features. See
-[the latest integration record](docs/UPSTREAM-0.1.29.md),
-[the preceding integration record](docs/UPSTREAM-0.1.28.md) and
-[the earlier integration record](docs/UPSTREAM-0.1.27.md). MQTT/HA, ntfy,
+[the latest integration record](../upstream/UPSTREAM-0.1.29.md),
+[the preceding integration record](../upstream/UPSTREAM-0.1.28.md) and
+[the earlier integration record](../upstream/UPSTREAM-0.1.27.md). MQTT/HA, ntfy,
 WOL, AP policy, LAN-to-Tailnet forwarding, 4via6, exit-node advertising,
 authentication and privacy removals remain in place. No Ethernet driver or
 automatic external telemetry/update service is introduced by this alignment.
 
 This branch starts from upstream `main` at `v0.1.19` and targets the ESP32-S3
 N16R8 used during development. Hardware validation is revision-specific; the
-current release coverage is in [the 1.8 release record](docs/RELEASE-1.8.md).
+current release coverage is in [the 1.8 release record](../releases/RELEASE-1.8.md).
 
 ## New in the 1.8 stable hotfix
 
@@ -137,7 +137,7 @@ current release coverage is in [the 1.8 release record](docs/RELEASE-1.8.md).
 ## New in the 1.5 stable release
 
 The tested `1.5-dev` binary is promoted unchanged as release 1.5; its embedded
-version intentionally retains that suffix. See [release notes](docs/RELEASE-1.5.md).
+version intentionally retains that suffix. See [release notes](../releases/RELEASE-1.5.md).
 
 - Background CPU monitoring, total and per-core Home Assistant sensors, and
   CPU readings in ntfy `info`, including counter-rollover handling.

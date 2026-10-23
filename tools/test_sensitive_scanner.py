@@ -7,8 +7,8 @@ from check_sensitive_data import credential_findings
 class ScannerTests(unittest.TestCase):
     def test_blocked_file_names_and_exact_exceptions(self):
         from check_sensitive_data import blocked_file
-        config = {'blocked_files': ['*HANDOFF*.md', 'secrets/**'], 'allowed_files': ['docs/CODEX-PUBLISH-HANDOFF.md']}
-        self.assertFalse(blocked_file('docs/CODEX-PUBLISH-HANDOFF.md', config))
+        config = {'blocked_files': ['*HANDOFF*.md', 'secrets/**'], 'allowed_files': ['docs/archive/CODEX-PUBLISH-HANDOFF.md']}
+        self.assertFalse(blocked_file('docs/archive/CODEX-PUBLISH-HANDOFF.md', config))
         for name in ('HANDOFF.md', 'docs/OTHER-HANDOFF.md', 'notes/CODEX-PUBLISH-HANDOFF.md', 'secrets/x'):
             self.assertTrue(blocked_file(name, config), name)
 

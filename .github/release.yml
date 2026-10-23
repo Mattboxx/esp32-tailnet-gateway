@@ -1,5 +1,5 @@
 # Categories for GitHub's generated release notes. The hand-written notes in
-# docs/RELEASE-*.md remain authoritative and state what was actually tested.
+# docs/releases/RELEASE-*.md remain authoritative and state what was actually tested.
 changelog:
   exclude:
     labels: [skip-changelog]

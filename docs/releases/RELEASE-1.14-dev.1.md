@@ -33,5 +33,5 @@ flashing ZIP are not replaced or relabeled.
 Smart Recovery with service-readiness verification, active health monitoring,
 profiles, commissioning templates and Ethernet remain roadmap items, not
 features supplied by this development increment. See the
-[roadmap and release gates](ROADMAP.md), [source audit](PRODUCT-AUDIT.md) and
-[selective service guide](SERVICE-GATEWAY.md).
+[roadmap and release gates](../ROADMAP.md), [source audit](../archive/PRODUCT-AUDIT.md) and
+[selective service guide](../SERVICE-GATEWAY.md).

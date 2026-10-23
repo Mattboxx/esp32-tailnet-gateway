@@ -23,7 +23,7 @@ All 42 roadmap items and the immutable Master Prompt remain applicable.
  M NOTICE.md
  M README.md
  M SECURITY.md
- M docs/RELEASE-1.13.md
+ M docs/releases/RELEASE-1.13.md
  M docs/TESTING.md
  m external/microlink
  M main/CMakeLists.txt
@@ -59,14 +59,14 @@ All 42 roadmap items and the immutable Master Prompt remain applicable.
 ?? docs/MASTER-DEVELOPMENT-PROMPT.md
 ?? docs/NETWORK-HEALTH.md
 ?? docs/NEXT-STEPS-FOR-AGENT.md
-?? docs/PRODUCT-AUDIT.md
-?? docs/RELEASE-1.14-dev.1.md
+?? docs/archive/PRODUCT-AUDIT.md
+?? docs/releases/RELEASE-1.14-dev.1.md
 ?? docs/ROADMAP.md
 ?? docs/SERVICE-GATEWAY.md
 ?? docs/SMART-RECOVERY.md
 ?? docs/TAILNET-AUTHORIZATION.md
 ?? docs/VALIDATION-STATUS.md
-?? docs/WORKSPACE-CHECKPOINT.md
+?? docs/archive/WORKSPACE-CHECKPOINT.md
 ?? main/health_monitor.c
 ?? main/health_monitor.h
 ?? main/homelab_ops.c

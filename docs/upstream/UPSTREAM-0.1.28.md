@@ -47,4 +47,4 @@ and gszigethy's read-only SNMP contribution. Original MIT headers are retained.
   consumers retain the microlink handle. All custom gateway/automation/routing
   features and their existing privacy controls remain compiled and configured.
 
-Release-specific evidence and limitations: [RELEASE-1.6.md](RELEASE-1.6.md).
+Release-specific evidence and limitations: [RELEASE-1.6.md](../releases/RELEASE-1.6.md).

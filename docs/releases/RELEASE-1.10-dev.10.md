@@ -39,8 +39,8 @@ from the upstream AP-side forwarding and original manual route settings.
 - Preserve MQTT/Home Assistant, saved named WOL targets, AP policy, password and
   session controls, exit advertising/server DNS, 4via6, diagnostics and SNMP.
 
-See [the detailed changelog](../CHANGELOG.md) and
-[update behavior](UPDATES.md). No new account credentials, telemetry or external
+See [the detailed changelog](../../CHANGELOG.md) and
+[update behavior](../UPDATES.md). No new account credentials, telemetry or external
 crash upload are added. Optional enabled integrations still use their configured
 services, and explicitly requested update checks contact GitHub.
 
