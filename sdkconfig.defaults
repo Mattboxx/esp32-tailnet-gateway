@@ -23,10 +23,11 @@ CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y
 
 # Execute-in-place from PSRAM: copy .text/.rodata to PSRAM at boot. Frees IRAM,
 # and — critically — keeps the cache LIVE during SPI1 flash ops (OTA/NVS), which
-# removes the flash-cache-disable crash hazard for code/data in PSRAM. That is
-# what makes PSRAM task stacks safe (see the DNS relay and MQTT workers, which
-# use xTaskCreateWithCaps(..., MALLOC_CAP_SPIRAM) to move ~21K of stacks off the
-# scarce internal DRAM). Costs ~1.4MB PSRAM (we have 8MB) + slightly longer boot.
+# reduces the flash-cache-disable hazard for code/data in PSRAM. It does NOT
+# relax the internal-stack requirement for SDK flash mapping/cache freeze.
+# Network workers without such calls (see DNS relay and MQTT workers, which
+# use xTaskCreateWithCaps(..., MALLOC_CAP_SPIRAM)) move stacks off scarce DRAM.
+# Costs ~1.4MB PSRAM (we have 8MB) + slightly longer boot.
 CONFIG_SPIRAM_XIP_FROM_PSRAM=y
 CONFIG_SPIRAM_FETCH_INSTRUCTIONS=y
 CONFIG_SPIRAM_RODATA=y
@@ -285,12 +286,11 @@ CONFIG_LWIP_NUM_NETIF_CLIENT_DATA=1
 CONFIG_ESP_COREDUMP_ENABLE_TO_FLASH=y
 CONFIG_ESP_COREDUMP_DATA_FORMAT_ELF=y
 CONFIG_ESP_COREDUMP_CHECKSUM_CRC32=y
-# Panic handler in IRAM: a spare board reset three times (TG1WDT) during
-# setup without printing a single panic line or saving a core dump
-# ("Panic handler entered multiple times"). Code runs from PSRAM (XiP), so
-# a handler that cannot fetch its own code leaves no evidence. Costs
-# internal RAM; log_capture.c refuses a stale sdkconfig without it.
-CONFIG_ESP_PANIC_HANDLER_IRAM=y
+# Keep the SDK's standard panic handler: full IRAM reporting consumes scarce
+# internal memory needed by VPN tasks. IDF retains an IRAM entry/cache-recovery
+# trampoline. RTC reset history and pre-crash capture remain; reporting after
+# an unrecoverable cache failure is best-effort (ADR-031).
+# CONFIG_ESP_PANIC_HANDLER_IRAM is not set
 
 # --- Compiler ---------------------------------------------------------------
 # Perf opt buys ~10-15% tunnel throughput on the WG userspace stack
