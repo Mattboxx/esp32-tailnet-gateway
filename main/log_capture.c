@@ -11,6 +11,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include "sdkconfig.h"
 #include "esp_log.h"
 #include "esp_attr.h"
 #include "esp_heap_caps.h"
@@ -18,6 +19,13 @@
 #include "freertos/portmacro.h"
 
 #include "log_capture.h"
+
+/* sdkconfig.defaults does not override an existing generated sdkconfig.
+ * The panic print wrappers below are IRAM so they work whenever the IDF
+ * handler does; that only helps with the handler itself in IRAM. */
+#if !CONFIG_ESP_PANIC_HANDLER_IRAM
+#error "Set CONFIG_ESP_PANIC_HANDLER_IRAM=y in the active sdkconfig (see sdkconfig.defaults)"
+#endif
 
 /* Pre-crash RAM survival: a small ring buffer placed in RTC slow RAM
  * via RTC_NOINIT_ATTR. The .rtc_noinit section is preserved across
@@ -101,7 +109,7 @@ static void buffer_append(const char *src, size_t len)
  * crash banner — every other task is frozen at that point so the lack
  * of locking is fine. Kept short and free of any other code path so
  * the call is safe even before the cache is fully online. */
-void log_capture_append_panic(const char *s, size_t len)
+void IRAM_ATTR log_capture_append_panic(const char *s, size_t len)
 {
     if (!s || len == 0) return;
     if (len > PRECRASH_RING_BYTES) {
@@ -135,14 +143,14 @@ void log_capture_append_panic(const char *s, size_t len)
  * OBJECT (same .o), which linker --wrap does NOT intercept. So in
  * practice each character lands in the ring exactly once. */
 extern void __real_panic_print_char(char c);
-void __wrap_panic_print_char(char c)
+void IRAM_ATTR __wrap_panic_print_char(char c)
 {
     log_capture_append_panic(&c, 1);
     __real_panic_print_char(c);
 }
 
 extern void __real_panic_print_str(const char *str);
-void __wrap_panic_print_str(const char *str)
+void IRAM_ATTR __wrap_panic_print_str(const char *str)
 {
     if (str) {
         size_t n = 0;
@@ -158,7 +166,7 @@ void __wrap_panic_print_str(const char *str)
  * empty "0x:0x". Re-format the same digits here into the ring before
  * delegating to the real one. */
 extern void __real_panic_print_hex(int h);
-void __wrap_panic_print_hex(int h)
+void IRAM_ATTR __wrap_panic_print_hex(int h)
 {
     char buf[8];
     for (int x = 0; x < 8; x++) {
@@ -171,7 +179,7 @@ void __wrap_panic_print_hex(int h)
 }
 
 extern void __real_panic_print_dec(int d);
-void __wrap_panic_print_dec(int d)
+void IRAM_ATTR __wrap_panic_print_dec(int d)
 {
     char buf[2];
     int n1 = d % 10;
