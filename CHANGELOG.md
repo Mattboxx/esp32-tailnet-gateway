@@ -15,6 +15,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   both **Install latest update** and scheduled automatic installation.
 - An affected 2.0.0/2.0.1 installation needs one manual firmware upload or USB
   update to receive the correction; keep existing settings when using USB.
+- A firmware update could hang until restart when the admin server's internal
+  work message was lost under low memory. The updater now notices an operation
+  that never started, retries it once and then reports a timeout; an operation
+  already running is always completed.
 - Restore VPN startup memory headroom with the SDK's standard panic handler.
   Reset history and pre-crash capture remain; full reporting after an
   unrecoverable cache fault is best-effort.
