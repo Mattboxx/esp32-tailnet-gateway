@@ -11,6 +11,7 @@
 #include "lwip/pbuf.h"
 #include "lwip/err.h"
 #include "lwip/tcpip.h"
+#include "first_boot.h"
 
 #include <string.h>
 #include "lwip/ip4.h"
@@ -268,6 +269,9 @@ bool netif_hooks_eth_protected(void) { return s_eth_protected; }
 static err_t ap_input_hook(struct pbuf *p, struct netif *netif)
 {
     if (p) s_ap_bytes_in += p->tot_len;
+    /* Open first-boot AP: clients may reach only the gateway itself, never
+     * the uplink LAN tested by the wizard. Headers are in the first pbuf. */
+    if (p && !first_boot_ap_frame_allowed((const uint8_t *)p->payload, p->len)) { pbuf_free(p); return ERR_OK; }
     if (acl_drops(acl_check_and_tap(ACL_TO_AP, p, true))) { pbuf_free(p); return ERR_OK; }
     /* PMTU: tell the client to back off when it sends a DF packet
      * bigger than the tunnel can carry. Runs BEFORE we forward so the

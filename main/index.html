@@ -1470,6 +1470,57 @@
       margin-top: var(--sp-2);
     }
 
+    /* First-boot setup wizard (reuses the auth overlay and card). */
+    .fb-overlay { align-items: flex-start; overflow-y: auto; }
+    .fb-card { max-width: 560px; margin: var(--sp-4) auto; padding: var(--sp-6) var(--sp-5); }
+    .fb-card p { margin: 0 0 var(--sp-3); }
+    .fb-head { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+    .fb-head-text { flex: 1; min-width: 0; }
+    .fb-head .auth-subtitle { margin-bottom: 0; }
+    .fb-lang { width: auto; max-width: 9.5rem; min-height: 44px; }
+    .fb-steps { display: flex; gap: var(--sp-1); list-style: none; padding: 0; margin: 0 0 var(--sp-4); counter-reset: fb; }
+    .fb-steps li { flex: 1; min-width: 0; font-size: var(--text-xs); color: var(--fg-muted); text-align: center;
+      border-top: 3px solid var(--border); padding-top: var(--sp-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fb-steps li.done { border-top-color: var(--accent-border); }
+    .fb-steps li.current { border-top-color: var(--accent); color: var(--fg-primary); font-weight: var(--weight-semibold); }
+    .fb-press { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-4); margin-bottom: var(--sp-3);
+      border: 1px solid var(--accent-border); background: var(--accent-muted); border-radius: var(--radius-lg); font-weight: var(--weight-semibold); }
+    .fb-press svg { flex: none; animation: fb-pulse 1.6s ease-in-out infinite; }
+    @keyframes fb-pulse { 50% { opacity: 0.35; } }
+    @media (prefers-reduced-motion: reduce) { .fb-press svg { animation: none; } }
+    .fb-details { margin: var(--sp-3) 0; }
+    .fb-details summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--accent); }
+    .fb-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+    .fb-row .input { flex: 1; min-width: 10rem; }
+    .fb-radio { display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 44px; margin-right: var(--sp-3); }
+    .fb-list { list-style: none; padding: 0; margin: var(--sp-3) 0; max-height: 15rem; overflow-y: auto; }
+    .fb-list li button { width: 100%; min-height: 44px; display: flex; justify-content: space-between; gap: var(--sp-2); align-items: center;
+      background: var(--bg-card); color: var(--fg-primary); border: 1px solid var(--border); border-radius: var(--radius-md);
+      padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-1); cursor: pointer; text-align: left; font: inherit; }
+    .fb-list li button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-muted); }
+    .fb-list small { color: var(--fg-muted); flex: none; font-size: var(--text-sm); }
+    .fb-opt { display: flex; gap: var(--sp-3); align-items: flex-start; padding: var(--sp-3); margin-bottom: var(--sp-2);
+      border: 1px solid var(--border); border-radius: var(--radius-md); cursor: pointer; }
+    .fb-opt input { margin-top: 0.2rem; width: 1.15rem; height: 1.15rem; flex: none; accent-color: var(--accent); }
+    .fb-opt small { display: block; color: var(--fg-muted); margin-top: var(--sp-1); font-size: var(--text-sm); }
+    .fb-meter { height: 6px; border-radius: 3px; background: var(--border); margin-top: var(--sp-2); overflow: hidden; }
+    .fb-meter span { display: block; height: 100%; width: 0; background: var(--danger); transition: width 160ms ease; }
+    .fb-summary { display: grid; grid-template-columns: minmax(7rem, auto) 1fr; gap: var(--sp-1) var(--sp-3); margin: 0 0 var(--sp-3); }
+    .fb-summary dt { color: var(--fg-muted); }
+    .fb-summary dd { margin: 0; overflow-wrap: anywhere; }
+    .fb-next { padding-left: 1.2rem; }
+    .fb-nav { display: flex; justify-content: space-between; gap: var(--sp-3); margin-top: var(--sp-5); }
+    .fb-nav .btn { min-height: 44px; }
+    .fb-nav .btn-primary { margin-left: auto; }
+    @media (max-width: 480px) {
+      .fb-card { padding: var(--sp-5) var(--sp-4); margin: 0 auto; border-radius: var(--radius-lg); }
+      .fb-head { flex-wrap: wrap; }
+      .fb-lang { max-width: none; }
+      .fb-steps li { font-size: 0; height: 0.5rem; }
+      .fb-summary { grid-template-columns: 1fr; }
+      .fb-summary dd { margin-bottom: var(--sp-2); }
+    }
+
     /* Lock button in nav */
     .btn-lock {
       display: inline-flex;
@@ -1740,6 +1791,134 @@
         <input class="input" type="password" id="setup-pw2" name="confirm-password" autocomplete="new-password" placeholder="Confirm password">
       </div>
       <button class="btn btn-primary btn-full btn-lg" type="submit" id="setupSubmitBtn">Set password &amp; continue</button>
+    </form>
+  </div>
+
+  <!-- First-boot setup: unconfigured gateway on its own open setup Wi-Fi -->
+  <div class="auth-overlay fb-overlay" id="firstBoot" style="display:none" role="dialog" aria-modal="true" aria-labelledby="fb-title">
+    <form class="auth-card fb-card" id="fbForm" autocomplete="off" novalidate>
+      <div class="fb-head">
+        <svg class="brand-mark" width="34" height="34" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-width="4.5"><path d="M10 32h17" stroke="#1FC97A"/><path d="M27 32c11 0 11-15 21-15M27 32c11 0 11 15 21 15" stroke="#1F5C3F"/><path d="M27 32h21" stroke="#1FC97A"/></g><circle cx="27" cy="32" r="8" fill="#1FC97A"/><circle cx="27" cy="32" r="3" fill="#0d0f12"/><circle cx="52" cy="32" r="5.5" fill="#1FC97A"/><circle cx="51.5" cy="17" r="3.5" fill="none" stroke="#1F5C3F" stroke-width="2.6"/><circle cx="51.5" cy="47" r="3.5" fill="none" stroke="#1F5C3F" stroke-width="2.6"/></svg>
+        <div class="fb-head-text"><div class="auth-title" id="fb-title">Set up your Tailnet Gateway</div>
+          <div class="auth-subtitle">First start: a few steps and you are ready.</div></div>
+        <select class="input fb-lang" id="fb-lang" aria-label="Language"></select>
+      </div>
+      <ol class="fb-steps" id="fb-steps" aria-label="Setup progress">
+        <li>Pair</li><li>Password</li><li>Wi-Fi</li><li>Tailnet</li><li>Features</li><li>Finish</li>
+      </ol>
+      <div class="auth-error" id="fb-error" role="alert"></div>
+
+      <section class="fb-step" data-step="0">
+        <p>This gateway is new. To make sure that only you can set it up, confirm that you have it in your hands.</p>
+        <div class="fb-press">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4" fill="var(--accent)"/></svg>
+          <span>Press the BOOT button on the gateway once.</span>
+        </div>
+        <p class="form-hint" id="fb-pair-status" role="status">Preparing a secure pairing…</p>
+        <details class="fb-details"><summary>No BOOT button? Use the setup code</summary>
+          <p class="form-hint">Connect the gateway by USB and open a serial console at 115200 baud: the setup code is printed every 30 seconds.</p>
+          <div class="fb-row"><input class="input" id="fb-code" inputmode="numeric" maxlength="9" autocomplete="one-time-code" placeholder="8-digit setup code" aria-label="8-digit setup code">
+            <button class="btn btn-secondary" id="fb-code-btn" type="button">Confirm code</button></div>
+        </details>
+        <p class="form-hint">Passwords and keys are encrypted in this browser before they cross the open setup Wi-Fi.</p>
+        <button class="btn btn-secondary btn-sm" id="fb-retry" type="button" hidden>Try again</button>
+      </section>
+
+      <section class="fb-step" data-step="1" hidden>
+        <p>Choose the admin password for this gateway. There is no default password.</p>
+        <div class="form-group">
+          <label class="form-label" for="fb-pw">Admin password</label>
+          <input class="input" type="password" id="fb-pw" autocomplete="new-password" minlength="8" maxlength="64">
+          <div class="fb-meter" aria-hidden="true"><span id="fb-meter-bar"></span></div>
+          <span class="auth-hint" id="fb-meter-text">At least 8 characters. A longer passphrase is stronger.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fb-pw2">Confirm password</label>
+          <input class="input" type="password" id="fb-pw2" autocomplete="new-password" maxlength="64">
+        </div>
+      </section>
+
+      <section class="fb-step" data-step="2" hidden>
+        <p>Choose the Wi-Fi network the gateway will use to reach the Internet.</p>
+        <button class="btn btn-secondary btn-sm" id="fb-scan" type="button">Scan for networks</button>
+        <ul class="fb-list" id="fb-nets" aria-label="Wi-Fi networks"></ul>
+        <div class="form-group">
+          <label class="form-label" for="fb-ssid">Network name (SSID)</label>
+          <input class="input" id="fb-ssid" maxlength="32" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fb-wpw">Wi-Fi password</label>
+          <input class="input" type="password" id="fb-wpw" maxlength="64" autocomplete="off">
+          <span class="auth-hint">Leave empty only for an open network.</span>
+        </div>
+        <button class="btn btn-secondary" id="fb-test" type="button">Test connection</button>
+        <p class="form-hint" id="fb-test-status" role="status"></p>
+        <p class="form-hint">During the test this setup Wi-Fi may drop for a moment; your device reconnects by itself and this page continues.</p>
+      </section>
+
+      <section class="fb-step" data-step="3" hidden>
+        <p>Join your tailnet now, or leave the key empty and do it later from the dashboard.</p>
+        <div class="fb-row" role="radiogroup" aria-label="Control server">
+          <label class="fb-radio"><input type="radio" name="fb-ctl" value="ts" checked> Tailscale</label>
+          <label class="fb-radio"><input type="radio" name="fb-ctl" value="hs"> Headscale (own server)</label>
+        </div>
+        <div class="form-group" id="fb-server-row" hidden>
+          <label class="form-label" for="fb-server">Control server URL</label>
+          <input class="input" id="fb-server" maxlength="200" placeholder="https://headscale.example.com" spellcheck="false">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fb-key">Auth key</label>
+          <input class="input" type="password" id="fb-key" maxlength="200" autocomplete="off" placeholder="tskey-auth-…" spellcheck="false">
+          <span class="auth-hint">Create a key in your admin console under Settings → Keys. A pre-approved key is easiest.</span>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fb-host">Device name in the tailnet</label>
+          <input class="input" id="fb-host" maxlength="63" value="tailnet-gateway" spellcheck="false">
+        </div>
+      </section>
+
+      <section class="fb-step" data-step="4" hidden>
+        <p>Choose what this gateway should do. Everything can be changed later.</p>
+        <label class="fb-opt"><input type="checkbox" id="fb-share-lan"><span><b>Share my home network with the tailnet</b><small>Advertises the home LAN as a subnet route; approve it in the admin console. Needs a successful Wi-Fi test.</small></span></label>
+        <label class="fb-opt"><input type="checkbox" id="fb-share-ap" checked><span><b>Share the gateway's own Wi-Fi network</b><small>Devices connected to the gateway's Wi-Fi can reach the tailnet and be reached from it.</small></span></label>
+        <label class="fb-opt"><input type="checkbox" id="fb-exit"><span><b>Offer this gateway as an exit node</b><small>Other tailnet devices can send their Internet traffic through your home connection.</small></span></label>
+        <label class="fb-opt"><input type="checkbox" id="fb-ap-always"><span><b>Keep the gateway's own Wi-Fi always on</b><small>Otherwise it appears only when the home Wi-Fi is unavailable, as a recovery network.</small></span></label>
+        <div class="form-group">
+          <label class="form-label" for="fb-apname">Gateway Wi-Fi name</label>
+          <input class="input" id="fb-apname" maxlength="32" spellcheck="false">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="fb-appw">Gateway Wi-Fi password</label>
+          <div class="fb-row"><input class="input" id="fb-appw" maxlength="63" autocomplete="off" spellcheck="false">
+            <button class="btn btn-secondary btn-sm" id="fb-appw-gen" type="button">Generate</button></div>
+          <span class="auth-hint">At least 8 characters and different from the admin password. Write it down: you need it when the home Wi-Fi is unavailable.</span>
+        </div>
+        <div class="fb-row" role="radiogroup" aria-label="Interface">
+          <label class="fb-radio"><input type="radio" name="fb-mode" value="simple" checked> Simple interface</label>
+          <label class="fb-radio"><input type="radio" name="fb-mode" value="advanced"> Advanced interface</label>
+        </div>
+      </section>
+
+      <section class="fb-step" data-step="5" hidden>
+        <div id="fb-review">
+          <p>Check the summary. The gateway saves everything and restarts, which takes about 30 seconds.</p>
+          <dl class="fb-summary" id="fb-summary"></dl>
+        </div>
+        <div id="fb-done" hidden>
+          <p><b>Setup saved. The gateway is restarting.</b></p>
+          <ol class="fb-next">
+            <li>Reconnect this device to your home Wi-Fi.</li>
+            <li id="fb-done-open">Open the gateway from the tailnet by its name, or find its address in your router.</li>
+            <li>Sign in with your new admin password.</li>
+          </ol>
+          <p class="form-hint">If the home Wi-Fi is unavailable, the gateway opens its own protected Wi-Fi so you can fix the settings.</p>
+        </div>
+      </section>
+
+      <div class="fb-nav">
+        <button class="btn btn-secondary" id="fb-back" type="button" hidden>Back</button>
+        <button class="btn btn-primary" id="fb-next" type="submit" disabled>Continue</button>
+      </div>
     </form>
   </div>
 
@@ -9718,10 +9897,365 @@
       if (login) login.textContent = n;
     }
 
+    // =====================================================================
+    // FIRST-BOOT SETUP — unconfigured gateway on its open setup Wi-Fi.
+    // Pairing needs physical presence (BOOT button or console code); every
+    // request after it is sealed with AES-256-GCM under an X25519 key, so
+    // no password or key crosses the open radio in clear.
+    // =====================================================================
+    var FBX = (function () {
+      /* X25519 (RFC 7748), adapted from TweetNaCl (public domain). */
+      function gf(init) { var r = new Float64Array(16); if (init) for (var i = 0; i < init.length; i++) r[i] = init[i]; return r; }
+      var K121665 = gf([0xdb41, 1]);
+      function car(o) { var c = 1, v; for (var i = 0; i < 16; i++) { v = o[i] + c + 65535; c = Math.floor(v / 65536); o[i] = v - c * 65536; } o[0] += c - 1 + 37 * (c - 1); }
+      function sel(p, q, b) { var t, c = ~(b - 1); for (var i = 0; i < 16; i++) { t = c & (p[i] ^ q[i]); p[i] ^= t; q[i] ^= t; } }
+      function pack(o, n) {
+        var i, j, b, m = gf(), t = gf();
+        for (i = 0; i < 16; i++) t[i] = n[i];
+        car(t); car(t); car(t);
+        for (j = 0; j < 2; j++) {
+          m[0] = t[0] - 0xffed;
+          for (i = 1; i < 15; i++) { m[i] = t[i] - 0xffff - ((m[i - 1] >> 16) & 1); m[i - 1] &= 0xffff; }
+          m[15] = t[15] - 0x7fff - ((m[14] >> 16) & 1); b = (m[15] >> 16) & 1; m[14] &= 0xffff; sel(t, m, 1 - b);
+        }
+        for (i = 0; i < 16; i++) { o[2 * i] = t[i] & 0xff; o[2 * i + 1] = t[i] >> 8; }
+      }
+      function unpack(o, n) { for (var i = 0; i < 16; i++) o[i] = n[2 * i] + (n[2 * i + 1] << 8); o[15] &= 0x7fff; }
+      function A(o, a, b) { for (var i = 0; i < 16; i++) o[i] = a[i] + b[i]; }
+      function Z(o, a, b) { for (var i = 0; i < 16; i++) o[i] = a[i] - b[i]; }
+      function M(o, a, b) {
+        var i, j, t = new Float64Array(31);
+        for (i = 0; i < 16; i++) for (j = 0; j < 16; j++) t[i + j] += a[i] * b[j];
+        for (i = 0; i < 15; i++) t[i] += 38 * t[i + 16];
+        for (i = 0; i < 16; i++) o[i] = t[i];
+        car(o); car(o);
+      }
+      function S(o, a) { M(o, a, a); }
+      function inv(o, i) { var c = gf(), a; for (a = 0; a < 16; a++) c[a] = i[a]; for (a = 253; a >= 0; a--) { S(c, c); if (a !== 2 && a !== 4) M(c, c, i); } for (a = 0; a < 16; a++) o[a] = c[a]; }
+      function scalarmult(n, p) {
+        var z = new Uint8Array(32), x = new Float64Array(80), r, i, q = new Uint8Array(32);
+        var a = gf(), b = gf(), c = gf(), d = gf(), e = gf(), f = gf();
+        for (i = 0; i < 31; i++) z[i] = n[i];
+        z[31] = (n[31] & 127) | 64; z[0] &= 248;
+        var pp = new Uint8Array(p); pp[31] &= 0x7f;
+        unpack(x, pp);
+        for (i = 0; i < 16; i++) { b[i] = x[i]; d[i] = a[i] = c[i] = 0; }
+        a[0] = d[0] = 1;
+        for (i = 254; i >= 0; --i) {
+          r = (z[i >>> 3] >>> (i & 7)) & 1;
+          sel(a, b, r); sel(c, d, r);
+          A(e, a, c); Z(a, a, c); A(c, b, d); Z(b, b, d); S(d, e); S(f, a); M(a, c, a); M(c, b, e);
+          A(e, a, c); Z(a, a, c); S(b, a); Z(c, d, f); M(a, c, K121665); A(a, a, d); M(c, c, a); M(a, d, f); M(d, b, x); S(b, e);
+          sel(a, b, r); sel(c, d, r);
+        }
+        for (i = 0; i < 16; i++) { x[i + 16] = a[i]; x[i + 32] = c[i]; x[i + 48] = b[i]; x[i + 64] = d[i]; }
+        var x32 = x.subarray(32), x16 = x.subarray(16);
+        inv(x32, x32); M(x16, x16, x32); pack(q, x16);
+        return q;
+      }
+      var BASE = new Uint8Array(32); BASE[0] = 9;
+      function hex(b) { var s = ''; for (var i = 0; i < b.length; i++) s += (b[i] < 16 ? '0' : '') + b[i].toString(16); return s; }
+      function unhex(h) { var o = new Uint8Array(h.length / 2); for (var i = 0; i < o.length; i++) o[i] = parseInt(h.substr(2 * i, 2), 16); return o; }
+      function random(n) {
+        var o = new Uint8Array(n);
+        if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(o);
+        else throw new Error('no secure random source');
+        return o;
+      }
+      function cat() { var n = 0, i; for (i = 0; i < arguments.length; i++) n += arguments[i].length; var o = new Uint8Array(n), k = 0;
+        for (i = 0; i < arguments.length; i++) { o.set(arguments[i], k); k += arguments[i].length; } return o; }
+      var LABEL = new TextEncoder().encode('mattboxx-tailnet-gateway-setup-v1');
+      function bits(b) { return sjcl.codec.hex.toBits(hex(b)); }
+      function bytes(ba) { return unhex(sjcl.codec.hex.fromBits(ba)); }
+      /* Session key: SHA-256(label || shared || device_pub || client_pub). */
+      function deriveKey(priv, clientPub, devicePub) {
+        var dp = new Uint8Array(devicePub); dp[31] &= 0x7f;
+        var shared = scalarmult(priv, dp), zero = 0;
+        for (var i = 0; i < 32; i++) zero |= shared[i];
+        if (!zero) throw new Error('invalid gateway key');
+        return bytes(sjcl.hash.sha256.hash(bits(cat(LABEL, shared, devicePub, clientPub))));
+      }
+      function seal(key, sid, seq, obj) {
+        var iv = random(12), aad = cat(unhex(sid), new Uint8Array([seq >>> 24 & 255, seq >>> 16 & 255, seq >>> 8 & 255, seq & 255]));
+        var out = bytes(sjcl.mode.gcm.encrypt(new sjcl.cipher.aes(bits(key)), bits(new TextEncoder().encode(JSON.stringify(obj))), bits(iv), bits(aad), 128));
+        return { sid: sid, seq: seq, iv: hex(iv), ct: hex(out.subarray(0, out.length - 16)), tag: hex(out.subarray(out.length - 16)) };
+      }
+      function keypair() { var priv = random(32); return { priv: priv, pub: scalarmult(priv, BASE) }; }
+      return { scalarmult: scalarmult, keypair: keypair, deriveKey: deriveKey, seal: seal, hex: hex, unhex: unhex, random: random };
+    })();
+
+    var FirstBoot = (function () {
+      var st = { step: 0, sid: '', key: null, seq: 0, kp: null, poll: null, wifiOk: false, wifiIp: '', wifiPrefix: 0, testing: false, finished: false, defaults: {} };
+      function $(id) { return document.getElementById(id); }
+      function T(s) { return (typeof I18N !== 'undefined' && I18N.t) ? I18N.t(s) : s; }
+      function err(msg) { var e = $('fb-error'); e.textContent = msg ? T(msg) : ''; e.classList.toggle('visible', !!msg); }
+      function json(method, url, body, extra) {
+        var h = { 'Content-Type': 'application/json' };
+        if (st.sid) h['X-Setup-Session'] = st.sid;
+        return fetch(url, { method: method, credentials: 'same-origin', cache: 'no-store', headers: h, body: body ? JSON.stringify(body) : undefined })
+          .then(function (r) { return r.text().then(function (t) { var d = {}; try { d = t ? JSON.parse(t) : {}; } catch (e) { d = { error: 'response' }; } d._status = r.status; return d; }); });
+      }
+      function apply(obj) {
+        st.seq += 1;
+        return json('POST', '/api/setup/apply', FBX.seal(st.key, st.sid, st.seq, obj)).then(function (d) {
+          if (d._status === 404 || d.error === 'not_paired' || d.error === 'seal') { lostPairing(); throw new Error('pairing'); }
+          return d;
+        });
+      }
+      function show(step) {
+        st.step = step;
+        document.querySelectorAll('#firstBoot .fb-step').forEach(function (s) { s.hidden = +s.getAttribute('data-step') !== step; });
+        document.querySelectorAll('#fb-steps li').forEach(function (li, i) {
+          li.className = i < step ? 'done' : i === step ? 'current' : '';
+          if (i === step) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
+        });
+        $('fb-back').hidden = step <= 1 || st.finished;
+        $('fb-next').textContent = T(step === 5 ? 'Finish setup' : 'Continue');
+        $('fb-next').hidden = st.finished;
+        err('');
+        validate();
+        var focus = { 1: 'fb-pw', 2: 'fb-ssid', 3: 'fb-key', 4: 'fb-apname' }[step];
+        /* Never steal focus from a field the user already chose in this step. */
+        if (focus) setTimeout(function () {
+          var sec = document.querySelector('#firstBoot .fb-step[data-step="' + step + '"]'), a = document.activeElement;
+          if (st.step === step && !(sec && a && sec.contains(a))) $(focus).focus();
+        }, 30);
+        if (step === 5) summary();
+      }
+      function strength(pw) {
+        var score = 0;
+        if (pw.length >= 8) score++;
+        if (pw.length >= 12) score++;
+        if (pw.length >= 16) score++;
+        if (/[a-z]/.test(pw) && /[A-Z]/.test(pw)) score++;
+        if (/\d/.test(pw) && /[^A-Za-z0-9]/.test(pw)) score++;
+        return Math.min(score, 4);
+      }
+      function passwordProblem() {
+        var pw = $('fb-pw').value, pw2 = $('fb-pw2').value;
+        if (pw.length < 8) return 'At least 8 characters. A longer passphrase is stronger.';
+        if (/^(.)\1*$/.test(pw)) return 'Do not repeat a single character.';
+        if (pw !== pw2) return 'The two passwords do not match.';
+        return '';
+      }
+      function wifiProblem() {
+        var ssid = $('fb-ssid').value, pw = $('fb-wpw').value;
+        if (!ssid) return 'Choose a Wi-Fi network.';
+        if (new TextEncoder().encode(ssid).length > 32) return 'Wi-Fi name is longer than 32 bytes.';
+        if (pw && pw.length < 8) return 'Wi-Fi password must be 8 to 63 characters.';
+        return '';
+      }
+      function tailnetProblem() {
+        var key = $('fb-key').value.trim(), hs = document.querySelector('input[name="fb-ctl"]:checked').value === 'hs';
+        var server = $('fb-server').value.trim(), host = $('fb-host').value.trim();
+        if (key && (key.length < 10 || /\s/.test(key))) return 'The auth key looks incomplete.';
+        if (hs && key && !/^https?:\/\/\S+$/.test(server)) return 'Enter the control server URL, starting with https://';
+        if (host && !/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(host)) return 'Device name may use a-z, 0-9 and - (not at the start or end).';
+        return '';
+      }
+      function featuresProblem() {
+        var ap = $('fb-appw').value;
+        if (!$('fb-apname').value) return 'Enter a name for the gateway Wi-Fi.';
+        if (ap.length < 8 || ap.length > 63) return 'Gateway Wi-Fi password must be 8 to 63 characters.';
+        if (ap === $('fb-pw').value) return 'Use a different password for the gateway Wi-Fi.';
+        if ($('fb-share-lan').checked && !st.wifiOk) return 'Test the Wi-Fi connection before sharing the home network.';
+        return '';
+      }
+      function validate() {
+        var p = '';
+        if (st.step === 0) p = st.key ? '' : 'pair';
+        else if (st.step === 1) {
+          var pw = $('fb-pw').value, s = strength(pw), bar = $('fb-meter-bar');
+          bar.style.width = (pw ? 25 * Math.max(s, 1) : 0) + '%';
+          bar.style.background = s >= 3 ? 'var(--accent)' : s >= 2 ? 'var(--warning, #d29922)' : 'var(--danger)';
+          p = passwordProblem();
+          $('fb-meter-text').textContent = T(p || (s >= 3 ? 'Strong password.' : 'Acceptable; a longer passphrase is stronger.'));
+        } else if (st.step === 2) p = wifiProblem();
+        else if (st.step === 3) p = tailnetProblem();
+        else if (st.step === 4) p = featuresProblem();
+        $('fb-next').disabled = !!p || st.testing;
+        return p;
+      }
+      function status(msg) { $('fb-pair-status').textContent = T(msg); }
+      function lostPairing() {
+        st.key = null; st.sid = ''; st.seq = 0;
+        show(0);
+        err('The pairing expired. Confirm again with the BOOT button.');
+        begin();
+      }
+      function begin() {
+        clearInterval(st.poll);
+        $('fb-retry').hidden = true;
+        status('Preparing a secure pairing…');
+        try { st.kp = FBX.keypair(); } catch (e) { status('This browser cannot create a secure key. Use a current browser.'); return; }
+        st.sid = ''; st.key = null; st.seq = 0;
+        json('POST', '/api/setup/begin', { client_pub: FBX.hex(st.kp.pub) }).then(function (d) {
+          if (d.error === 'busy' || d.error === 'claimed') {
+            status(d.error === 'busy' ? 'Another device is pairing with this gateway right now. Wait two minutes, then try again.'
+                                      : 'This gateway is already being set up from another device.');
+            $('fb-retry').hidden = false; return;
+          }
+          if (!d.sid || !d.device_pub) { status('The gateway did not answer. Check that you are still connected to its setup Wi-Fi.'); $('fb-retry').hidden = false; return; }
+          var key = FBX.deriveKey(st.kp.priv, st.kp.pub, FBX.unhex(d.device_pub));
+          st.kp.priv.fill(0);
+          st.sid = d.sid;
+          status('Waiting for the BOOT button…');
+          st.poll = setInterval(function () {
+            json('GET', '/api/setup/state').then(function (s) {
+              if (s.session === 'claimed') { clearInterval(st.poll); st.key = key; paired(s); }
+              else if (s.session === 'none') { clearInterval(st.poll); status('The pairing expired. Press Try again.'); $('fb-retry').hidden = false; }
+            }).catch(function () {});
+          }, 1200);
+          st.pendingKey = key;
+        }).catch(function () { status('The gateway did not answer. Check that you are still connected to its setup Wi-Fi.'); $('fb-retry').hidden = false; });
+      }
+      function paired(s) {
+        st.defaults = s || {};
+        if (!$('fb-apname').value) $('fb-apname').value = st.defaults.default_ap_ssid || 'Tailnet-Gateway';
+        if (!$('fb-appw').value) generateApPassword();
+        status('Paired. Only this browser can continue the setup.');
+        show(1);
+      }
+      function claimCode() {
+        var code = $('fb-code').value.replace(/\D/g, '');
+        if (code.length !== 8 || !st.sid) { err('Enter the 8-digit setup code.'); return; }
+        json('POST', '/api/setup/claim', { sid: st.sid, code: code }).then(function (d) {
+          if (d.claimed) { clearInterval(st.poll); st.key = st.pendingKey; json('GET', '/api/setup/state').then(paired, function () { paired({}); }); }
+          else if (d.error === 'bad_code') err(T('Wrong setup code. Attempts left: ') + (d.detail || '0'));
+          else if (d.error === 'locked') err('Too many wrong codes. Restart the gateway to get a new code.');
+          else err('The pairing expired. Press Try again.');
+        }).catch(function () { err('The gateway did not answer. Check that you are still connected to its setup Wi-Fi.'); });
+      }
+      function generateApPassword() {
+        var a = 'abcdefghjkmnpqrstuvwxyzACDEFGHJKLMNPQRSTUVWXYZ23456789', r = FBX.random(14), s = '';
+        for (var i = 0; i < 14; i++) { s += a[r[i] % a.length]; if (i === 4 || i === 9) s += '-'; }
+        $('fb-appw').value = s; validate();
+      }
+      function scan() {
+        var list = $('fb-nets'); list.textContent = '';
+        var li = document.createElement('li'); li.className = 'form-hint'; li.textContent = T('Scanning…'); list.appendChild(li);
+        json('GET', '/api/network/scan').then(function () {
+          var tries = 0;
+          (function wait() {
+            json('GET', '/api/network/scan/result').then(function (r) {
+              if (r.status === 'ready') return render(r.networks || []);
+              if (++tries > 20 || r.status === 'error') { li.textContent = T('No networks found. Enter the name manually.'); return; }
+              setTimeout(wait, 600);
+            }).catch(function () { li.textContent = T('No networks found. Enter the name manually.'); });
+          })();
+        });
+      }
+      function render(nets) {
+        var best = {};
+        nets.forEach(function (n) { if (n.ssid && (!best[n.ssid] || best[n.ssid].rssi < n.rssi)) best[n.ssid] = n; });
+        var rows = Object.keys(best).map(function (k) { return best[k]; }).sort(function (a, b) { return b.rssi - a.rssi; });
+        var list = $('fb-nets'); list.textContent = '';
+        if (!rows.length) { var e = document.createElement('li'); e.className = 'form-hint'; e.textContent = T('No networks found. Enter the name manually.'); list.appendChild(e); return; }
+        rows.slice(0, 15).forEach(function (n) {
+          var li = document.createElement('li'), b = document.createElement('button'), name = document.createElement('span'), meta = document.createElement('small');
+          b.type = 'button'; name.textContent = n.ssid; name.setAttribute('data-no-i18n', '');
+          var bars = n.rssi >= -60 ? '▂▄▆█' : n.rssi >= -70 ? '▂▄▆' : n.rssi >= -80 ? '▂▄' : '▂';
+          meta.textContent = bars + (n.auth && n.auth !== 'OPEN' ? ' 🔒' : '');
+          b.setAttribute('aria-pressed', $('fb-ssid').value === n.ssid ? 'true' : 'false');
+          b.appendChild(name); b.appendChild(meta);
+          b.addEventListener('click', function () {
+            $('fb-ssid').value = n.ssid; st.wifiOk = false; $('fb-test-status').textContent = '';
+            list.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+            validate(); $('fb-wpw').focus();
+          });
+          li.appendChild(b); list.appendChild(li);
+        });
+      }
+      function testWifi() {
+        var p = wifiProblem(); if (p) { err(p); return; }
+        st.testing = true; st.wifiOk = false; validate();
+        var out = $('fb-test-status'); out.textContent = T('Testing the connection… this can take up to 30 seconds.');
+        apply({ action: 'wifi_test', wifi: { ssid: $('fb-ssid').value, password: $('fb-wpw').value } }).then(function (d) {
+          if (d.error) { st.testing = false; validate(); out.textContent = T(d.detail || 'The test could not start.'); return; }
+          var started = Date.now();
+          (function wait() {
+            json('GET', '/api/setup/state').then(function (s) {
+              var w = s.wifi || {};
+              if (w.state === 'ok') { st.testing = false; st.wifiOk = true; st.wifiIp = w.ip; st.wifiPrefix = w.prefix;
+                out.textContent = T('Connected. The gateway received the address ') + w.ip; validate(); return; }
+              if (w.state === 'failed') { st.testing = false; validate();
+                out.textContent = T('Could not connect. Check the password and that the network is 2.4 GHz.'); return; }
+              if (Date.now() - started > 75000) { st.testing = false; validate(); out.textContent = T('No answer from the gateway. Reconnect to its setup Wi-Fi and test again.'); return; }
+              setTimeout(wait, 1500);
+            }).catch(function () { setTimeout(wait, 2000); });   /* setup Wi-Fi may drop briefly */
+          })();
+        }).catch(function () { st.testing = false; validate(); });
+      }
+      function row(dl, k, v) { var dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = T(k); dd.textContent = v; dd.setAttribute('data-no-i18n', ''); dl.appendChild(dt); dl.appendChild(dd); }
+      function summary() {
+        var dl = $('fb-summary'); dl.textContent = '';
+        var yes = T('Yes'), no = T('No');
+        row(dl, 'Home Wi-Fi', $('fb-ssid').value + (st.wifiOk ? ' (' + T('tested') + ')' : ' (' + T('not tested') + ')'));
+        row(dl, 'Tailnet', $('fb-key').value.trim() ? (document.querySelector('input[name="fb-ctl"]:checked').value === 'hs' ? $('fb-server').value.trim() : 'Tailscale') : T('Join later'));
+        row(dl, 'Device name in the tailnet', $('fb-host').value.trim() || 'tailnet-gateway');
+        row(dl, 'Share home network', $('fb-share-lan').checked ? yes : no);
+        row(dl, 'Share gateway Wi-Fi', $('fb-share-ap').checked ? yes : no);
+        row(dl, 'Exit node', $('fb-exit').checked ? yes : no);
+        row(dl, 'Gateway Wi-Fi', $('fb-apname').value + ' · ' + ($('fb-ap-always').checked ? T('always on') : T('only when the home Wi-Fi is unavailable')));
+        row(dl, 'Gateway Wi-Fi password', $('fb-appw').value);
+      }
+      function finish() {
+        $('fb-next').disabled = true;
+        var hs = document.querySelector('input[name="fb-ctl"]:checked').value === 'hs';
+        var cmd = { action: 'finish', admin_password: $('fb-pw').value,
+          wifi: { ssid: $('fb-ssid').value, password: $('fb-wpw').value },
+          ap_ssid: $('fb-apname').value, ap_password: $('fb-appw').value, ap_recovery_only: !$('fb-ap-always').checked,
+          tailnet: { auth_key: $('fb-key').value.trim(), login_server: hs ? $('fb-server').value.trim() : '', hostname: $('fb-host').value.trim() },
+          share_lan: $('fb-share-lan').checked, share_ap: $('fb-share-ap').checked, exit_node: $('fb-exit').checked };
+        apply(cmd).then(function (d) {
+          if (!d.ok) { $('fb-next').disabled = false; err(d.detail || 'The settings could not be saved.'); return; }
+          try { localStorage.setItem('ui-advanced', document.querySelector('input[name="fb-mode"]:checked').value === 'advanced' ? '1' : '0'); } catch (e) {}
+          st.finished = true; st.key = null;
+          ['fb-pw', 'fb-pw2', 'fb-wpw', 'fb-key'].forEach(function (id) { $(id).value = ''; });
+          $('fb-review').hidden = true; $('fb-done').hidden = false; show(5);
+          if (st.wifiIp) $('fb-done-open').textContent = T('Open the gateway at ') + 'http://' + st.wifiIp + '/' + T(', or from the tailnet by its name.');
+        }).catch(function () { $('fb-next').disabled = false; });
+      }
+      function next() {
+        var p = validate(); if (p) { err(p); return; }
+        if (st.step === 5) { finish(); return; }
+        if (st.step === 2 && !st.wifiOk && !confirm(T('The Wi-Fi connection was not tested. Continue anyway?'))) return;
+        show(st.step + 1);
+      }
+      function start() {
+        document.getElementById('authSetup').style.display = 'none';
+        document.getElementById('authLogin').style.display = 'none';
+        $('firstBoot').style.display = 'flex';
+        var sel = $('fb-lang');
+        if (typeof I18N !== 'undefined' && !sel.options.length) {
+          I18N.languages().forEach(function (l) { var o = document.createElement('option'); o.value = l[0]; o.textContent = l[1]; sel.appendChild(o); });
+          sel.value = I18N.current();
+          sel.addEventListener('change', function () { I18N.set(this.value); show(st.step); });
+        }
+        $('fbForm').addEventListener('submit', function (e) { e.preventDefault(); next(); });
+        $('fb-back').addEventListener('click', function () { if (st.step > 1) show(st.step - 1); });
+        $('fb-retry').addEventListener('click', begin);
+        $('fb-code-btn').addEventListener('click', claimCode);
+        $('fb-scan').addEventListener('click', scan);
+        $('fb-test').addEventListener('click', testWifi);
+        $('fb-appw-gen').addEventListener('click', generateApPassword);
+        $('fb-ssid').addEventListener('input', function () { st.wifiOk = false; $('fb-test-status').textContent = ''; validate(); });
+        $('fb-wpw').addEventListener('input', function () { st.wifiOk = false; validate(); });
+        document.querySelectorAll('input[name="fb-ctl"]').forEach(function (r) { r.addEventListener('change', function () { $('fb-server-row').hidden = this.value !== 'hs'; validate(); }); });
+        ['fb-pw', 'fb-pw2', 'fb-key', 'fb-server', 'fb-host', 'fb-apname', 'fb-appw', 'fb-share-lan'].forEach(function (id) { $(id).addEventListener('input', validate); $(id).addEventListener('change', validate); });
+        show(0);
+        begin();
+        scan();
+      }
+      return { start: start };
+    })();
+
     fetch('/api/auth/status', { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (s) {
         updateBrandName(s.device_name);
+        /* Unconfigured gateway on its setup Wi-Fi: only the paired wizard. */
+        if (s.setup_mode) { FirstBoot.start(); return; }
         s_web_auth_required = !!s.auth_required;
         /* When no password is set the device is wide open. Don't drop
          * into the dashboard — force the operator through the setup

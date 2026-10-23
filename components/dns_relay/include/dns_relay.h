@@ -55,6 +55,10 @@ uint32_t dns_relay_get_upstream(void);
  * whenever the AP IP changes (rare — operator-driven only). */
 void dns_relay_set_bind_addr(uint32_t ip_nbo);
 
+/* First-boot captive portal: answer every A query with this address (network
+ * byte order) instead of relaying; 0 restores normal relaying. */
+void dns_relay_set_captive(uint32_t answer_ip_nbo);
+
 /* Runtime snapshot of the SPIRAM response cache + forwarder, for the
  * diagnostics page. Counters are cumulative since boot. */
 typedef struct {

@@ -66,6 +66,7 @@
 #include "log_capture.h"
 #include "netif_hooks.h"
 #include "web_password.h"
+#include "first_boot.h"
 #include "esp_random.h"
 #include "esp_system.h"
 #include "esp_chip_info.h"
@@ -128,6 +129,14 @@ static void set_browser_security_headers(httpd_req_t *req)
 
 static esp_err_t index_handler(httpd_req_t *req)
 {
+    /* Captive portal: a page requested under a foreign name (any name
+     * resolves to the setup AP) is sent to the setup address instead. */
+    char host[64];
+    if (first_boot_active()
+            && httpd_req_get_hdr_value_str(req, "Host", host, sizeof host) == ESP_OK
+            && !web_host_trusted(host)) {
+        return first_boot_not_found(req, HTTPD_404_NOT_FOUND);
+    }
     set_browser_security_headers(req);
     httpd_resp_set_type(req, "text/html; charset=utf-8");
     httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
@@ -202,6 +211,11 @@ static bool browser_request_refused(httpd_req_t *req, bool open_access)
 
 static esp_err_t require_auth(httpd_req_t *req)
 {
+    /* An unconfigured gateway exposes only the paired setup API. */
+    if (first_boot_active()) {
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "first-boot setup in progress");
+        return ESP_FAIL;
+    }
     bool open_access = !s_web_auth_enabled || !is_web_password_set();
     if (browser_request_refused(req, open_access)) return ESP_FAIL;
     if (request_authenticated(req)) return ESP_OK;
@@ -1247,9 +1261,16 @@ static void scan_init_once(void)
                                 scan_done_event, NULL);
 }
 
+/* Scanning reveals nothing secret; the setup wizard may use it on the AP. */
+static esp_err_t scan_allowed(httpd_req_t *req)
+{
+    if (first_boot_active()) return web_ui_setup_request_ok(req) ? ESP_OK : ESP_FAIL;
+    return require_auth(req);
+}
+
 static esp_err_t network_scan_handler(httpd_req_t *req)
 {
-    if (require_auth(req) != ESP_OK) return ESP_FAIL;
+    if (scan_allowed(req) != ESP_OK) return ESP_FAIL;
     scan_init_once();
 
     xSemaphoreTake(s_scan_mutex, portMAX_DELAY);
@@ -1298,7 +1319,7 @@ static esp_err_t network_scan_handler(httpd_req_t *req)
 
 static esp_err_t network_scan_result_handler(httpd_req_t *req)
 {
-    if (require_auth(req) != ESP_OK) return ESP_FAIL;
+    if (scan_allowed(req) != ESP_OK) return ESP_FAIL;
     scan_init_once();
 
     cJSON *root = cJSON_CreateObject();
@@ -4728,6 +4749,7 @@ static esp_err_t auth_status_handler(httpd_req_t *req)
     cJSON *root = cJSON_CreateObject();
     cJSON_AddBoolToObject(root, "auth_enabled", s_web_auth_enabled);
     cJSON_AddBoolToObject(root, "password_set", is_web_password_set());
+    cJSON_AddBoolToObject(root, "setup_mode", first_boot_active());
     cJSON_AddBoolToObject(root, "auth_required",
                           s_web_auth_enabled && is_web_password_set());
     cJSON_AddBoolToObject(root, "authenticated", request_authenticated(req));
@@ -5055,6 +5077,15 @@ static bool request_arrived_on_ap(httpd_req_t *req)
     return ((struct sockaddr_in *)&local)->sin_addr.s_addr == ap_ip.ip.addr;
 }
 
+bool web_ui_setup_request_ok(httpd_req_t *req)
+{
+    if (!request_arrived_on_ap(req)) {
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "setup is only available through the device AP");
+        return false;
+    }
+    return !browser_request_refused(req, true);
+}
+
 static esp_err_t auth_setup_handler(httpd_req_t *req)
 {
     /* First-boot wizard endpoint — only accessible while no password is
@@ -5062,6 +5093,11 @@ static esp_err_t auth_setup_handler(httpd_req_t *req)
      * auth + the old password) instead. */
     if (is_web_password_set()) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "password already set");
+        return ESP_FAIL;
+    }
+    if (first_boot_active()) {
+        /* The open setup AP uses the paired, sealed /api/setup flow. */
+        httpd_resp_send_err(req, HTTPD_403_FORBIDDEN, "use the first-boot setup");
         return ESP_FAIL;
     }
     if (!request_arrived_on_ap(req)) {
@@ -5644,6 +5680,7 @@ void web_ui_init(void)
      * records, but do not install a DNAT binding over the admin service. */
     portmap_install_all();
     reg_uri(server, &uri_index);
+    if (first_boot_register_http(server) != ESP_OK) ESP_LOGE(TAG, "First-boot setup API registration failed");
     if(homelab_ops_register_http(server)!=ESP_OK)ESP_LOGE(TAG,"Operational API registration failed");
     reg_uri(server, &uri_favicon);
     reg_uri(server, &uri_status);

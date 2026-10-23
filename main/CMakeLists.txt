@@ -79,6 +79,8 @@ idf_component_register(SRCS "main.c"
                             "reset_history.c"
                             "ota.c"
                             "ota_remote.c"
+                            "first_boot.c"
+                            "first_boot_core.c"
                             "index_html_data.c"
                     PRIV_REQUIRES esp_wifi nvs_flash esp_event esp_netif esp_timer
                                   lwip microlink wpa_supplicant

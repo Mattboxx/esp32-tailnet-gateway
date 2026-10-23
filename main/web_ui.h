@@ -20,6 +20,11 @@ void web_ui_init(void);
 /* Shared session + browser write-origin gate for extension API handlers. */
 esp_err_t web_ui_require_auth(struct httpd_req *req);
 
+/* First-boot setup endpoints: true when the request came through the
+ * device's own AP and passes the same-origin screening; otherwise an error
+ * response has been sent. */
+bool web_ui_setup_request_ok(struct httpd_req *req);
+
 /* Persisted listener port (default 80); changes take effect after restart. */
 uint16_t web_ui_configured_port(void);
 

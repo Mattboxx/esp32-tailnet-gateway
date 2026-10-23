@@ -7,6 +7,7 @@ $qaSdk = Join-Path $env:USERPROFILE '.platformio/packages/framework-espidf@3.505
 $qaJson = (Resolve-Path (Join-Path $qaSdk 'json/cJSON')).Path
 $qaLwip = (Resolve-Path (Join-Path $qaSdk 'lwip/lwip')).Path
 $qaMqtt = (Resolve-Path (Join-Path $qaSdk 'mqtt/esp-mqtt')).Path
+$qaMbed = (Resolve-Path (Join-Path $qaSdk 'mbedtls/mbedtls')).Path
 $qaStamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $qaOutput = Join-Path $qaRoot "build/linux-validation-$qaStamp"
 New-Item -ItemType Directory -Path $qaOutput | Out-Null
@@ -18,7 +19,7 @@ set -eu
 apt-get update > /work/build/setup.log 2>&1
 DEBIAN_FRONTEND=noninteractive apt-get install -y gcc git python3 python3-venv pkg-config libcjson-dev >> /work/build/setup.log 2>&1
 python3 -m venv /tmp/qa-python
-/tmp/qa-python/bin/pip install PyYAML==6.0.2 >> /work/build/setup.log 2>&1
+/tmp/qa-python/bin/pip install PyYAML==6.0.2 cryptography==44.0.2 >> /work/build/setup.log 2>&1
 git config --global --add safe.directory /work
 git config --global --add safe.directory /work/external/microlink
 uname -a > /work/build/environment.txt
@@ -35,8 +36,9 @@ $qaCommand = $qaCommand.Replace('__DRIVERS__', $(if ($Only) { "--only $Only" } e
     --mount "type=bind,source=$qaJson,target=/deps/cJSON,readonly" `
     --mount "type=bind,source=$qaLwip,target=/deps/lwip,readonly" `
     --mount "type=bind,source=$qaMqtt,target=/deps/esp-mqtt,readonly" `
+    --mount "type=bind,source=$qaMbed,target=/deps/mbedtls,readonly" `
     --workdir /work -e CJSON_SOURCE=/deps/cJSON/cJSON.c -e LWIP_SOURCE=/deps/lwip `
-    -e MQTT_SOURCE=/deps/esp-mqtt/mqtt_client.c `
+    -e MQTT_SOURCE=/deps/esp-mqtt/mqtt_client.c -e MBEDTLS_DIR=/deps/mbedtls `
     -e GATEWAY_SANITIZER_NO_PIE=1 ubuntu:24.04 bash -lc $qaCommand *> (Join-Path $qaOutput 'container.log')
 $qaExit = $LASTEXITCODE
 Get-Content (Join-Path $qaOutput 'container.log') | Where-Object { $_ -match '^(PASS|FAIL|SKIP)' }
