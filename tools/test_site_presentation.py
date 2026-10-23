@@ -12,9 +12,12 @@ if not site.exists():
 assert build_site.REPO_URL.endswith('/'+build_site.REPO_SLUG)
 assert build_site.SITE_URL.endswith('/'+build_site.REPO_SLUG+'/')
 assert build_site.STABLE_TAG == 'v0.1.38-Mattboxx-1.13'
-assert len(list((root/'website/pages').glob('*.html'))) == 23
+assert len(list((root/'website/pages').glob('*.html'))) == 25
 for file in site.rglob('*.html'):
     text = file.read_text(encoding='utf-8')
+    if (file.parent == site and re.fullmatch(r'google[0-9a-f]+\.html', file.name)
+            and text.strip() == 'google-site-verification: ' + file.name):
+        continue  # Ownership proof is an exact plain-text file, not a site page.
     if not build_site.RENAMED:
         assert 'https://github.com/Mattboxx/esp32-tailnet-gateway' not in text, file
         assert 'https://mattboxx.github.io/esp32-tailnet-gateway/' not in text, file
@@ -55,4 +58,4 @@ for unsafe in (root,root/'build',root/'website',root.parent):
         pass
     else:
         raise AssertionError('Unsafe output directory accepted')
-print('PASS: 23-page presentation matches release/rename state; manifest gated, correct assets/canonical paths, README links and manual workflow')
+print('PASS: 25-page presentation matches release/rename state; manifest gated, correct assets/canonical paths, README links and manual workflow')

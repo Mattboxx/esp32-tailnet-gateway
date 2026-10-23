@@ -1,6 +1,7 @@
 <!--
 slug: service-gateway/
 title: Service Gateway
+search_title: Tailscale Without a Client — ESP32 LAN-to-Tailnet Gateway
 description: Selective LAN-to-Tailnet port forwarding on an ESP32: let a device without a Tailscale client reach one TCP or UDP service on your tailnet.
 nav: Service Gateway
 group: Guides
@@ -15,6 +16,7 @@ order: 2
 </figure>
 
 <h2>Requirements</h2>
+<p><strong>Example:</strong> a WiFi sensor at another home needs your MQTT broker, but cannot install Tailscale. Keep the sensor on its existing LAN; configure its broker address as the ESP32's LAN address and listen port. The gateway forwards that connection to the broker's Tailnet peer. <a href="{{root}}mqtt-across-networks/">Follow the two-home MQTT example</a>.</p>
 <ul>
   <li>An ESP32 Tailnet Gateway joined to your WiFi and tailnet, with a fixed LAN address (DHCP reservation).</li>
   <li>A Tailnet peer running the service, whose ACL allows the ESP32's tailnet identity.</li>
@@ -39,6 +41,7 @@ Allowed source      192.0.2.20/32
 Client connects to  192.0.2.50:18830</code></pre>
 
 <h2>Verify</h2>
+<p>See the <a href="{{root}}screenshots/">actual firmware interface</a> before configuring your first rule.</p>
 <ul>
   <li>The rule card shows <em>installed</em>, then accepted packets and admitted replies when the client connects.</li>
   <li>Rejected counters grow when another device tries the port.</li>
