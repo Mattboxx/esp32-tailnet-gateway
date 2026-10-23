@@ -21,6 +21,7 @@ PATTERNS = {
     'watchdog': r'task_wdt|Task watchdog got triggered|Interrupt wdt',
     'reboot': r'rst:0x[0-9a-f]+ \(',
     'alloc_fail': r'(?i)alloc(?:ation)? failed|ESP_ERR_NO_MEM|out of memory|No memory',
+    'worker_start_failure': r'(?i)failed to create task|could not create[^\n]*worker',
     'brownout': r'(?i)brownout',
 }
 

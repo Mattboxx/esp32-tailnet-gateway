@@ -7,6 +7,7 @@ import argparse
 import getpass
 import hashlib
 import hmac
+import http.client
 import http.cookiejar
 import json
 import os
@@ -15,6 +16,9 @@ import socket
 import time
 import urllib.error
 import urllib.request
+
+# Kept in sync by the host driver against the real compiled MIB table.
+SNMP_OBJECT_COUNT = 109
 
 
 def tlv(tag, data):
@@ -102,12 +106,38 @@ def decode_reply(data):
     return arcs, vb[1][0], vb[1][1]
 
 
-def login(host, password=None):
+def bound_http_handler(source_ip, interface_index):
+    """Force only owned-board HTTP sockets onto the specified existing LAN."""
+    from lab_echo import client_socket
+
+    class BoundConnection(http.client.HTTPConnection):
+        def connect(self):
+            if self._tunnel_host:
+                raise ValueError('Proxy tunnels are not supported for a bound device connection')
+            self.sock = client_socket('tcp', source_ip, interface_index, self.timeout)
+            try:
+                self.sock.connect((self.host, self.port))
+            except BaseException:
+                self.sock.close()
+                self.sock = None
+                raise
+
+    class BoundHandler(urllib.request.HTTPHandler):
+        def http_open(self, req):
+            return self.do_open(BoundConnection, req)
+
+    return BoundHandler()
+
+
+def login(host, password=None, *, source_ip=None, interface_index=None):
     if password is None:
         password = os.environ['TEST_DEVICE_PASSWORD']
     base = 'http://' + host
-    client = urllib.request.build_opener(urllib.request.ProxyHandler({}),
-        urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+    handlers = [urllib.request.ProxyHandler({}),
+                urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())]
+    if source_ip is not None or interface_index is not None:
+        handlers.append(bound_http_handler(source_ip, interface_index))
+    client = urllib.request.build_opener(*handlers)
 
     def send(path, payload=None, *, raw=False, timeout=12, request_headers=None):
         if raw:
@@ -156,11 +186,12 @@ def main():
     parser.add_argument('--tailnet-host', help='Also query the same agent over its reachable Tailnet IP')
     parser.add_argument('--prompt-password', action='store_true', help='Read the existing password through a hidden terminal prompt')
     parser.add_argument('--ops-only', action='store_true', help='Read the 27 operational OIDs, skipping legacy stress/cycle tests')
-    parser.add_argument('--lan-source', help='Explicit LAN source for UDP queries')
-    parser.add_argument('--interface-index', type=int, help='Windows LAN interface for this UDP socket only')
+    parser.add_argument('--lan-source', help='Explicit LAN source for HTTP control and UDP queries')
+    parser.add_argument('--interface-index', type=int, help='Windows LAN interface for these sockets only')
     args = parser.parse_args()
     password = getpass.getpass('Device password (not saved): ') if args.prompt_password else None
-    api = login(args.host, password=password)
+    api = login(args.host, password=password, source_ip=args.lan_source,
+                interface_index=args.interface_index)
     password = None
     limits = api('/api/system/diag')['network_limits']
     assert limits['sockets'] == args.expected_sockets and limits['active_tcp'] == args.expected_active_tcp
@@ -245,15 +276,15 @@ def main():
             return
         for version in (0, 1):
             oid, count = [1, 3, 6, 1, 2, 1], 0
-            while count < 100:
+            while count <= SNMP_OBJECT_COUNT:
                 result = exchange(request(comm, oid, version, 0xa1))
                 if result[1] in (0x82, 5):
                     break
                 assert result[0] > oid, 'Non-advancing GETNEXT walk'
                 oid = result[0]
                 count += 1
-            assert count == 82, f'Expected 82 objects, walked {count}'
-        print('PASS: complete 82-object v1/v2c walks terminate correctly')
+            assert count == SNMP_OBJECT_COUNT, f'Expected {SNMP_OBJECT_COUNT} objects, walked {count}'
+        print(f'PASS: complete {SNMP_OBJECT_COUNT}-object v1/v2c walks terminate correctly')
         for invalid in ('', comm + '-wrong'):
             exchange(request(invalid, system_oid), False)
         exchange(request(comm, system_oid, 3), False)

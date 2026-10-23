@@ -18,4 +18,10 @@ class SoakEvidenceTests(unittest.TestCase):
         self.assertEqual((r['alloc_fail'],r['watchdog'],r['panic']),(1,1,1))
         self.assertEqual(r['largest_capture_marker_gap_seconds'],1)
 
+    def test_task_allocation_failure_is_not_missed_by_heap_wording(self):
+        r=summarise('E (87938) snmp_agent: failed to create task\n'
+                    'E (100) WiFi SoftAP: could not create AP policy worker\n')
+        self.assertEqual(r['worker_start_failure'],2)
+        self.assertEqual(r['alloc_fail'],0)  # Separate evidence, not double-counted.
+
 if __name__=='__main__':unittest.main()

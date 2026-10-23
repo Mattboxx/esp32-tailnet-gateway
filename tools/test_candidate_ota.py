@@ -58,12 +58,16 @@ def main():
     parser.add_argument('--expected-running-slot', choices=('ota_0','ota_1'), required=True)
     parser.add_argument('--protected-slot', choices=('ota_0','ota_1'), required=True)
     parser.add_argument('--prompt-password', action='store_true')
+    parser.add_argument('--lan-source')
+    parser.add_argument('--interface-index', type=int)
     args = parser.parse_args()
     image = args.image.read_bytes()
     assert hashlib.sha256(image).hexdigest() == args.sha256.lower(), 'Image hash changed'
     assert args.expected_version.encode() in image, 'Wrong candidate version'
     password = getpass.getpass('Device password (not saved): ') if args.prompt_password else None
-    api = login(args.host, password=password)
+    def connect():
+        return login(args.host, password=password, source_ip=args.lan_source, interface_index=args.interface_index)
+    api = connect()
     before = api('/api/system')['version']
     assert before == args.expected_running_version, 'Unexpected starting firmware'
     assert before != args.expected_version, 'Candidate already installed; refusing duplicate OTA'
@@ -84,7 +88,7 @@ def main():
     while time.monotonic() < deadline:
         time.sleep(5)
         try:
-            candidate = login(args.host, password=password)
+            candidate = connect()
             if candidate('/api/system')['version'] != args.expected_version:
                 continue
             api = candidate
@@ -104,7 +108,7 @@ def main():
             if time.monotonic() >= verify_until:
                 raise
             time.sleep(3)
-            api = login(args.host, password=password)
+            api = connect()
     assert api('/api/system')['reset_history'][0]['reason'] in ('FLASH', 'SW'), \
         'Candidate suffered an unexpected reset after OTA'
     assert current == original, 'Saved settings changed; private values are not displayed'

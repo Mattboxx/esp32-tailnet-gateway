@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import patch
 from urllib.error import HTTPError, URLError
-from test_snmp_device import login, request, packet_identifier, receive_matching
+from test_snmp_device import login, request, packet_identifier, receive_matching, bound_http_handler
 
 
 class Client:
@@ -56,6 +56,24 @@ class Sessions(unittest.TestCase):
             api = login('board.invalid', password='fixture-only-not-a-secret')
             self.assertTrue(api('/api/system')['ok'])
         self.assertEqual(client.authentications, 1)
+
+    def test_bound_transport_uses_explicit_socket_and_closes_on_failure(self):
+        from unittest.mock import Mock
+        sock = Mock()
+        with patch('lab_echo.client_socket', return_value=sock) as factory:
+            handler = bound_http_handler('192.0.2.42', 18)
+            with patch.object(handler, 'do_open', side_effect=lambda connection, req: connection):
+                cls = handler.http_open(object())
+            connection = cls('192.0.2.1', timeout=3)
+            connection.connect()
+            factory.assert_called_once_with('tcp', '192.0.2.42', 18, 3)
+            sock.connect.assert_called_once_with(('192.0.2.1', 80))
+            connection.close()
+            sock.connect.side_effect = OSError('fixture')
+            with self.assertRaises(OSError):
+                connection.connect()
+            self.assertIsNone(connection.sock)
+        self.assertGreaterEqual(sock.close.call_count, 2)
 
     def test_network_error_never_resends_a_write(self):
         c = self.exercise([URLError('fixture')], URLError)

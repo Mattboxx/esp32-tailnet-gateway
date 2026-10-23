@@ -1,4 +1,20 @@
-# Quality gate — dev.7 source / dev.6 hardware (2026-10-22)
+# Quality gate — dev.8 source and hardware (2026-10-23)
+
+> **Handoff update:** dev.8 gateway/reboot/profile/watch campaign completed and
+> original configuration restored. SNMP regression PASS. New 60-minute serial/
+> API capture is running, NOT yet qualified. COM3 exclusively occupied until
+> completion. See DEV8-VALIDATION and CLAUDE-CONTINUATION-HANDOFF. NOT READY
+> remains for uncompleted essential real-policy/recovery/integration gates;
+> Claude is authorized for local preparation, not public operations.
+
+> **Current facts:** [DEV8-VALIDATION.md](DEV8-VALIDATION.md) supersedes older
+> rows below. Guarded 1.13 → dev.8 OTA PASS, stable ota_1 intact, eight saved
+> configuration groups preserved. SNMP allocation defect corrected and real
+> 109-object walks/cycles PASS. Windows 64/64, Linux sanitizer 60/60 and both
+> builds PASS. Gateway/reboot/watch campaign still running. NOT READY remains:
+> real two-client/direct+DERP policy, exact stream recovery, final resource/soak,
+> integration/recovery/AP gates are not replaced by these scoped successes.
+> Eventual remote publication is authorized only after those gates; none done.
 
 > **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
 
