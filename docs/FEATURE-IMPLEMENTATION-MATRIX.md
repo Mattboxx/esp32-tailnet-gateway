@@ -1,5 +1,13 @@
 # Feature implementation and validation matrix
 
+**Newest v2 publication continuation (2026-10-23):** all 42 rows preserved;
+CODEX-V2-PUBLICATION-CHECKPOINT.md records current candidate and gate scope.
+F14/F33 rc.1 identity, runtime MQTT activation and lab phases PASS; observation
+and serial remain running. Physical first-boot, two independent identities,
+recovery outage and power-loss gates BLOCKED, not replaced by host/UI tests.
+F35 packaging URL metadata corrected locally; helper/shell fixtures PASS. F37
+README/site v2 prepared and tested; no new public firmware/site publication.
+
 **Codex 2026-10-23:** all 42 rows retained. Presentation README/site/assets are
 public independently (`a85681a`, old repository name); no dev firmware published.
 F13/F33: local dev.9 fixes MQTT/initial-VPN stack allocation and duplicate
