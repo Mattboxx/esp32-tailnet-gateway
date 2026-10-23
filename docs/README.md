@@ -2,7 +2,9 @@
 
 User guides for the current firmware, the technical reference and the project
 records. The [website](https://mattboxx.github.io/esp32-tailnet-gateway/)
-presents the same guides for reading online.
+presents the same guides for reading online, and the
+[wiki](https://github.com/Mattboxx/esp32-tailnet-gateway/wiki) summarizes them
+by task.
 
 ## Start here
 
