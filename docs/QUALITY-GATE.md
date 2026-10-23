@@ -1,3 +1,5 @@
+> **NEWEST (2026-10-23, v2 preparation): read [CODEX-V2-RELEASE-PLAN.md](CODEX-V2-RELEASE-PLAN.md) first.** FIRMWARE NOT READY — remaining blockers listed there; candidate 2.0.0-rc.1 installed on ota_0, stable 1.13 on ota_1.
+
 # Quality gate — dev.8 installed candidate (2026-10-23, Claude final handoff)
 
 > **Codex dev.9 continuation:** presentation-only Main `a85681a` and Pages are

@@ -1,5 +1,7 @@
 # Codex publish handoff — ESP32 Tailnet Gateway, Mattboxx Edition
 
+> **NEWEST (2026-10-23, v2 preparation): read [CODEX-V2-RELEASE-PLAN.md](CODEX-V2-RELEASE-PLAN.md) first.** FIRMWARE NOT READY — remaining blockers listed there; candidate 2.0.0-rc.1 installed on ota_0, stable 1.13 on ota_1.
+
 > **LATEST — Codex continuation, 2026-10-23:** public presentation-only `a85681a`
 > and old-name Pages are deployed and verified, separately from this firmware
 > branch. Dev.9 memory fixes are local; exact WiFi install authorized, not a
