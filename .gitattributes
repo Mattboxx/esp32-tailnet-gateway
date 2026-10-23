@@ -1,0 +1,3 @@
+# Versioned installer payloads are release artifacts, copied byte for byte.
+# Preserve manifests, checksum lists and third-party license text as well.
+website/firmware/*/* -text

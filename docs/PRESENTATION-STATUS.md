@@ -1,51 +1,42 @@
-# Presentation preview and release availability
+# Firmware and installation availability
 
-This update publishes the **ESP32 Tailnet Gateway — Mattboxx Edition** identity,
-existing black/green artwork, README, public user guides and static website.
-It publishes no new firmware, embedded sources, dependency commits or releases.
-The repository name and OTA update paths remain unchanged.
+**ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v2.0.0**.
+One ESP32. Multiple Tailnet roles. Enable only what you need.
 
-## Available now
+## Current downloads
 
-Public stable firmware remains
-[0.1.38-Mattboxx-1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13).
-Its [versioned source and instructions](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
-remain intact. It includes LAN-to-Tailnet TCP/UDP forwarding, source restrictions,
-MagicDNS, subnet routing, AP gateway, exit-node roles, 4via6, saved WoL devices,
-MQTT/Home Assistant, ntfy, read-only SNMP and opt-in updates. See its unchanged
-[release notes](RELEASE-1.13.md) for the precise scope.
+- [Firmware v2.0.0](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.0)
+- [Browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
+  for desktop Chrome/Edge and USB-connected ESP32-S3 N16R8 boards.
+- [Easy Install guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/)
+  for the Windows/macOS/Linux ZIP, including a keep-settings update mode.
+- [Advanced downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/)
+  for OTA, factory images, checksums and manifests.
 
-Published assets: firmware.bin, firmware-factory.bin,
-ESP32-S3-router-0.1.38-Mattboxx-1.13-windows.zip, RELEASE-SHA256SUMS.txt and
-FIRMWARE-LICENSES.txt. No forthcoming download or manifest is implied.
+`firmware.bin` is the WiFi application image for Web UI OTA. The separate
+`firmware-eth.bin` and Ethernet factory image are **experimental W5500** builds
+requiring compatible hardware and pin configuration. Factory/new-device erase
+modes remove settings; do not upload a factory image through the Web UI updater.
 
-## Preview, not a stable release
+This edition includes Selective LAN → Tailnet TCP/UDP access, timed rules,
+destination tests and Service Watch; device registry and Smart Recovery;
+health/diagnostic tools, profiles and optional MQTT/Home Assistant, ntfy and
+SNMP. Existing subnet routing, AP gateway, exit-node roles, 4via6, WoL and
+Tailscale/Headscale functionality remain available as selectively enabled roles.
+It is community firmware, not an official Tailscale client or a Linux router.
 
-New user guides, diagrams and feature pages also describe Firmware v2.0.0:
-Smart Recovery, timed access, destination tests, Service Watch, layered Health
-Monitor, diagnostic export, profiles, the refreshed UI, physically paired first
-boot and browser/Easy Install options. They are not in the
-current stable download. The optional W5500 variant is experimental and has
-not been hardware-qualified. No full official-client authorization parity,
-long-term reliability, signing or out-of-band recovery is claimed.
+## Existing installations and repository migration
 
-`NEXT_PUBLISHED=False` and `RENAMED=False` remain unchanged. No v2 firmware,
-manifest or download button may be activated before a qualified public release.
+The existing repository was renamed to `Mattboxx/esp32-tailnet-gateway`; it was
+not replaced by a disconnected repository. The bridge
+[0.1.38-Mattboxx-1.100](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v0.1.38-Mattboxx-1.100)
+was published under the previous name first. Older firmware that missed this
+bridge needs one manual update; see [Migration](MIGRATION-RENAME.md).
 
-The existing published source remains in Main until the firmware qualification
-and separate release process are complete. Internal development ledgers, private
-logs, credentials, backups, candidate firmware and dependency changes are not
-part of this presentation publication.
+Historical releases, source tags, licenses and original Csontikka/MicroLink
+credits remain intact. The previous [1.13 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v0.1.38-Mattboxx-1.13)
+retains its original binaries, installation package and versioned instructions.
 
-## Temporary site and future migration
-
-The site currently belongs at
-https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/.
-Only its deployment workflow is manual. Existing releases/tags are untouched.
-Any later repository rename must follow the OTA bridge and migration process
-before changing paths; see [migration plan](MIGRATION-RENAME.md).
-
-When firmware is ready, update the release availability matrix, download assets,
-guide labels and qualification scope. After an authorized rename, update the
-site/repository constants, README badges, canonical/OG URLs, sitemap, robots,
-metadata and Homepage together, then verify the real deployed paths again.
+The website serves byte-identical copies of the released WiFi installer parts
+with a manifest and SHA-256 checksums. Firmware qualification logs and detailed
+maintainer handovers remain local, outside public release descriptions.

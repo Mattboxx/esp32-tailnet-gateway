@@ -18,7 +18,7 @@ order: 15
 
 <h2>Build and test</h2>
 <pre><code>git clone --recurse-submodules {{repo}}
-cd esp32-tailscale-gateway-NAS-recovery
+cd esp32-tailnet-gateway
 pio run -e esp32-s3
 python -m unittest discover -s tools -p 'test_sensitive_scanner.py'</code></pre>
 <!-- if:stable --><p>The embedded source on Main remains the published 1.13 baseline until the new firmware is qualified and released. The expanded Firmware v{{next_version}} suite is not published yet.</p><!-- endif -->

@@ -63,10 +63,12 @@ Management; Monitoring & Diagnostics; Automation & Integrations; Configuration
 
 Compilation, a UI button or offline fixture does not complete a feature.
 Keep hardware testing, real two-client experiments and synthetic tests distinct.
-Current development continues at local `0.1.38-Mattboxx-1.14-dev.5` from dev.4; public stable
-1.13 is not upgraded or requalified by local work. Baseline tests are historical
-evidence until rerun for changed paths. Unsupported policy/fragment behavior
-still blocks stable qualification.
+The development milestones originally numbered 1.14–1.19 are consolidated in
+**Firmware v2.0.0**, this edition's product version. Historical 1.13 downloads
+remain intact. Current execution evidence and maintainer acceptance records
+stay local; public notes describe supported behavior and operational limits.
+Never infer official-client policy parity or complete hardware coverage from
+a version label or an offline fixture.
 
 Ordinary local development is approved for the whole roadmap. Push, physical
 flash/OTA installation, publications, destructive external operations and remote

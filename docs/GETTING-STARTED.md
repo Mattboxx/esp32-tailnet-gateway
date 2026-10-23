@@ -1,167 +1,83 @@
-# Getting started
+# Getting started — Firmware v2.0.0
 
-Who it is for: anyone setting up an ESP32 Tailnet Gateway for the first time.
-You need an ESP32-S3 N16R8 board, a USB data cable, a 2.4 GHz WiFi network and
-a Tailscale account or a Headscale server. Plan about 20 minutes.
+You need an **ESP32-S3 N16R8** (16 MB flash, 8 MB octal PSRAM), a USB data
+cable, and a 2.4 GHz WiFi network. Tailscale or Headscale is needed for Tailnet
+roles, not for local administration or local Wake-on-LAN.
 
-## 1. Flash it — no build tools required
+## 1. Choose an installation method
 
-Download the latest
-[Windows flashing ZIP from the latest stable release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/latest),
-connect the ESP32-S3 over USB and run one of the included guided batch files:
+- **Browser:** [Install firmware](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
+  in desktop Chrome/Edge, connect USB and choose the ESP32-S3 port.
+- **Easy Install:** download the Windows/macOS/Linux ZIP from the
+  [v2.0.0 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.0).
+  Read `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3
+  and esptool 5. Choose `windows/INSTALL-NEW-DEVICE.bat` for a fresh setup or
+  `windows/UPDATE-KEEP-SETTINGS.bat` for an existing gateway.
+- **Advanced:** use the factory image for a fresh USB installation, or upload
+  **`firmware.bin`** in **System → Firmware** for an existing gateway.
 
-- `UPDATE_KEEP_SETTINGS.bat` updates an existing installation without erasing its configuration;
-- `CLEAN_INSTALL_ERASE_ALL.bat` performs a fresh installation and removes every old setting.
+Back up an existing configuration first. Factory/new-device erase modes delete
+settings. Never upload a factory image through the Web UI. USB keep-settings
+mode is not inactive-slot OTA and must not overwrite a protected recovery slot.
+The optional **experimental W5500** image requires its documented hardware;
+the standard WiFi package is for WiFi boards.
 
-The release also provides `firmware-factory.bin` for other flashing tools and
-`firmware.bin` for the local web updater.
+## 2. Set up a new gateway
 
-## Build from source instead
+A genuinely unconfigured board opens **`ESP32-Tailnet-Setup-XXXX`**. Join it
+near the board. If the captive page does not open, visit **http://192.168.4.1/**.
 
-```bash
-git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailnet-gateway
-cd esp32-tailnet-gateway
+1. Pair physically with **BOOT**, or enter the current eight-digit setup code
+   from the USB console. There is no shared default administrator password.
+2. Create your admin password.
+3. Select and test the 2.4 GHz WiFi uplink.
+4. Optionally configure Tailscale or Headscale and select the roles you need.
+5. Set a protected gateway/recovery AP name and password, then finish/restart.
 
-# PlatformIO (recommended)
-pio run -e esp32-s3 -t upload
+Setup requests are sealed, but a malicious lookalike AP is still a risk: use
+your own board and a trusted physical location. The setup AP does not forward
+LAN/Internet traffic. Setup is English-only; the main UI also offers Italian,
+Spanish and Simplified Chinese.
 
-# …or ESP-IDF (>= 5.5.3)
-idf.py set-target esp32s3
-idf.py build flash monitor
-```
+An already configured gateway keeps its settings and does **not** reopen this
+initial setup network. See [First boot](FIRST-BOOT-SETUP.md) for details.
 
-> The web assets are embedded into the firmware at build time from
-> `main/index.html`, so a single flash carries the whole UI.
+## 3. Join the Tailnet
 
-## 2. First-time setup
+Use the setup wizard or **Tailscale** page to configure your control server,
+device name and registration credentials. Keep auth keys private and scoped
+to the roles required. Review node expiry and route approval in your Tailnet
+administration according to your own access policy.
 
-On first boot the device brings up its own access point:
+- [Headscale](HEADSCALE.md)
+- [Subnet routing](SUBNET-ROUTER.md)
+- [Exit-node roles](EXIT-NODE.md)
+- [Authorization and supported policy semantics](TAILNET-AUTHORIZATION.md)
 
-- SSID: **`ESP32-TSR-Setup`** (builds before v0.1.18: `myssid`),
-  password: **`mypassword`**
-- Connect to it and open **http://192.168.4.1** — set an admin password
-  there, then rename the AP to your liking.
+Control connectivity or a visible peer alone does not prove service reachability
+or authorization. Use a real destination check and the relevant client path.
 
-<div align="center">
-<img src="images/login.png" alt="First-run admin password" width="46%">
-</div>
+## 4. Start with one role
 
-## 3. Join your WiFi
+For the **Selective LAN → Tailnet Service Gateway**, reserve the ESP32's LAN
+address on your router. Add a rule under **Network → LAN → Tailnet**, choose
+the remote Tailnet destination and port, and restrict the allowed source to
+the intended client (`/32` where practical). Run **Test destination**, then
+enable the rule and test it from that client. AP-side forwarding is separate.
+See the [Service Gateway guide](SERVICE-GATEWAY.md).
 
-On **Network → Access Point / Uplink networks**, point the device at your
-existing 2.4 GHz network and (optionally) rename the AP it broadcasts.
+For **Recovery**, save a compatible device's MAC and follow
+[Smart Recovery](SMART-RECOVERY.md). Sending a magic packet is not proof that
+the device booted. MQTT, Home Assistant and ntfy are optional integrations,
+not prerequisites for routing, local recovery or administration.
 
-<div align="center">
-<img src="images/network-ap_v2.png" alt="Access Point configuration" width="80%">
-</div>
+## Updates and recovery
 
-## 4. Enrol on your tailnet
+Prefer Web UI application updates; keep a configuration backup and a known
+recovery image. [Updates](UPDATES.md), [Backup and restore](BACKUP-RESTORE.md)
+and [Troubleshooting](TROUBLESHOOTING.md) explain the options.
 
-This is the one step with a couple of non-obvious Tailscale details — do
-them once and the device stays on your tailnet for good.
-
-### 4a · Create a Tailscale auth key
-
-Log in to the [Tailscale admin console](https://login.tailscale.com/admin/settings/keys)
-→ **Settings → Keys** and click **Generate auth key…**.
-
-<div align="center">
-<img src="images/tailscale-keys-page.png" alt="Tailscale admin — Keys page" width="80%">
-</div>
-
-Fill in the dialog:
-
-<div align="center">
-<img src="images/tailscale-auth-key-create.png" alt="Generate auth key dialog" width="70%">
-</div>
-
-| Option | Value | Why |
-|---|---|---|
-| **Description** | `esp32-router` | so you can find it later |
-| **Reusable** | ✅ On | re-flash without regenerating a key |
-| **Ephemeral** | ❌ **Off** | ephemeral nodes get garbage-collected when offline — bad for a device that reboots |
-| **Pre-approved** | ✅ On *(if your tailnet uses device approval)* | lets the device join without a manual click |
-| **Tags** | `tag:esp32` *(optional)* | handy for ACL targeting |
-| **Expiration** | 90 days *(max)* | Tailscale caps this — you make the node **permanent** in 4c below |
-
-Copy the key (it starts with `tskey-auth-…`).
-
-### 4b · Paste it into the device
-
-On the device's **Tailscale** tab, paste the auth key, set a **hostname**,
-and list the **subnet(s) to advertise** (your AP subnet is offered
-automatically). Pick an **exit node** here too if you want AP clients to
-egress through it. Save — the device registers with your tailnet on its
-next connect.
-
-<div align="center">
-<img src="images/tailscale_v2.png" alt="Tailscale configuration and peers" width="88%">
-</div>
-
-> **Approve the route.** A newly advertised subnet shows up in the Tailscale
-> admin (Machines → your device → **Edit route settings**) and must be
-> **approved** before peers can use it. And if you later change the AP subnet,
-> re-approve the new route there — the old approval stays but no longer matches,
-> so the subnet silently becomes unreachable until you do.
-
-> **Reaching the *uplink* LAN (not just the AP subnet).** To expose the network
-> the device is connected to (its STA/uplink side), advertise that subnet too and
-> turn on **Source-NAT advertised routes**. That masquerades tunnel→LAN traffic to
-> the device's own uplink IP (Tailscale's `--snat-subnet-routes` default), so
-> upstream hosts can reply without a route back to the tailnet. Without it, the
-> upstream router would need a static route (`100.64.0.0/10 → this device`).
-
-> **🔑 Auth key vs. node key — read this once**
->
-> - The **auth key** (`tskey-auth-…`) is a *one-time ticket*: the device uses
->   it only on first registration. After that it has its own private **node
->   key** (stored in NVS) and no longer needs the auth key — so it's fine if
->   the auth key later expires.
-> - The **node key** is the device's long-term identity, and Tailscale expires
->   it after ~180 days by default. When it expires the device drops off the
->   tailnet — exactly what you *don't* want on an unattended sensor.
->
-> So once the device shows up in your tailnet, **disable its node-key expiry**
-> (next step). Skip it and everything looks fine for months, then the device
-> silently falls off and you won't know why. Do it for every device you flash.
-
-### 4c · Disable node-key expiry (do this — always)
-
-1. Open the [Tailscale **Machines** page](https://login.tailscale.com/admin/machines).
-2. Find the new `esp32-router` entry.
-3. Click the `⋯` menu → **Disable key expiry**.
-
-<div align="center">
-<img src="images/tailscale-disable-key-expiry.png" alt="Tailscale admin — Disable key expiry" width="80%">
-</div>
-
-4. **Reboot the device** (Reboot on the **System** tab, or power-cycle). The
-   expiry status is only re-fetched on a fresh control-plane login, so a plain
-   reconnect isn't enough.
-
-That's it — remote tailnet peers can now reach the IoT devices on the AP
-subnet, and those devices can use the tailnet (and any exit node you picked).
-
-## 5. Add your first Service Gateway rule
-
-Follow the [Service Gateway guide](SERVICE-GATEWAY.md): give the ESP32 a fixed
-LAN address, add a rule with a single-device source (`/32`), run **Test
-destination**, then enable it. Rules start disabled.
-
-## Verify
-
-- Status shows the uplink connected, Tailscale *Running* and peers listed.
-- `tailscale ping <esp-hostname>` from another node answers.
-- The rule card shows *installed* and its accepted counter grows when the LAN
-  client connects.
-
-## Common problems
-
-See [Troubleshooting](TROUBLESHOOTING.md). Most first-day issues are an
-unapproved subnet route, node-key expiry left enabled, or a destination peer
-whose ACL does not allow the ESP32.
-
-## Security
-
-Set an admin password before joining any shared network, and administer the
-device from a trusted LAN or over the tailnet: the local Web UI is HTTP.
+Firmware 1.13 and earlier installations that missed the OTA bridge need one
+manual update after the repository rename; see [Migration](MIGRATION-RENAME.md).
+Their [versioned installation guide](https://github.com/Mattboxx/esp32-tailnet-gateway/blob/v0.1.38-Mattboxx-1.13/README.md)
+and original downloads remain in the historical release.

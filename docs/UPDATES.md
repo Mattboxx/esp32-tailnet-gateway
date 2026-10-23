@@ -1,8 +1,7 @@
-# GitHub updates — Mattboxx 1.10 development
+# Firmware updates — ESP32 Tailnet Gateway
 
-> **1.14 development preview.** This guide includes unreleased features; it
-> does not imply a new firmware download. Public stable remains
-> [Mattboxx 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
+> **Firmware v2.0.0.** Application updates preserve the existing app identity,
+> NVS namespace and partition layout. Keep a configuration backup before updating.
 
 
 System → Firmware update now supports three independent workflows:
@@ -37,20 +36,21 @@ as information; restore cannot activate it through the ordinary System API.
 
 ## Repository rename
 
-The repository is moving to `Mattboxx/esp32-tailnet-gateway`. Firmware before
+The repository has moved to `Mattboxx/esp32-tailnet-gateway`. Firmware before
 the bridge release cannot follow the rename automatically; see the
 [migration plan](MIGRATION-RENAME.md).
 
 ## Which releases qualify?
 
 Fixed repository:
-[Mattboxx/esp32-tailscale-gateway-NAS-recovery](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases).
+[Mattboxx/esp32-tailnet-gateway](https://github.com/Mattboxx/esp32-tailnet-gateway/releases),
+with the previous-name fallback described in the migration guide.
 The worker scans the ten most recent release entries and selects the highest
 compatible version, not the first JSON entry. A release must:
 
 - Be published, not a draft. Stable-only skips all GitHub pre-releases.
-- Have a tag such as `v0.1.31-Mattboxx-1.10` (stable), or
-  `v0.1.31-Mattboxx-1.11-beta.1` marked as a GitHub pre-release. Supported
+- Have a product tag such as `v2.0.0` (stable), or `v2.1.0-beta.1` marked as
+  a GitHub pre-release. Legacy bridge tags are also understood. Supported
   prerelease suffixes are dev, alpha, beta and rc with optional numeric serial.
 - Be numerically newer than the running version, comparing upstream triple,
   Mattboxx major/minor, then dev < alpha < beta < rc < stable. No downgrade.

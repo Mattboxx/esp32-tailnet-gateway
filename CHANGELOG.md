@@ -4,7 +4,47 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] — 2026-10-23
+
+### Added
+
+- ESP32 Tailnet Gateway — Mattboxx Edition identity, black/green artwork,
+  documentation website and three installation paths: browser, Easy Install
+  for Windows/macOS/Linux, and advanced firmware downloads.
+- Physically paired first-boot wizard for an unconfigured ESP32-S3, with
+  sealed setup requests, a user-created admin password and guided WiFi,
+  Tailnet and role configuration. Existing installations retain their settings.
+- Selective LAN → Tailnet destination tests, timed rules, Service Watch,
+  rule guides, counters and sanitized rule transfer, separate from AP forwarding.
+- Device registry and bounded Smart Recovery, layered health checks,
+  connectivity guidance, configuration profiles and local diagnostic export.
+- Responsive Simple/Advanced administration, capability-aware controls,
+  MQTT/Home Assistant, ntfy events and operational SNMP metrics.
+- Optional **experimental W5500 Ethernet** image with explicit hardware setup.
+
+### Improved
+
+- PSRAM-backed optional task stacks and a shared task reaper reduce internal
+  RAM pressure across service start/stop cycles. VPN startup requests are
+  coalesced and task-start failures are explicit rather than silently lost.
+- Increase the MQTT manager's PSRAM stack headroom for synchronous transport
+  error handling during WiFi reconnection.
+- Original-packet authorization, bounded flow/fragment handling, API origin
+  screening, persistent-setting validation and optional-service isolation.
+- Existing Tailscale/Headscale, direct/DERP, subnet routing, AP gateway,
+  exit-node roles, 4via6, firewall, WoL and user-controlled OTA are preserved.
+
+### Migration
+
+- Legacy bridge **0.1.38-Mattboxx-1.100** adds the 2.x version/update path while
+  retaining the app identity, NVS namespace and partition layout.
+- Repository renamed to `Mattboxx/esp32-tailnet-gateway`. Installations on 1.13
+  or earlier that missed the bridge need one manual update with `firmware.bin`
+  or the Easy Install keep-settings option; historical releases remain intact.
+- Original Csontikka firmware and MicroLink credits and licenses are preserved.
+  Version 2.0.0 identifies this edition, not an upstream firmware release.
+
+## Development history incorporated into 2.0.0
 
 ### 0.1.38-Mattboxx-1.14-dev.8 — local stability correction, not released
 
