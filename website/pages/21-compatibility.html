@@ -1,0 +1,34 @@
+<!--
+slug: compatibility/
+title: Compatibility
+description: Supported hardware for ESP32 Tailnet Gateway: ESP32-S3 with 16 MB flash and 8 MB PSRAM, 2.4 GHz Wi-Fi, optional W5500 Ethernet, plus browsers and known limits.
+group: Start
+order: 4
+-->
+<h1>Compatibility</h1>
+
+<h2 id="hardware">Hardware</h2>
+<table>
+  <thead><tr><th>Item</th><th>Requirement</th></tr></thead>
+  <tbody>
+    <tr><td>Chip</td><td>ESP32-S3 (other ESP32 families are not supported)</td></tr>
+    <tr><td>Memory</td><td>16 MB flash and 8 MB octal PSRAM (N16R8 modules)</td></tr>
+    <tr><td>Wi-Fi</td><td>2.4 GHz network, WPA2/WPA3 Personal or WPA2-Enterprise (PEAP/TTLS)</td></tr>
+    <tr><td>USB</td><td>Native USB or a USB-to-UART chip, with a data cable</td></tr>
+    <tr><td>Ethernet</td><td>Optional W5500 SPI module, separate image; <strong>experimental, not hardware-qualified</strong></td></tr>
+  </tbody>
+</table>
+
+<h2 id="tailnet">Tailnet</h2>
+<p>Tailscale (hosted) and Headscale 0.26 or newer. This is a community firmware, not an official Tailscale client; features follow the documented subset.</p>
+
+<h2 id="install">Installing</h2>
+<p>Browser installer: desktop Chrome or Edge (Web Serial). Easy Install package: Windows 10/11, macOS and Linux with Python 3 and esptool 5.</p>
+
+<h2 id="limits">Known limits</h2>
+<ul>
+  <li>The Web UI uses HTTP: administer it from a trusted LAN or over the tailnet.</li>
+  <li>The first-boot setup page and captive portal are in English; the dashboard also offers Italian, Spanish and Simplified Chinese.</li>
+  <li>Throughput is limited by a single 2.4 GHz radio and the userspace WireGuard stack.</li>
+  <li>Opening the setup page automatically depends on the phone or PC; the address <code>http://192.168.4.1/</code> always works.</li>
+</ul>

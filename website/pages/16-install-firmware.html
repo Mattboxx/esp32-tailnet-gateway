@@ -1,0 +1,43 @@
+<!--
+slug: install-firmware/
+title: Install Firmware
+description: Connect your ESP32-S3 by USB and install ESP32 Tailnet Gateway directly from a desktop Chrome or Edge browser, then follow the guided first start.
+nav: Install
+group: Start
+order: 0
+-->
+<h1>Install Firmware</h1>
+<p class="lead">Connect your ESP32-S3 and install ESP32 Tailnet Gateway directly from your browser.</p>
+
+{{flasher}}
+
+<h2 id="steps">How it works</h2>
+<ol>
+  <li>Connect the ESP32-S3 to this computer with a USB <strong>data</strong> cable.</li>
+  <li>Open this page in <strong>Chrome or Edge on Windows, macOS, Linux or ChromeOS</strong>.</li>
+  <li>Press <strong>Connect &amp; Install</strong> and choose the board's serial port in the browser prompt.</li>
+  <li>Choose <strong>Install</strong>. The browser asks whether to erase the device first (see below).</li>
+  <li>Wait until the installer reports success, then unplug and power the board normally.</li>
+  <li>Continue with the <a href="{{root}}first-boot/">first start</a>: join <code>ESP32-Tailnet-Setup-XXXX</code> and follow the setup page.</li>
+</ol>
+
+<h2 id="new-or-update">New device or update?</h2>
+<div class="grid">
+  <div class="card"><h3>Install on a new device</h3>
+    <p>For a board that has never run this firmware, or one you want to reset. Tick <strong>Erase device</strong> when asked: all settings, saved Wi-Fi and the tailnet identity are removed, and the gateway starts the guided setup.</p></div>
+  <div class="card"><h3>Update an existing device</h3>
+    <p>Prefer the gateway's own update: <strong>System → Firmware</strong> in the Web UI keeps every setting and falls back to the previous image if the new one does not start. If you must use USB, leave <strong>Erase device</strong> unticked: settings are kept and the board boots the new image from its first slot.</p></div>
+</div>
+<p class="note">Never tick <strong>Erase device</strong> to fix a connection problem: it deletes your configuration. Back up first (System → Backup).</p>
+
+<h2 id="browsers">Supported browsers</h2>
+<p>The installer uses the Web Serial API. It works in desktop <strong>Chrome</strong> and <strong>Edge</strong> (and other Chromium browsers) on Windows, macOS, Linux and ChromeOS. Safari, Firefox and phone browsers do not offer Web Serial; use the <a href="{{root}}easy-install/">Easy Install package</a> instead.</p>
+
+<h2 id="troubleshooting">If the board is not found</h2>
+<ul>
+  <li>Use a cable that carries data, not a charge-only cable, and a direct USB port.</li>
+  <li>Close any other program that uses the serial port (serial monitors, PlatformIO, Arduino IDE).</li>
+  <li>Boards with a USB-to-UART chip may need its driver (CP210x or CH34x). Boards using the ESP32-S3 native USB need none.</li>
+  <li>Still nothing: hold <strong>BOOT</strong>, tap <strong>RESET</strong>, release <strong>BOOT</strong>, then try again.</li>
+</ul>
+<p>Technical details: the installer writes the bootloader at <code>0x0</code>, the partition table at <code>0x8000</code>, the initial OTA data at <code>0x19000</code> and the application at <code>0x20000</code>, taken from the project's <code>partitions.csv</code>. It is <a href="https://github.com/esphome/esp-web-tools">ESP Web Tools</a> 10.4.0 (Apache-2.0), served from this site.</p>
