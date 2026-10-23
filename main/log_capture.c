@@ -20,12 +20,10 @@
 
 #include "log_capture.h"
 
-/* sdkconfig.defaults does not override an existing generated sdkconfig.
- * The panic print wrappers below are IRAM so they work whenever the IDF
- * handler does; that only helps with the handler itself in IRAM. */
-#if !CONFIG_ESP_PANIC_HANDLER_IRAM
-#error "Set CONFIG_ESP_PANIC_HANDLER_IRAM=y in the active sdkconfig (see sdkconfig.defaults)"
-#endif
+/* The print wrappers remain IRAM-capable, but use the selected SDK panic
+ * handler. Standard IDF panic entry restores caches before reporting; full
+ * cache-off reporting is optional and costs VPN startup headroom (ADR-031).
+ * RTC/pre-crash records remain best-effort, never a recovery guarantee. */
 
 /* Pre-crash RAM survival: a small ring buffer placed in RTC slow RAM
  * via RTC_NOINIT_ATTR. The .rtc_noinit section is preserved across

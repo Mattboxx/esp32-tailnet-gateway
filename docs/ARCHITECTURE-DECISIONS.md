@@ -2,6 +2,22 @@
 
 Decisions are explicit, revisable with evidence and never remove approved scope.
 
+## ADR-031 — Diagnostic memory must not prevent VPN startup (2026-10-23)
+
+The full IRAM panic-reporting option moves reporting code and constants into
+scarce shared internal memory. Together with an additional OTA stack this can
+prevent MicroLink's WireGuard task allocation even though substantial heap
+appears free again after partial-start cleanup. Current free heap alone is not
+evidence that boot admission succeeded.
+
+Default builds use the SDK's standard panic handler, with its always-IRAM
+entry/cache-recovery trampoline. The existing IRAM-capable capture wrappers,
+RTC reset history, pre-crash ring and core-dump configuration are retained.
+Complete reporting after an unrecoverable cache failure is not guaranteed.
+Advanced builds may enable full IRAM reporting only with an appropriate memory
+budget; diagnostic improvements cannot displace essential VPN workers. Exact
+resource measurements and qualification remain private maintainer evidence.
+
 ## ADR-030 — Remote OTA separates HTTPS and cache-sensitive flash work (2026-10-23)
 
 ESP-IDF 5.5.3 requires an internal-RAM stack when it freezes caches for flash
