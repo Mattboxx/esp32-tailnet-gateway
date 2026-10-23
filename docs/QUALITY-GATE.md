@@ -1,22 +1,30 @@
-# Quality gate — dev.8 source and hardware (2026-10-23)
+# Quality gate — dev.8 installed candidate (2026-10-23, Claude final handoff)
 
-> **Handoff update:** dev.8 gateway/reboot/profile/watch campaign completed and
-> original configuration restored. SNMP regression PASS. New 60-minute serial/
-> API capture is running, NOT yet qualified. COM3 exclusively occupied until
-> completion. See DEV8-VALIDATION and DEV8-CONTINUATION. NOT READY
-> remains for uncompleted essential real-policy/recovery/integration gates;
-> Claude is authorized for local preparation, not public operations.
+> **Current:** this section and [DEV8-VALIDATION.md](DEV8-VALIDATION.md)
+> supersede the older rows further below. Installed image dev.8 WiFi
+> `b70ff745fb0328be8f98b9ec7fe9b1ce1468501d082bf083ebdf336c08e1361f` on ota_0,
+> stable 1.13 on ota_1. Handoff for Codex:
+> [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md) (LATEST block).
 
-> **Current facts:** [DEV8-VALIDATION.md](DEV8-VALIDATION.md) supersedes older
-> rows below. Guarded 1.13 → dev.8 OTA PASS, stable ota_1 intact, eight saved
-> configuration groups preserved. SNMP allocation defect corrected and real
-> 109-object walks/cycles PASS. Windows 64/64, Linux sanitizer 60/60 and both
-> builds PASS. Gateway/reboot/watch campaign still running. NOT READY remains:
-> real two-client/direct+DERP policy, exact stream recovery, final resource/soak,
-> integration/recovery/AP gates are not replaced by these scoped successes.
-> Eventual remote publication is authorized only after those gates; none done.
+| Gate | Result on dev.8 | Evidence / residual risk |
+|---|---|---|
+| Windows offline campaign (build, browser, site, i18n, scans) | PASS 64/64 | `build/validation-20261023-060645-818351/` |
+| Linux ASan/UBSan campaign | PASS 60/60 | `build/linux-validation-20261023-061207/` |
+| Guarded 1.13 → dev.8 OTA, stable slot kept | PASS (Codex) | DEV8-VALIDATION |
+| Service Gateway TCP/UDP, refusal, expiry, reboot persistence, watch | PASS, one client | DEV8-VALIDATION; not identity-based |
+| SNMP v1/v2c 109 objects, malformed, cycles | PASS (Codex) | DEV8-VALIDATION |
+| One-hour passive serial + API observation | PASS as observation | 3600.27 s, 0 panic/WDT/reboot/errors, control 120/120; no stream closure occurred |
+| MQTT / HA Discovery / strict commands / broker outage | PASS, local lab broker | 74 configs, 0 invalid, reconnect 3.2 s, tailnet up meanwhile, exact restore; not a real HA instance |
+| Wake-on-LAN | HTTP PASS; MQTT see LATEST | synthetic MAC to the bench PC only |
+| Wi-Fi reconnect / DERP stream loss in session | see LATEST | via the existing `reconnect_wifi` command |
+| Internal RAM headroom | RISK | lifetime min 8043 B, largest block 3456 B; runtime MQTT enable from OFF needs ~6.5 KB contiguous: NOT TESTED |
+| Two independent Tailnet identities, direct + DERP | BLOCKED | needs an owner-provided lab node/identity (HARDWARE-CAMPAIGN §9) |
+| Recovery AP with Wi-Fi absent | NOT TESTED on hardware | host scheduler tests PASS; needs a controlled uplink outage |
+| Power loss during OTA / NVS write | NOT TESTED | rollback enabled and OTA writes the inactive slot; physical test needs a planned USB power cut |
+| W5500 Ethernet | BLOCKED | no hardware; compile only, never package |
+| Bit-reproducible build | NO (ADR-026) | package exact tested image only |
 
-> **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
+**Verdict: NOT READY FOR RELEASE. Handoff state: HANDOFF READY FOR CODEX.**
 
 ## Verdict: NOT READY — BLOCKERS REMAIN
 

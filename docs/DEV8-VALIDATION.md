@@ -117,6 +117,78 @@ Physical dev.8 results:
   any new internal allocation of that size would still fail. The owned echo
   server used by the gateway campaign was stopped after cleanup.
 
+## Integrations lab on dev.8 (Claude, 2026-10-23)
+
+`tools/test_mqtt_lab_device.py` with the local lab broker on the bench PC's
+tailnet address and a synthetic locally administered WoL MAC sent only to the
+bench PC. Password typed by the owner in a hidden prompt; nothing stored.
+Concurrent passive serial capture (no reset): private `dev8-lab-serial-45min.log`.
+
+Run 1 (09:17, private `mqtt-lab-20261023-092841.json`):
+- PASS: runtime MQTT reconfiguration connected; 74 Home Assistant Discovery
+  configs (42 sensor, 15 binary_sensor, 12 switch, 5 button), 0 invalid;
+  availability "online"; invalid `accept_routes` payload rejected, state
+  republished, setting unchanged; broker killed → offline detected, tailnet
+  still connected; new broker → reconnect in 3.2 s; WoL over HTTP delivered the
+  exact magic packet; WoL list and MQTT settings restored exactly, stored MQTT
+  password still present; no reboot. After restore the board reconnected to the
+  owner's own broker and republished Discovery.
+- Invalid (tool defect, not firmware): WoL over MQTT and both `reconnect_wifi`
+  cycles sent an empty payload, which the firmware drops by design (HA buttons
+  send `PRESS`). The tool now sends `PRESS` and waits for resubscription
+  (commit `7ab0933`).
+- RAM during the run: internal free 13.0–13.4 KB, largest block 3456 B and
+  lifetime minimum 8043 B unchanged in every phase, sockets 8–9.
+
+Run 2 (WoL over MQTT, two Wi-Fi/DERP reconnect cycles): **PENDING** — the
+corrected tool is waiting for the owner to type the password once more.
+
+## Internal RAM analysis (Claude, 2026-10-23)
+
+Measured on the installed dev.8 image (`b70ff745…`): lifetime internal minimum
+8043 B (reached before the hour and never lower since), largest internal free
+block 3456 B in every API sample of the hour and of the integrations lab,
+current internal free 10.4–13.4 KB, minimum task stack free 5296 B (DERP
+heartbeat), sockets ≤ 11/31. MQTT connect, broker loss/reconnect, WoL and the
+configuration restore did not move the largest block or the lifetime minimum.
+
+Where reconnect paths allocate (source and `sdkconfig.esp32-s3` review):
+
+- TLS (DERP, control, MQTT over TLS, ntfy, updater): `MBEDTLS_EXTERNAL_MEM_ALLOC=y`,
+  so contexts and the 16 KB/4 KB record buffers live in PSRAM.
+- Wi-Fi/lwIP buffers prefer PSRAM (`SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y`); `malloc`
+  ≤ 1024 B tries internal RAM first and falls back to PSRAM, larger requests go
+  to PSRAM. These paths do not need a large internal block.
+- MicroLink tasks (coord 12 KB, DERP TX/RX 10 KB, WG 8 KB, net I/O 6 KB stacks)
+  are created once at start; DERP/control reconnects reuse them.
+- Every Wi-Fi `GOT_IP` spawns `ts_connect` with a 4096 B internal stack
+  (`main/main.c`). After the first start it is a no-op ("Already initialized");
+  if the stack cannot be allocated the failure is silent and harmless, except
+  that it is also the only retry when the very first start failed. Low risk.
+- **Residual risk:** esp-mqtt creates `mqtt_task` with a 6144 B internal stack
+  on every client start (first enable, configuration change, or after the 30 s
+  connect timeout destroys the client); ESP-IDF 5.5 esp-mqtt has no PSRAM stack
+  option. A configuration change works on hardware because `stop_client()` first
+  frees the old task's 6 KB stack and the new task reuses that hole (observed
+  twice: lab URI and restore to the owner's broker, both connected). Enabling
+  MQTT from OFF after boot, or a restart after something else has taken that
+  hole, needs a fresh contiguous ~6.5 KB internal block while the largest is
+  3456 B: expected to fail with "Error create mqtt task" and keep retrying until
+  a reboot. **NOT TESTED** (would change the owner's integration state).
+  Candidate fix for Codex: keep one long-lived client and reconfigure it while
+  it waits for reconnection (`esp_mqtt_set_config` in `WAIT_RECONNECT`, then
+  `esp_mqtt_client_reconnect`) instead of destroy/recreate, with an actual-code
+  mock test; or a reserved PSRAM-backed static task if esp-mqtt gains support.
+  Requires a new image and hardware requalification.
+- ntfy (12 KB) and the MQTT manager (6 KB) worker stacks are internal and are
+  created at boot; the operations supervisor's restart of a dead worker would
+  need the same contiguous blocks and would likely fail after fragmentation.
+  `module_restarts` stayed 0, so this path was not exercised.
+
+No regression was found in these measurements, so no firmware change was
+made. A new internal allocation above ~3.4 KB at runtime remains the main
+memory risk.
+
 ## Build reproducibility and local package (Claude, 2026-10-23)
 
 Rebuilding dev.8 from unchanged sources does not reproduce `b70ff745…`: each

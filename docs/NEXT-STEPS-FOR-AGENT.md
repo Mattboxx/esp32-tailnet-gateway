@@ -2,37 +2,21 @@
 
 ## CURRENT — read this before the historical checkpoints below
 
-Claude continuation of Codex's dev.8 checkpoint, 2026-10-23. Claude prepares
-locally up to immediately BEFORE public operations; Codex performs
-publication/rebranding. **No push, release, GitHub rename, Pages activation or
-announcement by Claude.** No feature additions. Exact Codex handoff:
-[DEV8-CONTINUATION.md](DEV8-CONTINUATION.md); evidence:
-[DEV8-VALIDATION.md](DEV8-VALIDATION.md); map for Codex:
-[CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md) (LATEST block).
+**Claude final handoff to Codex (2026-10-23): HANDOFF READY FOR CODEX; release
+NOT READY.** Codex resumes from the latest local commit on `mattboxx`, not
+from an older checkpoint. Everything required (results, hashes, OTA/COM3 state,
+RAM, PASS/FAIL/BLOCKED, risks, exact steps) is in the LATEST block and "START
+HERE" of [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md); gate table in
+[QUALITY-GATE.md](QUALITY-GATE.md); evidence in [DEV8-VALIDATION.md](DEV8-VALIDATION.md).
 
-- **Installed:** dev.8 WiFi `b70ff745…08e1361f` on ota_0; stable 1.13 on ota_1.
-  No install, reset or flash since Codex's checkpoint. COM3 is free.
-- **Dev.8 hour COMPLETED:** serial 3600.27 s, 0 panic/WDT/reboot/error lines;
-  API 120/120, control connected throughout, authority ready 24/24; internal
-  lifetime min 8043 B, largest block 3456 B. No DERP/long-poll closure occurred,
-  so stream-loss recovery is still NOT exercised.
-- **Not bit-reproducible builds (ADR-026):** each link orders libraries
-  differently. Package only the installed snapshot; any rebuild is a new image.
-  Local dev.8 WiFi pre-release package built from the exact image.
-- **Offline:** Windows 64/64 `build/validation-20261023-060645-818351/`; Linux
-  sanitizer run: see DEV8-VALIDATION (Claude section).
-- **Integrations lab:** `tools/test_mqtt_lab_device.py` (HARDWARE-CAMPAIGN §8)
-  needs the owner to type the device password; see DEV8-VALIDATION for whether
-  it ran. Two independent identities need an owner-provided lab node
-  (HARDWARE-CAMPAIGN §9): BLOCKED, not replaced by single-client tests.
-
-**Next actions:** run the integrations lab if still pending; deliberate stream-
-loss test (for example the `reconnect_wifi` path in that tool, or a DERP/
-control interruption) on dev.8; two-identity matrix once a lab node exists; AP/
-uplink loss and NVS power-loss/interrupted OTA with verified USB recovery;
-authenticated desktop/mobile UI review. Then fix freeze, recompile the final
-version, install it via the guarded ota_1→ota_0 path, requalify, package that
-exact image. Stable Quality Gate: **NOT READY**.
+- Installed dev.8 WiFi `b70ff745…08e1361f` on ota_0, stable 1.13 on ota_1; no
+  reflash by Claude. COM3 released. No push/release/rename/Pages.
+- Qualified this session: one-hour observation, MQTT/HA lab, broker outage,
+  WoL over HTTP, Windows 64/64, Linux 60/60. Integrations lab run 2 (WoL over
+  MQTT, in-session Wi-Fi/DERP reconnect): see DEV8-VALIDATION.
+- Open: two independent identities, recovery AP, power loss during OTA/NVS,
+  W5500, MQTT enable-from-OFF RAM risk, real HA/ntfy, authenticated UI review,
+  final-version image and its requalification/package (ADR-026).
 
 ## Historical checkpoints — retained context, NOT current instructions
 
