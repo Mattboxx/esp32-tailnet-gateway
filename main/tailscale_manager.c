@@ -17,6 +17,8 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "freertos/idf_additions.h"
+#include "esp_heap_caps.h"
 #include "freertos/semphr.h"
 #include "microlink.h"
 #include "sdlog.h"
@@ -27,6 +29,7 @@
 #include "upstream_validation.h"
 #include "peer_dns.h"
 #include "web_ui.h"
+#include "task_reaper.h"
 
 /* Local helper: load a string from NVS, defaulting to an empty heap
  * buffer when the key isn't there. Other modules assume non-NULL. */
@@ -83,6 +86,7 @@ static StaticSemaphore_t s_lifecycle_storage;
 static SemaphoreHandle_t s_lifecycle;
 static portMUX_TYPE s_connect_lock = portMUX_INITIALIZER_UNLOCKED;
 static bool s_connect_in_flight;
+static bool s_instance_ready; /* Published instance owns its reconnects; lock below. */
 static esp_err_t s_start_error;
 static bool s_start_retrying;
 
@@ -353,6 +357,9 @@ static esp_err_t tailscale_connect_locked(void)
     }
 
     s_microlink = instance;
+    taskENTER_CRITICAL(&s_connect_lock);
+    s_instance_ready = true;
+    taskEXIT_CRITICAL(&s_connect_lock);
     sdlog_set_microlink(instance);
     tailscale_connected = true;
     ESP_LOGI(TAG, "Tailscale started (device=%s, ctrl=%s, routes=%s, advertise_exit=%s, max_peers=%d)",
@@ -408,16 +415,32 @@ bool tailscale_is_connected(void)
     return connected;
 }
 
-void tailscale_connect_task(void *pvParameters)
+static void tailscale_connect_task(void *pvParameters);
+
+/* Called from the uplink event task. Reserve before spawning so a second IP
+ * event cannot allocate a duplicate stack while the first task is starting. */
+esp_err_t tailscale_request_connect(void)
 {
+    if (!tailscale_enabled) return ESP_OK;
     taskENTER_CRITICAL(&s_connect_lock);
-    bool duplicate = s_connect_in_flight;
+    bool duplicate = s_instance_ready || s_connect_in_flight;
     if (!duplicate) s_connect_in_flight = true;
     taskEXIT_CRITICAL(&s_connect_lock);
-    if (duplicate) {
-        vTaskDelete(NULL);
-        return;
+    if (duplicate) return ESP_OK;
+    if (xTaskCreateWithCaps(tailscale_connect_task, "ts_connect", 4096, NULL, 5,
+                           NULL, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT) != pdPASS) {
+        taskENTER_CRITICAL(&s_connect_lock);
+        s_connect_in_flight = false;
+        taskEXIT_CRITICAL(&s_connect_lock);
+        ESP_LOGE(TAG, "Cannot create Tailscale startup task; next uplink request may retry");
+        return ESP_ERR_NO_MEM;
     }
+    return ESP_OK;
+}
+
+static void tailscale_connect_task(void *pvParameters)
+{
+    (void)pvParameters;
     init_sntp_if_needed();
 
     /* Microlink's Noise handshake is timestamped; we need real wall-clock
@@ -461,5 +484,5 @@ void tailscale_connect_task(void *pvParameters)
     taskENTER_CRITICAL(&s_connect_lock);
     s_connect_in_flight = false;
     taskEXIT_CRITICAL(&s_connect_lock);
-    vTaskDelete(NULL);
+    task_reaper_self_delete(); /* no runtime clean-up task allocation */
 }

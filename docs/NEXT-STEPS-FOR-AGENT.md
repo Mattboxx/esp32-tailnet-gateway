@@ -1,4 +1,30 @@
-# Continuation — dev.8 installed / Claude handoff (2026-10-23)
+# Continuation — presentation public / dev.9 local (2026-10-23)
+
+## OWNER'S LATEST DIVISION OF WORK — read first
+
+**Claude owns firmware; Codex owns public presentation and future authorized
+migration/publication.** Codex's checkpoint (outside this tree):
+`C:/Users/mattb/.codex/handoffs/tailnet-20261023-claude/docs/CODEX-TO-CLAUDE-CHECKPOINT.md`.
+Public Main `a85681a` and the live Pages site must not be overwritten from
+this branch; integration with Main happens at source freeze in an isolated
+branch, reviewed by function. Rename, bridge and stable release stay gated.
+
+## CURRENT CODEX CHECKPOINT — supersedes the historical handoff below
+
+Read [DEV9-CONTINUATION.md](DEV9-CONTINUATION.md). Public README/site commit
+`a85681a` is deployed on old-name Main, independently of firmware. Local root
+remains based on `9b67b5a`, MicroLink clean `fa3153b`; dev.9 task-memory fixes
+are uncommitted. Owner COMMUNITY-POSTS remains untracked and untouched.
+WiFi build PASS, exact BIN `649c5a3f…26d65eb5` saved privately. Four targeted
+Windows and Linux sanitizer drivers PASS. Full campaigns Windows/browser
+64/64 and Linux ASan/UBSan 61/61 PASS (build separately PASS). Later new MQTT
+hardware harness has separate actual-flow host checks; collect those too.
+Owner explicitly authorized this exact dev.9 installation, preserving stable
+ota_1. NEXT: reidentify board/version/layout, verify private backups and stable
+digest, boot stable then guarded OTA into ota_0; test MQTT OFF-at-boot enable
+with a controlled broker, matching restore and resource/stack observation.
+Do not re-run completed dev.8 tests without a relevant change. Remaining
+Quality Gate blockers stand. No firmware push/release/rename authorization.
 
 ## CURRENT — read this before the historical checkpoints below
 

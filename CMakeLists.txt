@@ -28,9 +28,21 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 # PROJECT_VER lands in the esp_app_desc_t struct so the running firmware
 # can report its version via the OTA APIs and the web UI's Status page.
-set(PROJECT_VER "0.1.38-Mattboxx-1.14-dev.8")
+set(PROJECT_VER "0.1.38-Mattboxx-1.14-dev.10")
 
 project(esp32_tsr)
+
+# esp-mqtt has no task-memory capabilities option in the pinned SDK. Adapt
+# only its task create/delete calls, not global FreeRTOS allocation or SDK files.
+# Fail configuration on an unreviewed SDK change: task ownership must be checked
+# before applying the same paired allocation adapter to another version.
+file(SHA256 "$ENV{IDF_PATH}/components/mqtt/esp-mqtt/mqtt_client.c" _mqtt_source_hash)
+if(NOT _mqtt_source_hash STREQUAL "3e558fa88e7bd98d4342bd19fe6d99c56031d04ff7a26405ab1bcd09408cf6f3")
+    message(FATAL_ERROR "Unreviewed esp-mqtt source: review task ownership before updating mqtt_task_memory.h adapter")
+endif()
+idf_component_get_property(_mqtt_component_lib mqtt COMPONENT_LIB)
+target_compile_options(${_mqtt_component_lib} PRIVATE
+    "-include${CMAKE_CURRENT_SOURCE_DIR}/main/mqtt_task_memory.h")
 
 # GCC 14 (toolchain-xtensa-esp-elf 14.2.0) throws a false-positive
 # -Wmaybe-uninitialized in ESP-IDF's esp_driver_i2c/i2c_master.c

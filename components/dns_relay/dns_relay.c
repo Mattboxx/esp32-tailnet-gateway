@@ -34,6 +34,7 @@
 #include "esp_timer.h"
 #include "nvs.h"
 #include "nvs_flash.h"
+#include "task_reaper.h"
 
 #define DNS_RELAY_PORT          53
 #define DNS_RELAY_BUF_SIZE      1024     /* RFC 1035 §2.3.4: 512 udp, EDNS0 lifts it; 1024 ceiling. */
@@ -280,7 +281,7 @@ static void worker_task(void *arg)
     int up = -1;
     uint8_t *rbuf = heap_caps_malloc(DNS_RELAY_BUF_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!rbuf) rbuf = malloc(DNS_RELAY_BUF_SIZE);   /* SPIRAM preferred; fall back to internal */
-    if (!rbuf) { ESP_LOGE(TAG, "worker rbuf alloc failed"); vTaskDeleteWithCaps(NULL); return; }
+    if (!rbuf) { ESP_LOGE(TAG, "worker rbuf alloc failed"); task_reaper_self_delete(); }
 
     for (;;) {
         dns_work_t *w = NULL;

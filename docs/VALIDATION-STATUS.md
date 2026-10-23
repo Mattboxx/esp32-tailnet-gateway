@@ -1,5 +1,11 @@
 # Validation ledger
 
+> **Codex continuation 2026-10-23:** [DEV9-CONTINUATION.md](DEV9-CONTINUATION.md)
+> records the selective presentation publication, exact dev.9 task-memory fix
+> and checks. WiFi build and targeted Windows 4/4 plus Linux ASan/UBSan 4/4 PASS.
+> Full campaigns running; no dev.9 hardware result yet. Dev.8 hardware evidence
+> below remains scoped to dev.8, never silently transferred to dev.9. NOT READY.
+
 > **Authoritative 2026-10-23 continuation:** [DEV8-VALIDATION.md](DEV8-VALIDATION.md).
 > WiFi dev.8 is installed, stable ota_1 preserved and settings match. Real SNMP
 > worker allocation failure on dev.7 corrected and dev.8 v1/v2c 109-object walks,

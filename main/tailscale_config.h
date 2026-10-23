@@ -76,7 +76,7 @@ esp_err_t tailscale_connect(void);
 // because routing/automation consumers retain its handle for the boot lifetime.
 void tailscale_disconnect(void);
 bool tailscale_is_connected(void);
-void tailscale_connect_task(void *pvParameters);
+esp_err_t tailscale_request_connect(void);
 
 // Routing-decision helpers (called from netif hooks)
 void tailscale_set_subnet(uint32_t ip, uint32_t mask);

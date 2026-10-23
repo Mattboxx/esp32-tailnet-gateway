@@ -19,7 +19,10 @@ DRIVERS+=['lab_echo']
 DRIVERS+=['coord_recovery']
 DRIVERS+=['lab_cleanup']
 DRIVERS+=['candidate_ota_guard']
-SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT TAILNET PEER_DNS OTA GATEWAY POLICY OPS LEASE HEALTH JSON TRANSFER RETRY CAP DISCOVERY WEB PROFILE SC MQTTSTATE ETH MQTTCMD'.split()
+DRIVERS+=['task_memory']
+DRIVERS+=['mqtt_activation']
+DRIVERS+=['task_reaper']
+SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT TAILNET PEER_DNS OTA GATEWAY POLICY OPS LEASE HEALTH JSON TRANSFER RETRY CAP DISCOVERY WEB PROFILE SC MQTTSTATE ETH MQTTCMD TASKMEM REAPER'.split()
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -33,6 +36,7 @@ def main():
     if sdk.is_dir():
         env.setdefault('CJSON_SOURCE',str(sdk/'json/cJSON/cJSON.c'))
         env.setdefault('LWIP_SOURCE',str(sdk/'lwip/lwip'))
+        env.setdefault('MQTT_SOURCE',str(sdk/'mqtt/esp-mqtt/mqtt_client.c'))
     if args.sanitizers:
         if os.name=='nt':parser.error('Use Linux ASan/UBSan; do not mark unavailable Windows sanitizers as passed')
         for prefix in SANITIZERS:env[prefix+'_SANITIZE']='1'

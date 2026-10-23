@@ -2,6 +2,44 @@
 
 Decisions are explicit, revisable with evidence and never remove approved scope.
 
+## ADR-028 — WithCaps workers exit through a persistent reaper (2026-10-23)
+
+ESP-IDF 5.5.3 `vTaskDeleteWithCaps(NULL)` (a task deleting itself) creates a
+temporary clean-up task with an internal `configMINIMAL_STACK_SIZE` stack at
+that moment and calls `abort()` if the allocation fails. The SNMP worker, the
+exit-route supervisor, the DNS relay worker and, with ADR-027, the esp-mqtt
+worker and `ts_connect` all exit that way, so an ordinary disable or stop on a
+fragmented internal heap could reset the device. `components/task_reaper`
+creates one reaper at boot (PSRAM stack, internal fallback, static queue of
+8). An exiting worker queues its own handle and suspends; the reaper deletes it
+with `vTaskDeleteWithCaps(handle)`, which suspends, deletes and frees without
+allocating. A full queue or a missing reaper falls back to the SDK path and is
+counted (`/api/operations`: `task_reaper_pending`, `task_reaper_fallbacks`).
+Tasks created without caps keep `vTaskDelete`. Actual-code host tests cover
+init, fallbacks, queue bound and direct deletion; hardware exits (SNMP OFF,
+MQTT OFF/reconfigure) must be qualified on the installed image. The version
+moves to dev.10 so this image is never confused with Codex's dev.9 build.
+
+## ADR-027 — Scoped task-memory adaptation for MQTT and VPN startup (2026-10-23)
+
+Dev.8's 3456-byte largest internal block cannot satisfy the SDK MQTT worker's
+6144-byte internal stack. Its optional manager and the 4096-byte VPN startup
+task also competed for internal stacks. Use the paired SDK caps allocation /
+deletion APIs with PSRAM stacks on the supported N16R8/XIP build; TCBs remain
+internal and failures remain possible. No smaller stack or global allocator
+override. esp-mqtt has no task-capabilities setting in this pinned SDK, so a
+project-local adapter is applied only to that component. A source hash guard
+requires reviewing ownership before upgrading it; both pinned and unpinned
+task paths and the sole self-delete were reviewed and behavior-tested with
+host fixtures. No SDK file is changed. Tracked defaults enable external stacks.
+
+Reserve VPN startup before spawning and skip it after instance publication.
+This removes duplicate GOT_IP allocations while leaving coordinator reconnect
+and policy authority to MicroLink. Allocation failure is logged and releases
+the reservation for a later request; existing startup backoff remains bounded.
+Hardware runtime activation, stack margins and stability need separate evidence
+for this exact new image; host tests do not establish physical safety.
+
 ## ADR-026 — Package the exact tested image; builds are not bit-reproducible (2026-10-23)
 
 Four consecutive links of unchanged dev.8 sources produced four different

@@ -1,6 +1,12 @@
 # Codex publish handoff — ESP32 Tailnet Gateway, Mattboxx Edition
 
-> **LATEST — Claude final handoff to Codex, 2026-10-23. Read this first.**
+> **LATEST — Codex continuation, 2026-10-23:** public presentation-only `a85681a`
+> and old-name Pages are deployed and verified, separately from this firmware
+> branch. Dev.9 memory fixes are local; exact WiFi install authorized, not a
+> firmware publication. Read [DEV9-CONTINUATION.md](DEV9-CONTINUATION.md) and
+> the new top of NEXT-STEPS first; Claude's retained evidence follows.
+>
+> **Claude final handoff to Codex, 2026-10-23 (historical baseline).**
 > State: **HANDOFF READY FOR CODEX**, release verdict **NOT READY FOR RELEASE**.
 > Details: [DEV8-VALIDATION.md](DEV8-VALIDATION.md), gate table:
 > [QUALITY-GATE.md](QUALITY-GATE.md), next actions: "START HERE" at the end.

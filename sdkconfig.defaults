@@ -17,6 +17,9 @@ CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_SPEED_80M=y
 CONFIG_SPIRAM_BOOT_HW_INIT=y
+# Explicitly enable the paired SDK task-capabilities API on fresh builds too.
+# The reference N16R8 uses PSRAM XIP below to keep these stacks cache-safe.
+CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y
 
 # Execute-in-place from PSRAM: copy .text/.rodata to PSRAM at boot. Frees IRAM,
 # and — critically — keeps the cache LIVE during SPI1 flash ops (OTA/NVS), which
@@ -44,7 +47,7 @@ CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
 # enabled — the relay's worker tasks + per-query allocations pushed internal
 # low-water to ~22K; lowering this back to 4096 funds the relay from the 8MB
 # SPIRAM instead of the scarce internal heap. (SPIRAM heap is flash-cache-safe;
-# only PSRAM *task stacks* are not — those we keep internal.)
+# PSRAM task stacks additionally require the explicit XIP configuration above.)
 # 2026-05-27: lowered 4096→2048. With TCP_WND/SND_BUF raised to 32768, a phone
 # exit-node speedtest burst drove internal low-water to ~6K (the 32K DMA reserve
 # was being breached by small ≤4096-byte NON-DMA allocations that this threshold
@@ -52,7 +55,8 @@ CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
 # reserve intact; DMA still bypasses via MALLOC_CAP_DMA. Allocations <2048 stay
 # internal. Watch SNAP idram low-water after flashing.
 # Runtime fragmentation can leave <8KB contiguous despite >16KB total free.
-# Keep stacks/DMA internal; send ordinary >1KB buffers to external RAM.
+# DMA and latency-critical stacks stay internal; optional workers explicitly
+# select PSRAM stacks. Send ordinary >1KB buffers to external RAM.
 CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=1024
 
 # --- Main task: more stack than the default 3584 ----------------------------

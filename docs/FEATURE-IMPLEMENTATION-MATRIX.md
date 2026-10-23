@@ -1,5 +1,14 @@
 # Feature implementation and validation matrix
 
+**Codex 2026-10-23:** all 42 rows retained. Presentation README/site/assets are
+public independently (`a85681a`, old repository name); no dev firmware published.
+F13/F33: local dev.9 fixes MQTT/initial-VPN stack allocation and duplicate
+startup tasks; WiFi build and four actual-code host drivers on Windows/Linux
+sanitizers PASS, hardware verification pending. Exact hashes, active campaigns
+and scope: [DEV9-CONTINUATION.md](DEV9-CONTINUATION.md). F33's dev.8 hour and
+two short reconnect cycles completed (not RUNNING); no reboot observed. F31
+MQTT/HA and WoL lab PASS, not a real HA instance; no row is release-ready.
+
 Latest **2026-10-23 dev.8 hardware** evidence supersedes older cells below;
 all 42 rows remain, none promoted to stable-ready. F14: guarded 1.13→dev.7→
 1.13→dev.8 HTTP OTA and eight configuration-group checks PASS, stable preserved;

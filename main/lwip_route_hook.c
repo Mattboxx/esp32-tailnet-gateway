@@ -41,6 +41,7 @@
 #include "tailnet_forward.h"
 #include "eth_uplink.h"
 #include "ping/ping_sock.h"
+#include "task_reaper.h"
 
 static const char *TAG = "exit_route";
 
@@ -356,8 +357,7 @@ static void route_supervisor_task(void *arg)
     if (!pin_completion) {
         if (pin_done) vSemaphoreDelete(pin_done);
         ESP_LOGE(TAG, "supervisor completion allocation failed");
-        vTaskDeleteWithCaps(NULL);
-        return;
+        task_reaper_self_delete();
     }
     ESP_LOGI(TAG, "supervisor task started (exit_node=%lu)",
              (unsigned long)tailscale_exit_node_ip);
