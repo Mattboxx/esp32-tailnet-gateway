@@ -1,12 +1,9 @@
 # Feature implementation and validation matrix
 
-**Newest v2 publication continuation (2026-10-23):** all 42 rows preserved;
-CODEX-V2-PUBLICATION-CHECKPOINT.md records current candidate and gate scope.
-F14/F33 rc.1 identity, runtime MQTT activation and lab phases PASS; observation
-and serial remain running. Physical first-boot, two independent identities,
-recovery outage and power-loss gates BLOCKED, not replaced by host/UI tests.
-F35 packaging URL metadata corrected locally; helper/shell fixtures PASS. F37
-README/site v2 prepared and tested; no new public firmware/site publication.
+**Firmware v2.0.0:** all 42 requirements and their implementation history remain
+preserved. This product version consolidates the original development
+milestones; current run-by-run qualification, remaining-case lists and owner
+acceptance are maintained locally, outside public release descriptions.
 
 **Codex 2026-10-23:** all 42 rows retained. Presentation README/site/assets are
 public independently (`a85681a`, old repository name); no dev firmware published.

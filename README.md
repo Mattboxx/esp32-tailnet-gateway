@@ -9,19 +9,18 @@
 All-in-one ESP32-S3 Tailscale/Headscale gateway with selective LAN-to-Tailnet
 access, subnet routing, remote recovery and optional automation.
 
-> **Firmware v2.0.0.** Check the [release page](../../releases) for available
-> images, checksums and compatibility notes before installing. The browser
-> installer and Easy Install package described here belong to this generation,
-> not to [legacy 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13).
+> **Firmware v2.0.0 is available.** [Download the release](../../releases/tag/v2.0.0),
+> use the browser installer, or choose the Easy Install package below.
+> Existing gateways can update without resetting their settings.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0B7A4B.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
 [![ESP-IDF 5.5.3](https://img.shields.io/badge/ESP--IDF-5.5.3-0A0F0C.svg)](https://docs.espressif.com/projects/esp-idf/)
-[![CodeQL](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/actions/workflows/codeql.yml)
-[![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailscale-gateway-NAS-recovery?label=stable&color=0B7A4B)](../../releases/latest)
+[![CodeQL](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml)
+[![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailnet-gateway?label=stable&color=0B7A4B)](../../releases/latest)
 
-[Website](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/) ·
-[Install firmware](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/install-firmware/) ·
+[Website](https://mattboxx.github.io/esp32-tailnet-gateway/) ·
+[Install firmware](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/) ·
 [Download](../../releases/latest) ·
 [Getting started](docs/GETTING-STARTED.md) ·
 [Service Gateway guide](docs/SERVICE-GATEWAY.md) ·
@@ -42,7 +41,7 @@ access, subnet routing, remote recovery and optional automation.
 | LAN → Tailnet TCP/UDP forwarding with source restrictions and MagicDNS | Destination tests, timed access, Service Watch and guided rule setup |
 | Subnet routing, AP gateway, exit-node roles and 4via6 | Refreshed goal-oriented UI, Simple/Advanced modes and profiles |
 | Saved Wake-on-LAN devices; MQTT/Home Assistant, ntfy and read-only SNMP | Smart Recovery workflows, layered Health Monitor and diagnostic export |
-| WiFi build for ESP32-S3 N16R8 | Optional W5500 build: experimental, not hardware-qualified |
+| WiFi build for ESP32-S3 N16R8 | Optional W5500 build: experimental |
 | Existing setup and Windows flash package | Physically paired first-boot wizard, browser installation and Easy Install for Windows/macOS/Linux |
 
 The advanced workflows described below require Firmware v2.0.0 unless listed in
@@ -138,7 +137,7 @@ existing translations. The setup network forwards no LAN/Internet traffic;
 credentials use sealed setup requests. Set up nearby on a trusted physical site:
 a malicious lookalike access point remains a risk.
 
-Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/first-boot/).
+Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailnet-gateway/first-boot/).
 
 ## 7. Download firmware
 
@@ -146,9 +145,9 @@ Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailscale-gatew
 
 | Method | Best for | How |
 |---|---|---|
-| **Browser installer** | New WiFi gateway, no flashing application | [Install Firmware](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/install-firmware/) in desktop Chrome/Edge over USB; installer remains inactive until the qualified release exists |
-| **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/easy-install/) |
-| **Advanced downloads** | Web UI OTA, manual flashing or experimental W5500 | [Downloads](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/downloads/) with exact checksums, variant labels and recovery notes |
+| **Browser installer** | New WiFi gateway, no flashing application | [Install Firmware](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/) in desktop Chrome/Edge over USB |
+| **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/) |
+| **Advanced downloads** | Web UI OTA, manual flashing or experimental W5500 | [Downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/) with exact checksums, variant labels and recovery notes |
 
 Use the releases page for available Firmware v2.0.0 builds. The
 [legacy 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13) retains its original files:
@@ -290,8 +289,9 @@ packaging. The full list is in [CUSTOM_BRANCH.md](CUSTOM_BRANCH.md) and the
 - **Exit node:** IPv4 only; IPv6 fails closed. A selected exit node fails
   closed when unreachable.
 - **Not supported:** tailnet lock; Headscale with self-signed certificates.
-- **Development qualification still open:** the W5500 Ethernet build and full
-  two-client policy compatibility. See [release availability](docs/PRESENTATION-STATUS.md).
+- **Experimental hardware:** W5500 requires compatible hardware and pin settings.
+  This embedded community client does not promise full official-client policy parity.
+  See [release availability](docs/PRESENTATION-STATUS.md).
 
 ## 17. Documentation
 
@@ -304,7 +304,7 @@ packaging. The full list is in [CUSTOM_BRANCH.md](CUSTOM_BRANCH.md) and the
 [Headscale](docs/HEADSCALE.md) ·
 [Updates](docs/UPDATES.md) ·
 [Testing](docs/TESTING.md) ·
-[Development preview](docs/PRESENTATION-STATUS.md)
+[Release availability](docs/PRESENTATION-STATUS.md)
 
 <p align="center">
 <img src="assets/diagrams/architecture.svg" alt="Six ownership areas: Network Gateway, Recovery and Device Management, Monitoring and Diagnostics, Automation and Integrations, Configuration and Management, Connectivity Core on ESP-IDF." width="100%">
@@ -315,7 +315,7 @@ packaging. The full list is in [CUSTOM_BRANCH.md](CUSTOM_BRANCH.md) and the
 For **Firmware v2.0.0**, the browser route is the easiest first install. Safari,
 Firefox and phone browsers should use a desktop computer and Easy Install.
 
-**Easy Install:** once published, unzip
+**Easy Install:** unzip
 `ESP32-Tailnet-Gateway-v2.0.0-EASY-INSTALL-Windows-macOS-Linux.zip` and read
 `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3 and
 esptool 5. The scripts verify checksums and the ESP32-S3 target first.
@@ -334,16 +334,16 @@ use it to overwrite a deliberately protected recovery image.
 Back up your configuration first; see [Updates](docs/UPDATES.md) and
 [Backup and restore](docs/BACKUP-RESTORE.md).
 
-**Legacy OTA migration:** the bridge uses version `0.1.38-Mattboxx-1.99` and must
-be published under the old repository name before the rename. Older updaters
-cannot follow the renamed API. The owner selected immediate rename, so devices
-that miss the bridge need one manual Web UI/USB update; settings can be kept.
+**Legacy OTA migration:** the bridge `0.1.38-Mattboxx-1.100` was published under
+the previous repository name before the rename. Older updaters cannot follow
+the renamed API. Devices still on 1.13 or earlier need one manual Web UI/USB
+update if they missed the bridge; settings can be kept.
 
 **Build from source:**
 
 ```bash
-git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery
-cd esp32-tailscale-gateway-NAS-recovery
+git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailnet-gateway
+cd esp32-tailnet-gateway
 pio run -e esp32-s3            # WiFi build
 pio run -e esp32-s3-eth        # optional W5500 Ethernet build
 ```
@@ -353,7 +353,7 @@ pio run -e esp32-s3-eth        # optional W5500 Ethernet build
 Bug reports, hardware reports and guide improvements are welcome. Read
 [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md);
 use the issue templates. Follow the checks in [Testing](docs/TESTING.md) for
-the published source; the expanded development suite is not shipped yet.
+the published source.
 Support the Mattboxx edition on
 [Ko-fi](https://ko-fi.com/mattboxx) and the original author via
 [GitHub Sponsors](https://github.com/sponsors/Csontikka) or

@@ -16,12 +16,12 @@ The 20 guide subjects required by the roadmap, mapped to existing documents.
 | Smart Recovery | SMART-RECOVERY.md | Present |
 | Network Monitoring | NETWORK-HEALTH.md | Present |
 | MQTT | MQTT.md | Present |
-| Home Assistant | HOME-ASSISTANT.md | Present (real HA not qualified) |
+| Home Assistant | HOME-ASSISTANT.md | Present (MQTT Discovery) |
 | ntfy | NTFY.md, NTFY-TRANSPORT.md | Present |
 | Security Model | SECURITY.md, TAILNET-AUTHORIZATION.md | Present |
 | Troubleshooting | TROUBLESHOOTING.md | Present |
 | Firmware Updates | UPDATES.md | Present |
 | Backup and Restore | BACKUP-RESTORE.md | Present |
 | Hardware Compatibility | HARDWARE.md, README → Hardware | Present |
-| Ethernet | ETHERNET.md | Present (not hardware-validated) |
+| Ethernet | ETHERNET.md | Present (experimental W5500) |
 | Development and Testing | TESTING.md, AGENTS.md | Present |

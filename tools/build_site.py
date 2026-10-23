@@ -29,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'website'
 # Repository rename (MIGRATION-RENAME.md): flip RENAMED only after GitHub has
 # renamed the repository, then rebuild and redeploy. Every URL derives from it.
-RENAMED = False
+RENAMED = True
 REPO_SLUG = 'esp32-tailnet-gateway' if RENAMED else 'esp32-tailscale-gateway-NAS-recovery'
 SITE_URL = f'https://mattboxx.github.io/{REPO_SLUG}/'
 REPO_URL = f'https://github.com/Mattboxx/{REPO_SLUG}'
@@ -44,7 +44,7 @@ STABLE_TAG = 'v' + STABLE_VERSION
 # exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
 # released files (see website/firmware/README.md); the build verifies them.
 NEXT_VERSION = '2.0.0'
-NEXT_PUBLISHED = False
+NEXT_PUBLISHED = True
 FIRMWARE_DIR = SRC / 'firmware'
 EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/
 
@@ -114,11 +114,18 @@ def changelog_html(limit_sections: int = 4) -> str:
         if items:
             out.append('<ul>' + ''.join('<li>' + inline_md(i) + '</li>' for i in items) + '</ul>'); items.clear()
     for line in lines:
+        # The public summary is the current release, not internal candidate notes.
+        if line.startswith('## Development history'):
+            break
+        if line.startswith('## ['):
+            flush()
+            out.append('<h2>' + inline_md(line[3:]) + '</h2>')
+            continue
         if line.startswith('### '):
             flush(); sections += 1
             if sections > limit_sections:
                 break
-            out.append('<h2>' + inline_md(line[4:]) + '</h2>')
+            out.append('<h3>' + inline_md(line[4:]) + '</h3>')
         elif line.startswith('#'):
             flush()
         elif line.startswith('- '):
