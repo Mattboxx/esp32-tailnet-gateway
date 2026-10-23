@@ -8,10 +8,10 @@ operations; Codex will perform publication/rebranding. **No push, release,
 GitHub rename, Pages activation or announcement by Claude.** Do not restart
 Claude's old checkpoint or roll back local work. No further feature additions.
 
-Exact handoff: [CLAUDE-CONTINUATION-HANDOFF.md](CLAUDE-CONTINUATION-HANDOFF.md).
-Actual evidence: [DEV8-VALIDATION.md](DEV8-VALIDATION.md). Source starts from
-root `9a4a85b` plus this session's local changes, MicroLink clean `fa3153b`;
-the final handoff commit contains those changes (read `git log -1`).
+Exact handoff: [DEV8-CONTINUATION.md](DEV8-CONTINUATION.md).
+Actual evidence: [DEV8-VALIDATION.md](DEV8-VALIDATION.md). Source/tool/evidence
+commit `498c04c` contains this session's changes after root `9a4a85b`, MicroLink
+clean `fa3153b`; the latest following commit contains the portable handoff.
 
 - **Installed dev.8** WiFi BIN `b70ff745…08e1361f`, ota_0; stable 1.13 ota_1
   preserved, new private NVS backup and verified stable-slot digest.
