@@ -1,4 +1,4 @@
-# Getting started — Firmware v2.0.1
+# Getting started — Firmware v2.0.2
 
 You need an **ESP32-S3 N16R8** (16 MB flash, 8 MB octal PSRAM), a USB data
 cable, and a 2.4 GHz WiFi network. Tailscale or Headscale is needed for Tailnet
@@ -9,7 +9,7 @@ roles, not for local administration or local Wake-on-LAN.
 - **Browser:** [Install firmware](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
   in desktop Chrome/Edge, connect USB and choose the ESP32-S3 port.
 - **Easy Install:** download the Windows/macOS/Linux ZIP from the
-  [v2.0.1 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.1).
+  [v2.0.2 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.2).
   Read `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3
   and esptool 5. Choose `windows/INSTALL-NEW-DEVICE.bat` for a fresh setup or
   `windows/UPDATE-KEEP-SETTINGS.bat` for an existing gateway.

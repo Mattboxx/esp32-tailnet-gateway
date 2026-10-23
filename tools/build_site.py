@@ -42,7 +42,7 @@ STABLE_TAG = 'v' + STABLE_VERSION
 # Current firmware: keep NEXT_PUBLISHED False until the qualified release
 # exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
 # released files (see website/firmware/README.md); the build verifies them.
-NEXT_VERSION = '2.0.1'
+NEXT_VERSION = '2.0.2'
 NEXT_PUBLISHED = True
 FIRMWARE_DIR = SRC / 'firmware'
 EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/
@@ -102,10 +102,11 @@ def inline_md(text: str) -> str:
     return text
 
 
-def changelog_html(limit_sections: int = 4) -> str:
-    """Tiny Markdown subset for CHANGELOG.md: headings, lists, paragraphs."""
+def changelog_html(limit_releases: int = 3) -> str:
+    """Tiny Markdown subset for CHANGELOG.md: headings, lists, paragraphs.
+    The page shows the latest releases in full; older ones stay in the repo."""
     lines = (ROOT / 'CHANGELOG.md').read_text(encoding='utf-8').splitlines()
-    out, para, items, sections = [], [], [], 0
+    out, para, items, sections, releases = [], [], [], 0, 0
 
     def flush():
         if para:
@@ -117,13 +118,13 @@ def changelog_html(limit_sections: int = 4) -> str:
         if line.startswith('## Development history'):
             break
         if line.startswith('## ['):
-            flush()
+            flush(); releases += 1
+            if releases > limit_releases:
+                break
             out.append('<h2>' + inline_md(line[3:]) + '</h2>')
             continue
         if line.startswith('### '):
             flush(); sections += 1
-            if sections > limit_sections:
-                break
             out.append('<h3>' + inline_md(line[4:]) + '</h3>')
         elif line.startswith('#'):
             flush()

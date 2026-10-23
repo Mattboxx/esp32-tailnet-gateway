@@ -1,6 +1,6 @@
 {
  "name": "ESP32 Tailnet Gateway",
- "version": "2.0.1",
+ "version": "2.0.2",
  "new_install_prompt_erase": true,
  "new_install_improv_wait_time": 0,
  "builds": [

@@ -1,7 +1,11 @@
 # Firmware updates — ESP32 Tailnet Gateway
 
-> **Firmware v2.0.1.** Application updates preserve the existing app identity,
+> **Firmware v2.0.2.** Application updates preserve the existing app identity,
 > NVS namespace and partition layout. Keep a configuration backup before updating.
+>
+> **From v2.0.0 or v2.0.1, update once by hand** (upload `firmware.bin`, or
+> USB keeping settings): the GitHub updater of those versions restarts the
+> gateway while beginning the update and installs nothing. Fixed in v2.0.2.
 
 
 System → Firmware update now supports three independent workflows:
