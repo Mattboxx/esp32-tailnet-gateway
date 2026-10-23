@@ -1,5 +1,45 @@
 # Codex publish handoff — ESP32 Tailnet Gateway, Mattboxx Edition
 
+> **LATEST — Claude final handoff to Codex, 2026-10-23. Read this first.**
+> State: **HANDOFF READY FOR CODEX**, release verdict **NOT READY FOR RELEASE**.
+> Details: [DEV8-VALIDATION.md](DEV8-VALIDATION.md), gate table:
+> [QUALITY-GATE.md](QUALITY-GATE.md), next actions: "START HERE" at the end.
+>
+> - **Latest local commit:** see `git log -1` on branch `mattboxx` (this block is
+>   in it). MicroLink `fa3153b`, clean, gitlink matches. Nothing pushed.
+> - **ESP32:** dev.8 WiFi on **ota_0**, booted, never reflashed by Claude; stable
+>   **1.13 on ota_1** untouched. Uptime continuous since about 05:00 (no reset).
+> - **COM3:** released at the end of the session (no collector running).
+> - **Installed image:** `0.1.38-Mattboxx-1.14-dev.8`, BIN SHA-256
+>   `b70ff745fb0328be8f98b9ec7fe9b1ce1468501d082bf083ebdf336c08e1361f` (1,878,880 B),
+>   ELF `dfc0bed0e299aec2ec76c0d2941d29d0079acd870934f7f8bb3bc648b4908ccf`.
+>   Ethernet dev.8 (compile only): BIN `454226060a3eaf7f12633fccc40a145122a2257c556c38a4c0df3071e01e9544`,
+>   ELF `d076e8f944b6b0725daf272931e19a52bb85eca1f85adee3ce71a4eec39539f8`.
+>   Local pre-release package `build/release-0.1.38-Mattboxx-1.14-dev.8/`: factory
+>   `9591bf46933be052679bbfaaac119ed99eadcab7a65bbf4d684390a377bfab46`, ZIP
+>   `4babfaa1363a36d2d0eeaa91aba9168c29ca497b28d74221c53cfa11a6ce82e8`. All
+>   checksums: `build/development-0.1.38-Mattboxx-1.14-dev.8/SHA256SUMS.txt` and
+>   `QUALIFICATION-LOGS.md` (ignored, private).
+> - **Builds are not bit-reproducible (ADR-026):** never package a rebuild of
+>   dev.8; any rebuild or version change is a new image needing requalification.
+> - **RAM (measured):** lifetime internal min 8043 B, largest internal block
+>   3456 B (constant), internal free 10.4–13.4 KB, min task stack free 5296 B,
+>   sockets ≤ 11/31. Main residual risk: esp-mqtt's 6 KB internal task stack
+>   when MQTT is enabled from OFF after boot (analysis and candidate fix in
+>   DEV8-VALIDATION "Internal RAM analysis").
+> - **PASS:** Windows 64/64, Linux sanitizers 60/60, one-hour observation,
+>   gateway/SNMP/OTA campaigns (Codex), MQTT/HA lab (74 Discovery configs, strict
+>   commands, broker outage → reconnect 3.2 s with tailnet up), WoL over HTTP,
+>   exact restore of MQTT settings and WoL list.
+> - **Integrations lab run 2** (WoL over MQTT and two in-session Wi-Fi/DERP
+>   reconnect cycles): result recorded in DEV8-VALIDATION; if marked pending the
+>   owner had not yet entered the password.
+> - **BLOCKED / NOT TESTED:** two independent Tailnet identities (needs an owner
+>   lab node), recovery AP with Wi-Fi absent, power loss during OTA/NVS write,
+>   W5500 hardware, MQTT enable-from-OFF at runtime, real Home Assistant and ntfy
+>   services, authenticated desktop/mobile UI review.
+> - Private operator notes: `build/private-device/LOCAL-ENV.md` (ignored).
+
 > **LATEST — handoff to Claude, 2026-10-23:** start with
 > [DEV8-CONTINUATION.md](DEV8-CONTINUATION.md) and the CURRENT
 > section of NEXT-STEPS. Dev.8 is installed; SNMP and gateway/reboot/profile/
@@ -281,22 +321,28 @@ Package: `cd tools; python package_release.py --version <ver> [--prerelease] --v
 
 ## START HERE — NEXT ACTIONS FOR CODEX
 
-1. `git status`, `git log --oneline -5`, `git -C external/microlink status`;
-   confirm HEAD contains this file and the tree is clean (except
-   `docs/COMMUNITY-POSTS.md`). `git fetch fork origin` (read-only).
-2. Read [QUALITY-GATE.md](QUALITY-GATE.md) and section C above.
-3. Ask the owner to sign in once in the built-in browser pane at
-   the device's LAN address (see `build/private-device/LOCAL-ENV.md`); run section C.1 (Service Gateway lab) and record
-   results.
-4. Run C.2 (1.13 → candidate upgrade via switch_ota_partition, stable kept)
-   and C.3 (≥ 1 h soak with heap/largest-block tracking).
-5. Finish C.5 (black/green rollout to UI, site, diagrams, BRAND.md); re-run
-   browser and layout tests.
-6. C.6 narrow the secret-scan allowlist; C.4 integrations with local lab
-   servers if acceptable.
-7. Rebuild WiFi and Ethernet, flash WiFi to ota_0, smoke-test, package,
-   record hashes here and in VALIDATION-STATUS.md.
-8. Re-read [MIGRATION-RENAME.md](MIGRATION-RENAME.md); decide bridge release
-   version (1.14 stable vs pre-release) with the owner.
-9. Prepare the coordinated publication request (section F order).
-10. Ask the owner for final authorization before any public operation.
+1. `git status --short`, `git log --oneline -8`, `git -C external/microlink status`.
+   Expect only the owner's untracked `docs/COMMUNITY-POSTS.md` (never stage it).
+2. Read the LATEST block above, QUALITY-GATE (current table) and
+   DEV8-VALIDATION (RAM analysis, ADR-026 packaging, integrations lab).
+3. Identify the board (COM3, 16 MB/8 MB PSRAM), confirm ota_0 = `b70ff745…`
+   running and ota_1 = 1.13 before any action. Never OTA while ota_0 runs
+   (it would overwrite ota_1); use `otatool switch_ota_partition --name ota_1`
+   then upload from 1.13 into ota_0.
+4. Decide the MQTT task-stack risk: reproduce safely (MQTT OFF → reboot →
+   enable at runtime, watch serial for "Error create mqtt task"), then fix
+   (long-lived client reconfigured in WAIT_RECONNECT) with an actual-code test.
+5. Remaining gates with owner help: two independent identities over direct and
+   DERP (HARDWARE-CAMPAIGN §9), controlled recovery-AP outage, planned power cut
+   during an OTA into the free slot, authenticated UI review on desktop/mobile.
+   Keep W5500 experimental unless real hardware is qualified.
+6. Fix freeze → set the final version, rebuild WiFi/Ethernet, install WiFi via
+   the guarded path, requalify the applicable gates on that exact image, then
+   `tools/package_release.py` with its exact hash (stage per ADR-026 if the
+   build dir was relinked). Never relabel dev.8 as stable.
+7. Rerun `python tools/validate_all.py --build --browser`,
+   `tools/validate_linux_docker.ps1`, root and nested sensitive scans
+   (nested history keeps 9 reviewed placeholder matches; do not call it green).
+8. Publication (Codex only, after explicit owner authorization): bridge release
+   under the old repository name, migration window, rename, Pages, metadata,
+   announcements — order in [MIGRATION-RENAME.md](MIGRATION-RENAME.md) and section F.
