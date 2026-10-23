@@ -7,9 +7,11 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const root = path.resolve(__dirname, '..', 'build', 'site');
+const root = path.resolve(process.env.SITE_TEST_DIR || path.join(__dirname, '..', 'build', 'site'));
 const shots = process.argv[2];
-const canonical = fs.readFileSync(path.join(root, 'index.html'), 'utf8').match(/rel="canonical" href="([^"]+)"/)[1];
+const homepage = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const canonical = homepage.match(/rel="canonical" href="([^"]+)"/)[1];
+const expectsPreviewNotice = homepage.includes('aria-label="Firmware availability"');
 const projectPath = new URL(canonical).pathname;
 const remoteBase = process.env.SITE_TEST_BASE_URL;
 const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml',
@@ -45,7 +47,7 @@ pages.unshift('');
       page.on('requestfailed', r => errors.push('request failed ' + r.url()));
       for (const slug of pages) {
         await page.goto(base + slug, { waitUntil: 'load' });
-        if (!(await page.isVisible('.release-note'))) failures.push(`${slug}: release availability notice missing`);
+        if (await page.isVisible('.release-note') !== expectsPreviewNotice) failures.push(`${slug}: release availability notice does not match built release state`);
         const actualCanonical = await page.locator('link[rel="canonical"]').getAttribute('href');
         if (actualCanonical !== canonical + slug) failures.push(`${slug}: wrong canonical ${actualCanonical}`);
         const where = `${width}x${height} /${slug}`;

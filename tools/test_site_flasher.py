@@ -100,6 +100,9 @@ try:
             assert not problems, f'Site checks failed (renamed={renamed}, published={published}): '+ '; '.join(problems[:6])
             os.environ['SITE_PRESENTATION_DIR'] = str(OUT)
             runpy.run_path(str(ROOT / 'tools/test_site_presentation.py'))
+            if published and '--layouts' in sys.argv:
+                env = dict(os.environ, SITE_TEST_DIR=str(OUT))
+                subprocess.run(['node', str(ROOT / 'tools/test_site_browser.cjs')], check=True, cwd=ROOT, env=env)
     print('PASS: actual Pages presentation gate accepts preview, release-before-rename and release-after-rename (synthetic firmware)')
 finally:
     for key, value in saved.items():
