@@ -16,7 +16,7 @@ Safety:
   file; payloads (which can contain addresses) are not stored.
 
     python tools/test_mqtt_lab_device.py <board-tailnet-ip> --bench-ip <pc-tailnet-ip> \
-        [--wol-lan-ip <pc-lan-ip>] [--wifi-reconnect]
+        [--wol-lan-ip <pc-lan-ip>] [--wifi-reconnect [CYCLES]]
 """
 import argparse
 import getpass
@@ -104,6 +104,23 @@ def start_broker(bench_ip, port, seconds):
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
 
+def memory(api):
+    """Point-in-time internal/PSRAM numbers from /api/operations (read only)."""
+    o = api('/api/operations', timeout=8)
+    return {k: o.get(k) for k in ('internal_free', 'internal_min', 'internal_largest',
+                                   'psram_largest', 'sockets_used')}
+
+
+def phase(result, name, fn):
+    """Run one phase; a failure is recorded and later phases still run."""
+    try:
+        fn()
+        return True
+    except Exception as e:  # class only: messages can carry addresses or data
+        result['phase_errors'][name] = e.__class__.__name__
+        return False
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('host')
@@ -112,43 +129,52 @@ def main():
     ap.add_argument('--wol-lan-ip', help='Bench PC LAN address: also test Wake-on-LAN delivery (HTTP and MQTT) '
                     'with a synthetic MAC sent unicast to this address on --wol-port')
     ap.add_argument('--wol-port', type=int, default=47009)
-    ap.add_argument('--wifi-reconnect', action='store_true',
-                    help='Also send the existing reconnect_wifi command and time in-session recovery')
+    ap.add_argument('--wifi-reconnect', type=int, nargs='?', const=1, default=0, metavar='CYCLES',
+                    help='Also send the existing reconnect_wifi command CYCLES times (default 1) and '
+                    'time in-session recovery of Wi-Fi, control, policy authority and MQTT')
     a = ap.parse_args()
+    if not 0 <= a.wifi_reconnect <= 5:
+        ap.error('--wifi-reconnect accepts 0..5 cycles')
     password = getpass.getpass('Device password (not saved): ')
     api = login(a.host, password=password)
     password = None
     before = api('/api/mqtt')
     snapshot = {k: before[k] for k in KEYS if k in before}
     result = {'version': api('/api/system')['version'], 'started': time.strftime('%Y-%m-%dT%H:%M:%S'),
-              'had_password': bool(before.get('has_password')), 'checks': {}}
+              'had_password': bool(before.get('has_password')), 'checks': {}, 'memory': {},
+              'phase_errors': {}}
     if before.get('broker_watchdog_enabled'):
         result['blocked'] = 'broker watchdog enabled: test not started to avoid a real Wake-on-LAN after restore'
         print(json.dumps(result, indent=2)); return 2
-    broker = start_broker(a.bench_ip, a.port, 900)
-    time.sleep(1.0)
-    observer = Observer(a.bench_ip, a.port)
+    checks = result['checks']; mem = result['memory']
+    mem['start'] = memory(api)
+    uptime_start = api('/api/status')['uptime_s']
     base = snapshot['base_topic']; prefix = snapshot.get('discovery_prefix') or 'homeassistant'
-    checks = result['checks']
-    try:
+    state = {'broker': start_broker(a.bench_ip, a.port, 1800)}
+    time.sleep(1.0)
+    state['observer'] = Observer(a.bench_ip, a.port)
+
+    def mqtt_connect():
         lab = {'enabled': True, 'uri': f'mqtt://{a.bench_ip}:{a.port}', 'username': '',
                'home_assistant_discovery': True, 'interval_seconds': 10}
         api('/api/mqtt', lab)
         checks['connected'] = wait(lambda: api('/api/mqtt')['connected'], 90, 2)
-        checks['state_published'] = wait(lambda: len(observer.topics(base + '/')) > 0, 30)
+        checks['state_published'] = wait(lambda: len(state['observer'].topics(base + '/')) > 0, 30)
         time.sleep(20)  # let Discovery finish
-        own = observer.topics(base + '/')
-        disc = observer.topics(prefix + '/')
-        configs, invalid = 0, 0
-        components = {}
+        mem['after_mqtt_connect'] = memory(api)
+
+    def discovery():
+        own = state['observer'].topics(base + '/')
+        disc = state['observer'].topics(prefix + '/')
+        configs, invalid, components = 0, 0, {}
         for _, topic, payload, _ in disc:
             if not topic.endswith('/config') or not payload:
                 continue
             try:
                 doc = json.loads(payload)
                 ok = isinstance(doc, dict) and doc.get('unique_id') and doc.get('name') is not None
-                state = doc.get('state_topic') or doc.get('stat_t') or ''
-                ok = ok and (not state or state.startswith(base) or state.startswith('~'))
+                st = doc.get('state_topic') or doc.get('stat_t') or ''
+                ok = ok and (not st or st.startswith(base) or st.startswith('~'))
             except ValueError:
                 ok = False
             configs += 1; invalid += 0 if ok else 1
@@ -161,96 +187,145 @@ def main():
         checks['retained_own'] = len({t for _, t, _, r in own if r})
         avail = [p for _, t, p, _ in own if t.endswith('/availability') or t.endswith('/status')]
         checks['availability_online'] = any(p.strip().lower() in (b'online', b'"online"') for p in avail)
-        # Strict command: an invalid switch payload must change nothing and only republish state.
+
+    def strict_command():
+        # An invalid switch payload must change nothing and only republish state.
         routes_before = api('/api/tailscale')['settings'].get('accept_routes', None)
-        n0 = len(observer.topics(base + '/'))
-        observer.publish(f'{base}/command/accept_routes', b'maybe')
-        checks['invalid_command_republished'] = wait(lambda: len(observer.topics(base + '/')) > n0, 15)
+        n0 = len(state['observer'].topics(base + '/'))
+        state['observer'].publish(f'{base}/command/accept_routes', b'maybe')
+        checks['invalid_command_republished'] = wait(lambda: len(state['observer'].topics(base + '/')) > n0, 15)
         checks['invalid_command_no_change'] = api('/api/tailscale')['settings'].get('accept_routes', None) == routes_before
-        # Broker outage: routing/administration must stay up; reconnect afterwards.
-        observer.stop(); broker.terminate(); broker.wait(10)
+
+    def broker_outage():
+        # Routing/administration must stay up; reconnect afterwards.
+        state['observer'].stop(); state['broker'].terminate(); state['broker'].wait(10)
         checks['offline_detected'] = wait(lambda: not api('/api/mqtt')['connected'], 60, 2)
-        status = api('/api/status')
-        checks['tailnet_up_while_broker_down'] = bool(status['tailscale']['connected'])
-        broker = start_broker(a.bench_ip, a.port, 600); time.sleep(1.0)
-        observer = Observer(a.bench_ip, a.port)
+        checks['tailnet_up_while_broker_down'] = bool(api('/api/status')['tailscale']['connected'])
+        mem['broker_down'] = memory(api)
+        state['broker'] = start_broker(a.bench_ip, a.port, 1500); time.sleep(1.0)
+        state['observer'] = Observer(a.bench_ip, a.port)
         t0 = time.monotonic()
         checks['reconnected'] = wait(lambda: api('/api/mqtt')['connected'], 180, 3)
         checks['reconnect_seconds'] = round(time.monotonic() - t0, 1)
-        if a.wol_lan_ip:
-            saved = api('/api/wol')['devices']
-            result['wol_saved_count'] = len(saved)
-            if len(saved) >= 12:
-                checks['wol_blocked'] = 'address book full; not modified'
-            else:
-                got = magic_listener(a.wol_lan_ip, a.wol_port, 60)
-                lab_dev = {'name': 'lab-wol-test', 'mac': LAB_MAC, 'broadcast': a.wol_lan_ip, 'port': a.wol_port}
-                try:
-                    api('/api/wol', {'devices': saved + [lab_dev]})
-                    api('/api/wol/send', {'mac': LAB_MAC})
-                    checks['wol_http_delivered'] = wait(lambda: any(got), 10, 0.5)
-                    n = len(got)
-                    observer.publish(f"{base}/command/wol/{LAB_MAC.replace(':', '')}", b'')
-                    checks['wol_mqtt_delivered'] = wait(lambda: len(got) > n and any(got[n:]), 15, 0.5)
-                finally:
-                    api('/api/wol', {'devices': saved})
-                    checks['wol_list_restored'] = api('/api/wol')['devices'] == saved
-        if a.wifi_reconnect and checks['reconnected']:
-            # In-session transport loss without reboot, through the existing
-            # MQTT command. Every tailnet API call travels through WireGuard and
-            # the policy gate, so a successful call after recovery is data-plane
-            # evidence into the board (not a full peer-to-peer matrix).
-            uptime0 = api('/api/status')['uptime_s']
-            observer.publish(f'{base}/command/reconnect_wifi', b'')
-            t0 = time.monotonic(); lost = None; back = None; samples = []
-            while time.monotonic() - t0 < 240:
-                try:
-                    o = api('/api/operations', timeout=5)
-                    ok = bool(o.get('control_connected')) and bool(o.get('authority_ready'))
-                    samples.append((round(time.monotonic() - t0, 1), ok))
-                    if lost is not None and ok:
-                        back = time.monotonic() - t0; break
-                    if not ok and lost is None:
-                        lost = time.monotonic() - t0
-                except Exception:
-                    samples.append((round(time.monotonic() - t0, 1), None))
-                    if lost is None:
-                        lost = time.monotonic() - t0
-                time.sleep(2)
-            checks['wifi_reconnect_loss_observed'] = lost is not None
-            checks['wifi_reconnect_recovered_seconds'] = None if back is None else round(back, 1)
-            checks['wifi_reconnect_samples'] = len(samples)
-            checks['wifi_reconnect_no_reboot'] = api('/api/status')['uptime_s'] >= uptime0
-            checks['wifi_reconnect_mqtt_back'] = wait(lambda: api('/api/mqtt')['connected'], 120, 3)
-    finally:
-        restore = dict(snapshot)
+        # The board subscribes to its command topics in the same step that
+        # publishes availability "online"; commands sent earlier are lost.
+        checks['resubscribed'] = wait(lambda: any(
+            p.strip().lower() in (b'online', b'"online"')
+            for _, t, p, _ in state['observer'].topics(base + '/') if t.endswith('/availability')), 30, 0.5)
+        mem['after_mqtt_reconnect'] = memory(api)
+
+    def wol():
+        saved = api('/api/wol')['devices']
+        result['wol_saved_count'] = len(saved)
+        if len(saved) >= 12:
+            checks['wol_blocked'] = 'address book full; not modified'
+            return
+        got = magic_listener(a.wol_lan_ip, a.wol_port, 60)
+        lab_dev = {'name': 'lab-wol-test', 'mac': LAB_MAC, 'broadcast': a.wol_lan_ip, 'port': a.wol_port}
         try:
-            api('/api/mqtt', restore)
+            api('/api/wol', {'devices': saved + [lab_dev]})
+            api('/api/wol/send', {'mac': LAB_MAC})
+            checks['wol_http_delivered'] = wait(lambda: any(got), 10, 0.5)
+            n = len(got)
+            # Empty payloads are dropped by design; Home Assistant buttons send PRESS.
+            state['observer'].publish(f"{base}/command/wol/{LAB_MAC.replace(':', '')}", b'PRESS')
+            checks['wol_mqtt_delivered'] = wait(lambda: len(got) > n and any(got[n:]), 15, 0.5)
+        finally:
+            api('/api/wol', {'devices': saved})
+            checks['wol_list_restored'] = api('/api/wol')['devices'] == saved
+
+    def wifi_cycle(i):
+        # In-session transport loss without reboot, through the existing MQTT
+        # command: Wi-Fi drops, so the DERP TCP/TLS stream and the control
+        # long-poll are lost and must be re-established. Every API call travels
+        # over the tailnet (WireGuard + policy gate), so a successful call after
+        # recovery is data-plane evidence into the board, not a peer matrix.
+        cyc = {}
+        uptime0 = api('/api/status')['uptime_s']
+        state['observer'].publish(f'{base}/command/reconnect_wifi', b'PRESS')
+        t0 = time.monotonic(); lost = None; back = None; samples = 0; low = None
+        while time.monotonic() - t0 < 300:
+            try:
+                o = api('/api/operations', timeout=5)
+                samples += 1
+                ok = bool(o.get('control_connected')) and bool(o.get('authority_ready'))
+                if isinstance(o.get('internal_largest'), int):
+                    low = o['internal_largest'] if low is None else min(low, o['internal_largest'])
+                if lost is not None and ok:
+                    back = time.monotonic() - t0
+                    break
+                if not ok and lost is None:
+                    lost = time.monotonic() - t0
+            except Exception:
+                samples += 1
+                if lost is None:
+                    lost = time.monotonic() - t0
+            time.sleep(2)
+        cyc['loss_observed'] = lost is not None
+        cyc['loss_after_seconds'] = None if lost is None else round(lost, 1)
+        cyc['recovered_seconds'] = None if back is None else round(back, 1)
+        cyc['samples'] = samples
+        cyc['internal_largest_min_seen'] = low
+        cyc['no_reboot'] = api('/api/status')['uptime_s'] >= uptime0
+        t1 = time.monotonic()
+        cyc['mqtt_back'] = wait(lambda: api('/api/mqtt')['connected'], 120, 3)
+        cyc['mqtt_back_seconds'] = round(time.monotonic() - t1, 1)
+        # A fresh "online" means command topics are subscribed again (next cycle).
+        cyc['resubscribed'] = wait(lambda: any(
+            ts > t1 and t.endswith('/availability') and p.strip().lower() in (b'online', b'"online"')
+            for ts, t, p, _ in state['observer'].topics(base + '/')), 60, 0.5)
+        time.sleep(20)  # let DERP/TLS settle before sampling
+        mem[f'after_wifi_cycle_{i}'] = memory(api)
+        checks.setdefault('wifi_cycles', []).append(cyc)
+
+    try:
+        if phase(result, 'mqtt_connect', mqtt_connect) and checks.get('connected'):
+            phase(result, 'discovery', discovery)
+            phase(result, 'strict_command', strict_command)
+            phase(result, 'broker_outage', broker_outage)
+            if a.wol_lan_ip:
+                phase(result, 'wol', wol)
+            if a.wifi_reconnect and checks.get('reconnected'):
+                for i in range(1, a.wifi_reconnect + 1):
+                    if not phase(result, f'wifi_cycle_{i}', lambda: wifi_cycle(i)):
+                        break
+    finally:
+        try:
+            api('/api/mqtt', dict(snapshot))
             after = api('/api/mqtt')
             result['restored_exactly'] = all(after.get(k) == v for k, v in snapshot.items())
             result['password_still_present'] = bool(after.get('has_password')) == result['had_password']
         except Exception as e:  # report, never retry blindly
             result['restore_error'] = e.__class__.__name__
         try:
-            observer.stop()
+            mem['end'] = memory(api)
+            result['no_reboot_overall'] = api('/api/status')['uptime_s'] >= uptime_start
+        except Exception as e:
+            result['phase_errors']['end_sample'] = e.__class__.__name__
+        try:
+            state['observer'].stop()
         except Exception:
             pass
-        broker.terminate()
+        state['broker'].terminate()
         try:
-            broker.wait(10)
+            state['broker'].wait(10)
         except subprocess.TimeoutExpired:
-            broker.kill()
-    out = ROOT / 'build/private-device' / f"mqtt-lab-{time.strftime('%Y%m%d-%H%M%S')}.json"
-    out.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
-    print(json.dumps(result, indent=2))
+            state['broker'].kill()
+        out = ROOT / 'build/private-device' / f"mqtt-lab-{time.strftime('%Y%m%d-%H%M%S')}.json"
+        out.write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+        print(json.dumps(result, indent=2))
     required = ('connected', 'state_published', 'invalid_command_republished', 'invalid_command_no_change',
-                'offline_detected', 'tailnet_up_while_broker_down', 'reconnected')
+                'offline_detected', 'tailnet_up_while_broker_down', 'reconnected', 'resubscribed')
     if a.wol_lan_ip and 'wol_blocked' not in checks:
         required += ('wol_http_delivered', 'wol_mqtt_delivered', 'wol_list_restored')
-    if a.wifi_reconnect:
-        required += ('wifi_reconnect_loss_observed', 'wifi_reconnect_recovered_seconds', 'wifi_reconnect_no_reboot')
     ok = all(checks.get(k) for k in required) and checks.get('discovery_configs', 0) > 0 \
-        and checks.get('discovery_invalid', 1) == 0 and result.get('restored_exactly') and result.get('password_still_present')
+        and checks.get('discovery_invalid', 1) == 0 and result.get('restored_exactly') \
+        and result.get('password_still_present') and not result['phase_errors']
+    if a.wifi_reconnect:
+        cycles = checks.get('wifi_cycles', [])
+        ok = ok and len(cycles) == a.wifi_reconnect and all(
+            c['loss_observed'] and c['recovered_seconds'] is not None and c['no_reboot'] and c['mqtt_back'] and c['resubscribed']
+            for c in cycles)
     return 0 if ok else 1
 
 
