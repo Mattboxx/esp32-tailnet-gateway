@@ -6,6 +6,8 @@ group: Start
 order: 6
 -->
 <h1>Getting started</h1>
+<!-- if:v2 --><p class="note">New device? Install from the <a href="{{root}}install-firmware/">browser</a> or with <a href="{{root}}easy-install/">Easy Install</a>, then follow the <a href="{{root}}first-boot/">guided first boot</a>. The steps below describe manual configuration.</p><!-- endif -->
+<!-- if:stable --><p class="note">These steps describe the current stable 1.13. Firmware v{{next_version}} adds a <a href="{{root}}first-boot/">guided first boot</a>.</p><!-- endif -->
 <p><strong>You need:</strong> an ESP32-S3 N16R8 board, a USB data cable, a 2.4 GHz WiFi network, and a Tailscale account or a Headscale server (0.26 or newer).</p>
 
 <h2>1. Flash the firmware</h2>

@@ -7,7 +7,9 @@ group: Project
 order: 9
 -->
 <h1>Documentation</h1>
-<p>Start with <a href="{{root}}getting-started/">Getting started</a>. Every guide states who it is for, requirements, procedure, verification, common problems, limits and security. The guides live in the repository so they always match the source.</p>
+<p>Start with <a href="{{root}}getting-started/">Getting started</a>. These guides describe Firmware v{{next_version}}.</p>
+<!-- if:stable --><p>It is not released yet. For the currently published interface and firmware, use the <a href="{{repo}}/tree/v0.1.38-Mattboxx-1.13/docs">stable 1.13 documentation</a>.</p><!-- endif -->
+<!-- if:v2 --><p>Older installations can still consult the <a href="{{repo}}/tree/v0.1.38-Mattboxx-1.13/docs">versioned 1.13 documentation</a>. See <a href="{{root}}updating/">Updating</a> before migrating.</p><!-- endif -->
 
 <h2>Guides</h2>
 <div class="grid">
@@ -16,6 +18,6 @@ order: 9
   <div class="card"><h3>Recovery and health</h3><p><a href="{{repo}}/blob/Main/docs/SMART-RECOVERY.md">Smart Recovery</a> · <a href="{{repo}}/blob/Main/docs/NAS-RECOVERY.md">NAS recovery</a> · <a href="{{repo}}/blob/Main/docs/NETWORK-HEALTH.md">Network health</a> · <a href="{{repo}}/blob/Main/docs/TROUBLESHOOTING.md">Troubleshooting</a></p></div>
   <div class="card"><h3>Integrations</h3><p><a href="{{repo}}/blob/Main/docs/MQTT.md">MQTT</a> · <a href="{{repo}}/blob/Main/docs/HOME-ASSISTANT.md">Home Assistant</a> · <a href="{{repo}}/blob/Main/docs/NTFY.md">ntfy</a></p></div>
   <div class="card"><h3>Operate</h3><p><a href="{{repo}}/blob/Main/docs/BACKUP-RESTORE.md">Backup and restore</a> · <a href="{{repo}}/blob/Main/docs/UPDATES.md">Updates</a> · <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">Repository rename</a> · <a href="{{repo}}/blob/Main/docs/NVS-KEYS.md">Settings keys</a></p></div>
-  <div class="card"><h3>Engineering</h3><p><a href="{{repo}}/blob/Main/docs/ARCHITECTURE.md">Architecture</a> · <a href="{{repo}}/blob/Main/docs/TAILNET-AUTHORIZATION.md">Tailnet authorization</a> · <a href="{{repo}}/blob/Main/docs/TESTING.md">Testing</a> · <a href="{{repo}}/blob/Main/docs/VALIDATION-STATUS.md">Validation status</a></p></div>
+  <div class="card"><h3>Engineering</h3><p><a href="{{repo}}/blob/Main/docs/ARCHITECTURE.md">Preview architecture</a> · <a href="{{repo}}/blob/Main/docs/TAILNET-AUTHORIZATION.md">Authorization scope</a> · <a href="{{repo}}/blob/Main/docs/TESTING.md">Published-source testing</a> · <a href="{{repo}}/blob/Main/docs/PRESENTATION-STATUS.md">Release availability</a></p></div>
 </div>
 <p>All guides: <a href="{{repo}}/blob/Main/docs/GUIDES.md">docs/GUIDES.md</a>. Found a gap or an error? Open an issue with the <em>documentation</em> label — guide feedback is the main way the docs improve.</p>

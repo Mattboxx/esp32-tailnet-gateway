@@ -27,18 +27,34 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'website'
-SITE_URL = 'https://mattboxx.github.io/esp32-tailnet-gateway/'
-REPO_URL = 'https://github.com/Mattboxx/esp32-tailnet-gateway'
+# Repository rename (MIGRATION-RENAME.md): flip RENAMED only after GitHub has
+# renamed the repository, then rebuild and redeploy. Every URL derives from it.
+RENAMED = False
+REPO_SLUG = 'esp32-tailnet-gateway' if RENAMED else 'esp32-tailscale-gateway-NAS-recovery'
+SITE_URL = f'https://mattboxx.github.io/{REPO_SLUG}/'
+REPO_URL = f'https://github.com/Mattboxx/{REPO_SLUG}'
+FUTURE_REPO_URL = 'https://github.com/Mattboxx/esp32-tailnet-gateway'
 NAME = 'ESP32 Tailnet Gateway'
 TAGLINE = 'One ESP32. Multiple Tailnet roles. Enable only what you need.'
 DESCRIPTION = ('All-in-one ESP32-S3 Tailscale/Headscale gateway with selective '
                'LAN-to-Tailnet access, subnet routing, remote recovery and optional automation.')
+STABLE_VERSION = '0.1.38-Mattboxx-1.13'
+STABLE_TAG = 'v' + STABLE_VERSION
+# Firmware v2.0.0: keep NEXT_PUBLISHED False until the qualified release
+# exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
+# released files (see website/firmware/README.md); the build verifies them.
+NEXT_VERSION = '2.0.0'
+NEXT_PUBLISHED = False
+FIRMWARE_DIR = SRC / 'firmware'
+EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/
 
 # Moved or alternative URLs -> current page (served as tiny redirect pages).
 REDIRECTS = {
     'lan-to-tailnet/': 'service-gateway/',
     'docs/service-gateway/': 'service-gateway/',
-    'install/': 'getting-started/',
+    'install/': 'install-firmware/',
+    'flash/': 'install-firmware/',
+    'start/': 'first-boot/',
     'download/': 'downloads/',
     'recovery/': 'remote-recovery/',
     'integrations/': 'automation/',
@@ -119,6 +135,82 @@ def changelog_html(limit_sections: int = 4) -> str:
     return '\n'.join(out)
 
 
+def flash_layout() -> dict[str, int]:
+    """Offsets the installers write, from the real partition table. The
+    ESP32-S3 second-stage bootloader is at 0x0 and the table at 0x8000."""
+    layout = {'bootloader': 0x0, 'partitions': 0x8000}
+    for line in (ROOT / 'partitions.csv').read_text(encoding='utf-8').splitlines():
+        cells = [c.strip() for c in line.split(',')]
+        if len(cells) >= 4 and not cells[0].startswith('#') and cells[3]:
+            layout[cells[0]] = int(cells[3], 0)
+    return {'bootloader': layout['bootloader'], 'partitions': layout['partitions'],
+            'otadata': layout['otadata'], 'ota_0': layout['ota_0']}
+
+
+def firmware_manifest():
+    path = FIRMWARE_DIR / NEXT_VERSION / 'manifest.json'
+    if not path.exists():
+        return None
+    return f'firmware/{NEXT_VERSION}/manifest.json', json.loads(path.read_text(encoding='utf-8'))
+
+
+def verify_firmware(out: Path) -> None:
+    """Publish installer files only when they are complete and exact."""
+    import hashlib
+    found = firmware_manifest()
+    if NEXT_PUBLISHED and not found:
+        raise SystemExit(f'NEXT_PUBLISHED is set but website/firmware/{NEXT_VERSION}/manifest.json is missing')
+    if not found:
+        return
+    folder = FIRMWARE_DIR / NEXT_VERSION
+    manifest = found[1]
+    assert manifest['version'] == NEXT_VERSION, 'manifest version differs from NEXT_VERSION'
+    assert manifest.get('new_install_prompt_erase') is True, 'the installer must ask before erasing settings'
+    sums = {}
+    for line in (folder / 'SHA256SUMS.txt').read_text(encoding='ascii').splitlines():
+        digest, _, name = line.partition('  ')
+        sums[name.strip()] = digest.strip()
+    want = sorted(flash_layout().values())
+    for build_entry in manifest['builds']:
+        assert build_entry['chipFamily'] == 'ESP32-S3', 'ESP32-S3 only'
+        offsets = sorted(part['offset'] for part in build_entry['parts'])
+        assert offsets == want, f'installer offsets {offsets} differ from partitions.csv {want}'
+        for part in build_entry['parts']:
+            data = (folder / part['path']).read_bytes()
+            assert hashlib.sha256(data).hexdigest() == sums.get(part['path']), f'{part["path"]} checksum mismatch'
+    shutil.copytree(folder, out / 'firmware' / NEXT_VERSION)
+
+
+def flasher_html(page: Page) -> str:
+    found = firmware_manifest()
+    if not (NEXT_PUBLISHED and found):
+        return (f'<div class="note"><p><strong>Firmware v{NEXT_VERSION} is not released yet.</strong> '
+                'The browser installer turns on when the release is published, using exactly the released files. '
+                f'Until then the stable download is <a href="{REPO_URL}/releases/tag/{STABLE_TAG}">Mattboxx 1.13</a>, '
+                'installed with its own package; its first start differs from the new setup described here.</p></div>')
+    manifest = page.rel(found[0])
+    module = page.rel(f'assets/esp-web-tools/{EWT_VERSION}/install-button.js')
+    easy = page.rel('easy-install/')
+    return (f'<script type="module" src="{module}"></script>\n'
+            '<div class="flasher" id="flasher">'
+            f'<esp-web-install-button manifest="{manifest}">'
+            '<button slot="activate" class="btn primary" type="button">Connect &amp; Install</button>'
+            '<span slot="unsupported" class="note">This browser cannot talk to USB serial devices. Use desktop Chrome or Edge, '
+            f'or the <a href="{easy}">Easy Install package</a>.</span>'
+            '<span slot="not-allowed" class="note">The installer needs a secure (https) page.</span>'
+            '</esp-web-install-button></div>')
+
+
+def release_note(page: Page) -> str:
+    if NEXT_PUBLISHED:
+        return ''
+    return ('<aside class="release-note" aria-label="Firmware availability">\n'
+            f'  <strong>Firmware v{NEXT_VERSION} is in preparation.</strong>\n'
+            f'  The available download remains <a href="{REPO_URL}/releases/tag/{STABLE_TAG}">Mattboxx 1.13</a>.\n'
+            f'  <a href="{page.rel("downloads/")}#availability">Check which features are available today</a>.\n'
+            '</aside>')
+
+
 def jsonld(data) -> str:
     return '<script type="application/ld+json">' + json.dumps(data, ensure_ascii=False).replace('</', '<\\/') + '</script>'
 
@@ -131,6 +223,15 @@ def render(page: Page, pages: list[Page]) -> str:
         f'<li><a href="{page.rel(p.slug)}"{" aria-current=\"page\"" if p is page else ""}>{html.escape(p.nav)}</a></li>'
         for p in nav_pages)
     body = page.body.replace('{{root}}', page.rel('')).replace('{{repo}}', REPO_URL)
+    body = (body.replace('{{next_version}}', NEXT_VERSION).replace('{{stable_tag}}', STABLE_TAG)
+                .replace('{{stable_version}}', STABLE_VERSION).replace('{{future_repo}}', FUTURE_REPO_URL))
+    if '{{flasher}}' in body:
+        body = body.replace('{{flasher}}', flasher_html(page))
+    # <!-- if:v2 -->...<!-- endif --> shows once v2.0.0 is published,
+    # <!-- if:stable -->...<!-- endif --> only while 1.13 is the stable download.
+    keep, drop = ('v2', 'stable') if NEXT_PUBLISHED else ('stable', 'v2')
+    body = re.sub(r'<!-- if:%s -->.*?<!-- endif -->' % drop, '', body, flags=re.S)
+    body = re.sub(r'<!-- (?:if:%s|endif) -->' % keep, '', body)
     if '{{changelog}}' in body:
         body = body.replace('{{changelog}}', changelog_html())
     crumbs, sidebar, structured = '', '', []
@@ -217,6 +318,7 @@ def render(page: Page, pages: list[Page]) -> str:
 {sidebar}
 <main id="main" tabindex="-1">
 {crumbs}
+{release_note(page)}
 {body}
 </main>
 </div>
@@ -248,6 +350,10 @@ def text_of(fragment: str) -> str:
 
 
 def build(out: Path) -> list[Page]:
+    out = out.resolve()
+    build_root = (ROOT / 'build').resolve()
+    if out != (ROOT / '_site').resolve() and not (out.is_relative_to(build_root) and out != build_root):
+        raise ValueError('Output must be _site or a subdirectory of build; refusing source/broad-directory removal')
     pages = [Page(p) for p in sorted((SRC / 'pages').glob('*.html'))]
     slugs = [p.slug for p in pages]
     assert len(slugs) == len(set(slugs)), 'duplicate slug'
@@ -255,7 +361,11 @@ def build(out: Path) -> list[Page]:
         shutil.rmtree(out)
     (out / 'assets').mkdir(parents=True)
     for f in (SRC / 'assets').iterdir():
-        shutil.copy2(f, out / 'assets' / f.name)
+        if f.is_dir():
+            shutil.copytree(f, out / 'assets' / f.name)
+        else:
+            shutil.copy2(f, out / 'assets' / f.name)
+    verify_firmware(out)
     brand = ROOT / 'assets/brand'
     shutil.copy2(brand / 'logo-mark.svg', out / 'assets/logo-mark.svg')
     shutil.copy2(brand / 'logo-mark.svg', out / 'assets/favicon.svg')

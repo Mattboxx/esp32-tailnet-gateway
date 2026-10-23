@@ -139,4 +139,6 @@ summary { cursor: pointer; font-weight: 600; }
 }
 @media (max-width: 359px) { .brand span { display: none; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+.release-note { margin: 0 0 2rem; padding: 1rem 1.2rem; border: 1px solid var(--line); border-left: 3px solid #1FC97A; border-radius: 12px; font-size: .94rem; line-height: 1.65; }
+.release-note strong { display: block; margin-bottom: .3rem; }
 @media print { .top, .sidebar, .foot, .copy { display: none; } }

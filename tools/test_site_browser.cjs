@@ -9,10 +9,15 @@ const path = require('path');
 
 const root = path.resolve(__dirname, '..', 'build', 'site');
 const shots = process.argv[2];
+const canonical = fs.readFileSync(path.join(root, 'index.html'), 'utf8').match(/rel="canonical" href="([^"]+)"/)[1];
+const projectPath = new URL(canonical).pathname;
+const remoteBase = process.env.SITE_TEST_BASE_URL;
 const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml',
   '.png': 'image/png', '.xml': 'application/xml', '.txt': 'text/plain', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((req, res) => {
-  let file = path.join(root, decodeURIComponent(req.url.split('?')[0]));
+  const requestPath = decodeURIComponent(req.url.split('?')[0]);
+  if (!requestPath.startsWith(projectPath)) { res.writeHead(404); return res.end('wrong project path'); }
+  let file = path.join(root, requestPath.slice(projectPath.length));
   if (!file.startsWith(root)) { res.writeHead(403); return res.end(); }
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file, 'index.html');
   if (!fs.existsSync(file)) { res.writeHead(404); return res.end('missing'); }
@@ -27,7 +32,7 @@ pages.unshift('');
 
 (async () => {
   await new Promise(r => server.listen(0, '127.0.0.1', r));
-  const base = `http://127.0.0.1:${server.address().port}/`;
+  const base = remoteBase || `http://127.0.0.1:${server.address().port}${projectPath}`;
   const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || 'chrome' });
   const failures = [];
   try {
@@ -40,6 +45,9 @@ pages.unshift('');
       page.on('requestfailed', r => errors.push('request failed ' + r.url()));
       for (const slug of pages) {
         await page.goto(base + slug, { waitUntil: 'load' });
+        if (!(await page.isVisible('.release-note'))) failures.push(`${slug}: release availability notice missing`);
+        const actualCanonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+        if (actualCanonical !== canonical + slug) failures.push(`${slug}: wrong canonical ${actualCanonical}`);
         const where = `${width}x${height} /${slug}`;
         const r = await page.evaluate(() => {
           const doc = document.documentElement;

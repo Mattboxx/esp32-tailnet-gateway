@@ -1,5 +1,10 @@
 # GitHub updates — Mattboxx 1.10 development
 
+> **1.14 development preview.** This guide includes unreleased features; it
+> does not imply a new firmware download. Public stable remains
+> [Mattboxx 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
+
+
 System → Firmware update now supports three independent workflows:
 
 1. Upload a trusted local `firmware.bin`, as before.
