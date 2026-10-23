@@ -86,11 +86,11 @@ static int mbedtls_sha256_update(mbedtls_sha256_context *h,const unsigned char *
 static int mbedtls_sha256_finish(mbedtls_sha256_context *h,unsigned char out[32]) { assert(h->used==1024); memset(out,fault==3?2:1,32); return 0; }
 static int64_t clock_us;
 static int64_t esp_timer_get_time(void) { clock_us+=fault==12?200000000:100; return clock_us; }
-static esp_err_t ota_flash_begin(const esp_partition_t *p,size_t n,esp_ota_handle_t *h) { assert(p==&partition&&n==1024); begins++; if(fault==4)return -1; *h=1; return ESP_OK; }
-static esp_err_t ota_flash_write(esp_ota_handle_t h,const void *p,size_t n) { assert(h==1&&p&&n); writes++; return fault==5?-1:0; }
-static esp_err_t ota_flash_end(esp_ota_handle_t h) { assert(h==1); ends++; return fault==6?-1:0; }
+static esp_err_t ota_flash_begin(const esp_partition_t *p,size_t n,esp_ota_handle_t *h) { assert(p==&partition&&n==1024); begins++; if(fault==4)return -1; *h=1; return fault==16?-1:0; }
+static esp_err_t ota_flash_write(esp_ota_handle_t h,const void *p,size_t n) { assert(h==1&&p&&n); writes++; return fault==5||fault==14?-1:0; }
+static esp_err_t ota_flash_end(esp_ota_handle_t *h) { assert(*h==1); if(fault==15)return -1; ends++; *h=0; return fault==6?-1:0; }
 static esp_err_t ota_flash_set_boot_partition(const esp_partition_t *p) { assert(p==&partition); boots++; return fault==7?-1:0; }
-static void ota_flash_abort(esp_ota_handle_t h) { assert(h==1); aborts++; }
+static esp_err_t ota_flash_abort(esp_ota_handle_t h) { assert(h==1); aborts++; return fault==14?-1:0; }
 static void vTaskDelay(int t) { (void)t; }
 static void ota_flash_restart(void) { restarts++; }
 '''
@@ -184,7 +184,12 @@ int main(void) {
     reset(); s_state.repo=2; assert(!install_release()); assert(!opens&&!begins&&!s_writer_active);
     reset(); s_state.repo=1; assert(install_release()&&boots==1); /* previous name, before the rename */
     reset(); assert(ota_writer_try_acquire()); assert(!install_release()); assert(!opens&&!begins&&s_writer_active); ota_writer_release();
-    for(int f=1;f<=13;f++) { if(f==11)continue; reset(); fault=f; assert(!install_release()); assert(!restarts&&!s_writer_active); if(f!=7)assert(!boots); assert(aborts<=1&&ends<=1); }
+    for(int f=1;f<=16;f++) { if(f==11||f==14)continue; reset(); fault=f; assert(!install_release()); assert(!restarts&&!s_writer_active); if(f!=7)assert(!boots); assert(aborts<=1&&ends<=1); if(f==15||f==16)assert(aborts==1&&!ends); }
+    /* Unacknowledged cleanup retains exclusion; repeated attempts cannot leak
+     * more handles or write over an SDK transaction until explicit restart. */
+    reset(); fault=14; assert(!install_release()&&s_writer_active&&aborts==1);
+    assert(strstr(s_state.status,"restart"));
+    fault=0; assert(!install_release()&&!ota_writer_try_acquire()&&aborts==1);
     for(int f=0;f<=11;f+=11) { reset(); fault=f; assert(install_release()); assert(boots==1&&restarts==1&&!aborts&&ends==1&&s_writer_active&&s_state.progress==100); }
     for(int f=0;f<3;f++) { reset(); if(f==0)image[12]=1; if(f==1)image[32+48]='!'; if(f==2)image[32+16]='!'; assert(!install_release()); assert(!begins&&!boots&&!restarts&&!s_writer_active); }
     puts("PASS: real-C fork version/channel/release selection, digest/URL guards, partial reads, exclusive writer, redirects, download/hash/image/flash failure cleanup and commit-before-reboot");

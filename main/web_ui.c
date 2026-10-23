@@ -40,6 +40,7 @@
 #include "wifi_networks.h"
 #include "wol.h"
 #include "mqtt_integration.h"
+#include "ota_flash.h"
 #include "ntfy_integration.h"
 #include "fourvia6.h"
 #include "dhcp_reservations.h"
@@ -5676,6 +5677,8 @@ void web_ui_init(void)
     conf.uri_match_fn             = httpd_uri_match_wildcard;
     conf.max_uri_handlers         = 104;
     conf.stack_size               = 12288;
+    /* Local uploads and queued GitHub OTA work freeze flash caches. */
+    conf.task_caps                = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
     /* The HTTP server needs three lwIP sockets internally. Four client slots
      * are enough for this SPA's post-login burst while preserving descriptors
      * for DERP, ntfy, MQTT and DNS. Also clamp against stale/generated
@@ -5701,6 +5704,8 @@ void web_ui_init(void)
         ESP_LOGE(TAG, "httpd_start failed");
         return;
     }
+    if (ota_flash_bind_httpd(server) != ESP_OK)
+        ESP_LOGE(TAG, "Cannot bind internal-stack OTA work to admin server");
     /* Old stored rules may conflict with the boot listener. Keep their
      * records, but do not install a DNAT binding over the admin service. */
     portmap_install_all();

@@ -27,6 +27,8 @@ typedef void (*TaskFunction_t)(void *);
 typedef struct { pthread_t thread; pthread_mutex_t lock; pthread_cond_t changed;
     unsigned notifications; bool stop; TaskFunction_t function; } StaticTask_t;
 typedef StaticTask_t *TaskHandle_t;
+typedef TaskHandle_t httpd_handle_t;
+typedef TaskFunction_t httpd_work_fn_t;
 typedef struct { pthread_mutex_t lock; pthread_cond_t changed; bool valid; unsigned count; } StaticSemaphore_t;
 typedef StaticSemaphore_t *SemaphoreHandle_t;
 typedef struct { unsigned size; } esp_partition_t;
@@ -37,6 +39,7 @@ typedef unsigned esp_ota_handle_t;
 #define ESP_ERR_NO_MEM 3
 #define ESP_ERR_TIMEOUT 4
 #define ESP_ERR_NOT_FOUND 5
+#define ESP_FAIL 6
 #define DRAM_ATTR
 #define pdTRUE 1
 #define pdMS_TO_TICKS(x) (x)
@@ -46,8 +49,9 @@ static _Thread_local bool reject_admission;
 static atomic_bool wrong_stack, hold_write, write_started;
 static atomic_uint active, sdk_calls, write_calls, boot_calls, restart_calls;
 static atomic_int injected_error;
-static bool fail_create, no_partition;
-static unsigned creates;
+static bool begin_error_with_handle;
+static bool no_partition;
+static atomic_bool queue_failure;
 static const esp_partition_t partition = {0x400000};
 static SemaphoreHandle_t make_sem(StaticSemaphore_t *s, unsigned count) {
     if (!s->valid) { assert(!pthread_mutex_init(&s->lock,NULL));
@@ -69,27 +73,31 @@ static int xSemaphoreGive(SemaphoreHandle_t s) {
 static TaskHandle_t xTaskGetCurrentTaskHandle(void) { return current_task; }
 static void *esp_cpu_get_sp(void) { return current_task; }
 static bool esp_ptr_in_dram(const void *sp) { return sp && !atomic_load(&wrong_stack); }
-static void *entry(void *p) { current_task=p; current_task->function(NULL); return NULL; }
-static TaskHandle_t xTaskCreateStatic(TaskFunction_t fn, const char *name, unsigned bytes,
-    void *arg, unsigned priority, StackType_t *stack, StaticTask_t *tcb) {
-    assert(!strcmp(name,"ota_flash") && bytes==4096 && !arg && priority==4);
-    assert(stack && !((uintptr_t)stack%16) && tcb); creates++;
-    if (fail_create) return NULL;
-    memset(tcb,0,sizeof *tcb); tcb->function=fn;
-    assert(!pthread_mutex_init(&tcb->lock,NULL)); assert(!pthread_cond_init(&tcb->changed,NULL));
-    assert(!pthread_create(&tcb->thread,NULL,entry,tcb)); return tcb;
+/* The HTTP server already exists. Product code may enqueue one SDK operation,
+ * but must never create an additional task/stack in this fixture. */
+static void *entry(void *p) {
+    current_task=p; TaskHandle_t t=p;
+    for (;;) {
+        assert(!pthread_mutex_lock(&t->lock));
+        while (!t->notifications && !t->stop) assert(!pthread_cond_wait(&t->changed,&t->lock));
+        if (t->stop) { assert(!pthread_mutex_unlock(&t->lock)); return NULL; }
+        assert(t->notifications==1); t->notifications=0;
+        TaskFunction_t work=t->function;
+        assert(!pthread_mutex_unlock(&t->lock)); work(NULL);
+    }
 }
-static void xTaskNotifyGive(TaskHandle_t task) {
-    assert(!pthread_mutex_lock(&task->lock)); task->notifications++;
-    assert(!pthread_cond_signal(&task->changed)); assert(!pthread_mutex_unlock(&task->lock));
+static void start_httpd(TaskHandle_t server) {
+    assert(!pthread_mutex_init(&server->lock,NULL));
+    assert(!pthread_cond_init(&server->changed,NULL));
+    assert(!pthread_create(&server->thread,NULL,entry,server));
 }
-static unsigned ulTaskNotifyTake(int clear, TickType_t wait) {
-    TaskHandle_t t=current_task; assert(t && clear==pdTRUE && wait==portMAX_DELAY);
-    assert(!pthread_mutex_lock(&t->lock));
-    while (!t->notifications && !t->stop) assert(!pthread_cond_wait(&t->changed,&t->lock));
-    if (t->stop) { assert(!pthread_mutex_unlock(&t->lock)); pthread_exit(NULL); }
-    unsigned n=t->notifications; t->notifications=0;
-    assert(!pthread_mutex_unlock(&t->lock)); return n;
+static esp_err_t httpd_queue_work(httpd_handle_t server, httpd_work_fn_t fn, void *arg) {
+    assert(server && fn && !arg && current_task!=server);
+    if (atomic_load(&queue_failure)) return ESP_FAIL;
+    assert(!pthread_mutex_lock(&server->lock)); assert(!server->notifications);
+    server->function=fn; server->notifications=1;
+    assert(!pthread_cond_signal(&server->changed)); assert(!pthread_mutex_unlock(&server->lock));
+    return ESP_OK;
 }
 static void sdk_enter(void) {
     assert(current_task && esp_ptr_in_dram(esp_cpu_get_sp()));
@@ -100,7 +108,8 @@ static const esp_partition_t *esp_ota_get_next_update_partition(const void *p) {
     assert(!p); sdk_enter(); sdk_leave(); return no_partition ? NULL : &partition;
 }
 static esp_err_t esp_ota_begin(const esp_partition_t *p, size_t size, esp_ota_handle_t *h) {
-    sdk_enter(); assert(p==&partition && size==128 && h); esp_err_t e=sdk_leave(); if (!e) *h=42; return e;
+    sdk_enter(); assert(p==&partition && size==128 && h); esp_err_t e=sdk_leave();
+    if (!e || begin_error_with_handle) *h=42; return e;
 }
 static esp_err_t esp_ota_write(esp_ota_handle_t h, const void *data, size_t size) {
     sdk_enter(); assert(h==42 && size==4 && !memcmp(data,"OTA!",4));
@@ -124,14 +133,26 @@ static void *write_thread(void *arg) {
     memset(buffer,0,sizeof buffer); atomic_store(&w->done,true); return NULL;
 }
 int main(void) {
+    static StaticTask_t server_storage;
+    httpd_handle_t server=&server_storage;
     esp_ota_handle_t handle=99;
     assert(!ota_flash_next_partition());
     assert(ota_flash_begin(&partition,128,&handle)==ESP_ERR_INVALID_STATE && !handle);
     assert(!atomic_load(&sdk_calls));
-    fail_create=true; assert(ota_flash_init()==ESP_ERR_NO_MEM);
+    assert(ota_flash_bind_httpd(server)==ESP_ERR_INVALID_STATE);
+    assert(ota_flash_init()==ESP_OK);
     assert(ota_flash_write(42,"OTA!",4)==ESP_ERR_INVALID_STATE);
-    fail_create=false; assert(ota_flash_init()==ESP_OK && creates==2);
-    assert(ota_flash_init()==ESP_OK && creates==2);
+    assert(ota_flash_init()==ESP_OK);
+    assert(ota_flash_bind_httpd(NULL)==ESP_ERR_INVALID_ARG);
+    start_httpd(server);
+    atomic_store(&queue_failure,true);
+    assert(ota_flash_bind_httpd(server)==ESP_FAIL);
+    assert(!ota_flash_next_partition());
+    atomic_store(&queue_failure,false);
+    assert(ota_flash_bind_httpd(server)==ESP_OK);
+    assert(ota_flash_bind_httpd(server)==ESP_OK);
+    assert(ota_flash_bind_httpd((void*)0x42)==ESP_ERR_INVALID_STATE);
+    while (!__atomic_load_n(&s_httpd_task,__ATOMIC_ACQUIRE)) sched_yield();
     assert(ota_flash_next_partition()==&partition);
     no_partition=true; assert(!ota_flash_next_partition()); no_partition=false;
     assert(ota_flash_begin(NULL,128,&handle)==ESP_ERR_INVALID_ARG);
@@ -141,14 +162,18 @@ int main(void) {
     assert(ota_flash_set_boot_partition(NULL)==ESP_ERR_INVALID_ARG);
     assert(ota_flash_begin(&partition,128,&handle)==ESP_OK && handle==42);
     assert(ota_flash_write(handle,"OTA!",4)==ESP_OK);
-    assert(ota_flash_end(handle)==ESP_OK);
+    assert(ota_flash_end(&handle)==ESP_OK && !handle);
+    handle=42;
     assert(ota_flash_abort(handle)==ESP_OK);
     assert(ota_flash_set_boot_partition(&partition)==ESP_OK);
     ota_flash_restart(); assert(atomic_load(&restart_calls)==1);
     atomic_store(&injected_error,77); handle=99;
     assert(ota_flash_begin(&partition,128,&handle)==77 && !handle);
+    begin_error_with_handle=true;
+    assert(ota_flash_begin(&partition,128,&handle)==77 && handle==42);
+    begin_error_with_handle=false;
     assert(ota_flash_write(42,"OTA!",4)==77);
-    assert(ota_flash_end(42)==77 && ota_flash_abort(42)==77);
+    handle=42; assert(ota_flash_end(&handle)==77 && !handle && ota_flash_abort(42)==77);
     assert(ota_flash_set_boot_partition(&partition)==77);
     atomic_store(&injected_error,0);
     unsigned before=atomic_load(&sdk_calls);
@@ -156,7 +181,7 @@ int main(void) {
     assert(!ota_flash_next_partition());
     assert(ota_flash_begin(&partition,128,&handle)==ESP_ERR_INVALID_STATE);
     assert(ota_flash_write(42,"OTA!",4)==ESP_ERR_INVALID_STATE);
-    assert(ota_flash_end(42)==ESP_ERR_INVALID_STATE && ota_flash_abort(42)==ESP_ERR_INVALID_STATE);
+    handle=42; assert(ota_flash_end(&handle)==ESP_ERR_INVALID_STATE && handle==42 && ota_flash_abort(42)==ESP_ERR_INVALID_STATE);
     assert(ota_flash_set_boot_partition(&partition)==ESP_ERR_INVALID_STATE);
     ota_flash_restart(); assert(atomic_load(&sdk_calls)==before); /* never caller fallback */
     atomic_store(&wrong_stack,false);
@@ -164,10 +189,16 @@ int main(void) {
     assert(ota_flash_write(42,"OTA!",4)==ESP_ERR_TIMEOUT);
     assert(ota_flash_begin(&partition,128,&handle)==ESP_ERR_TIMEOUT && !handle);
     assert(atomic_load(&sdk_calls)==before);
-    assert(ota_flash_end(42)==ESP_OK && ota_flash_abort(42)==ESP_OK); /* cleanup cannot be dropped */
+    handle=42; assert(ota_flash_end(&handle)==ESP_OK && !handle && ota_flash_abort(42)==ESP_OK); /* cleanup cannot be dropped */
     reject_admission=false;
-    TaskHandle_t save=current_task; current_task=s_task;
-    assert(ota_flash_end(42)==ESP_ERR_INVALID_STATE); /* no self-dispatch deadlock */
+    atomic_store(&queue_failure,true); before=atomic_load(&sdk_calls);
+    handle=42; assert(ota_flash_end(&handle)==ESP_FAIL && handle==42);
+    assert(ota_flash_abort(42)==ESP_FAIL && atomic_load(&sdk_calls)==before);
+    assert(ota_flash_write(42,"OTA!",4)==ESP_FAIL);
+    atomic_store(&queue_failure,false);
+    assert(ota_flash_abort(42)==ESP_OK); /* failed queue admission releases mailbox */
+    TaskHandle_t save=current_task; current_task=server;
+    assert(ota_flash_end(&handle)==ESP_ERR_INVALID_STATE); /* no self-dispatch deadlock */
     current_task=save;
     atomic_store(&hold_write,true); atomic_store(&write_started,false);
     writer_t first={0},second={0}; pthread_t a,b;
@@ -179,22 +210,22 @@ int main(void) {
     assert(!pthread_join(a,NULL) && !pthread_join(b,NULL));
     assert(atomic_load(&first.done) && atomic_load(&second.done));
     assert(first.result==ESP_OK && second.result==ESP_OK && !atomic_load(&active));
-    assert(!pthread_mutex_lock(&s_task->lock)); s_task->stop=true;
-    assert(!pthread_cond_signal(&s_task->changed)); assert(!pthread_mutex_unlock(&s_task->lock));
-    assert(!pthread_join(s_task->thread,NULL));
-    puts("PASS: actual OTA flash executor domain, lifetime, concurrency, errors and cleanup (host RTOS model)");
+    assert(!pthread_mutex_lock(&server->lock)); server->stop=true;
+    assert(!pthread_cond_signal(&server->changed)); assert(!pthread_mutex_unlock(&server->lock));
+    assert(!pthread_join(server->thread,NULL));
+    puts("PASS: actual OTA dispatch on existing HTTPD, domain, lifetime, concurrency, queue failure and consumed handles (host model)");
 }
 '''
 
 with tempfile.TemporaryDirectory(prefix='ota-flash-') as directory:
     path = Path(directory)
     (path / 'freertos').mkdir()
-    for name in ('esp_ota_ops.h', 'esp_attr.h', 'esp_cpu.h', 'esp_memory_utils.h',
+    for name in ('esp_ota_ops.h', 'esp_http_server.h', 'esp_attr.h', 'esp_cpu.h', 'esp_memory_utils.h',
                  'esp_system.h', 'freertos/FreeRTOS.h', 'freertos/task.h', 'freertos/semphr.h'):
         (path / name).write_text('#pragma once\n', encoding='utf-8')
     c = path / 'flash.c'
     c.write_text(FIXTURE + SOURCE + TEST, encoding='utf-8')
-    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-pthread', '-I', str(path), '-I', str(ROOT / 'main')]
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-misleading-indentation', '-pthread', '-I', str(path), '-I', str(ROOT / 'main')]
     if os.environ.get('OTAFLASH_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     binary = path / ('flash.exe' if os.name == 'nt' else 'flash')
