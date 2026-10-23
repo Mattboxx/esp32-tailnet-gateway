@@ -2,46 +2,37 @@
 
 ## CURRENT — read this before the historical checkpoints below
 
-Owner requests a complete checkpoint and prompt for Claude. Claude continues
-fixes, qualification, artifacts/UI/site/docs up to immediately BEFORE public
-operations; Codex will perform publication/rebranding. **No push, release,
-GitHub rename, Pages activation or announcement by Claude.** Do not restart
-Claude's old checkpoint or roll back local work. No further feature additions.
+Claude continuation of Codex's dev.8 checkpoint, 2026-10-23. Claude prepares
+locally up to immediately BEFORE public operations; Codex performs
+publication/rebranding. **No push, release, GitHub rename, Pages activation or
+announcement by Claude.** No feature additions. Exact Codex handoff:
+[DEV8-CONTINUATION.md](DEV8-CONTINUATION.md); evidence:
+[DEV8-VALIDATION.md](DEV8-VALIDATION.md); map for Codex:
+[CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md) (LATEST block).
 
-Exact handoff: [DEV8-CONTINUATION.md](DEV8-CONTINUATION.md).
-Actual evidence: [DEV8-VALIDATION.md](DEV8-VALIDATION.md). Source/tool/evidence
-commit `498c04c` contains this session's changes after root `9a4a85b`, MicroLink
-clean `fa3153b`; the latest following commit contains the portable handoff.
+- **Installed:** dev.8 WiFi `b70ff745…08e1361f` on ota_0; stable 1.13 on ota_1.
+  No install, reset or flash since Codex's checkpoint. COM3 is free.
+- **Dev.8 hour COMPLETED:** serial 3600.27 s, 0 panic/WDT/reboot/error lines;
+  API 120/120, control connected throughout, authority ready 24/24; internal
+  lifetime min 8043 B, largest block 3456 B. No DERP/long-poll closure occurred,
+  so stream-loss recovery is still NOT exercised.
+- **Not bit-reproducible builds (ADR-026):** each link orders libraries
+  differently. Package only the installed snapshot; any rebuild is a new image.
+  Local dev.8 WiFi pre-release package built from the exact image.
+- **Offline:** Windows 64/64 `build/validation-20261023-060645-818351/`; Linux
+  sanitizer run: see DEV8-VALIDATION (Claude section).
+- **Integrations lab:** `tools/test_mqtt_lab_device.py` (HARDWARE-CAMPAIGN §8)
+  needs the owner to type the device password; see DEV8-VALIDATION for whether
+  it ran. Two independent identities need an owner-provided lab node
+  (HARDWARE-CAMPAIGN §9): BLOCKED, not replaced by single-client tests.
 
-- **Installed dev.8** WiFi BIN `b70ff745…08e1361f`, ota_0; stable 1.13 ota_1
-  preserved, new private NVS backup and verified stable-slot digest.
-- Full Windows build/browser **64/64**, Linux sanitizer **60/60**, Ethernet
-  compile PASS. Later tool-only fixes have targeted PASS; no repeated full
-  final campaign after those tool/document edits. Do not call Ethernet tested.
-- SNMP stack failure on dev.7 corrected in dev.8: real 109-object v1/v2c
-  walks, 27 operational OIDs, 12 Tailnet replies, malformed rejection and
-  three enable/disable cycles PASS; restored OFF unchanged.
-- Dev.8 gateway campaign COMPLETE: forced-LAN TCP/UDP20/20; OFF refusal;
-  same-client CIDR denial0/3; expiry with UDP control; real software reboot
-  retained rules, expired TCP closed, UDP lease live, Advanced profile and
-  Service Watch settings persisted. Automatic watch verified owned TCP echo.
-  Profile rolled back to none; watch OFF; lab rules removed; original snapshot
-  restored. No two-independent-identity or forced-DERP/stream-loss claim.
-- **RUNNING:** dev.8 60-minute passive serial + Tailnet API collectors. Serial
-  owns COM3: launcher PID42268, worker PID30600 at 05:04; API PID35788.
-  Check identities/liveness, not PID alone. Logs `dev8-soak-60min.log` and
-  `dev8-soak-60min.jsonl` under ignored `build/private-device/`; expected finish
-  about 06:04–06:05 local. Do not reset/flash/use COM3 while collection runs.
-  Opening samples show ready authority, largest internal block3456 B, lifetime
-  min8043 B, sockets11/31, raw task HWM484: not a completed soak result.
-- Completed echo server PID33368 stopped specifically. No live lab listener
-  remains. Original owner rule and integration credentials untouched.
-
-**First action:** inspect collector completion/liveness and recover summaries,
-not reflash/rebuild. If interrupted, label partial capture honestly. Then
-continue independent remaining gates in the handoff, preserving all 42 items.
-Long-soak, exact stream recovery, two real identities/direct+DERP and controlled
-integration/AP/recovery qualification remain open. Stable Quality Gate NOT READY.
+**Next actions:** run the integrations lab if still pending; deliberate stream-
+loss test (for example the `reconnect_wifi` path in that tool, or a DERP/
+control interruption) on dev.8; two-identity matrix once a lab node exists; AP/
+uplink loss and NVS power-loss/interrupted OTA with verified USB recovery;
+authenticated desktop/mobile UI review. Then fix freeze, recompile the final
+version, install it via the guarded ota_1→ota_0 path, requalify, package that
+exact image. Stable Quality Gate: **NOT READY**.
 
 ## Historical checkpoints — retained context, NOT current instructions
 
