@@ -13,7 +13,28 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / 'tools/easy_install'
-SH = shutil.which('sh') or shutil.which('bash')
+def posix_shell():
+    # Windows' bash.exe may be only a WSL launcher with no Linux shell
+    # installed. Prefer Git's real POSIX shell; never silently skip the tests.
+    candidates = []
+    if os.name == 'nt':
+        for key in ('ProgramFiles', 'ProgramW6432', 'LOCALAPPDATA'):
+            base = Path(os.environ.get(key, 'C:/Program Files'))
+            candidates += [base / 'Git/bin/sh.exe', base / 'Programs/Git/bin/sh.exe']
+    candidates += [shutil.which('sh'), shutil.which('bash')]
+    for candidate in candidates:
+        if not candidate or not Path(candidate).is_file():
+            continue
+        try:
+            probe = subprocess.run([str(candidate), '-c', 'printf POSIX-SHELL-OK'],
+                                   capture_output=True, text=True, timeout=5)
+            if probe.returncode == 0 and probe.stdout == 'POSIX-SHELL-OK':
+                return str(candidate)
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+    return None
+
+SH = posix_shell()
 assert SH, 'POSIX sh required'
 
 STUB = r'''#!/bin/sh
