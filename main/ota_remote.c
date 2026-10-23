@@ -167,7 +167,7 @@ static OTA_NOINLINE bool check_release(void)
     free(b.body);
     if (!cJSON_IsArray(json)) { cJSON_Delete(json); status_set("Invalid GitHub release response"); return false; }
     const esp_partition_t *target = ota_flash_next_partition();
-    if (!target) { cJSON_Delete(json); status_set("OTA flash worker unavailable or no update slot"); return false; }
+    if (!target) { cJSON_Delete(json); status_set("OTA flash dispatcher unavailable or no update slot"); return false; }
     char tag[32] = {0}; uint32_t size = 0; unsigned char digest[32];
     const esp_app_desc_t *app = esp_app_get_description();
     bool found = target && app && ota_remote_select_release(json, app->version, beta, target->size, tag, &size, digest);
@@ -207,6 +207,7 @@ static OTA_NOINLINE bool install_release(void)
     if (!state.checked || !state.update_available) return false;
     if (!ota_writer_try_acquire()) { status_set("Another firmware upload is active"); return false; }
     bool success = false;
+    bool cleanup_failed = false;
     esp_ota_handle_t writer = 0;
     char url[192];
     const char *repo = ota_repo(state.repo);
@@ -259,18 +260,21 @@ static OTA_NOINLINE bool install_release(void)
         mbedtls_sha256_finish(&hash, actual) != 0 || memcmp(actual, s_digest, sizeof actual)) {
         status_set("Rejected: incomplete download or SHA-256 mismatch"); goto done;
     }
-    esp_err_t err = ota_flash_end(writer); writer = 0;
+    esp_err_t err = ota_flash_end(&writer);
     if (err != ESP_OK || ota_flash_set_boot_partition(target) != ESP_OK) goto done;
     success = true;
 done:
-    if (writer) ota_flash_abort(writer);
+    if (writer) cleanup_failed = ota_flash_abort(writer) != ESP_OK;
     if (client) esp_http_client_cleanup(client);
     mbedtls_sha256_free(&hash); free(b.location); free(buffer);
     if (success) {
         status_set("Installed; restarting");
         vTaskDelay(pdMS_TO_TICKS(2000)); ota_flash_restart();
     } else {
-        ota_writer_release();
+        /* A failed dispatch/abort must not admit another writer over a still
+         * active SDK transaction. Keep exclusion until an explicit restart. */
+        if (cleanup_failed) status_set("OTA cleanup failed; restart before retrying");
+        else ota_writer_release();
         ota_remote_get_state(&state);
         if (!strncmp(state.status, "Downloading", 11)) status_set("Install failed; running firmware unchanged");
     }
@@ -378,8 +382,8 @@ void ota_remote_init(void)
     if (s_lock) return;
     s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
     s_state.config.install_hour = -1;
-    /* Reserve the small internal-stack executor before network fragmentation.
-     * Remote requests fail closed if it cannot start; local upload is separate. */
+    /* Initialize the bounded mailbox, not a new internal stack. The lifetime-
+     * long admin server attaches when started; early requests fail closed. */
     s_flash_ready = ota_flash_init() == ESP_OK;
     strlcpy(s_state.status, "Periodic checks disabled", sizeof s_state.status);
     nvs_handle_t nvs; saved_config_t saved; size_t length = sizeof saved;
@@ -390,6 +394,6 @@ void ota_remote_init(void)
             (!saved.automatic || saved.enabled))
             s_state.config = (ota_remote_config_t){saved.enabled, saved.automatic, saved.beta, saved.hour};
     }
-    if (!s_flash_ready) status_set("OTA flash worker failed to start");
+    if (!s_flash_ready) status_set("OTA flash dispatcher unavailable");
     else if (s_state.config.enabled && !start_worker_locked()) status_set("Update worker failed to start");
 }

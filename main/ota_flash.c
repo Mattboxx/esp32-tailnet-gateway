@@ -11,7 +11,6 @@
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 
-#define FLASH_STACK_BYTES 4096
 typedef enum { NEXT, BEGIN, WRITE, END, ABORT, SET_BOOT, RESTART } operation_t;
 typedef struct {
     operation_t operation;
@@ -20,61 +19,87 @@ typedef struct {
     size_t size;
     esp_ota_handle_t handle;
     esp_err_t result;
+    bool completed;
 } flash_job_t;
 
-/* Reserve at link time, not when an update meets a fragmented runtime heap.
- * ESP-IDF's task stack depth is in bytes, unlike upstream FreeRTOS. */
-static DRAM_ATTR StackType_t s_stack[FLASH_STACK_BYTES / sizeof(StackType_t)] __attribute__((aligned(16)));
-static DRAM_ATTR StaticTask_t s_tcb;
+/* Reuse the permanent admin server's 12 KiB internal stack, as local uploads
+ * already do. Reserving a separate stack can prevent WireGuard from starting.
+ * Only SDK flash work is dispatched: TLS/downloads never block this server. */
 static DRAM_ATTR StaticSemaphore_t s_mutex_storage, s_done_storage;
 static DRAM_ATTR flash_job_t s_job;
 static SemaphoreHandle_t s_mutex, s_done;
-static TaskHandle_t s_task;
+static httpd_handle_t s_server;
+static TaskHandle_t s_httpd_task;
 
-static void flash_worker(void *unused)
+static void identify_httpd(void *unused)
 {
     (void)unused;
-    for (;;) {
-        ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-        s_job.result = ESP_ERR_INVALID_STATE;
-        /* No fallback to the external caller stack if initialization/domain is
-         * wrong. This also makes every failure acknowledge its borrowed data. */
-        if (esp_ptr_in_dram((const void *)esp_cpu_get_sp())) {
-            switch (s_job.operation) {
-            case NEXT:
-                s_job.partition = esp_ota_get_next_update_partition(NULL);
-                s_job.result = s_job.partition ? ESP_OK : ESP_ERR_NOT_FOUND;
-                break;
-            case BEGIN:
-                s_job.result = esp_ota_begin(s_job.partition, s_job.size, &s_job.handle);
-                break;
-            case WRITE:
-                s_job.result = esp_ota_write(s_job.handle, s_job.data, s_job.size);
-                break;
-            case END: s_job.result = esp_ota_end(s_job.handle); break;
-            case ABORT: s_job.result = esp_ota_abort(s_job.handle); break;
-            case SET_BOOT: s_job.result = esp_ota_set_boot_partition(s_job.partition); break;
-            case RESTART: esp_restart(); break;
-            }
+    __atomic_store_n(&s_httpd_task, xTaskGetCurrentTaskHandle(), __ATOMIC_RELEASE);
+}
+
+static void flash_work(void *unused)
+{
+    (void)unused;
+    s_job.result = ESP_ERR_INVALID_STATE;
+    /* No fallback to the external caller stack if initialization/domain is
+     * wrong. This also makes every failure acknowledge its borrowed data. */
+    if (esp_ptr_in_dram((const void *)esp_cpu_get_sp())) {
+        switch (s_job.operation) {
+        case NEXT:
+            s_job.partition = esp_ota_get_next_update_partition(NULL);
+            s_job.result = s_job.partition ? ESP_OK : ESP_ERR_NOT_FOUND;
+            break;
+        case BEGIN:
+            s_job.result = esp_ota_begin(s_job.partition, s_job.size, &s_job.handle);
+            s_job.completed = true;
+            break;
+        case WRITE:
+            s_job.result = esp_ota_write(s_job.handle, s_job.data, s_job.size);
+            break;
+        case END:
+            s_job.result = esp_ota_end(s_job.handle);
+            s_job.completed = true;
+            break;
+        case ABORT: s_job.result = esp_ota_abort(s_job.handle); break;
+        case SET_BOOT: s_job.result = esp_ota_set_boot_partition(s_job.partition); break;
+        case RESTART: esp_restart(); break;
         }
-        xSemaphoreGive(s_done);
     }
+    xSemaphoreGive(s_done);
 }
 
 esp_err_t ota_flash_init(void)
 {
-    if (s_task) return ESP_OK;
+    if (s_mutex && s_done) return ESP_OK;
     s_mutex = xSemaphoreCreateMutexStatic(&s_mutex_storage);
     s_done = xSemaphoreCreateBinaryStatic(&s_done_storage);
     if (!s_mutex || !s_done) return ESP_ERR_NO_MEM;
-    s_task = xTaskCreateStatic(flash_worker, "ota_flash", FLASH_STACK_BYTES,
-                             NULL, 4, s_stack, &s_tcb);
-    return s_task ? ESP_OK : ESP_ERR_NO_MEM;
+    return ESP_OK;
+}
+
+esp_err_t ota_flash_bind_httpd(httpd_handle_t server)
+{
+    if (!server) return ESP_ERR_INVALID_ARG;
+    if (!s_mutex || !s_done) return ESP_ERR_INVALID_STATE;
+    /* The web server is started once and never stopped at runtime. Refuse
+     * replacement rather than invalidating an already queued callback. */
+    httpd_handle_t expected = NULL;
+    if (!__atomic_compare_exchange_n(&s_server, &expected, server, false,
+                                     __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE))
+        return expected == server ? ESP_OK : ESP_ERR_INVALID_STATE;
+    /* Learn the server's identity before accepting requests. An early call
+     * from the HTTP thread then fails instead of waiting on its own queue. */
+    esp_err_t result = httpd_queue_work(server, identify_httpd, NULL);
+    if (result != ESP_OK) __atomic_store_n(&s_server, NULL, __ATOMIC_RELEASE);
+    return result;
 }
 
 static esp_err_t execute(flash_job_t *job)
 {
-    if (!s_task || xTaskGetCurrentTaskHandle() == s_task) return ESP_ERR_INVALID_STATE;
+    httpd_handle_t server = __atomic_load_n(&s_server, __ATOMIC_ACQUIRE);
+    TaskHandle_t owner = __atomic_load_n(&s_httpd_task, __ATOMIC_ACQUIRE);
+    if (!server || !owner || xTaskGetCurrentTaskHandle() == owner)
+        return ESP_ERR_INVALID_STATE;
     /* One mailbox, no allocated jobs or unbounded queue. Admission may time
      * out; an admitted operation cannot: the caller owns its buffer until ACK.
      * Never abandon an in-flight flash call or free its data on a timeout. */
@@ -85,7 +110,11 @@ static esp_err_t execute(flash_job_t *job)
                          ? portMAX_DELAY : pdMS_TO_TICKS(1000);
     if (xSemaphoreTake(s_mutex, admission) != pdTRUE) return ESP_ERR_TIMEOUT;
     s_job = *job;
-    xTaskNotifyGive(s_task);
+    esp_err_t queued = httpd_queue_work(server, flash_work, NULL);
+    if (queued != ESP_OK) {
+        xSemaphoreGive(s_mutex);
+        return queued;
+    }
     while (xSemaphoreTake(s_done, portMAX_DELAY) != pdTRUE) { }
     *job = s_job;
     xSemaphoreGive(s_mutex);
@@ -104,7 +133,9 @@ esp_err_t ota_flash_begin(const esp_partition_t *partition, size_t size, esp_ota
     *handle = 0;
     flash_job_t job = {.operation = BEGIN, .partition = partition, .size = size};
     esp_err_t result = execute(&job);
-    if (result == ESP_OK) *handle = job.handle;
+    /* The SDK can publish a handle before failing its erase. Preserve it for
+     * abort even on that error, but never invent one for a rejected dispatch. */
+    if (job.completed) *handle = job.handle;
     return result;
 }
 
@@ -115,10 +146,13 @@ esp_err_t ota_flash_write(esp_ota_handle_t handle, const void *data, size_t size
     return execute(&job);
 }
 
-esp_err_t ota_flash_end(esp_ota_handle_t handle)
+esp_err_t ota_flash_end(esp_ota_handle_t *handle)
 {
-    flash_job_t job = {.operation = END, .handle = handle};
-    return execute(&job);
+    if (!handle) return ESP_ERR_INVALID_ARG;
+    flash_job_t job = {.operation = END, .handle = *handle};
+    esp_err_t result = execute(&job);
+    if (job.completed) *handle = 0;
+    return result;
 }
 
 esp_err_t ota_flash_abort(esp_ota_handle_t handle)

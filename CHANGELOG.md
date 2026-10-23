@@ -9,8 +9,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ### Fixed
 
 - GitHub firmware installation could restart with a panic while beginning the
-  update. Cache-sensitive flash operations now run on a reserved internal-RAM
-  stack, separately from the HTTPS downloader's PSRAM stack. This applies to
+  update. Cache-sensitive flash operations now use the existing internal-stack
+  admin server, separately from the HTTPS downloader's PSRAM stack, without
+  reserving another task stack at the expense of VPN startup. This applies to
   both **Install latest update** and scheduled automatic installation.
 - An affected 2.0.0/2.0.1 installation needs one manual firmware upload or USB
   update to receive the correction; keep existing settings when using USB.

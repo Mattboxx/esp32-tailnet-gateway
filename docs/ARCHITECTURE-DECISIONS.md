@@ -9,13 +9,21 @@ mapping. The GitHub downloader's 16 KiB PSRAM stack therefore cannot safely
 call OTA operations, including the metadata mapping in `esp_ota_begin`.
 Moving the entire TLS stack into scarce internal RAM is not an acceptable fix.
 
-`ota_flash` reserves a 4 KiB internal stack, static TCB, one mailbox and static
-synchronization objects at boot. The HTTPS worker synchronously dispatches slot
-lookup, begin/write/end/abort, boot selection and restart to that task. No jobs
-are allocated, and its runtime stack-domain check fails closed without a
-caller-stack fallback. Admission is bounded; accepted operations retain their
-borrowed data until acknowledged. Consuming end/abort calls wait for ownership
-instead of abandoning a live SDK handle on an admission timeout. Stack/resource
+`ota_flash` reuses the permanent admin HTTP server's 12 KiB internal stack
+through its work queue. A separate 4 KiB internal reservation can starve the
+WireGuard startup tasks and is not retained. Only a single mailbox and static
+synchronization objects are added; no new task, stack or socket. The HTTPS
+worker synchronously dispatches slot lookup, begin/write/end/abort, boot
+selection and restart. No network download runs inside the HTTP task; normal
+requests can be served between individual SDK operations. The server is bound
+once, never stopped/replaced at runtime, and web port changes require reboot.
+
+Its task identity is captured before requests are accepted, so calls from the
+HTTP thread itself are refused rather than deadlocking on its own queue. A
+runtime stack-domain check fails closed without a caller-stack fallback.
+Admission is bounded; accepted operations retain their borrowed data until
+acknowledged. A failed dispatch cannot silently consume an OTA handle; a
+failed abort keeps writer exclusion until explicit restart. Stack/resource
 measurements belong to exact-image qualification, not estimates of TLS needs.
 
 The existing global OTA writer exclusion, image identity/chip/version checks,
