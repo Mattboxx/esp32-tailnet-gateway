@@ -29,7 +29,8 @@ access, subnet routing, remote recovery and optional automation.
 [Download](../../releases/latest) ·
 [Getting started](docs/GETTING-STARTED.md) ·
 [Service Gateway guide](docs/SERVICE-GATEWAY.md) ·
-[Documentation](docs/README.md)
+[Documentation](docs/README.md) ·
+[Wiki](https://github.com/Mattboxx/esp32-tailnet-gateway/wiki)
 
 </div>
 
