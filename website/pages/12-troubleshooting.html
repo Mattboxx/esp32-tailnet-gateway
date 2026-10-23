@@ -1,0 +1,42 @@
+<!--
+slug: troubleshooting/
+title: Troubleshooting
+description: Fix common ESP32 Tailnet Gateway problems: enrolment, unapproved routes, key expiry, Service Gateway rules, WiFi, updates and recovery access.
+group: Guides
+order: 12
+-->
+<h1>Troubleshooting</h1>
+<p>Work from the bottom layer up: uplink, tailnet control, peer path, rule, application. The Web UI reports each layer separately.</p>
+
+<h2>The device does not join the tailnet</h2>
+<ul>
+  <li>The auth key is expired, ephemeral or single-use and already consumed: create a reusable, non-ephemeral key.</li>
+  <li>Headscale: check the login server URL and that its certificate comes from a public CA.</li>
+  <li>Tailnet lock is enabled: it is not supported.</li>
+</ul>
+
+<h2>It was working and dropped off after months</h2>
+<p>Node-key expiry was left enabled. Disable it in the admin console and reboot the ESP32 once.</p>
+
+<h2>Tailnet clients cannot reach the LAN</h2>
+<p>Approve the advertised route in the admin console. If LAN hosts have no route back to <code>100.64.0.0/10</code>, enable source NAT for advertised routes.</p>
+
+<h2>A Service Gateway rule does not work</h2>
+<ol>
+  <li>Run <strong>Test destination</strong>. If it fails, the peer is offline, the port is closed or the peer ACL does not allow the ESP32.</li>
+  <li>Check that the rule is enabled and not expired, and that the client's address is inside the source CIDR (rejected counter).</li>
+  <li>Check the client points at the ESP32's address and listen port, not at the remote service.</li>
+</ol>
+
+<h2>I cannot reach the Web UI</h2>
+<ul>
+  <li>Use the IP address or the <code>.local</code> name; other host names are refused when no password is set.</li>
+  <li>If the saved WiFi is gone, wait 60 seconds and join the ESP32's recovery access point.</li>
+  <li>Too many failed logins pause sign-in briefly; wait instead of retrying repeatedly.</li>
+</ul>
+
+<h2>The updater says the GitHub check failed</h2>
+<p>Check Internet access and the time of day (TLS). Firmware 1.13 or older cannot follow the repository rename: update once manually with <code>firmware.bin</code>.</p>
+
+<h2>Still stuck?</h2>
+<p>Export a diagnostic report (System → Diagnostics), review it for private details, and open an issue. Full guide: <a href="{{repo}}/blob/Main/docs/TROUBLESHOOTING.md">docs/TROUBLESHOOTING.md</a>.</p>

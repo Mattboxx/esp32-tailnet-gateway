@@ -1,0 +1,40 @@
+<!--
+slug: security/
+title: Security
+description: Security model of ESP32 Tailnet Gateway: authentication, request screening, Tailnet authorization, source filters, update trust and known limits.
+group: Project
+order: 10
+-->
+<h1>Security model</h1>
+<p>This page describes the <strong>1.14 development security model</strong>, still under qualification, not a security certification of stable 1.13. For the released source, consult the <a href="{{repo}}/tree/v0.1.38-Mattboxx-1.13">versioned 1.13 documentation</a>. Neither image is claimed to match every official-client policy behaviour.</p>
+<p>Administering the ESP32 and authorizing network traffic are separate concerns, and the firmware treats them separately.</p>
+
+<h2>Web administration</h2>
+<ul>
+  <li>Salted PBKDF2-HMAC-SHA256 password verifier and a one-time login challenge; no plaintext password storage for current records.</li>
+  <li>Device-wide login budget shared by the Web UI and the remote console.</li>
+  <li>Session cookie is <code>HttpOnly</code> and <code>SameSite=Strict</code>; state-changing requests from other origins or cross-site contexts are refused.</li>
+  <li>Without a password, requests carrying an untrusted <code>Host</code> are refused to block DNS rebinding.</li>
+  <li>Content-Security-Policy, frame and content-type protection headers.</li>
+</ul>
+
+<h2>Network authorization</h2>
+<ul>
+  <li>Tailnet policy is checked on original packets before NAT or 4via6; malformed or revoked policy fails closed.</li>
+  <li>A Service Gateway source CIDR filters addresses; it does not prove who the client is. Prefer <code>/32</code>.</li>
+  <li>Peers see the ESP32's tailnet identity and apply their own ACLs.</li>
+  <li>No claim of full official-client policy parity; see <a href="{{repo}}/blob/Main/docs/TAILNET-AUTHORIZATION.md">Tailnet authorization</a>.</li>
+</ul>
+
+<h2>Updates</h2>
+<p>GitHub updates are opt-in. Only release assets from the project repository are accepted, over HTTPS with certificate validation, with a SHA-256 digest, board and version checks. The bootloader returns to the previous image if the new one does not confirm a healthy boot.</p>
+
+<h2>Known limits</h2>
+<ul>
+  <li>The local Web UI is HTTP: administer it from a trusted LAN or over the tailnet.</li>
+  <li>The portable image does not enable Secure Boot, flash encryption or NVS encryption; physical access can expose stored credentials.</li>
+  <li>MQTT, ntfy and SNMP are as trustworthy as their transport and server configuration.</li>
+</ul>
+
+<h2>Reporting a vulnerability</h2>
+<p>Use GitHub's <a href="{{repo}}/security/advisories/new">private vulnerability reporting</a>. Please do not open a public issue. Details: <a href="{{repo}}/blob/Main/SECURITY.md">SECURITY.md</a>.</p>

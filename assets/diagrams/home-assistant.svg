@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 340" width="960" height="340" role="img" aria-labelledby="t d">
+  <title id="t">Optional automation: MQTT, Home Assistant and ntfy</title>
+  <desc id="d">The ESP32 publishes retained state to an MQTT broker and announces Home Assistant Discovery entities such as rule switches, destination-test buttons, Wake-on-LAN buttons and status sensors. It can also send ntfy notifications and accept replay-protected commands. Routing and local administration work without any of them.</desc>
+  <style>
+    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E3ECE6}
+    .h{font-size:15px;font-weight:650}.s{font-size:12.5px;fill:#8DA397}.z{font-size:11.5px;font-weight:600;letter-spacing:2px;fill:#8DA397}
+    .zone{fill:#0E1511;stroke:#1C2A22}.box{fill:#111814;stroke:#1C2A22}.hot{fill:#0E2219;stroke:#1FC97A;stroke-width:1.5}
+    .ln{stroke:#E3ECE6;stroke-width:2;fill:none}
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#E3ECE6"/></marker>
+  </defs>
+  <rect width="960" height="340" rx="16" fill="#0A0F0C"/>
+  <rect class="hot" x="20" y="60" width="240" height="200" rx="12"/>
+  <text class="z" x="36" y="88">ESP32 TAILNET GATEWAY</text>
+  <text class="s" x="36" y="118">retained state, Last Will</text>
+  <text class="s" x="36" y="142">bounded snapshot size</text>
+  <text class="s" x="36" y="166">strict command payloads</text>
+  <text class="s" x="36" y="190">rule commands carry the rule token</text>
+  <text class="s" x="36" y="214">each integration off by default</text>
+  <text class="s" x="36" y="238">failures never stop routing</text>
+
+  <rect class="box" x="340" y="60" width="240" height="88" rx="10"/>
+  <text class="h" x="356" y="90">MQTT broker</text>
+  <text class="s" x="356" y="112">TLS and per-topic ACLs</text>
+  <text class="s" x="356" y="132">recommended</text>
+  <rect class="box" x="340" y="172" width="240" height="88" rx="10"/>
+  <text class="h" x="356" y="202">ntfy server</text>
+  <text class="s" x="356" y="224">alerts, replay-protected</text>
+  <text class="s" x="356" y="244">info / WoL / recovery commands</text>
+
+  <rect class="box" x="660" y="60" width="280" height="88" rx="10"/>
+  <text class="h" x="676" y="88">Home Assistant</text>
+  <text class="s" x="676" y="110">Discovery: rule switches, test and</text>
+  <text class="s" x="676" y="130">WoL buttons, status sensors</text>
+  <rect class="box" x="660" y="172" width="280" height="88" rx="10"/>
+  <text class="h" x="676" y="202">Phone</text>
+  <text class="s" x="676" y="224">push notifications from ntfy</text>
+
+  <path class="ln" d="M260 104H336" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path class="ln" d="M260 216H336" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path class="ln" d="M580 104H656" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path class="ln" d="M580 216H656" marker-end="url(#a)"/>
+
+  <text class="s" x="20" y="300">All optional. The Service Gateway, Web UI and manual Wake-on-LAN need no broker, Home Assistant or ntfy server.</text>
+  <text class="s" x="20" y="320">Use private topics and TLS; remote commands are as trusted as their transport.</text>
+</svg>

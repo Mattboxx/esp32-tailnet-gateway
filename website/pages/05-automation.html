@@ -1,0 +1,32 @@
+<!--
+slug: automation/
+title: Automation and integrations
+description: Optional MQTT, Home Assistant Discovery, ntfy and SNMP integration for the ESP32 Tailnet Gateway, isolated from routing and administration.
+nav: Automation
+group: Guides
+order: 5
+-->
+<h1>Automation and integrations</h1>
+<p>All integrations are optional, off by default and supervised: a broker or server outage never blocks routing, the Service Gateway or the Web UI.</p>
+
+<figure class="diagram">
+  <img src="{{root}}assets/diagrams/home-assistant.svg" alt="The ESP32 publishes to an MQTT broker used by Home Assistant Discovery, and sends ntfy notifications to a phone." width="960" height="340">
+  <figcaption>MQTT/Home Assistant and ntfy paths.</figcaption>
+</figure>
+
+<h2>MQTT and Home Assistant</h2>
+<ul>
+  <li>Retained availability and state with Last Will; bounded snapshot size.</li>
+  <li>Discovery entities: Service Gateway rule switches and destination-test buttons, Wake-on-LAN and recovery buttons, Service watch, profile and status sensors.</li>
+  <li>Strict command payloads; rule commands include the rule's binding token.</li>
+</ul>
+<p>Guides: <a href="{{repo}}/blob/Main/docs/MQTT.md">MQTT</a>, <a href="{{repo}}/blob/Main/docs/HOME-ASSISTANT.md">Home Assistant</a>.</p>
+
+<h2>ntfy</h2>
+<p>Outage and system-event alerts, Service watch changes, and replay-protected <code>info</code>, Wake-on-LAN and recovery commands. Local logs are never uploaded; private details stay hidden unless you enable them. Guide: <a href="{{repo}}/blob/Main/docs/NTFY.md">ntfy</a>.</p>
+
+<h2>SNMP</h2>
+<p>Read-only SNMP v1/v2c with an operational subtree for monitoring systems. Unencrypted: restrict UDP 161 with the firewall and use a private community.</p>
+
+<h2>Security</h2>
+<p>Remote commands are as trusted as their transport. Prefer TLS, private topics and per-client broker ACLs; keep command features off unless you need them.</p>

@@ -1,5 +1,10 @@
 # GitHub updates — Mattboxx 1.10 development
 
+> **1.14 development preview.** This guide includes unreleased features; it
+> does not imply a new firmware download. Public stable remains
+> [Mattboxx 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
+
+
 System → Firmware update now supports three independent workflows:
 
 1. Upload a trusted local `firmware.bin`, as before.
@@ -29,6 +34,12 @@ requested, runs outside the web server, and does not hold the HTTP request
 open while downloading. Settings persist in an atomic `ota_fork_v1` NVS blob.
 Legacy upstream preferences stay erased/inert. Backup snapshots record policy
 as information; restore cannot activate it through the ordinary System API.
+
+## Repository rename
+
+The repository is moving to `Mattboxx/esp32-tailnet-gateway`. Firmware before
+the bridge release cannot follow the rename automatically; see the
+[migration plan](MIGRATION-RENAME.md).
 
 ## Which releases qualify?
 
@@ -112,3 +123,10 @@ Primary API references:
 [GitHub release assets and digest](https://docs.github.com/en/rest/releases/assets),
 [Espressif HTTP client](https://docs.espressif.com/projects/esp-idf/en/v5.5.3/esp32s3/api-reference/protocols/esp_http_client.html)
 and [OTA validation/rollback](https://docs.espressif.com/projects/esp-idf/en/v5.5.3/esp32s3/api-reference/system/ota.html).
+
+## Downgrading from the 1.14 development line
+
+Stable 1.13 ignores the settings added in 1.14 development builds. **Disable
+or delete temporary LAN → Tailnet rules before downgrading**: 1.13 has no
+expiry engine and would keep such a rule enabled permanently. Details per key:
+[NVS-KEYS.md](NVS-KEYS.md).

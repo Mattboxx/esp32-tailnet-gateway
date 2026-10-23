@@ -1,0 +1,60 @@
+<!--
+slug: service-gateway/
+title: Service Gateway
+description: Selective LAN-to-Tailnet port forwarding on an ESP32: let a device without a Tailscale client reach one TCP or UDP service on your tailnet.
+nav: Service Gateway
+group: Guides
+order: 2
+-->
+<h1>Selective Tailnet Service Gateway</h1>
+<p><strong>Who it is for:</strong> anyone with a LAN device that must reach a specific service on a Tailscale or Headscale tailnet but cannot or should not run a Tailscale client.</p>
+
+<figure class="diagram">
+  <img src="{{root}}assets/diagrams/lan-to-tailnet.svg" alt="A LAN client connects to the ESP32's address and listen port; the ESP32 forwards over WireGuard to one Tailnet service; other LAN devices are refused." width="960" height="400">
+  <figcaption>The LAN client connects to the ESP32; the ESP32 carries the connection over WireGuard.</figcaption>
+</figure>
+
+<h2>Requirements</h2>
+<ul>
+  <li>An ESP32 Tailnet Gateway joined to your WiFi and tailnet, with a fixed LAN address (DHCP reservation).</li>
+  <li>A Tailnet peer running the service, whose ACL allows the ESP32's tailnet identity.</li>
+  <li>The LAN client's address, ideally a single device (<code>/32</code>).</li>
+</ul>
+
+<h2>Procedure</h2>
+<ol>
+  <li>Open <strong>Network → LAN → Tailnet</strong> and choose a template or the guided setup.</li>
+  <li>Set protocol, listen port on the ESP32, Tailnet destination (<code>100.x.y.z</code> or a MagicDNS name), destination port and allowed source.</li>
+  <li>Optionally set an expiry for temporary access.</li>
+  <li>Press <strong>Test destination</strong>: the ESP32 performs one bounded TCP handshake with the service.</li>
+  <li>Enable the rule and point the LAN client at <code>ESP-IP:listen-port</code>.</li>
+</ol>
+
+<h2>Example</h2>
+<pre><code>Protocol            TCP
+Listen port         18830
+Tailnet destination broker.your-tailnet.ts.net
+Destination port    1883
+Allowed source      192.0.2.20/32
+Client connects to  192.0.2.50:18830</code></pre>
+
+<h2>Verify</h2>
+<ul>
+  <li>The rule card shows <em>installed</em>, then accepted packets and admitted replies when the client connects.</li>
+  <li>Rejected counters grow when another device tries the port.</li>
+  <li>Service watch (optional) re-checks periodically and can alert on change via ntfy or Home Assistant.</li>
+</ul>
+
+<h2>Common problems</h2>
+<ul>
+  <li><strong>Destination test fails:</strong> the peer is offline, the port is closed or the peer ACL does not allow the ESP32.</li>
+  <li><strong>Installed but no traffic:</strong> the client uses the wrong address or port, or its address is outside the source CIDR.</li>
+  <li><strong>UDP shows no replies:</strong> UDP cannot be verified without an application reply; check the application itself.</li>
+</ul>
+
+<h2>Limits</h2>
+<p>IPv4 TCP/UDP, up to 8 rules, one Tailnet IPv4 destination per rule. It is a port forwarder, not transparent routing. Throughput is that of a microcontroller and has not been benchmarked for the current candidate.</p>
+
+<h2>Security</h2>
+<p>A source CIDR is not client identity: anyone who can use that address can use the service. The remote peer sees the ESP32's tailnet identity and its own ACL still decides. Protect the Web UI with a password. Rule commands over MQTT carry the rule's binding token so a stale command cannot act on a replaced rule.</p>
+<p>Full guide: <a href="{{repo}}/blob/Main/docs/SERVICE-GATEWAY.md">docs/SERVICE-GATEWAY.md</a>.</p>

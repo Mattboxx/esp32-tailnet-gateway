@@ -1,5 +1,10 @@
 # Configuration reference
 
+> **1.14 development preview.** This guide includes unreleased features; it
+> does not imply a new firmware download. Public stable remains
+> [Mattboxx 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
+
+
 Every setting below is configured from the device web UI. Changes are
 written to NVS; some require a reboot to take effect (the UI flags a
 pending reboot when so).
@@ -37,6 +42,7 @@ Up to **5** networks, tried in order. Per network:
 | **On-board DNS forwarder** | on | Resolver + PSRAM response cache for AP clients. |
 | **Forwarder upstream** | configured / learned | Upstream resolver the forwarder queries. This fork has no hard-coded public fallback. |
 | **Hide SSID** | off | Stop broadcasting the SSID in beacons. |
+| **Enable client access point** | on | Off = recovery-only: the AP is up at boot until the uplink connects, then hidden. If the saved WiFi is not found for **60 s** the AP comes back and stays on until the uplink has an address again; shorter drops do not toggle it. |
 
 ## Network → DHCP, clients, denylist, port forwarding
 

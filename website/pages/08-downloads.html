@@ -1,0 +1,44 @@
+<!--
+slug: downloads/
+title: Downloads
+description: Download ESP32 Tailnet Gateway firmware: factory image, OTA update image, guided Windows package and SHA-256 checksums for ESP32-S3.
+nav: Downloads
+group: Start
+order: 8
+-->
+<h1>Downloads</h1>
+<h2 id="availability">Available now: stable Mattboxx 1.13</h2>
+<p>The new identity is live; firmware 1.14 is still in development. The download below is <strong>0.1.38-Mattboxx-1.13</strong>, not the preview firmware. Existing users can keep their stable installation.</p>
+<table>
+  <thead><tr><th>In public stable 1.13</th><th>Previewing 1.14 — not yet released</th></tr></thead>
+  <tbody>
+    <tr><td>LAN → Tailnet TCP/UDP rules, source restrictions and MagicDNS</td><td>Destination tests, timed rules, Service Watch and rule guides</td></tr>
+    <tr><td>Subnet router, AP gateway, exit-node roles and 4via6</td><td>Refreshed UI, Simple/Advanced modes and configuration profiles</td></tr>
+    <tr><td>Saved WoL devices, MQTT/HA, ntfy, read-only SNMP</td><td>Smart Recovery, layered Health Monitor and diagnostic export</td></tr>
+    <tr><td>ESP32-S3 N16R8 WiFi build</td><td>Experimental W5500 variant; no hardware-qualification claim</td></tr>
+  </tbody>
+</table>
+<p>Firmware is published only on the GitHub releases page. Always check the SHA-256 checksum before flashing.</p>
+<p><a class="btn primary" href="{{repo}}/releases/latest">Latest stable release</a> <a class="btn" href="{{repo}}/releases">All releases</a></p>
+
+<h2>Current 1.13 release assets</h2>
+<table>
+  <thead><tr><th>File</th><th>When to use it</th></tr></thead>
+  <tbody>
+    <tr><td><code>firmware-factory.bin</code></td><td>First install with esptool at offset <code>0x0</code>. Erases all settings.</td></tr>
+    <tr><td><code>firmware.bin</code></td><td>Updates: Web UI upload, the opt-in GitHub updater, or keep-settings flashing.</td></tr>
+    <tr><td><code>ESP32-S3-router-0.1.38-Mattboxx-1.13-windows.zip</code></td><td>Guided Windows package with esptool and batch files.</td></tr>
+    <tr><td><code>RELEASE-SHA256SUMS.txt</code>, <code>FIRMWARE-LICENSES.txt</code></td><td>Published checksums and third-party notices.</td></tr>
+  </tbody>
+</table>
+
+<h2>Verify a download</h2>
+<pre><code>sha256sum -c RELEASE-SHA256SUMS.txt        # Linux
+shasum -a 256 -c RELEASE-SHA256SUMS.txt    # macOS
+Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
+
+<h2>WiFi and Ethernet variants</h2>
+<p>The default images are the WiFi build. An Ethernet (W5500) variant, when published, has <code>eth</code> in its name and is only for boards with that module wired as documented. It is experimental.</p>
+
+<h2>Updating an existing device</h2>
+<p>Back up the configuration first (System → Backup). Upload <code>firmware.bin</code> in System → Firmware or use the opt-in updater; settings are kept and a failed boot returns to the previous image. Devices on 1.13 or older that cannot find updates after the repository rename: see the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">migration note</a>.</p>

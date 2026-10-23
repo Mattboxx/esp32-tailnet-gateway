@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 460" width="960" height="460" role="img" aria-labelledby="t d">
+  <title id="t">Firmware architecture</title>
+  <desc id="d">Six ownership areas on one ESP32-S3: Connectivity Core based on microlink, Network Gateway, Recovery and Device Management, Monitoring and Diagnostics, Automation and Integrations, and Configuration and Management, on top of ESP-IDF 5.5.3, lwIP and FreeRTOS. Optional integrations cannot block routing or local administration.</desc>
+  <style>
+    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E3ECE6}
+    .h{font-size:14.5px;font-weight:650}.s{font-size:12px;fill:#8DA397}.z{font-size:11px;font-weight:600;letter-spacing:2px;fill:#8DA397}
+    .t{fill:#1FC97A}
+    .box{fill:#111814;stroke:#1C2A22}.hot{fill:#0E2219;stroke:#1FC97A;stroke-width:1.5}.opt{fill:#111814;stroke:#2E4A3B;stroke-dasharray:5 4}
+  </style>
+  <rect width="960" height="460" rx="16" fill="#0A0F0C"/>
+  <text class="z" x="24" y="36">ESP32 TAILNET GATEWAY — SIX OWNERSHIP AREAS</text>
+
+  <rect class="hot" x="24" y="52" width="300" height="160" rx="12"/>
+  <text class="h t" x="40" y="80">Network Gateway</text>
+  <text class="s" x="40" y="104">Selective LAN → Tailnet Service Gateway</text>
+  <text class="s" x="40" y="124">subnet router · source NAT · 4via6</text>
+  <text class="s" x="40" y="144">AP gateway: DHCP, DNS, NAT, port forward</text>
+  <text class="s" x="40" y="164">exit node client and server</text>
+  <text class="s" x="40" y="184">firewall chains, authorization before NAT</text>
+
+  <rect class="box" x="340" y="52" width="290" height="160" rx="12"/>
+  <text class="h" x="356" y="80">Recovery &amp; Device Management</text>
+  <text class="s" x="356" y="104">Wake-on-LAN address book</text>
+  <text class="s" x="356" y="124">bounded Smart Recovery jobs</text>
+  <text class="s" x="356" y="144">recovery access point policy</text>
+  <text class="s" x="356" y="164">password-protected remote console</text>
+
+  <rect class="box" x="646" y="52" width="290" height="160" rx="12"/>
+  <text class="h" x="662" y="80">Monitoring &amp; Diagnostics</text>
+  <text class="s" x="662" y="104">evidence per layer, never assumed</text>
+  <text class="s" x="662" y="124">destination test · Service watch</text>
+  <text class="s" x="662" y="144">route explain, ping, traceroute</text>
+  <text class="s" x="662" y="164">logs, microSD recorder, export</text>
+
+  <rect class="opt" x="24" y="228" width="300" height="120" rx="12"/>
+  <text class="h" x="40" y="256">Automation &amp; Integrations</text>
+  <text class="s" x="40" y="280">MQTT + Home Assistant Discovery</text>
+  <text class="s" x="40" y="300">ntfy alerts and commands · SNMP</text>
+  <text class="s" x="40" y="320">supervised, off by default, non-blocking</text>
+
+  <rect class="box" x="340" y="228" width="596" height="120" rx="12"/>
+  <text class="h" x="356" y="256">Configuration &amp; Management</text>
+  <text class="s" x="356" y="280">Web UI and JSON API · PBKDF2 login, sessions, CSRF and DNS-rebinding screening</text>
+  <text class="s" x="356" y="300">validated, persisted NVS settings · profiles with rollback · encrypted backup</text>
+  <text class="s" x="356" y="320">user-controlled OTA with app rollback · capability manifest</text>
+
+  <rect class="hot" x="24" y="364" width="912" height="44" rx="10"/>
+  <text class="h" x="40" y="391">Connectivity Core</text>
+  <text class="s" x="200" y="391">microlink: ts2021 control, DISCO, WireGuard, direct + DERP · Tailnet policy gate · Tailscale or Headscale</text>
+  <rect class="box" x="24" y="416" width="912" height="32" rx="8"/>
+  <text class="s" x="40" y="437">ESP-IDF 5.5.3 · lwIP · FreeRTOS · ESP32-S3 N16R8 (WiFi build; optional W5500 Ethernet in a separate build)</text>
+</svg>

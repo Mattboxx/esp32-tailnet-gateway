@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 380" width="960" height="380" role="img" aria-labelledby="t d">
+  <title id="t">Remote recovery with Wake-on-LAN and Smart Recovery</title>
+  <desc id="d">From anywhere on the tailnet, the operator reaches the independently powered ESP32, which prechecks a known TCP port on the NAS, sends a bounded Wake-on-LAN burst if needed, waits, and checks again. It cannot hard-reset a frozen machine and is not KVM or BIOS access.</desc>
+  <style>
+    text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E3ECE6}
+    .h{font-size:15px;font-weight:650}.s{font-size:12.5px;fill:#8DA397}.z{font-size:11.5px;font-weight:600;letter-spacing:2px;fill:#8DA397}
+    .t{fill:#1FC97A}.am{fill:#F5A524}
+    .zone{fill:#0E1511;stroke:#1C2A22}.box{fill:#111814;stroke:#1C2A22}.hot{fill:#0E2219;stroke:#1FC97A;stroke-width:1.5}
+    .ln{stroke:#E3ECE6;stroke-width:2;fill:none}.wg{stroke:#1FC97A;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+  </style>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#E3ECE6"/></marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1FC97A"/></marker>
+  </defs>
+  <rect width="960" height="380" rx="16" fill="#0A0F0C"/>
+  <rect class="zone" x="20" y="44" width="250" height="276" rx="12"/>
+  <rect class="zone" x="290" y="44" width="380" height="276" rx="12"/>
+  <rect class="zone" x="690" y="44" width="250" height="276" rx="12"/>
+  <text class="z" x="36" y="70">AWAY FROM HOME</text>
+  <text class="z" x="306" y="70">ESP32-S3, SEPARATELY POWERED</text>
+  <text class="z" x="706" y="70">HOME LAN</text>
+
+  <rect class="box" x="40" y="96" width="210" height="88" rx="10"/>
+  <text class="h" x="56" y="124">You, on the tailnet</text>
+  <text class="s" x="56" y="146">Web UI, MQTT/HA button</text>
+  <text class="s" x="56" y="166">or ntfy command (opt-in)</text>
+  <rect class="box" x="40" y="204" width="210" height="96" rx="10"/>
+  <text class="s" x="56" y="230">Works while the NAS and its</text>
+  <text class="s" x="56" y="250">own Tailscale are off: the</text>
+  <text class="s" x="56" y="270">ESP32 is a separate node.</text>
+
+  <rect class="hot" x="310" y="96" width="340" height="204" rx="12"/>
+  <text class="h" x="326" y="124">Smart Recovery job (bounded)</text>
+  <text class="s" x="326" y="154"><tspan class="t">1</tspan>  precheck a known TCP port</text>
+  <text class="s" x="326" y="178"><tspan class="t">2</tspan>  if down: one Wake-on-LAN burst</text>
+  <text class="s" x="326" y="202"><tspan class="t">3</tspan>  wait, then check again (optional service port)</text>
+  <text class="s" x="326" y="226"><tspan class="t">4</tspan>  report the evidence, never more</text>
+  <path d="M326 244H634" stroke="#1C2A22"/>
+  <text class="s" x="326" y="266">one job at a time · MAC cooldown · cancellable</text>
+  <text class="s" x="326" y="286">never replayed after a reboot</text>
+
+  <rect class="box" x="710" y="96" width="210" height="88" rx="10"/>
+  <text class="h" x="726" y="124">NAS or PC</text>
+  <text class="s" x="726" y="146">WoL enabled, standby power</text>
+  <text class="s" x="726" y="166">saved in the address book</text>
+  <rect class="box" x="710" y="204" width="210" height="96" rx="10"/>
+  <text class="s am" x="726" y="230">Not possible:</text>
+  <text class="s" x="726" y="250">hard reset of a frozen box,</text>
+  <text class="s" x="726" y="270">KVM/BIOS, power cut</text>
+
+  <path class="wg" d="M250 140H306" marker-end="url(#at)"/>
+  <path class="ln" d="M650 140H706" marker-end="url(#a)"/>
+
+  <text class="s" x="20" y="348">A sent magic packet is not proof of power-on, and an open TCP port is not application health. Keep the router and Internet available.</text>
+  <text class="s" x="20" y="368">If the saved WiFi disappears for 60 s, the recovery access point returns for local administration until the WiFi is back.</text>
+</svg>
