@@ -37,10 +37,11 @@ removed. A factory reset erases everything, so the setup returns.
    - **http://192.168.x.y/**: the address the Wi-Fi test received. Routers
      normally give the gateway the same address again.
    - **http://esp32-tailnet-xxxx.local/**: the gateway's own name on the home
-     network, ending with the same code as its setup Wi-Fi. Only that gateway
-     answers to it, so several gateways on one network never collide. It works
-     on phones and computers that resolve `.local` names (iPhone, iPad, Mac,
-     Windows 10 and later, most Linux and recent Android systems).
+     network by default, ending with the same code as its setup Wi-Fi. A
+     configured hostname can replace that default: use the name shown by
+     setup. Per-board defaults reduce naming conflicts, but are not a global
+     uniqueness guarantee. The client and LAN must support mDNS; use the tested
+     IP address if `.local` resolution is unavailable or filtered.
    - The tailnet name, once the gateway has joined the tailnet.
 
 If the home Wi-Fi later disappears, the gateway opens its own **protected**

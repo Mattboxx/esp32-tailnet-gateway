@@ -2,14 +2,23 @@
 slug: screenshots/
 title: Firmware screenshots
 search_title: ESP32 Tailscale Gateway Web UI — Real Firmware Screenshots
-description: See the real ESP32 Tailnet Gateway Web UI: role selection, selective LAN-to-Tailnet service setup and Wake-on-LAN recovery guides on Firmware v2.0.0.
+description: Explore the ESP32 Tailscale gateway Web UI: Firmware v2.0.1 dashboard and setup examples, plus real-device screenshots of role selection and profiles.
 group: Project
 order: 23
 image: assets/screenshots/esp32-tailnet-gateway-live-goals.jpg
 -->
 <h1>The real firmware Web UI</h1>
-<p>These screenshots were captured from <strong>Firmware v2.0.0 running on an ESP32-S3</strong>. They are not design mockups or AI-generated images. Only the relevant panels are shown: addresses, peer names, credentials and browser chrome are outside the capture.</p>
-<p>The same built-in interface works in a desktop or mobile browser. English is shown here; Italian, Spanish and Simplified Chinese are also available. No separate administration app is required.</p>
+<p>These images show the actual embedded Web UI, not design mockups or AI-generated images. The <strong>v2.0.1 examples</strong> below render the shipped interface with invented documentation data; the <a href="#roles">v2.0.0 panel captures</a> were taken from a real ESP32-S3. Neither exposes the owner's network details.</p>
+<p>The same built-in interface works in a desktop or mobile browser. English is shown here; the WiFi image also includes Italian, Spanish and Simplified Chinese. The experimental W5500 image is English-only. No separate administration app is required.</p>
+
+<h2 id="current-dashboard">Firmware v2.0.1 dashboard</h2>
+<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v2-status.png"><img src="{{root}}assets/firmware-ui/v2-status.png" alt="ESP32 Tailscale gateway v2.0.1 Web UI dashboard with connection summaries, service rules and goal-based setup guides; example data" width="1440" height="900" decoding="async"></a><figcaption>The actual embedded interface rendered with invented data. Counters and states shown here are examples, not a device benchmark.</figcaption></figure>
+
+<h2 id="first-boot">Find the gateway after first boot</h2>
+<div class="ui-preview"><figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v2-first-boot-finish.png"><img src="{{root}}assets/firmware-ui/v2-first-boot-finish.png" alt="Firmware v2.0.1 first-boot completion page showing an example LAN address and per-board esp32-tailnet hostname" width="600" height="398" loading="lazy" decoding="async"></a><figcaption>First-boot interface with synthetic addresses, captured by the browser test fixture.</figcaption></figure><div><h3>Reconnect, then open your gateway</h3><p>The setup summary links to the tested LAN address and the board's unique <code>esp32-tailnet-xxxx.local</code> name. First boot requires physical pairing with your own board.</p><p><a href="{{root}}first-boot/">Follow the setup guide</a></p></div></div>
+
+<h2 id="firewall">Local network controls</h2>
+<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v2-firewall.png"><img src="{{root}}assets/firmware-ui/v2-firewall.png" alt="ESP32 gateway firewall Web UI showing the TO ESP, FROM ESP, TO AP and FROM AP chains with example rules and counters" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Firewall interface with invented example rules. Local firewall rules and Tailnet authorization are separate controls.</figcaption></figure>
 
 <h2 id="roles">Choose the job, not a wall of settings</h2>
 <div class="ui-preview">

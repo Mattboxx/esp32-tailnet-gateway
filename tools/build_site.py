@@ -385,6 +385,9 @@ def build(out: Path) -> list[Page]:
     shutil.copytree(ROOT / 'assets/diagrams', out / 'assets/diagrams')
     shutil.copy2(ROOT / 'docs/images/login-1.14-dev6.png', out / 'assets/login-1.14-dev6.png')
     shutil.copy2(ROOT / 'docs/images/status_v3.png', out / 'assets/status-stable.png')
+    (out / 'assets/firmware-ui').mkdir()
+    for name in ('v2-status.png', 'v2-firewall.png', 'v2-first-boot-finish.png'):
+        shutil.copy2(ROOT / 'docs/images' / name, out / 'assets/firmware-ui' / name)
     for page in pages:
         target = out / page.slug / 'index.html'
         target.parent.mkdir(parents=True, exist_ok=True)

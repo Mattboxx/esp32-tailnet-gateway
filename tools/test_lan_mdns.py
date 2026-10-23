@@ -7,7 +7,8 @@ forever and never answered "<name>.local". Compiles the actual
 mdns_probe_and_announce() of the SDK file (expected to stay stuck: documents
 the reason for the patch) and of main/lwip_mdns/mdns.c (must complete), with
 fixtures for the netif, timers and probe transmission. MDNS_SANITIZE=1 adds
-ASan/UBSan. MDNS_SDK_DIR overrides the pinned SDK lwIP mdns folder.
+ASan/UBSan. MDNS_SDK_DIR overrides the pinned SDK lwIP mdns folder;
+otherwise LWIP_SOURCE selects the pinned lwIP checkout used by Linux CI.
 """
 from pathlib import Path
 import os
@@ -15,7 +16,8 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SDK = Path(os.environ.get('MDNS_SDK_DIR', str(Path.home() / '.platformio/packages/framework-espidf@3.50503.0/components/lwip/lwip/src/apps/mdns')))
+LWIP = Path(os.environ.get('LWIP_SOURCE', str(Path.home() / '.platformio/packages/framework-espidf@3.50503.0/components/lwip/lwip')))
+SDK = Path(os.environ.get('MDNS_SDK_DIR', str(LWIP / 'src/apps/mdns')))
 
 
 def c_func(src, signature):
