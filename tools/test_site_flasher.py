@@ -1,6 +1,6 @@
 """Browser installer (ESP Web Tools) in the site build, with synthetic firmware.
 
-Builds the site as if v2.0.0 were published, using fixture files in a temp
+Builds the site as if NEXT_VERSION were published, using fixture files in a temp
 folder (never real firmware), and checks: the manifest and parts are served
 from the site itself, offsets come from partitions.csv, the installer asks
 before erasing, and wrong offsets, checksums, a missing manifest or an
@@ -37,6 +37,8 @@ def fixture(folder: Path, *, offsets=None, erase=True, bad_sum=False):
         digest = hashlib.sha256(data + (b'x' if bad_sum and key == 'ota_0' else b'')).hexdigest()
         sums.append(f'{digest}  {name}\n')
     (folder / 'SHA256SUMS.txt').write_text(''.join(sums), encoding='ascii')
+    # Served next to the installer files and linked from the downloads page.
+    (folder / 'FIRMWARE-LICENSES.txt').write_text('synthetic license notices fixture\n', encoding='ascii')
     manifest = {'name': 'ESP32 Tailnet Gateway', 'version': build_site.NEXT_VERSION, 'new_install_prompt_erase': erase,
                 'new_install_improv_wait_time': 0, 'builds': [{'chipFamily': 'ESP32-S3', 'parts': parts}]}
     (folder / 'manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
@@ -62,11 +64,11 @@ with tempfile.TemporaryDirectory() as d:
     fixture(Path(d) / build_site.NEXT_VERSION)
     build_with(Path(d))
 page = (OUT / 'install-firmware/index.html').read_text(encoding='utf-8')
-assert '<esp-web-install-button manifest="../firmware/2.0.0/manifest.json">' in page
+assert f'<esp-web-install-button manifest="../firmware/{build_site.NEXT_VERSION}/manifest.json">' in page
 assert f'../assets/esp-web-tools/{build_site.EWT_VERSION}/install-button.js' in page and 'type="module"' in page
 assert 'slot="unsupported"' in page and 'Easy Install' in page
-assert (OUT / 'firmware/2.0.0/firmware.bin').exists() and (OUT / 'assets/esp-web-tools/10.4.0/LICENSE.txt').exists()
-assert 'Firmware v2.0.0 is in preparation' not in page and 'aria-label="Firmware availability"' not in page
+assert (OUT / f'firmware/{build_site.NEXT_VERSION}/firmware.bin').exists() and (OUT / 'assets/esp-web-tools/10.4.0/LICENSE.txt').exists()
+assert f'Firmware v{build_site.NEXT_VERSION} is in preparation' not in page and 'aria-label="Firmware availability"' not in page
 downloads = (OUT / 'downloads/index.html').read_text(encoding='utf-8')
 assert 'EASY-INSTALL-Windows-macOS-Linux.zip' in downloads and 'Install from browser' in downloads
 assert 'Experimental, not hardware-qualified' in downloads
@@ -132,10 +134,10 @@ const out = process.argv[1];
   await p.waitForFunction(() => customElements.get('esp-web-install-button'), null, { timeout: 15000 });
   const visible = await p.isVisible('#flasher button[slot="activate"]');
   const manifest = await p.evaluate(async () => (await fetch(document.querySelector('esp-web-install-button').getAttribute('manifest'))).json());
-  if (!visible || manifest.version !== '2.0.0' || errors.length) { console.log('FAIL', visible, manifest.version, errors); process.exit(1); }
+  if (!visible || manifest.version !== process.argv[2] || errors.length) { console.log('FAIL', visible, manifest.version, errors); process.exit(1); }
   console.log('PASS: ESP Web Tools renders the Connect & Install button in Chromium, manifest served same-origin, no console/CSP errors');
   await b.close();
 })();
 '''
-    subprocess.run(['node', '-e', script, str(OUT)], check=True, cwd=ROOT, env=os.environ.copy())
+    subprocess.run(['node', '-e', script, str(OUT), build_site.NEXT_VERSION], check=True, cwd=ROOT, env=os.environ.copy())
 shutil.rmtree(OUT, ignore_errors=True)

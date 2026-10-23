@@ -28,11 +28,11 @@ for file in site.rglob('*.html'):
         assert 'rel="canonical" href="'+build_site.SITE_URL in text, file
         if build_site.NEXT_PUBLISHED:
             assert 'aria-label="Firmware availability"' not in text, file
-            assert 'Firmware v2.0.0 is in preparation' not in text, file
+            assert f'Firmware v{build_site.NEXT_VERSION} is in preparation' not in text, file
         else:
             assert 'aria-label="Firmware availability"' in text, file
             assert build_site.STABLE_TAG in text, file
-            assert 'Firmware v2.0.0 is in preparation' in text, file
+            assert f'Firmware v{build_site.NEXT_VERSION} is in preparation' in text, file
 readme = (root/'README.md').read_text(encoding='utf-8')
 for target in re.findall(r'(?:\]\(|src=")([^\s"\)]+)',readme):
     if target.startswith(('https:', 'http:', 'mailto:', '#', '../../releases')):
@@ -46,7 +46,7 @@ installer = (site/'install-firmware/index.html').read_text(encoding='utf-8')
 assert ('<esp-web-install-button manifest=' in installer) == build_site.NEXT_PUBLISHED
 if build_site.NEXT_PUBLISHED:
     changes = (site/'changelog/index.html').read_text(encoding='utf-8')
-    assert '[2.0.0]' in changes and 'dev.8' not in changes
+    assert f'[{build_site.NEXT_VERSION}]' in changes and '[2.0.0]' in changes and 'dev.8' not in changes
     assert '<h3>Added</h3>' in changes
 workflow=(root/'.github/workflows/pages.yml').read_text(encoding='utf-8')
 assert '  workflow_dispatch:' in workflow and '  push:' not in workflow

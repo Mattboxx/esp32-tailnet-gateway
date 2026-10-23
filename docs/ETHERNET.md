@@ -59,3 +59,6 @@ screening) are unchanged.
   selected uplink; SNMP interface counters still observe WiFi only.
 - DNS servers are global in lwIP: the last interface to obtain DHCP DNS wins.
 - No measurements of throughput, link-flap behavior or power on real hardware.
+- From 2.0.1 the Web UI of this image is English only (no Italian, Spanish or
+  Chinese translations): the image must fit the same 1920 KiB application
+  partition as the WiFi build. The `.local` name answers on the WiFi uplink only.

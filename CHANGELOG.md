@@ -32,6 +32,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Crash diagnostics keep working when code cannot be fetched from external
   memory (panic handler in internal RAM).
 
+### Changed
+
+- The **experimental W5500** image serves the Web UI in English only, to fit
+  the application partition with the new name responder. The WiFi image keeps
+  the Italian, Spanish and Chinese translations.
+
 ## [2.0.0] — 2026-10-23
 
 ### Added

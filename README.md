@@ -9,9 +9,11 @@
 All-in-one ESP32-S3 Tailscale/Headscale gateway with selective LAN-to-Tailnet
 access, subnet routing, remote recovery and optional automation.
 
-> **Firmware v2.0.0 is available.** [Download the release](../../releases/tag/v2.0.0),
+> **Firmware v2.0.1 is available.** [Download the release](../../releases/tag/v2.0.1),
 > use the browser installer, or choose the Easy Install package below.
-> Existing gateways can update without resetting their settings.
+> Existing gateways can update without resetting their settings. New
+> installations should use 2.0.1: it fixes first-boot pairing on real boards
+> and shows where to find the gateway after setup.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0B7A4B.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
@@ -36,17 +38,22 @@ access, subnet routing, remote recovery and optional automation.
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
-### What's new in Firmware v2.0.0?
+### What's new in Firmware v2?
 
-| Legacy 1.13 | Firmware v2.0.0 |
+| Legacy 1.13 | Firmware v2.0.1 |
 |---|---|
 | LAN → Tailnet TCP/UDP forwarding with source restrictions and MagicDNS | Destination tests, timed access, Service Watch and guided rule setup |
 | Subnet routing, AP gateway, exit-node roles and 4via6 | Refreshed goal-oriented UI, Simple/Advanced modes and profiles |
 | Saved Wake-on-LAN devices; MQTT/Home Assistant, ntfy and read-only SNMP | Smart Recovery workflows, layered Health Monitor and diagnostic export |
 | WiFi build for ESP32-S3 N16R8 | Optional W5500 build: experimental |
 | Existing setup and Windows flash package | Physically paired first-boot wizard, browser installation and Easy Install for Windows/macOS/Linux |
+| Find the gateway's address in the router | Per-board `esp32-tailnet-xxxx.local` name and the address shown at the end of setup |
 
-The advanced workflows described below require Firmware v2.0.0 unless listed in
+**2.0.1** fixes first-boot pairing (every setup request was refused on real
+hardware), a BOOT-button watcher crash and a restart during setup that could
+leave a gateway without an admin password. See the [changelog](CHANGELOG.md).
+
+The advanced workflows described below require Firmware v2.0.0 or later unless listed in
 the legacy column. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
 remain available; [release notes](docs/RELEASE-1.13.md) explain what is shipped.
 
@@ -97,7 +104,7 @@ fixed LAN address, `192.0.2.50`.
 | Allowed source | `192.0.2.20/32` |
 | Expiry (optional) | e.g. 24 h for temporary access |
 
-In **Firmware v2.0.0**, run **Test destination** (one bounded TCP handshake from the ESP32), enable the
+In **Firmware v2**, run **Test destination** (one bounded TCP handshake from the ESP32), enable the
 rule and point the controller at `192.0.2.50:18830`. The rule card shows the
 installed state, accepted/rejected counters and the last evidence seen.
 Any other LAN device that tries the port is refused.
@@ -118,7 +125,7 @@ their changes and can be rolled back.
 
 ## 6. Quick start
 
-These steps apply to Firmware v2.0.0. For legacy installations use
+These steps apply to Firmware v2.0.1. For legacy installations use
 the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
 
 1. **Install** by desktop browser, Easy Install or advanced download below.
@@ -130,7 +137,12 @@ the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailscale-ga
 4. **Follow the wizard:** choose an admin password, test your 2.4 GHz WiFi,
    optionally enrol in Tailscale or Headscale, and select only the roles needed.
    Choose a protected gateway/recovery WiFi name and password, then restart.
-5. **Reserve** a LAN address on your router. Add a rule under **Network →
+5. **Open** the gateway from your home WiFi with a link shown on the last
+   setup page: the address its WiFi test received, or
+   `http://esp32-tailnet-xxxx.local/`, where `xxxx` is the code of its setup
+   WiFi. Only that gateway answers to the name, so several gateways on one
+   network never collide.
+6. **Reserve** a LAN address on your router. Add a rule under **Network →
    LAN → Tailnet**, review its allowed source and run **Test destination**.
 
 An existing installation keeps its settings and does **not** reopen the setup
@@ -151,7 +163,7 @@ Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailnet-gateway
 | **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/) |
 | **Advanced downloads** | Web UI OTA, manual flashing or experimental W5500 | [Downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/) with exact checksums, variant labels and recovery notes |
 
-Use the releases page for available Firmware v2.0.0 builds. The
+Use the releases page for available Firmware v2.0.1 builds. The
 [legacy 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13) retains its original files:
 
 | Asset | Use |
@@ -159,7 +171,7 @@ Use the releases page for available Firmware v2.0.0 builds. The
 | `firmware-factory.bin` | Full image for a first install at offset `0x0` (erases settings) |
 | `firmware.bin` | Application image for the Web UI updater or keep-settings updates |
 | `ESP32-S3-router-0.1.38-Mattboxx-1.13-windows.zip` | Guided Windows package with esptool and batch files |
-| `RELEASE-SHA256SUMS.txt`, `FIRMWARE-LICENSES.txt` | Published checksums and third-party notices; no Firmware v2.0.0 asset is implied |
+| `RELEASE-SHA256SUMS.txt`, `FIRMWARE-LICENSES.txt` | Published checksums and third-party notices; no Firmware v2 asset is implied |
 
 The WiFi build is the default. An **Ethernet (W5500) variant**, when
 published, is labelled separately and is only for boards with that module
@@ -178,17 +190,24 @@ drop-in targets.
 
 ## 9. Screenshots
 
-Authentic captures from earlier stable versions; current development screens
-are captured during release qualification.
+Firmware v2.0.1 Web UI, rendered from the page embedded in the firmware with
+invented documentation data (no real network, device or credential).
+[Captures from a real gateway](https://mattboxx.github.io/esp32-tailnet-gateway/screenshots/)
+are on the website.
 
 <p align="center">
-<img src="docs/images/status_v3.png" alt="Status dashboard: uplink, access point, Tailscale node and peers" width="88%">
-<br><em>Status dashboard (stable 1.x)</em>
+<img src="docs/images/v2-status.png" alt="Status dashboard: uplink, Tailnet and peers, Selective Tailnet Service Gateway summary and goal-based guides" width="88%">
+<br><em>Status: connection summary, service rules and "What do you want to do?" guides</em>
 </p>
 
 <p align="center">
-<img src="docs/images/firewall_v2.png" alt="Firewall with four ACL chains and example rules" width="88%">
-<br><em>Firewall chains (stable 1.x)</em>
+<img src="docs/images/v2-first-boot-finish.png" alt="Last first-boot setup page with links to the address received during the WiFi test and to the per-board esp32-tailnet-xxxx.local name" width="60%">
+<br><em>End of first-boot setup: where to open the gateway after the restart</em>
+</p>
+
+<p align="center">
+<img src="docs/images/v2-firewall.png" alt="Firewall with four ACL chains, counters and an example rule" width="88%">
+<br><em>Firewall: four ACL chains with per-chain counters</em>
 </p>
 
 ## 10. Features
@@ -314,11 +333,11 @@ packaging. The full list is in [CUSTOM_BRANCH.md](CUSTOM_BRANCH.md) and the
 
 ## 18. Installation and OTA updates
 
-For **Firmware v2.0.0**, the browser route is the easiest first install. Safari,
+For **Firmware v2.0.1**, the browser route is the easiest first install. Safari,
 Firefox and phone browsers should use a desktop computer and Easy Install.
 
 **Easy Install:** unzip
-`ESP32-Tailnet-Gateway-v2.0.0-EASY-INSTALL-Windows-macOS-Linux.zip` and read
+`ESP32-Tailnet-Gateway-v2.0.1-EASY-INSTALL-Windows-macOS-Linux.zip` and read
 `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3 and
 esptool 5. The scripts verify checksums and the ESP32-S3 target first.
 
