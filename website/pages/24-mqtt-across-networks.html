@@ -1,0 +1,38 @@
+<!--
+slug: mqtt-across-networks/
+title: MQTT between two homes
+search_title: MQTT Across Two Networks with Tailscale & an ESP32 Gateway
+description: Connect an MQTT device without Tailscale to a broker in another home using an ESP32-S3 LAN-to-Tailnet gateway. No router replacement or new WiFi required.
+group: Guides
+order: 24
+-->
+<h1>Connect an MQTT device in another home to your broker</h1>
+<p>Your MQTT broker is at home. A sensor or controller is on a different home's WiFi, cannot install Tailscale, but lets you change its broker address and port. An ESP32-S3 on that second LAN can provide a selective connection to the broker over your tailnet.</p>
+
+<h2>What goes where?</h2>
+<ul>
+  <li><strong>Home A:</strong> an MQTT broker on a Tailscale/Headscale peer, or a deliberately configured reachable Tailnet service.</li>
+  <li><strong>Home B:</strong> your MQTT device and an ESP32 Tailnet Gateway on the same LAN.</li>
+  <li><strong>On the ESP32:</strong> one TCP forwarding rule, restricted to the MQTT device's source address.</li>
+</ul>
+<figure class="diagram"><img src="{{root}}assets/diagrams/lan-to-tailnet.svg" alt="An existing LAN device connects to an ESP32 listen port, which forwards the connection over Tailscale to a selected remote service" width="960" height="400" loading="lazy"><figcaption>For this example, the selected remote service is the MQTT broker.</figcaption></figure>
+
+<h2>Configure the connection</h2>
+<ol>
+  <li><a href="{{root}}install-firmware/">Install the firmware</a>, complete <a href="{{root}}first-boot/">first boot</a>, and join the ESP32 to the same tailnet as the broker.</li>
+  <li>Reserve the ESP32 and MQTT device LAN addresses in the router so the rule remains predictable.</li>
+  <li>In the <a href="{{root}}service-gateway/">LAN → Tailnet Service Gateway</a>, create a TCP rule: listen port <code>18830</code>, destination your broker's Tailnet IP or MagicDNS name, destination port <code>1883</code>, allowed source the MQTT device's address with <code>/32</code>.</li>
+  <li>Test the destination, then enable the rule. The broker's Tailnet access policy must allow the ESP32 identity.</li>
+  <li>On the MQTT device, set the broker host to the ESP32's LAN address and the port to <code>18830</code>. Keep broker credentials and topic permissions configured on the broker.</li>
+  <li>Publish a test message and check the broker receives it. A local installed-rule indicator alone does not prove the MQTT application works.</li>
+</ol>
+
+<h2>What this does — and does not — replace</h2>
+<p>The MQTT connection is bidirectional once established: subscriptions can receive commands back over that connection. This does not merge the two LANs, relay multicast discovery, or make every device automatically visible to Home Assistant. Home Assistant still needs the appropriate MQTT integration, topics and device configuration.</p>
+<p>The ESP32's own <a href="{{root}}automation/">MQTT/Home Assistant Discovery integration</a> is separate. You do not have to enable it to forward the device's broker connection.</p>
+
+<h2>Security and practical limits</h2>
+<p>The LAN leg between the device and ESP32 is not encrypted merely because the remote leg uses Tailscale. Use MQTT TLS where the device supports it; when connecting through an alternate LAN hostname, certificate-name validation must still succeed. Do not turn certificate verification off to make this example work.</p>
+<p>The remote peer sees the gateway's Tailnet identity, not a separately authenticated identity for each LAN device. Use narrow source rules, broker authentication and per-device topic permissions. This suits telemetry and control traffic, not cameras or bulk transfers.</p>
+<p>If the device can run an official Tailscale client, that may be simpler. For broad LAN access, compare <a href="{{root}}network-modes/">subnet routing and the IoT AP gateway</a> before choosing port forwarding.</p>
+<p><a class="btn" href="{{root}}screenshots/">See the real firmware interface</a> <a class="btn primary" href="{{root}}getting-started/">Get started</a></p>
