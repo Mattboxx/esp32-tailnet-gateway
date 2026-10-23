@@ -137,6 +137,8 @@ int main(void){
 '''
 
 manager_source = (ROOT / 'main/mqtt_integration.c').read_text(encoding='utf-8')
+manager_budget = next(line for line in manager_source.splitlines()
+                      if line.startswith('#define MQTT_MANAGER_STACK_BYTES ')) + '\n'
 manager_init = 'void mqtt_integration_init(void)' + manager_source.split(
     'void mqtt_integration_init(void)', 1)[1].split('\nvoid mqtt_integration_get_config', 1)[0]
 tail_source = (ROOT / 'main/tailscale_manager.c').read_text(encoding='utf-8')
@@ -186,7 +188,7 @@ with tempfile.TemporaryDirectory(prefix='task-memory-') as directory:
              '-Wno-unused-variable', '-Wno-misleading-indentation', '-I', str(path), '-I', str(ROOT / 'main')]
     if os.environ.get('TASKMEM_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
-    cases = [('project', HEADER + PROJECT_FIXTURE + manager_init + tail_start + tail_cleanup + PROJECT_TEST)]
+    cases = [('project', HEADER + PROJECT_FIXTURE + manager_budget + manager_init + tail_start + tail_cleanup + PROJECT_TEST)]
     for external in (0, 1):
         for pinned in (0, 1):
             cases.append((f'mqtt-{external}-{pinned}', HEADER +
