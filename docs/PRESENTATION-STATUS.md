@@ -21,12 +21,16 @@ FIRMWARE-LICENSES.txt. No forthcoming download or manifest is implied.
 
 ## Preview, not a stable release
 
-New user guides, diagrams and feature pages also describe the upcoming 1.14:
+New user guides, diagrams and feature pages also describe Firmware v2.0.0:
 Smart Recovery, timed access, destination tests, Service Watch, layered Health
-Monitor, diagnostic export, profiles and the refreshed UI. They are not in the
+Monitor, diagnostic export, profiles, the refreshed UI, physically paired first
+boot and browser/Easy Install options. They are not in the
 current stable download. The optional W5500 variant is experimental and has
 not been hardware-qualified. No full official-client authorization parity,
 long-term reliability, signing or out-of-band recovery is claimed.
+
+`NEXT_PUBLISHED=False` and `RENAMED=False` remain unchanged. No v2 firmware,
+manifest or download button may be activated before a qualified public release.
 
 The existing published source remains in Main until the firmware qualification
 and separate release process are complete. Internal development ledgers, private

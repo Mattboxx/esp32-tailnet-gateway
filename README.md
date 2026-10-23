@@ -2,17 +2,18 @@
 
 <img src="assets/brand/png/banner.png" alt="ESP32 Tailnet Gateway — Mattboxx Edition. One ESP32. Multiple Tailnet roles. Enable only what you need." width="100%">
 
-# ESP32 Tailnet Gateway
+# ESP32 Tailnet Gateway — Mattboxx Edition
 
 **Mattboxx Edition · One ESP32. Multiple Tailnet roles. Enable only what you need.**
 
 All-in-one ESP32-S3 Tailscale/Headscale gateway with selective LAN-to-Tailnet
 access, subnet routing, remote recovery and optional automation.
 
-> **New identity; the next generation is in development.** The current public
+> **Firmware v2.0.0 — release preparation, not yet published.** The current public
 > stable download remains **[0.1.38-Mattboxx-1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13)**.
-> This presentation also previews **1.14**, which is not yet a stable release.
-> No new firmware is published by this branding update.
+> The browser installer, Easy Install package and guided first boot described
+> below belong to the upcoming firmware, not the stable 1.13 download. They
+> become downloadable only after qualification and an actual release.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0B7A4B.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
@@ -21,6 +22,7 @@ access, subnet routing, remote recovery and optional automation.
 [![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailscale-gateway-NAS-recovery?label=stable&color=0B7A4B)](../../releases/latest)
 
 [Website](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/) ·
+[Install firmware](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/install-firmware/) ·
 [Download](../../releases/latest) ·
 [Getting started](docs/GETTING-STARTED.md) ·
 [Service Gateway guide](docs/SERVICE-GATEWAY.md) ·
@@ -36,14 +38,15 @@ access, subnet routing, remote recovery and optional automation.
 
 ### What can I download today?
 
-| Public stable 1.13 | Next-generation 1.14 — in development |
+| Public stable 1.13 | Firmware v2.0.0 — release preparation |
 |---|---|
 | LAN → Tailnet TCP/UDP forwarding with source restrictions and MagicDNS | Destination tests, timed access, Service Watch and guided rule setup |
 | Subnet routing, AP gateway, exit-node roles and 4via6 | Refreshed goal-oriented UI, Simple/Advanced modes and profiles |
 | Saved Wake-on-LAN devices; MQTT/Home Assistant, ntfy and read-only SNMP | Smart Recovery workflows, layered Health Monitor and diagnostic export |
 | WiFi build for ESP32-S3 N16R8 | Optional W5500 build: experimental, not hardware-qualified |
+| Existing setup and Windows flash package | Physically paired first-boot wizard, browser installation and Easy Install for Windows/macOS/Linux |
 
-The advanced workflows described below preview 1.14 unless listed in the
+The advanced workflows described below preview Firmware v2.0.0 unless listed in the
 stable column. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
 remain available; [release notes](docs/RELEASE-1.13.md) explain what is shipped.
 
@@ -94,7 +97,7 @@ fixed LAN address, `192.0.2.50`.
 | Allowed source | `192.0.2.20/32` |
 | Expiry (optional) | e.g. 24 h for temporary access |
 
-In the **1.14 preview**, run **Test destination** (one bounded TCP handshake from the ESP32), enable the
+In **Firmware v2.0.0**, run **Test destination** (one bounded TCP handshake from the ESP32), enable the
 rule and point the controller at `192.0.2.50:18830`. The rule card shows the
 installed state, accepted/rejected counters and the last evidence seen.
 Any other LAN device that tries the port is refused.
@@ -115,30 +118,48 @@ their changes and can be rolled back.
 
 ## 6. Quick start
 
-1. **Flash** the latest release with the guided Windows ZIP, or any esptool
-   front-end (see [Installation and OTA](#18-installation-and-ota-updates)).
-2. **Join** the setup access point printed on the serial console (default
-   `ESP32-TSR-Setup`), open `http://192.168.4.1`, set an admin password and
-   your 2.4 GHz WiFi.
-3. **Enrol** on your tailnet: paste a reusable, non-ephemeral auth key (or a
-   Headscale pre-auth key plus login server), then disable node-key expiry in
-   the admin console.
-4. **Reserve** a fixed LAN address for the ESP32 on your router.
-5. **Add a Service Gateway rule** (Network → LAN → Tailnet), review its source
-   restriction and enable it. Destination tests are a **1.14 preview** feature.
+These steps apply to the upcoming firmware. For today's stable download use
+the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
 
-Full walk-through with screenshots: [Getting started](docs/GETTING-STARTED.md).
+1. **Install** by desktop browser, Easy Install or advanced download below.
+   Use a USB **data** cable. Erase only for a new setup, never for a routine update.
+2. **Join** `ESP32-Tailnet-Setup-XXXX` on a genuinely unconfigured gateway.
+   A captive page should open; otherwise browse to `http://192.168.4.1/`.
+3. **Pair physically:** press the board's **BOOT** button, or enter its current
+   8-digit USB-console setup code. There is no shared default admin password.
+4. **Follow the wizard:** choose an admin password, test your 2.4 GHz WiFi,
+   optionally enrol in Tailscale or Headscale, and select only the roles needed.
+   Choose a protected gateway/recovery WiFi name and password, then restart.
+5. **Reserve** a LAN address on your router. Add a rule under **Network →
+   LAN → Tailnet**, review its allowed source and run **Test destination**.
+
+An existing installation keeps its settings and does **not** reopen the setup
+network. First setup is English-only; the main administration UI retains its
+existing translations. The setup network forwards no LAN/Internet traffic;
+credentials use sealed setup requests. Set up nearby on a trusted physical site:
+a malicious lookalike access point remains a risk.
+
+Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/first-boot/).
 
 ## 7. Download firmware
 
-The current [stable 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13) contains:
+### Three installation methods
+
+| Method | Best for | How |
+|---|---|---|
+| **Browser installer** | New WiFi gateway, no flashing application | [Install Firmware](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/install-firmware/) in desktop Chrome/Edge over USB; installer remains inactive until the qualified release exists |
+| **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/easy-install/) |
+| **Advanced downloads** | Web UI OTA, manual flashing or experimental W5500 | [Downloads](https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/downloads/) with exact checksums, variant labels and recovery notes |
+
+Firmware v2.0.0 artifacts are **not yet public**. The current
+[stable 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13) contains:
 
 | Asset | Use |
 |---|---|
 | `firmware-factory.bin` | Full image for a first install at offset `0x0` (erases settings) |
 | `firmware.bin` | Application image for the Web UI updater or keep-settings updates |
 | `ESP32-S3-router-0.1.38-Mattboxx-1.13-windows.zip` | Guided Windows package with esptool and batch files |
-| `RELEASE-SHA256SUMS.txt`, `FIRMWARE-LICENSES.txt` | Published checksums and third-party notices; no 1.14 manifest or firmware is published yet |
+| `RELEASE-SHA256SUMS.txt`, `FIRMWARE-LICENSES.txt` | Published checksums and third-party notices; no Firmware v2.0.0 asset is implied |
 
 The WiFi build is the default. An **Ethernet (W5500) variant**, when
 published, is labelled separately and is only for boards with that module
@@ -197,6 +218,9 @@ are captured during release qualification.
 - State-changing requests are screened against cross-origin and cross-site
   use; untrusted `Host` names are refused when no password is set (DNS
   rebinding).
+- First boot is restricted to the setup AP, requires physical pairing and
+  seals setup requests with X25519/AES-256-GCM. It does not authenticate the
+  downloaded page against an active nearby impersonator; use a trusted setup site.
 - Tailnet authorization is checked on original packets before NAT, fails
   closed on malformed or revoked policy and is not a claim of full
   official-client policy parity.
@@ -289,28 +313,38 @@ packaging. The full list is in [CUSTOM_BRANCH.md](CUSTOM_BRANCH.md) and the
 
 ## 18. Installation and OTA updates
 
-**Windows:** unzip the release package, connect the board over USB and run
-`UPDATE_KEEP_SETTINGS.bat` (keeps configuration) or
-`CLEAN_INSTALL_ERASE_ALL.bat` (fresh install).
+For **Firmware v2.0.0**, the browser route is the easiest first install. Safari,
+Firefox and phone browsers should use a desktop computer and Easy Install.
 
-**Linux/macOS:** install `esptool` and flash the factory image for a first
-install:
+**Easy Install:** once published, unzip
+`ESP32-Tailnet-Gateway-v2.0.0-EASY-INSTALL-Windows-macOS-Linux.zip` and read
+`START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3 and
+esptool 5. The scripts verify checksums and the ESP32-S3 target first.
 
-```bash
-esptool.py --chip esp32s3 --baud 921600 write_flash 0x0 firmware-factory.bin
-```
+| System | New device — explicit erase confirmation | Keep settings |
+|---|---|---|
+| Windows | `windows\INSTALL-NEW-DEVICE.bat` | `windows\UPDATE-KEEP-SETTINGS.bat` |
+| macOS / Linux | `sh macos-linux/install.sh new` | `sh macos-linux/install.sh update` |
 
 **Updates:** upload `firmware.bin` in System → Firmware, or enable the opt-in
-GitHub updater (stable or beta channel). The new image must confirm a healthy
-boot or the bootloader returns to the previous one. Settings are kept.
+GitHub updater (stable or beta channel). This inactive-slot Web UI method is
+preferred over USB because it preserves the previous app as a fallback. USB
+keep-settings installation preserves NVS but writes the first app slot and
+initial OTA selection; it is **not** an inactive-slot OTA operation. Do not
+use it to overwrite a deliberately protected recovery image.
 Back up your configuration first; see [Updates](docs/UPDATES.md) and
 [Backup and restore](docs/BACKUP-RESTORE.md).
+
+**Legacy OTA migration:** a bridge is planned under the current repository
+name before any rename. Older updaters cannot be assumed to follow GitHub
+redirects; devices that miss the migration window need a manual Web UI/USB
+update. No repository rename or bridge release has happened yet.
 
 **Build from source:**
 
 ```bash
 git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery
-cd esp32-tailnet-gateway
+cd esp32-tailscale-gateway-NAS-recovery
 pio run -e esp32-s3            # WiFi build
 pio run -e esp32-s3-eth        # optional W5500 Ethernet build
 ```
