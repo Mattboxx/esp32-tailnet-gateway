@@ -3648,7 +3648,7 @@ static esp_err_t system_handler(httpd_req_t *req)
         cJSON_AddStringToObject(root, "build_time", desc->time);
         cJSON_AddStringToObject(root, "idf_ver",    desc->idf_ver);
     }
-    /* Product identity and verified provenance (docs/UPSTREAM-0.1.38.md). */
+    /* Product identity and verified provenance (docs/upstream/UPSTREAM-0.1.38.md). */
     cJSON_AddStringToObject(root, "product", "ESP32 Tailnet Gateway");
     cJSON_AddStringToObject(root, "edition", "Mattboxx Edition");
     cJSON_AddStringToObject(root, "build_commit", MTG_BUILD_COMMIT);

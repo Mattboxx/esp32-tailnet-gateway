@@ -93,4 +93,4 @@ Unchanged OTA SHA-256:
 The local Web UI uses HTTP: trusted LAN or encrypted tailnet only, not public
 Internet exposure. SNMPv1/v2c is optional and unencrypted. WoL requires target
 support and standby power; it cannot hard-reset a frozen NAS or recover files.
-See [NAS checklist](NAS-RECOVERY.md) and [security model](../SECURITY.md).
+See [NAS checklist](../NAS-RECOVERY.md) and [security model](../../SECURITY.md).

@@ -265,8 +265,8 @@ the same as 1.13-dev.1; only the embedded version/build metadata changes.
 - Add actual-C upstream integration regressions and keep existing feature,
   browser, routing, ntfy, SNMP and updater coverage.
 
-See [source mapping, retained behavior and test scope](docs/UPSTREAM-0.1.38.md).
-User-facing changes and download instructions: [release notes](docs/RELEASE-1.13.md).
+See [source mapping, retained behavior and test scope](docs/upstream/UPSTREAM-0.1.38.md).
+User-facing changes and download instructions: [release notes](docs/releases/RELEASE-1.13.md).
 
 ## [0.1.33-Mattboxx-1.12-dev.1] - stable promotion, 2026-10-20
 
@@ -286,7 +286,7 @@ User-facing changes and download instructions: [release notes](docs/RELEASE-1.13
   upstream version from the release instead of hard-coding v0.1.31.
 - Remind reporters that logs still need manual redaction before publication.
 
-See [stable release notes and verification](docs/RELEASE-1.12.md).
+See [stable release notes and verification](docs/releases/RELEASE-1.12.md).
 
 ### 0.1.33-Mattboxx-1.12-dev.1 — upstream fixes and optional WiFi policy (beta)
 
@@ -299,7 +299,7 @@ See [stable release notes and verification](docs/RELEASE-1.12.md).
 - Offer a one-click, user-initiated Ko-fi payment window on desktop and
   a normal tab on mobile. No embedded payment form or third-party preloading.
 - Preserve all Mattboxx features, upstream credits and the stable 1.11 release.
-See [beta release notes and limits](docs/RELEASE-1.12-dev.1.md).
+See [beta release notes and limits](docs/releases/RELEASE-1.12-dev.1.md).
 
 ## [0.1.31-Mattboxx-1.11] - 2026-10-13
 
@@ -312,7 +312,7 @@ See [beta release notes and limits](docs/RELEASE-1.12-dev.1.md).
 - Retain all upstream v0.1.30/v0.1.31 and Mattboxx features and the verified
   1.10 startup/AP, relay-reply, SNMP and login fixes. The withdrawn 1.10 tag is
   preserved; the new version lets previously installed 1.10 devices update.
-See [release notes and verified scope](docs/RELEASE-1.11.md).
+See [release notes and verified scope](docs/releases/RELEASE-1.11.md).
 
 ## [0.1.31-Mattboxx-1.10] - 2026-10-13
 
@@ -323,7 +323,7 @@ Stable promotion of the verified dev.18 runtime, with a stable version/tag and
 no functional code change. Includes upstream v0.1.30/v0.1.31, opt-in GitHub
 stable/beta/manual/automatic updates, ntfy transport/streaming improvements,
 forwarding packet/configuration fixes and all earlier Mattboxx additions.
-See [release notes and verified scope](docs/RELEASE-1.10.md).
+See [release notes and verified scope](docs/releases/RELEASE-1.10.md).
 
 ### Startup, AP control, relay replies and logins
 
@@ -572,7 +572,7 @@ See [release notes and verified scope](docs/RELEASE-1.10.md).
 - Increase the socket budget from 26 to 31; preserve the 1.8 ntfy stack fix.
 - Add actual-C CGNAT/NAT and DNS authorization/parser tests, 50,000 decoder
   mutations, UI status tests and fixed-baseline feature-preservation guards.
-- Build/test details and hardware limitations: [integration record](docs/UPSTREAM-0.1.31.md).
+- Build/test details and hardware limitations: [integration record](docs/upstream/UPSTREAM-0.1.31.md).
 
 ## [0.1.29-Mattboxx-1.8] — 2026-10-04
 
@@ -591,7 +591,7 @@ See [release notes and verified scope](docs/RELEASE-1.10.md).
 - Exact-ELF frame budgets detect the old 1.7 regression; actual-C callback,
   command accounting, alert allocation/failure tests run with sanitizers in CI.
 - Opt-in HTTPS/info hardware soak without logging private payloads.
-- Coverage, limitations and downloads: [release record](docs/RELEASE-1.8.md).
+- Coverage, limitations and downloads: [release record](docs/releases/RELEASE-1.8.md).
 
 ## [0.1.19-Mattboxx-1.4] — 2026-09-05
 

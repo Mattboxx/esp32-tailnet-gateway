@@ -87,7 +87,7 @@ def release_readme(version, prerelease, variant):
     else:
         board = ('WIFI VARIANT (default) for ESP32-S3 N16R8 (16MB flash, 8MB octal PSRAM).\n'
                  'NOT for ESP32-C3/S2, boards without PSRAM, or the Ethernet wiring.')
-    notes = f"{SOURCE_URL}/blob/Main/docs/RELEASE-{version.split('-Mattboxx-', 1)[1]}.md"
+    notes = f"{SOURCE_URL}/blob/Main/docs/releases/RELEASE-{version.split('-Mattboxx-', 1)[1]}.md"
     title = f"ESP32 TAILNET GATEWAY - MATTBOXX EDITION - {version}" + (' (Ethernet)' if variant == 'eth' else '')
     lines = [
         title,

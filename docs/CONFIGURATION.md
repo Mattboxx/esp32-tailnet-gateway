@@ -96,7 +96,7 @@ DNS uses the configured forwarder upstream, otherwise STA's learned resolver:
 UDP first with bounded waiting, then TCP for truncation or UDP failure. There
 is no automatic public resolver fallback. A missing or unsafe resolver fails
 the lookup. The build reserves 31 sockets; saved feature settings are retained.
-See [the integration record](UPSTREAM-0.1.31.md) for testing limitations.
+See [the integration record](upstream/UPSTREAM-0.1.31.md) for testing limitations.
 
 ## Firewall
 

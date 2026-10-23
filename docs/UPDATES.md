@@ -74,7 +74,7 @@ The published `v0.1.31-Mattboxx-1.10-dev.10` candidate is explicitly marked as
 a GitHub pre-release. Older compatible builds need beta selection enabled to
 discover it; an identical/newer installed version reports no update. It does
 not replace the stable 1.8 release. Older stable assets remain available for
-explicit local rollback. See [candidate coverage](RELEASE-1.10-dev.10.md).
+explicit local rollback. See [candidate coverage](releases/RELEASE-1.10-dev.10.md).
 
 ## Download and trust safeguards
 

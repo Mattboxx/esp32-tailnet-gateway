@@ -9,7 +9,7 @@ Original credits: [Csontikka's router](https://github.com/Csontikka/esp32-tailsc
 [microlink](https://github.com/Csontikka/microlink), originally by Cameron Malone,
 and the contributors/forks credited upstream. Original notices, licenses and
 support links remain. Optional Mattboxx tips do not purchase features or imply
-upstream endorsement. [Complete source mapping](UPSTREAM-0.1.38.md).
+upstream endorsement. [Complete source mapping](../upstream/UPSTREAM-0.1.38.md).
 
 ## Included
 

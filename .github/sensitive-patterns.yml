@@ -39,7 +39,7 @@ blocked_files:
 allowed_files:
   # Publishing handoff written for this repository: no addresses, names,
   # passwords or tokens; lab specifics stay in git-ignored build/private-device/.
-  - "docs/CODEX-PUBLISH-HANDOFF.md"
+  - "docs/archive/CODEX-PUBLISH-HANDOFF.md"
 
 # ─── Blocked content patterns (regex) ────────────────────────────────
 # File contents are scanned for these. 'allow' whitelists exact full matches;

@@ -84,7 +84,7 @@ badge. The new wordmark contains no Tailscale corporate logo. Original
 licenses, copyright, credits and author support links remain. Tailscale's
 [press page](https://tailscale.com/press) links brand assets, but this review
 does not establish permission to adopt their branding. Existing
-[third-party notices](../NOTICE.md) and non-endorsement statements remain.
+[third-party notices](../../NOTICE.md) and non-endorsement statements remain.
 
 ## Code-backed feature matrix
 
@@ -152,7 +152,7 @@ already exists; this fork's value is the constrained service-entry workflow.
    did not enforce PacketFilter/PacketFilters per-port permissions, and IPv6
    source ownership was incomplete. The local bounded authorization gate now
    separates current key/prefix ownership from service permission before WG
-   input translation. See [scope and real-client matrix](TAILNET-AUTHORIZATION.md).
+   input translation. See [scope and real-client matrix](../TAILNET-AUTHORIZATION.md).
    Conservative protocol restrictions, production-map compatibility and hardware
    qualification still block a stable release; no official-client parity claim.
 5. Internal heap is scarce despite PSRAM; historical bounded board checks
@@ -171,5 +171,5 @@ already exists; this fork's value is the constrained service-entry workflow.
    The already published 1.13 release body is not remotely edited by this local
    development work. Reconcile that wording before the next publication.
 
-Use [the roadmap](ROADMAP.md) for decisions/gates, not this list as implied
+Use [the roadmap](../ROADMAP.md) for decisions/gates, not this list as implied
 authorization to implement every proposed feature or publish new firmware.

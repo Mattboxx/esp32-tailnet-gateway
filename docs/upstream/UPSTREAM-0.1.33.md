@@ -34,4 +34,4 @@ DNS and public speed tests are not restored.
 The independently requested donation shortcut opens Ko-fi only after a user
 click, in a separate HTTPS window/tab rather than an embedded payment widget.
 It does not collect payment data, report payment success or change financial
-account settings. See [candidate validation and limitations](RELEASE-1.12-dev.1.md).
+account settings. See [candidate validation and limitations](../releases/RELEASE-1.12-dev.1.md).

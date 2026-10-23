@@ -43,7 +43,7 @@ on one ESP32-S3 N16R8 (home WiFi, hosted Tailscale, one tailnet PC):
 Two independent tailnet identities (policy matrix over direct and DERP), a
 deliberate control-stream interruption, Wi-Fi access point fallback after the
 uplink disappears, power loss during a settings write or an update, ntfy on a
-real service, W5500 hardware. See [DEV8-VALIDATION.md](DEV8-VALIDATION.md) for
+real service, W5500 hardware. See [DEV8-VALIDATION.md](../archive/DEV8-VALIDATION.md) for
 the current evidence. Do not treat this candidate as stable.
 
 ## Build note

@@ -46,4 +46,4 @@ speed tests and hard-coded public DNS remain removed. Exit-node selection
 still requires a restart, because published VPN handles are retained by
 existing consumers; changing that lifetime contract is not part of this update.
 
-Evidence and limitations: [RELEASE-1.7.md](RELEASE-1.7.md).
+Evidence and limitations: [RELEASE-1.7.md](../releases/RELEASE-1.7.md).

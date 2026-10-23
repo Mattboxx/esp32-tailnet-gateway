@@ -268,4 +268,4 @@ physical NVS power-loss/interrupted OTA/rollback scope; representative final
 resource/load/soak and final exact-version packaging. Host crypto/interface
 fixtures and one-PC CIDR tests are not substitutes. W5500 remains experimental
 unless real hardware is qualified. Remote rename must follow the bridge path
-and migration window in [MIGRATION-RENAME.md](MIGRATION-RENAME.md).
+and migration window in [MIGRATION-RENAME.md](../MIGRATION-RENAME.md).

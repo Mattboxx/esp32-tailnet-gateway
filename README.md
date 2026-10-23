@@ -29,7 +29,7 @@ access, subnet routing, remote recovery and optional automation.
 [Download](../../releases/latest) ·
 [Getting started](docs/GETTING-STARTED.md) ·
 [Service Gateway guide](docs/SERVICE-GATEWAY.md) ·
-[All guides](docs/GUIDES.md)
+[Documentation](docs/README.md)
 
 </div>
 
@@ -58,7 +58,7 @@ leave a gateway without an admin password. See the [changelog](CHANGELOG.md).
 
 The advanced workflows described below require Firmware v2.0.0 or later unless listed in
 the legacy column. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
-remain available; [release notes](docs/RELEASE-1.13.md) explain what is shipped.
+remain available; [release notes](docs/releases/RELEASE-1.13.md) explain what is shipped.
 
 ## 1. What it is
 
@@ -299,8 +299,8 @@ unable to block routing or local administration.
 **Upstream:** Csontikka's firmware provides the Tailscale stack, AP router,
 subnet routing, firewall and Web UI foundation. This edition adds the
 Service Gateway, recovery and diagnostics, automation, security hardening and
-packaging. The full list is in [CUSTOM_BRANCH.md](CUSTOM_BRANCH.md) and the
-[release history](CHANGELOG.md).
+packaging. Every change is listed in the [release history](CHANGELOG.md);
+the [documentation index](docs/README.md) covers each feature.
 
 ## 16. Limitations
 
@@ -320,6 +320,7 @@ packaging. The full list is in [CUSTOM_BRANCH.md](CUSTOM_BRANCH.md) and the
 
 ## 17. Documentation
 
+[Documentation index](docs/README.md) ·
 [Getting started](docs/GETTING-STARTED.md) ·
 [All guides](docs/GUIDES.md) ·
 [Configuration reference](docs/CONFIGURATION.md) ·

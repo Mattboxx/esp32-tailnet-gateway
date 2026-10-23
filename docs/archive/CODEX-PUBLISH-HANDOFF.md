@@ -11,7 +11,7 @@
 > **Claude final handoff to Codex, 2026-10-23 (historical baseline).**
 > State: **HANDOFF READY FOR CODEX**, release verdict **NOT READY FOR RELEASE**.
 > Details: [DEV8-VALIDATION.md](DEV8-VALIDATION.md), gate table:
-> [QUALITY-GATE.md](QUALITY-GATE.md), next actions: "START HERE" at the end.
+> [QUALITY-GATE.md](../QUALITY-GATE.md), next actions: "START HERE" at the end.
 >
 > - **Latest local commit:** see `git log -1` on branch `mattboxx` (this block is
 >   in it). MicroLink `fa3153b`, clean, gitlink matches. Nothing pushed.
@@ -82,7 +82,7 @@ Status words used below: **COMPLETED**, **PARTIAL**, **BLOCKED**,
 **NOT TESTED**. Implemented code is never reported as tested unless a test ran.
 
 Release verdict: **NOT READY FOR RELEASE** (see section D and
-[QUALITY-GATE.md](QUALITY-GATE.md)). Handoff state: complete.
+[QUALITY-GATE.md](../QUALITY-GATE.md)). Handoff state: complete.
 
 ---
 
@@ -118,14 +118,14 @@ tokens in files, scripts, commits or logs.
 
 | Area | Status | Notes |
 |---|---|---|
-| 42-feature roadmap code | PARTIAL | Most features implemented; validation states per feature in [FEATURE-IMPLEMENTATION-MATRIX.md](FEATURE-IMPLEMENTATION-MATRIX.md) (many remain "In sviluppo" pending hardware/real-client evidence) |
+| 42-feature roadmap code | PARTIAL | Most features implemented; validation states per feature in [FEATURE-IMPLEMENTATION-MATRIX.md](../FEATURE-IMPLEMENTATION-MATRIX.md) (many remain "In sviluppo" pending hardware/real-client evidence) |
 | Hardware fixes | COMPLETED | Policy gate blocked the tunnel at stream start (`microlink 2e2e96c`, root `49b8441`); login/logout lacked cross-site screening (`9b541ba`); AP fallback after 60 s (ADR-023) |
 | OTA rename bridge | COMPLETED (code+host tests) | Updater tries new repo name, falls back to old only on 404 (`5b797f8`) |
 | Variant-safe updates | COMPLETED (code+host tests) | WiFi updates only from `firmware.bin`, Ethernet only from `firmware-eth.bin` (`865d474`) |
 | Web UI design system | COMPLETED | Default button size, 44 px touch targets, 16 px inputs on phones, wrapping headers (`4da9410`) |
 | Service Gateway rule UI | COMPLETED | Table rows on desktop, cards on phones, editor on demand (`4da9410`) |
 | Beginner flow | COMPLETED | Goal launcher (6 goals), IoT WiFi guide, simple/advanced mode, at-a-glance strip (`1711739`) |
-| Translations | COMPLETED | EN/IT/ES/ZH built in; FR/DE drafts kept in `main/i18n/disabled/` by owner decision (`fc8121e`); see [I18N.md](I18N.md) |
+| Translations | COMPLETED | EN/IT/ES/ZH built in; FR/DE drafts kept in `main/i18n/disabled/` by owner decision (`fc8121e`); see [I18N.md](../I18N.md) |
 | Page minification | COMPLETED | Build-time, segment-aware; browser tests run on the built page |
 | Rebrand (name, README, docs) | COMPLETED | ESP32 Tailnet Gateway; README in the 20-section order (`69de720`) |
 | Logo black/green | COMPLETED (assets, UI, site, diagrams) | `tools/brand_svg.py` generates every mark/lockup/banner/social SVG (`0470c8e`); Web UI accent/mark/favicon, website tokens and hero, 8 diagrams, README badges and BRAND.md switched to black/green (commit after `e15944a`). Firmware images must be rebuilt to carry the new UI |
@@ -150,7 +150,7 @@ tokens in files, scripts, commits or logs.
    confirm the echo and the rule counters; then change the source to another
    `/32` and confirm refusal. If Windows Firewall blocks the echo port on the
    tailnet interface, record BLOCKED — do not change host security settings.
-   *Files:* `docs/HARDWARE-CAMPAIGN.md`, results into
+   *Files:* `docs/archive/HARDWARE-CAMPAIGN.md`, results into
    `docs/VALIDATION-STATUS.md`. *Done when:* echo traffic observed through the
    board with counters, refusal observed, results recorded.
 2. **OTA and rollback on hardware** — NOT TESTED. **Do not write ota_1 (stable
@@ -288,7 +288,7 @@ Package: `cd tools; python package_release.py --version <ver> [--prerelease] --v
   name with redirects disabled and need HTTP 200, and accept downloads only
   from the old path → after a rename they **cannot update by themselves**.
   The new firmware handles both names. Details and the bridge plan:
-  [MIGRATION-RENAME.md](MIGRATION-RENAME.md).
+  [MIGRATION-RENAME.md](../MIGRATION-RENAME.md).
 - Safe order of remote operations (each needs the owner's explicit OK):
   1. Fetch; review the diff against `fork/mattboxx` and `fork/Main`.
   2. Push `external/microlink` branch `mattboxx`, then the parent branch.
@@ -355,4 +355,4 @@ Package: `cd tools; python package_release.py --version <ver> [--prerelease] --v
    (nested history keeps 9 reviewed placeholder matches; do not call it green).
 8. Publication (Codex only, after explicit owner authorization): bridge release
    under the old repository name, migration window, rename, Pages, metadata,
-   announcements — order in [MIGRATION-RENAME.md](MIGRATION-RENAME.md) and section F.
+   announcements — order in [MIGRATION-RENAME.md](../MIGRATION-RENAME.md) and section F.

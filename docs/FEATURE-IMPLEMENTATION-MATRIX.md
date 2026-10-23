@@ -14,7 +14,7 @@ public independently (`a85681a`, old repository name); no dev firmware published
 F13/F33: local dev.9 fixes MQTT/initial-VPN stack allocation and duplicate
 startup tasks; WiFi build and four actual-code host drivers on Windows/Linux
 sanitizers PASS, hardware verification pending. Exact hashes, active campaigns
-and scope: [DEV9-CONTINUATION.md](DEV9-CONTINUATION.md). F33's dev.8 hour and
+and scope: [DEV9-CONTINUATION.md](archive/DEV9-CONTINUATION.md). F33's dev.8 hour and
 two short reconnect cycles completed (not RUNNING); no reboot observed. F31
 MQTT/HA and WoL lab PASS, not a real HA instance; no row is release-ready.
 
@@ -30,7 +30,7 @@ rejection, cycles, 27 operational OIDs and12 Tailnet replies PASS. F33: dev.8
 one-hour collectors RUNNING, no final verdict yet. F35: exact dev.8 snapshots,
 not stable packages. F38: boot authority ready; exact in-session stream-loss
 recovery still pending. Source/tool evidence and remaining gates:
-[DEV8-VALIDATION.md](DEV8-VALIDATION.md). Windows64/64, Linux60/60 PASS;
+[DEV8-VALIDATION.md](archive/DEV8-VALIDATION.md). Windows64/64, Linux60/60 PASS;
 later tool-only changes targeted PASS. Do not repeat completed tests blindly.
 
 Latest scoped evidence (2026-10-22 evening): F20/F21/F22/F23/F33 now include
@@ -41,7 +41,7 @@ sampler completed with no observed crash, but a five-minute authority outage.
 Final Windows 63/63 and Linux sanitizer 60/60 PASS. All 42
 rows retained; no item promoted to release-ready. See TAKEOVER-VALIDATION.md.
 
-> **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](CODEX-PUBLISH-HANDOFF.md). Read it first.
+> **Handoff:** the current state, open work and next actions for the publishing agent are in [CODEX-PUBLISH-HANDOFF.md](archive/CODEX-PUBLISH-HANDOFF.md). Read it first.
 
 Continuation checkpoint (2026-10-22, dev.6): all **42** items retained; SNMP operational
 subtree, web request screening and MQTT status added (see V). Earlier (2026-10-21): Dev.5 adds a

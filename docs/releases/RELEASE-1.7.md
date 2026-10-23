@@ -125,4 +125,4 @@ vulnerabilities exist. Stable is a community release channel, not certification.
 Application SHA-256:
 `4067f45fca22cef741477784637a71dd443e7a4df103bffba5524763ec7be1b2`.
 Older 0.1.19/1.5 and 0.1.28/1.6 releases are unchanged.
-Full integration record: [UPSTREAM-0.1.29.md](UPSTREAM-0.1.29.md).
+Full integration record: [UPSTREAM-0.1.29.md](../upstream/UPSTREAM-0.1.29.md).

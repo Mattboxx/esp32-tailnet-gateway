@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/logo/homelab-gateway.svg" alt="ESP32 Homelab Gateway — Mattboxx Edition" width="100%">
+<img src="../../assets/logo/homelab-gateway.svg" alt="ESP32 Homelab Gateway — Mattboxx Edition" width="100%">
 
 # ESP32 Homelab Gateway
 
@@ -20,7 +20,7 @@ This Mattboxx edition adds a selective LAN → Tailnet service gateway, remote
 recovery and diagnostics, automation, privacy hardening and a ready-to-flash
 release. Tailscale, WireGuard, DERP and MagicDNS are not Mattboxx inventions.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](../../LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-7c3aed.svg)](#hardware)
 [![ESP-IDF](https://img.shields.io/badge/ESP--IDF-5.5.3-e7352c.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![CodeQL](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/actions/workflows/codeql.yml)
@@ -67,7 +67,7 @@ In the current development line (not yet in a stable release) the same page
 also offers a **Test destination** button — the ESP32 performs one bounded TCP
 handshake with the Tailnet service, before you enable any LAN exposure — plus
 a guided setup, optional expiry for temporary access and service-rule
-export/import with preview. See the [Service Gateway guide](docs/SERVICE-GATEWAY.md).
+export/import with preview. See the [Service Gateway guide](../SERVICE-GATEWAY.md).
 
 ## How it compares
 
@@ -106,7 +106,7 @@ export/import with preview. See the [Service Gateway guide](docs/SERVICE-GATEWAY
 2. **Remote Recovery & Diagnostics** — an independently powered tailnet node:
    reach its Web UI when your NAS (and its Tailscale) is off, send Wake-on-LAN,
    run bounded Smart Recovery and layered health checks with honest evidence.
-   [NAS recovery checklist](docs/NAS-RECOVERY.md).
+   [NAS recovery checklist](../NAS-RECOVERY.md).
 3. **Automation, Monitoring & Management** — MQTT, Home Assistant Discovery,
    ntfy, SNMP, profiles, subnet router, exit node and AP gateway. All optional:
    direct Web UI access and manual WoL need none of them.
@@ -118,10 +118,10 @@ not fully out-of-band management.
 
 **[Download stable firmware and the guided Windows flashing ZIP](../../releases/latest)** ·
 **[Supported hardware](#hardware)** ·
-**[What's new in stable 1.13](docs/RELEASE-1.13.md)** ·
+**[What's new in stable 1.13](../releases/RELEASE-1.13.md)** ·
 **[See every change from upstream](CUSTOM_BRANCH.md)** ·
-**[Read the security model](SECURITY.md)** ·
-**[All guides](docs/GUIDES.md)**
+**[Read the security model](../../SECURITY.md)** ·
+**[All guides](../GUIDES.md)**
 
 ## One board, three network gateways
 
@@ -138,32 +138,32 @@ forwarding.
 
 The networking protocol stack is upstream work; this edition's value is a
 standalone service gateway and operational UI around it, not a new VPN protocol.
-See the [code-backed comparison and positioning](docs/PRODUCT-AUDIT.md),
-[architecture](docs/ARCHITECTURE.md) and
-[permanent development roadmap](docs/DEVELOPMENT-ROADMAP.md).
+See the [code-backed comparison and positioning](PRODUCT-AUDIT.md),
+[architecture](../ARCHITECTURE.md) and
+[permanent development roadmap](../DEVELOPMENT-ROADMAP.md).
 
 **Development source: 0.1.38-Mattboxx-1.14-dev.5.** Adds passive per-rule
 exposure/diagnostic guidance and transactional WoL address-book fixes.
 New UI rules start disabled; an installed mapping is not called a verified
 service. This source is not a new published binary. Stable downloads below
-remain 1.13. [Service gateway guide](docs/SERVICE-GATEWAY.md).
+remain 1.13. [Service gateway guide](../SERVICE-GATEWAY.md).
 
 Local development also includes bounded Smart Recovery, temporary service-rule
 leases and opt-in layered connectivity checks with MQTT/HA/ntfy evidence.
-See [health monitoring](docs/NETWORK-HEALTH.md) for the limits; neither a control
+See [health monitoring](../NETWORK-HEALTH.md) for the limits; neither a control
 connection nor one successful TCP check proves that the entire tunnel is healthy.
 
 The local 1.14 candidate also addresses a confirmed missing Tailnet service-
 authorization gate in the pinned MicroLink parent. It is **not hardware-
 qualified or fully policy-compatible**: conservative protocol/fragment limits
 and two-real-client tests remain release blockers. Read the
-[authorization findings and validation matrix](docs/TAILNET-AUTHORIZATION.md)
+[authorization findings and validation matrix](../TAILNET-AUTHORIZATION.md)
 before relying on fine-grained Tailnet permissions; peer visibility is not
 port authorization. The public 1.13 binary does not contain this local fix.
 Dev.3 additionally fixes at-capacity peer replacement, stale queued peer work
 and map/keepalive precedence. Development is tracked in the
-[goals](GOALS.md), [implementation/validation matrix](docs/FEATURE-IMPLEMENTATION-MATRIX.md)
-and [current checkpoint](docs/NEXT-STEPS-FOR-AGENT.md). Planned capabilities
+[goals](../../GOALS.md), [implementation/validation matrix](../FEATURE-IMPLEMENTATION-MATRIX.md)
+and [current checkpoint](../NEXT-STEPS-FOR-AGENT.md). Planned capabilities
 in those documents are not claims about the stable download. Dev.4 integrates
 experimental MAC-bound recovery/device checks, opt-in monitoring/resource
 admission, LAN→Tailnet exposure leases, capability/diagnostic APIs and their
@@ -171,15 +171,15 @@ UI/MQTT/HA/ntfy integration. Related ICMP and bounded IPv6 header handling are
 expanded. These are **development source, not fully validated features**;
 non-atomic tunnel fragments, full policy compatibility, remaining roadmap
 features and consolidated/hardware qualification are still outstanding.
-See the [experimental Smart Recovery guide](docs/SMART-RECOVERY.md).
+See the [experimental Smart Recovery guide](../SMART-RECOVERY.md).
 
 **Latest stable: 0.1.38-Mattboxx-1.13.** Integrates all published
 upstream v0.1.34–v0.1.38 changes: verified relay TLS, WireGuard protocol/nonce
 fixes, correct sticky relay selection/reporting, faster silent-peer recovery,
 bounded control stalls and the v0.1.38 TCPIP teardown/copy-free TX fixes.
 Keeps every custom feature and privacy removal. See the
-[complete integration record](docs/UPSTREAM-0.1.38.md) and
-[stable release notes](docs/RELEASE-1.13.md).
+[complete integration record](../upstream/UPSTREAM-0.1.38.md) and
+[stable release notes](../releases/RELEASE-1.13.md).
 The stable tag and embedded firmware version match, so the optional GitHub
 updater can offer 1.13 without beta enrollment. Existing settings are retained
 when updating with the application image. Update checking and installation
@@ -199,8 +199,8 @@ No external log uploads or forced update polling are restored.
 
 Updates stay opt-in; **Install latest update** also works as a one-off action
 with periodic checks OFF. Stable does not require beta enrollment. See
-[update policy](docs/UPDATES.md), [ntfy test coverage](docs/NTFY-TRANSPORT.md),
-[release history](CHANGELOG.md) and [previous stable validation](docs/RELEASE-1.11.md).
+[update policy](../UPDATES.md), [ntfy test coverage](../NTFY-TRANSPORT.md),
+[release history](../../CHANGELOG.md) and [previous stable validation](../releases/RELEASE-1.11.md).
 Stable is a release channel, not a security certification.
 
 | Area | Added or improved in this edition |
@@ -254,7 +254,7 @@ browser. There is no app and no serial console required after the first
 flash.
 
 <div align="center">
-<img src="docs/images/status_v3.png" alt="Web UI — Status dashboard" width="88%">
+<img src="../images/status_v3.png" alt="Web UI — Status dashboard" width="88%">
 <br><em>The Status dashboard: uplink, access point, Tailscale node and peers at a glance.</em>
 </div>
 
@@ -396,7 +396,7 @@ The published images are WiFi-only. The development line adds an optional
 with an explicitly wired module: OFF by default, explicit pins, DHCP or static
 IPv4, WiFi-first or Ethernet-first uplink selection, firewall hooks before
 start. It is host-tested but **not physically validated**; see
-[the Ethernet guide](docs/ETHERNET.md). SNMP's generic ETH counters are not an
+[the Ethernet guide](../ETHERNET.md). SNMP's generic ETH counters are not an
 Ethernet driver. Do not flash this image onto an unrelated board.
 
 ### Upstream board compatibility reports (not current fork certification)
@@ -463,7 +463,7 @@ On first boot the device brings up its own access point:
   there, then rename the AP to your liking.
 
 <div align="center">
-<img src="docs/images/login.png" alt="First-run admin password" width="46%">
+<img src="../images/login.png" alt="First-run admin password" width="46%">
 </div>
 
 ### 3. Join your WiFi
@@ -472,7 +472,7 @@ On **Network → Access Point / Uplink networks**, point the device at your
 existing 2.4 GHz network and (optionally) rename the AP it broadcasts.
 
 <div align="center">
-<img src="docs/images/network-ap_v2.png" alt="Access Point configuration" width="80%">
+<img src="../images/network-ap_v2.png" alt="Access Point configuration" width="80%">
 </div>
 
 ### 4. Enrol on your tailnet
@@ -486,13 +486,13 @@ Log in to the [Tailscale admin console](https://login.tailscale.com/admin/settin
 → **Settings → Keys** and click **Generate auth key…**.
 
 <div align="center">
-<img src="docs/images/tailscale-keys-page.png" alt="Tailscale admin — Keys page" width="80%">
+<img src="../images/tailscale-keys-page.png" alt="Tailscale admin — Keys page" width="80%">
 </div>
 
 Fill in the dialog:
 
 <div align="center">
-<img src="docs/images/tailscale-auth-key-create.png" alt="Generate auth key dialog" width="70%">
+<img src="../images/tailscale-auth-key-create.png" alt="Generate auth key dialog" width="70%">
 </div>
 
 | Option | Value | Why |
@@ -515,7 +515,7 @@ egress through it. Save — the device registers with your tailnet on its
 next connect.
 
 <div align="center">
-<img src="docs/images/tailscale_v2.png" alt="Tailscale configuration and peers" width="88%">
+<img src="../images/tailscale_v2.png" alt="Tailscale configuration and peers" width="88%">
 </div>
 
 > **Approve the route.** A newly advertised subnet shows up in the Tailscale
@@ -552,7 +552,7 @@ next connect.
 3. Click the `⋯` menu → **Disable key expiry**.
 
 <div align="center">
-<img src="docs/images/tailscale-disable-key-expiry.png" alt="Tailscale admin — Disable key expiry" width="80%">
+<img src="../images/tailscale-disable-key-expiry.png" alt="Tailscale admin — Disable key expiry" width="80%">
 </div>
 
 4. **Reboot the device** (Reboot on the **System** tab, or power-cycle). The
@@ -583,7 +583,7 @@ default. Rules match on protocol, source/destination CIDR, ports, and
 action, with live hit counters.
 
 <div align="center">
-<img src="docs/images/firewall_v2.png" alt="Firewall — four ACL chains with example rules" width="88%">
+<img src="../images/firewall_v2.png" alt="Firewall — four ACL chains with example rules" width="88%">
 </div>
 
 | Chain | Direction |
@@ -600,9 +600,9 @@ uplink, WireGuard, or DERP?", which is the fastest way to reason about
 exit-node and subnet routing.
 
 <div align="center">
-<img src="docs/images/tools-route.png" alt="Route explain" width="80%">
+<img src="../images/tools-route.png" alt="Route explain" width="80%">
 <br>
-<img src="docs/images/tools-ping.png" alt="On-device ping" width="80%">
+<img src="../images/tools-ping.png" alt="On-device ping" width="80%">
 </div>
 
 ## How it works
@@ -641,7 +641,7 @@ exit-node and subnet routing.
   attached here as a git submodule and pinned to the integration commit.
   Its `docs/ARCHITECTURE.md` and `docs/TAILSCALE_REFERENCE.md` go deeper.
 
-See [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) for a field-by-field
+See [`docs/CONFIGURATION.md`](../CONFIGURATION.md) for a field-by-field
 configuration reference.
 
 ## Tailscale & Headscale
@@ -710,7 +710,7 @@ GitHub updates are OFF by default: the operator can enable periodic checks,
 automatic installs and beta releases independently, or request a one-off
 check/install. Those actions contact GitHub and its release-asset CDN without
 sending settings, keys or logs; GitHub sees the public source IP and a generic
-updater User-Agent. See [the update trust model](docs/UPDATES.md).
+updater User-Agent. See [the update trust model](../UPDATES.md).
 Other application-level connections are Tailscale/Headscale and,
 when enabled by the operator, the configured MQTT broker and ntfy server. DNS, DHCP and NTP
 remain available as infrastructure needed to resolve and establish those
@@ -725,9 +725,9 @@ the recommended installation path.
 
 ## Security
 
-Please report vulnerabilities privately — see [`SECURITY.md`](SECURITY.md).
+Please report vulnerabilities privately — see [`SECURITY.md`](../../SECURITY.md).
 The repo runs CodeQL, Dependabot, secret scanning, and a custom
-[Sensitive Data Check](.github/workflows/sensitive-check.yml) on every
+[Sensitive Data Check](../../.github/workflows/sensitive-check.yml) on every
 push.
 
 ## Development
@@ -746,8 +746,8 @@ tools/                helper scripts
 The entire web UI is the single file `main/index.html`, embedded into
 the firmware by `main/CMakeLists.txt` at build time.
 
-See **[CONTRIBUTING.md](CONTRIBUTING.md)** for build/flash setup and pull-request
-guidelines, and **[docs/TESTING.md](docs/TESTING.md)** for the test harness.
+See **[CONTRIBUTING.md](../../CONTRIBUTING.md)** for build/flash setup and pull-request
+guidelines, and **[docs/TESTING.md](../TESTING.md)** for the test harness.
 
 ## Support the Mattboxx edition
 
@@ -771,13 +771,13 @@ These links support **Csontikka**, the original author, not the Mattboxx edition
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/logo/bunny.png">
-    <img alt="Csontikka" src="assets/logo/bunny_dark.png" width="52">
+    <img alt="Csontikka" src="../../assets/logo/bunny_dark.png" width="52">
   </picture>
 </p>
 
 ## Credits & license
 
-This firmware is [MIT](LICENSE) licensed. It builds on:
+This firmware is [MIT](../../LICENSE) licensed. It builds on:
 
 - **[microlink](https://github.com/Csontikka/microlink)** — Tailscale
   `ts2021` client (MIT), based on the original
@@ -787,7 +787,7 @@ This firmware is [MIT](LICENSE) licensed. It builds on:
 - **[ESP-IDF](https://github.com/espressif/esp-idf)** — Espressif RTOS &
   networking (Apache-2.0)
 
-See [`NOTICE.md`](NOTICE.md) for the full third-party attribution list.
+See [`NOTICE.md`](../../NOTICE.md) for the full third-party attribution list.
 
 > *Tailscale* and *Headscale* are trademarks of their respective owners.
 > This is an independent, unaffiliated community project.
