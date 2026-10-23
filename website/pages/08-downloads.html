@@ -9,6 +9,7 @@ order: 8
 <h1>Downloads</h1>
 <!-- if:v2 -->
 <p class="lead">Three ways to install Firmware v{{next_version}}. Beginners: start with A.</p>
+<h2 id="availability">Choose an installation method</h2>
 <div class="grid">
   <div class="card"><h3>A. Install from browser <span class="badge on">recommended</span></h3>
     <p>Connect the ESP32-S3 by USB and install from this site in desktop Chrome or Edge.</p>
@@ -36,11 +37,10 @@ order: 8
 <!-- endif -->
 <!-- if:stable -->
 <p class="note">Firmware v{{next_version}} — with the <a href="{{root}}install-firmware/">browser installer</a>, the <a href="{{root}}easy-install/">Easy Install package</a> and the <a href="{{root}}first-boot/">guided first start</a> — is in preparation. Until it is released, the download below is the stable 1.13.</p>
-<!-- endif -->
 <h2 id="availability">Available now: stable Mattboxx 1.13</h2>
-<p>The new identity is live; firmware 1.14 is still in development. The download below is <strong>0.1.38-Mattboxx-1.13</strong>, not the preview firmware. Existing users can keep their stable installation.</p>
+<p>The new identity is live; Firmware v{{next_version}} is still in preparation. The download below is <strong>0.1.38-Mattboxx-1.13</strong>, not the preview firmware. Existing users can keep their stable installation.</p>
 <table>
-  <thead><tr><th>In public stable 1.13</th><th>Previewing 1.14 — not yet released</th></tr></thead>
+  <thead><tr><th>In public stable 1.13</th><th>Firmware v{{next_version}} — not yet released</th></tr></thead>
   <tbody>
     <tr><td>LAN → Tailnet TCP/UDP rules, source restrictions and MagicDNS</td><td>Destination tests, timed rules, Service Watch and rule guides</td></tr>
     <tr><td>Subnet router, AP gateway, exit-node roles and 4via6</td><td>Refreshed UI, Simple/Advanced modes and configuration profiles</td></tr>
@@ -62,10 +62,19 @@ order: 8
   </tbody>
 </table>
 
+<!-- endif -->
 <h2>Verify a download</h2>
+<!-- if:v2 -->
+<pre><code>sha256sum -c SHA256SUMS.txt        # Linux
+shasum -a 256 -c SHA256SUMS.txt    # macOS
+Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
+<p><a href="{{repo}}/releases/tag/v0.1.38-Mattboxx-1.13">Previous stable 1.13 and its original installation assets</a> remain available in the release archive.</p>
+<!-- endif -->
+<!-- if:stable -->
 <pre><code>sha256sum -c RELEASE-SHA256SUMS.txt        # Linux
 shasum -a 256 -c RELEASE-SHA256SUMS.txt    # macOS
 Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
+<!-- endif -->
 
 <h2>WiFi and Ethernet variants</h2>
 <p>The default images are the WiFi build. An Ethernet (W5500) variant, when published, has <code>eth</code> in its name and is only for boards with that module wired as documented. It is experimental.</p>

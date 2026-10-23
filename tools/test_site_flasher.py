@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import runpy
 import subprocess
 import sys
 import tempfile
@@ -79,6 +80,34 @@ with tempfile.TemporaryDirectory() as d:
     else:
         raise AssertionError('published build without a manifest')
 print('PASS: installer published only with exact parts, partitions.csv offsets and an erase prompt; bad manifests stop the build')
+
+# Pages runs the presentation validator on deployment. Exercise the actual
+# validator in all migration stages: it must not reject a published/renamed
+# site merely because its original checks were written for the preview.
+saved = {key: getattr(build_site, key) for key in ('RENAMED', 'NEXT_PUBLISHED', 'REPO_SLUG', 'REPO_URL', 'SITE_URL', 'FIRMWARE_DIR')}
+old_output = os.environ.get('SITE_PRESENTATION_DIR')
+try:
+    with tempfile.TemporaryDirectory() as d:
+        fixture(Path(d) / build_site.NEXT_VERSION)
+        for renamed, published in ((False, False), (False, True), (True, True)):
+            build_site.RENAMED, build_site.NEXT_PUBLISHED = renamed, published
+            build_site.REPO_SLUG = 'esp32-tailnet-gateway' if renamed else 'esp32-tailscale-gateway-NAS-recovery'
+            build_site.REPO_URL = 'https://github.com/Mattboxx/' + build_site.REPO_SLUG
+            build_site.SITE_URL = 'https://mattboxx.github.io/' + build_site.REPO_SLUG + '/'
+            build_site.FIRMWARE_DIR = Path(d)
+            pages = build_site.build(OUT)
+            problems = build_site.check(OUT, pages)
+            assert not problems, f'Site checks failed (renamed={renamed}, published={published}): '+ '; '.join(problems[:6])
+            os.environ['SITE_PRESENTATION_DIR'] = str(OUT)
+            runpy.run_path(str(ROOT / 'tools/test_site_presentation.py'))
+    print('PASS: actual Pages presentation gate accepts preview, release-before-rename and release-after-rename (synthetic firmware)')
+finally:
+    for key, value in saved.items():
+        setattr(build_site, key, value)
+    if old_output is None:
+        os.environ.pop('SITE_PRESENTATION_DIR', None)
+    else:
+        os.environ['SITE_PRESENTATION_DIR'] = old_output
 
 if '--browser' in sys.argv:
     with tempfile.TemporaryDirectory() as d:

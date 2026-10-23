@@ -21,7 +21,8 @@ order: 15
 cd esp32-tailscale-gateway-NAS-recovery
 pio run -e esp32-s3
 python -m unittest discover -s tools -p 'test_sensitive_scanner.py'</code></pre>
-<p>The embedded source on Main remains the published 1.13 baseline during this presentation-only phase. Follow <a href="{{repo}}/blob/Main/docs/TESTING.md">its test instructions</a>; the expanded 1.14 suite is not published yet. Device tests can change a real board; run them only on your own test hardware.</p>
+<!-- if:stable --><p>The embedded source on Main remains the published 1.13 baseline until the new firmware is qualified and released. The expanded Firmware v{{next_version}} suite is not published yet.</p><!-- endif -->
+<p>Follow the <a href="{{repo}}/blob/Main/docs/TESTING.md">test instructions for the published source</a>. Device tests can change a real board; run them only on your own test hardware.</p>
 
 <h2>Rules</h2>
 <ul>
