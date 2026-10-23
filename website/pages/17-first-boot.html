@@ -1,0 +1,35 @@
+<!--
+slug: first-boot/
+title: First boot
+description: Set up a new ESP32 Tailnet Gateway from your phone or PC: join its setup Wi-Fi, confirm with the BOOT button, create the admin password and follow the guide.
+group: Start
+order: 1
+-->
+<h1>First boot</h1>
+<!-- if:stable --><p class="note">This guided first start arrives with firmware v{{next_version}}. The current stable download, Mattboxx 1.13, starts as described in <a href="{{root}}getting-started/">Getting started</a>.</p><!-- endif -->
+<p class="lead">A new gateway configures itself like a home router: join its Wi-Fi, open the setup page, and answer a few questions. No serial tools, IP knowledge or Tailscale experience needed.</p>
+
+<ol>
+  <li><strong>Install the firmware</strong> from the <a href="{{root}}install-firmware/">browser installer</a> or the <a href="{{root}}easy-install/">Easy Install package</a>.</li>
+  <li><strong>Power the board.</strong> After a few seconds it opens an open Wi-Fi network called <code>ESP32-Tailnet-Setup-XXXX</code> (XXXX identifies your board).</li>
+  <li><strong>Join that network</strong> with a phone or computer. Most phones and PCs then show a sign-in notification or open the setup page by themselves.</li>
+  <li><strong>If nothing opens</strong>, open <code>http://192.168.4.1/</code> in a browser. This address always works while the setup network is active.</li>
+  <li><strong>Confirm it is yours:</strong> press the <strong>BOOT</strong> button on the board once. No reachable button? Connect USB, open a serial console at 115200 baud and type the 8-digit setup code it prints.</li>
+  <li><strong>Secure your gateway:</strong> create the admin password (at least 8 characters). There is no default password.</li>
+  <li><strong>Connect to Wi-Fi:</strong> pick your home network from the list, enter its password and press <em>Test connection</em>. Your phone may lose the setup network for a moment; it reconnects by itself.</li>
+  <li><strong>Connect your Tailnet:</strong> paste a Tailscale or Headscale auth key, or skip and do it later from the dashboard.</li>
+  <li><strong>Choose your gateway role:</strong> connect a device to your Tailnet, connect a network, IoT gateway, wake or recover a NAS/PC, Home Assistant &amp; automation, or advanced configuration. Also name the gateway's own Wi-Fi and set its password.</li>
+  <li><strong>Finish:</strong> the gateway saves everything and restarts. Rejoin your home Wi-Fi and open the address shown, or the gateway's name on your tailnet. Sign in, and the guide for the role you chose opens once.</li>
+</ol>
+
+<h2 id="security">Why the setup network is open, and how it is protected</h2>
+<p>The setup Wi-Fi has no password so that any phone can join it, but only a gateway that has <strong>never been configured</strong> opens it. An existing installation, including one updated from 1.13, never does.</p>
+<ul>
+  <li>Only the person holding the board can pair: the BOOT button or the console code must confirm, and only one pairing at a time is allowed.</li>
+  <li>Passwords and keys are encrypted in your browser before they cross the open network (X25519 key agreement and AES-256-GCM).</li>
+  <li>While unconfigured, the gateway exposes no other function and forwards nothing to your home network.</li>
+</ul>
+<p>Remaining risk: someone nearby, during the few minutes of setup, could imitate the setup network with a fake one. Set the gateway up where you can see it.</p>
+
+<h2 id="later">Later, without Wi-Fi</h2>
+<p>If the home Wi-Fi disappears, the gateway opens its <strong>own protected</strong> Wi-Fi (the name and password you chose) after about a minute, so you can sign in and fix the settings. That recovery network never uses the open setup mode. See <a href="{{root}}device-recovery/">Device recovery</a>.</p>

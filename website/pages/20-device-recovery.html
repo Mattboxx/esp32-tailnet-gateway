@@ -1,0 +1,26 @@
+<!--
+slug: device-recovery/
+title: Device recovery
+description: Get an ESP32 Tailnet Gateway back when the home Wi-Fi is gone, an update failed or settings are wrong: protected recovery Wi-Fi, fallback image and USB reinstall.
+group: Guides
+order: 13
+-->
+<h1>Device recovery</h1>
+<p class="lead">Losing Wi-Fi or a bad setting never erases your configuration, and the gateway never falls back to an open network once it has been set up.</p>
+
+<h2 id="no-wifi">The home Wi-Fi is unavailable</h2>
+<p>About a minute after the saved Wi-Fi disappears, the gateway opens its own <strong>protected</strong> Wi-Fi with the name and password you chose during setup. Join it, open <code>http://192.168.4.1/</code>, sign in with the admin password and correct the Wi-Fi settings. When the uplink returns, that network closes again (unless you keep it always on).</p>
+<p class="note">Gateways installed before v{{next_version}} may still use the firmware's shared default access-point password. The Network page warns about it: set your own password there.</p>
+
+<h2 id="update-failed">An update did not start</h2>
+<p>Over-the-air updates keep the previous image. If the new one does not start correctly, the gateway returns to the previous image by itself. Check <strong>Tools → Reset history</strong> afterwards.</p>
+
+<h2 id="usb">Reinstall by USB</h2>
+<ol>
+  <li>Keep settings: browser installer with <strong>Erase device</strong> unticked, or <code>UPDATE-KEEP-SETTINGS</code> / <code>install.sh update</code>.</li>
+  <li>Start over: erase and install, then follow the <a href="{{root}}first-boot/">first boot</a>. Restore a backup afterwards (System → Restore).</li>
+</ol>
+<p>If the computer does not see the board: hold <strong>BOOT</strong>, tap <strong>RESET</strong>, release <strong>BOOT</strong>, then retry. The ROM bootloader inside the chip cannot be overwritten by a failed install.</p>
+
+<h2 id="forgot">Forgotten admin password</h2>
+<p>Connect USB, open a serial console at 115200 baud and run <code>web_password &lt;new password&gt;</code>. Or erase and reinstall; a backup made earlier restores your configuration.</p>
