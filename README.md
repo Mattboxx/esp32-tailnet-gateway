@@ -140,8 +140,9 @@ the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailscale-ga
 5. **Open** the gateway from your home WiFi with a link shown on the last
    setup page: the address its WiFi test received, or
    `http://esp32-tailnet-xxxx.local/`, where `xxxx` is the code of its setup
-   WiFi. Only that gateway answers to the name, so several gateways on one
-   network never collide.
+   WiFi by default. Use the actual name shown by setup if a hostname was
+   configured. Opening a `.local` name requires mDNS support on the client
+   and LAN; use the tested IP address if name resolution is unavailable.
 6. **Reserve** a LAN address on your router. Add a rule under **Network →
    LAN → Tailnet**, review its allowed source and run **Test destination**.
 

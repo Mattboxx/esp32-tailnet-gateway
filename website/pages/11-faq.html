@@ -1,12 +1,19 @@
 <!--
 slug: faq/
 title: FAQ
+search_title: ESP32 Tailscale FAQ — Boards, IoT, Speed & NAS Recovery
 description: Frequently asked questions about ESP32 Tailnet Gateway: Tailscale and Headscale support, throughput, security, hardware and Wake-on-LAN.
 group: Project
 order: 11
 schema: faq
 -->
 <h1>Frequently asked questions</h1>
+
+<details><summary>Can I run Tailscale on an ESP32?</summary>
+<p>This project runs a community Tailscale-compatible client on an ESP32-S3 with 16 MB flash and 8 MB octal PSRAM (N16R8). It supports selected gateway and recovery jobs without a Linux server. It is not the official Tailscale client, does not support every ESP32 board, and does not promise all official-client features. See <a href="{{root}}hardware/">supported hardware</a> and the <a href="{{root}}security/">security model</a>.</p></details>
+
+<details><summary>Can I connect IoT devices that cannot install a VPN client?</summary>
+<p>Yes, for supported TCP/UDP services. A LAN device can connect to a specific ESP32 listen port, or a WiFi device can use the ESP32's IoT access point. These are different paths: choose the <a href="{{root}}service-gateway/">selective LAN-to-Tailnet gateway</a> or <a href="{{root}}network-modes/">AP gateway</a> for your use case. Neither automatically relays multicast discovery between homes.</p></details>
 
 <details><summary>Is this an official Tailscale client?</summary>
 <p>No. It is community firmware built on the microlink stack, compatible with Tailscale and Headscale coordination servers. It is not affiliated with Tailscale Inc.</p></details>

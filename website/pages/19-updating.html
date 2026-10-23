@@ -1,7 +1,7 @@
 <!--
 slug: updating/
 title: Updating
-description: Update ESP32 Tailnet Gateway safely: over the air from the Web UI with automatic fallback, by USB keeping settings, and how earlier versions move to v2.0.0.
+description: Update ESP32 Tailnet Gateway to Firmware v2.0.1 over the air or by USB, keeping settings. Learn how earlier versions migrate and how to preserve recovery options.
 group: Start
 order: 3
 -->
@@ -20,9 +20,9 @@ order: 3
 <p>Use the <a href="{{root}}install-firmware/">browser installer</a> with <strong>Erase device</strong> unticked, or <code>UPDATE-KEEP-SETTINGS</code> / <code>install.sh update</code> from the <a href="{{root}}easy-install/">Easy Install package</a>.</p>
 
 <h2 id="from-older">From 1.13 and earlier to v{{next_version}}</h2>
-<p>Firmware v{{next_version}} starts a new, product-own version number (see <a href="{{root}}versioning/">Versioning</a>). Updaters in 1.10–1.13 only understand the older numbering and only the repository's previous name, so the move happens in two steps:</p>
+<p>The v2 series uses product-own version numbers (see <a href="{{root}}versioning/">Versioning</a>). Updaters in 1.10–1.13 only understand the older numbering and only the repository's previous name. The published migration used two steps:</p>
 <ol>
-  <li>A <strong>bridge release</strong> with the older numbering is published under the current repository name first. Devices that check for updates find and install it; it already contains the new updater.</li>
-  <li>From the bridge, the device finds v{{next_version}} like any later update.</li>
+  <li>The <strong>1.100 bridge release</strong> was published under the old repository name before the rename. Devices that installed it received the new updater.</li>
+  <li>From the bridge, the device can find v{{next_version}} like a later update.</li>
 </ol>
 <p>After the repository is renamed, devices still on 1.13 or older cannot find updates by themselves. Update them once by hand: upload <code>firmware.bin</code> in the Web UI, or use USB keeping settings. Settings, the tailnet identity and saved Wi-Fi carry over; the first-boot setup does not appear.</p>
