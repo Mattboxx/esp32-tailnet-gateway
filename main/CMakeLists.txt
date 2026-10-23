@@ -26,12 +26,22 @@ file(GLOB _i18n_files "${CMAKE_CURRENT_LIST_DIR}/i18n/*.json")
 if(_i18n_files)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_i18n_files})
 endif()
+# The experimental W5500 image serves the UI in English only: with the
+# translations it exceeded the 1920 KiB app partition (2.0.1, by 10 KiB).
+# A separate generated file keeps a WiFi build from reusing that page.
+if(CONFIG_ETH_SPI_ETHERNET_W5500)
+    set(_index_flags "--english-only")
+    set(_index_c "index_html_data_en.c")
+else()
+    set(_index_flags "")
+    set(_index_c "index_html_data.c")
+endif()
 find_package(Python3 REQUIRED)
 execute_process(
     COMMAND ${Python3_EXECUTABLE}
-            "${CMAKE_CURRENT_LIST_DIR}/gen_index_html_gz.py"
+            "${CMAKE_CURRENT_LIST_DIR}/gen_index_html_gz.py" ${_index_flags}
             "${CMAKE_CURRENT_LIST_DIR}/index.html"
-            "${CMAKE_CURRENT_LIST_DIR}/index_html_data.c"
+            "${CMAKE_CURRENT_LIST_DIR}/${_index_c}"
     RESULT_VARIABLE _gz_rc
     OUTPUT_VARIABLE _gz_out
     ERROR_VARIABLE  _gz_err)
@@ -91,7 +101,7 @@ idf_component_register(SRCS "main.c"
                             "lwip_mdns/mdns.c"
                             "${_lwip_mdns}/mdns_domain.c"
                             "${_lwip_mdns}/mdns_out.c"
-                            "index_html_data.c"
+                            "${_index_c}"
                     PRIV_REQUIRES esp_wifi nvs_flash esp_event esp_netif esp_timer
                                   lwip microlink wpa_supplicant
                                   esp-tls mbedtls
