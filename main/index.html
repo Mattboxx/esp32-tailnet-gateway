@@ -1616,6 +1616,7 @@
     .goal-tile strong { font-size: var(--text-md); }
     .goal-tile span { font-size: 0.8125rem; color: var(--fg-secondary); line-height: 1.45; }
     .goal-tile.primary { border-color: var(--accent-border); background: var(--accent-muted); }
+    .goal-tile.recommended { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 
     /* Service Gateway rules: summary row (table on wide screens, card on phones) + editor */
     .tf-row { border: 1px solid var(--border); border-radius: var(--radius-md); margin-bottom: var(--sp-2); background: var(--bg-card); }
@@ -1794,17 +1795,17 @@
     </form>
   </div>
 
-  <!-- First-boot setup: unconfigured gateway on its own open setup Wi-Fi -->
-  <div class="auth-overlay fb-overlay" id="firstBoot" style="display:none" role="dialog" aria-modal="true" aria-labelledby="fb-title">
+  <!-- First-boot setup: unconfigured gateway on its own open setup Wi-Fi.
+       English only to save flash (owner decision); i18n:english-only -->
+  <div class="auth-overlay fb-overlay" id="firstBoot" style="display:none" role="dialog" aria-modal="true" aria-labelledby="fb-title" lang="en" data-no-i18n>
     <form class="auth-card fb-card" id="fbForm" autocomplete="off" novalidate>
       <div class="fb-head">
         <svg class="brand-mark" width="34" height="34" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-width="4.5"><path d="M10 32h17" stroke="#1FC97A"/><path d="M27 32c11 0 11-15 21-15M27 32c11 0 11 15 21 15" stroke="#1F5C3F"/><path d="M27 32h21" stroke="#1FC97A"/></g><circle cx="27" cy="32" r="8" fill="#1FC97A"/><circle cx="27" cy="32" r="3" fill="#0d0f12"/><circle cx="52" cy="32" r="5.5" fill="#1FC97A"/><circle cx="51.5" cy="17" r="3.5" fill="none" stroke="#1F5C3F" stroke-width="2.6"/><circle cx="51.5" cy="47" r="3.5" fill="none" stroke="#1F5C3F" stroke-width="2.6"/></svg>
-        <div class="fb-head-text"><div class="auth-title" id="fb-title">Set up your Tailnet Gateway</div>
-          <div class="auth-subtitle">First start: a few steps and you are ready.</div></div>
-        <select class="input fb-lang" id="fb-lang" aria-label="Language"></select>
+        <div class="fb-head-text"><div class="auth-title" id="fb-title">Welcome to ESP32 Tailnet Gateway</div>
+          <div class="auth-subtitle">Let’s secure your gateway before getting started.</div></div>
       </div>
       <ol class="fb-steps" id="fb-steps" aria-label="Setup progress">
-        <li>Pair</li><li>Password</li><li>Wi-Fi</li><li>Tailnet</li><li>Features</li><li>Finish</li>
+        <li>Pair</li><li>Secure</li><li>Wi-Fi</li><li>Tailnet</li><li>Role</li><li>Finish</li>
       </ol>
       <div class="auth-error" id="fb-error" role="alert"></div>
 
@@ -1825,9 +1826,9 @@
       </section>
 
       <section class="fb-step" data-step="1" hidden>
-        <p>Choose the admin password for this gateway. There is no default password.</p>
+        <p><b>Secure your gateway.</b> Choose the admin password. There is no default password.</p>
         <div class="form-group">
-          <label class="form-label" for="fb-pw">Admin password</label>
+          <label class="form-label" for="fb-pw">Create admin password</label>
           <input class="input" type="password" id="fb-pw" autocomplete="new-password" minlength="8" maxlength="64">
           <div class="fb-meter" aria-hidden="true"><span id="fb-meter-bar"></span></div>
           <span class="auth-hint" id="fb-meter-text">At least 8 characters. A longer passphrase is stronger.</span>
@@ -1836,10 +1837,11 @@
           <label class="form-label" for="fb-pw2">Confirm password</label>
           <input class="input" type="password" id="fb-pw2" autocomplete="new-password" maxlength="64">
         </div>
+        <label class="fb-radio"><input type="checkbox" id="fb-show"> Show password</label>
       </section>
 
       <section class="fb-step" data-step="2" hidden>
-        <p>Choose the Wi-Fi network the gateway will use to reach the Internet.</p>
+        <p><b>Connect to Wi-Fi.</b> Choose the network the gateway will use to reach the Internet.</p>
         <button class="btn btn-secondary btn-sm" id="fb-scan" type="button">Scan for networks</button>
         <ul class="fb-list" id="fb-nets" aria-label="Wi-Fi networks"></ul>
         <div class="form-group">
@@ -1857,7 +1859,7 @@
       </section>
 
       <section class="fb-step" data-step="3" hidden>
-        <p>Join your tailnet now, or leave the key empty and do it later from the dashboard.</p>
+        <p><b>Connect your Tailnet.</b> Join now, or leave the key empty and do it later from the dashboard.</p>
         <div class="fb-row" role="radiogroup" aria-label="Control server">
           <label class="fb-radio"><input type="radio" name="fb-ctl" value="ts" checked> Tailscale</label>
           <label class="fb-radio"><input type="radio" name="fb-ctl" value="hs"> Headscale (own server)</label>
@@ -1878,11 +1880,21 @@
       </section>
 
       <section class="fb-step" data-step="4" hidden>
-        <p>Choose what this gateway should do. Everything can be changed later.</p>
+        <p><b>Choose your gateway role.</b> Pick one or more; everything can be changed later.</p>
+        <div class="fb-roles" id="fb-roles" role="group" aria-label="Gateway roles">
+          <label class="fb-opt"><input type="checkbox" value="lan-tailnet"><span><b>Connect a device to your Tailnet</b><small>A LAN device without Tailscale uses one Tailnet service through the gateway.</small></span></label>
+          <label class="fb-opt"><input type="checkbox" value="subnet-router"><span><b>Connect a network</b><small>Reach this home network from your Tailnet (subnet route).</small></span></label>
+          <label class="fb-opt"><input type="checkbox" value="iot-ap"><span><b>IoT Gateway</b><small>Sensors and switches join the gateway's own Wi-Fi.</small></span></label>
+          <label class="fb-opt"><input type="checkbox" value="wol"><span><b>Wake or recover a NAS/PC</b><small>Wake-on-LAN and recovery checks.</small></span></label>
+          <label class="fb-opt"><input type="checkbox" value="home-assistant"><span><b>Home Assistant &amp; Automation</b><small>MQTT state and controls through Discovery.</small></span></label>
+          <label class="fb-opt"><input type="checkbox" value="advanced"><span><b>Advanced configuration</b><small>Show every setting on every page.</small></span></label>
+        </div>
+        <details class="fb-details"><summary>Network options</summary>
         <label class="fb-opt"><input type="checkbox" id="fb-share-lan"><span><b>Share my home network with the tailnet</b><small>Advertises the home LAN as a subnet route; approve it in the admin console. Needs a successful Wi-Fi test.</small></span></label>
         <label class="fb-opt"><input type="checkbox" id="fb-share-ap" checked><span><b>Share the gateway's own Wi-Fi network</b><small>Devices connected to the gateway's Wi-Fi can reach the tailnet and be reached from it.</small></span></label>
         <label class="fb-opt"><input type="checkbox" id="fb-exit"><span><b>Offer this gateway as an exit node</b><small>Other tailnet devices can send their Internet traffic through your home connection.</small></span></label>
         <label class="fb-opt"><input type="checkbox" id="fb-ap-always"><span><b>Keep the gateway's own Wi-Fi always on</b><small>Otherwise it appears only when the home Wi-Fi is unavailable, as a recovery network.</small></span></label>
+        </details>
         <div class="form-group">
           <label class="form-label" for="fb-apname">Gateway Wi-Fi name</label>
           <input class="input" id="fb-apname" maxlength="32" spellcheck="false">
@@ -1892,10 +1904,6 @@
           <div class="fb-row"><input class="input" id="fb-appw" maxlength="63" autocomplete="off" spellcheck="false">
             <button class="btn btn-secondary btn-sm" id="fb-appw-gen" type="button">Generate</button></div>
           <span class="auth-hint">At least 8 characters and different from the admin password. Write it down: you need it when the home Wi-Fi is unavailable.</span>
-        </div>
-        <div class="fb-row" role="radiogroup" aria-label="Interface">
-          <label class="fb-radio"><input type="radio" name="fb-mode" value="simple" checked> Simple interface</label>
-          <label class="fb-radio"><input type="radio" name="fb-mode" value="advanced"> Advanced interface</label>
         </div>
       </section>
 
@@ -1922,6 +1930,7 @@
     </form>
   </div>
 
+  <!-- /i18n:english-only -->
   <!-- Login screen -->
   <div class="auth-overlay" id="authLogin" style="display:none" role="dialog" aria-modal="true" aria-labelledby="login-title">
     <form class="auth-card" id="loginForm" autocomplete="on">
@@ -2375,6 +2384,7 @@
             <div class="form-group">
               <label class="form-label" for="net-ap-pw">AP Password</label>
               <input class="input" type="password" id="net-ap-pw" autocomplete="new-password" placeholder="Leave empty to keep current">
+              <span class="form-hint" id="net-ap-default-pw" role="alert" style="color:var(--danger)" hidden>The access point still uses the firmware's shared default password. Set your own password here.</span>
             </div>
           </div>
           <div class="grid grid-cols-2">
@@ -3573,11 +3583,14 @@
           <span class="badge badge-neutral mono">MIT</span>
         </div>
         <div class="card-body">
-          <p style="margin:0 0 0.5rem 0;"><strong>ESP32 Tailnet Gateway — Mattboxx Edition</strong> (formerly ESP32 Homelab Gateway) — selective Tailnet service access, independent Wake-on-LAN and local diagnostics, with optional MQTT/Home Assistant and ntfy automation. Independent of managed servers, not of power, the router, Internet or VPN infrastructure.</p>
+          <p style="margin:0 0 0.5rem 0;"><strong>ESP32 Tailnet Gateway — Mattboxx Edition</strong> — selective Tailnet service access, independent Wake-on-LAN and local diagnostics, with optional MQTT/Home Assistant and ntfy automation. Independent of managed servers, not of power, the router, Internet or VPN infrastructure.</p>
           <div class="stat-row"><span class="stat-label">Firmware version</span><span class="stat-value mono" id="about-version">—</span></div>
           <div class="stat-row"><span class="stat-label">Build tag</span>       <span class="stat-value mono" id="about-build-tag" title="—">—</span></div>
+          <div class="stat-row"><span class="stat-label">Build commit</span><span class="stat-value mono" id="about-commit">—</span></div>
+          <div class="stat-row"><span class="stat-label">Based on</span><span class="stat-value mono" id="about-base">—</span></div>
+          <div class="stat-row"><span class="stat-label">MicroLink</span><span class="stat-value mono" id="about-microlink">—</span></div>
           <div class="stat-row"><span class="stat-label">Source</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailnet-gateway" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Mattboxx/esp32-tailnet-gateway</a></span></div>
-          <div class="stat-row"><span class="stat-label">Issues</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailscale-gateway/issues" target="_blank" rel="noopener" style="color:var(--accent);">github.com/&hellip;/issues</a></span></div>
+          <div class="stat-row"><span class="stat-label">Issues</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailnet-gateway/issues" target="_blank" rel="noopener" style="color:var(--accent);">github.com/&hellip;/issues</a></span></div>
           <div class="stat-row"><span class="stat-label">Original upstream</span><span class="stat-value mono"><a href="https://github.com/Csontikka/esp32-tailscale-subnet-router" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/esp32-tailscale-subnet-router</a></span></div>
           <div class="stat-row"><span class="stat-label">Tailscale stack</span><span class="stat-value mono"><a href="https://github.com/Csontikka/microlink" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/microlink</a> (userspace WireGuard + DERP + DISCO)</span></div>
           <div class="stat-row"><span class="stat-label">License</span><span class="stat-value mono">MIT — see LICENSE in the repo</span></div>
@@ -5093,6 +5106,25 @@
       loadPageState(active ? active.dataset.page : 'status');
       loadGlobalCapabilities();
       checkPanicAndWarn();
+      applySetupChoices();
+    }
+
+    /* Choices made in the first-boot wizard live on the gateway (the setup page
+     * ran on another address). Recommend those roles and open the first
+     * role's guide once per browser. */
+    function applySetupChoices() {
+      fetch('/api/system', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+        var roles = String(d.setup_roles || '').split(',').filter(Boolean), seen = null;
+        try { seen = localStorage.getItem('setup-roles-opened'); if (localStorage.getItem('ui-advanced') === null && d.ui_advanced_default) setUiAdvanced(true); } catch (e) {}
+        document.querySelectorAll('#goal-grid .goal-tile').forEach(function (b, i) {
+          var g = GOALS[i]; if (g && roles.indexOf(g.wizard || 'advanced') >= 0) b.classList.add('recommended');
+        });
+        var first = roles.filter(function (r) { return r !== 'advanced'; })[0];
+        if (first && seen !== d.setup_roles) {
+          try { localStorage.setItem('setup-roles-opened', d.setup_roles); } catch (e) {}
+          if (typeof wzOpen === 'function') wzOpen(first);
+        }
+      }).catch(function () {});
     }
 
     function loadPageState(page) {
@@ -5372,6 +5404,7 @@
           var ap = (d && d.ap) || {};
           document.getElementById('net-ap-ssid').value      = ap.ssid || '';
           document.getElementById('net-ap-pw').value        = '';
+          document.getElementById('net-ap-default-pw').hidden = !ap.default_password;
           var chEl = document.getElementById('net-ap-channel-info');
           if (chEl) {
             chEl.value = (typeof ap.channel === 'number' && ap.channel >= 1 && ap.channel <= 13)
@@ -8421,6 +8454,10 @@
           var ab2 = document.getElementById('about-build-tag');
           if (ab1) ab1.textContent = d.version || '—';
           if (ab2) { ab2.textContent = buildTag; ab2.title = builtStr; }
+          var setAbout = function (id, text) { var e = document.getElementById(id); if (e) e.textContent = text; };
+          setAbout('about-commit', d.build_commit || '—');
+          setAbout('about-base', d.based_on ? d.based_on + ' ' + (d.base_version || '') + ' (' + (d.base_commit || '?') + ')' : '—');
+          setAbout('about-microlink', d.microlink_commit ? d.microlink_commit + (d.microlink_base ? ' · base ' + d.microlink_base : '') : '—');
 
           document.getElementById('sys-ota-running').textContent = d.version || '—';
 
@@ -9984,10 +10021,11 @@
       return { scalarmult: scalarmult, keypair: keypair, deriveKey: deriveKey, seal: seal, hex: hex, unhex: unhex, random: random };
     })();
 
+    /* i18n:english-only (the first-boot wizard is not translated) */
     var FirstBoot = (function () {
       var st = { step: 0, sid: '', key: null, seq: 0, kp: null, poll: null, wifiOk: false, wifiIp: '', wifiPrefix: 0, testing: false, finished: false, defaults: {} };
       function $(id) { return document.getElementById(id); }
-      function T(s) { return (typeof I18N !== 'undefined' && I18N.t) ? I18N.t(s) : s; }
+      function T(s) { return s; }   /* English only */
       function err(msg) { var e = $('fb-error'); e.textContent = msg ? T(msg) : ''; e.classList.toggle('visible', !!msg); }
       function json(method, url, body, extra) {
         var h = { 'Content-Type': 'application/json' };
@@ -10010,7 +10048,7 @@
           if (i === step) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current');
         });
         $('fb-back').hidden = step <= 1 || st.finished;
-        $('fb-next').textContent = T(step === 5 ? 'Finish setup' : 'Continue');
+        $('fb-next').textContent = T(step === 5 ? 'Finish setup' : step === 1 ? 'Set password & continue' : 'Continue');
         $('fb-next').hidden = st.finished;
         err('');
         validate();
@@ -10111,7 +10149,7 @@
       }
       function paired(s) {
         st.defaults = s || {};
-        if (!$('fb-apname').value) $('fb-apname').value = st.defaults.default_ap_ssid || 'Tailnet-Gateway';
+        if (!$('fb-apname').value) $('fb-apname').value = st.defaults.default_ap_ssid || 'ESP32-Tailnet';
         if (!$('fb-appw').value) generateApPassword();
         status('Paired. Only this browser can continue the setup.');
         show(1);
@@ -10197,7 +10235,9 @@
         row(dl, 'Share gateway Wi-Fi', $('fb-share-ap').checked ? yes : no);
         row(dl, 'Exit node', $('fb-exit').checked ? yes : no);
         row(dl, 'Gateway Wi-Fi', $('fb-apname').value + ' · ' + ($('fb-ap-always').checked ? T('always on') : T('only when the home Wi-Fi is unavailable')));
-        row(dl, 'Gateway Wi-Fi password', $('fb-appw').value);
+        var names = roles().map(function (r) { return T(document.querySelector('#fb-roles input[value="' + r + '"]').parentNode.querySelector('b').textContent); });
+        row(dl, 'Gateway role', names.join(', ') || T('Decide later'));
+        /* Passwords and keys are never repeated in the summary. */
       }
       function finish() {
         $('fb-next').disabled = true;
@@ -10206,16 +10246,17 @@
           wifi: { ssid: $('fb-ssid').value, password: $('fb-wpw').value },
           ap_ssid: $('fb-apname').value, ap_password: $('fb-appw').value, ap_recovery_only: !$('fb-ap-always').checked,
           tailnet: { auth_key: $('fb-key').value.trim(), login_server: hs ? $('fb-server').value.trim() : '', hostname: $('fb-host').value.trim() },
-          share_lan: $('fb-share-lan').checked, share_ap: $('fb-share-ap').checked, exit_node: $('fb-exit').checked };
+          share_lan: $('fb-share-lan').checked, share_ap: $('fb-share-ap').checked, exit_node: $('fb-exit').checked,
+          roles: roles(), advanced_ui: roles().indexOf('advanced') >= 0 };
         apply(cmd).then(function (d) {
           if (!d.ok) { $('fb-next').disabled = false; err(d.detail || 'The settings could not be saved.'); return; }
-          try { localStorage.setItem('ui-advanced', document.querySelector('input[name="fb-mode"]:checked').value === 'advanced' ? '1' : '0'); } catch (e) {}
           st.finished = true; st.key = null;
           ['fb-pw', 'fb-pw2', 'fb-wpw', 'fb-key'].forEach(function (id) { $(id).value = ''; });
           $('fb-review').hidden = true; $('fb-done').hidden = false; show(5);
           if (st.wifiIp) $('fb-done-open').textContent = T('Open the gateway at ') + 'http://' + st.wifiIp + '/' + T(', or from the tailnet by its name.');
         }).catch(function () { $('fb-next').disabled = false; });
       }
+      function roles() { return Array.prototype.map.call(document.querySelectorAll('#fb-roles input:checked'), function (i) { return i.value; }); }
       function next() {
         var p = validate(); if (p) { err(p); return; }
         if (st.step === 5) { finish(); return; }
@@ -10226,12 +10267,6 @@
         document.getElementById('authSetup').style.display = 'none';
         document.getElementById('authLogin').style.display = 'none';
         $('firstBoot').style.display = 'flex';
-        var sel = $('fb-lang');
-        if (typeof I18N !== 'undefined' && !sel.options.length) {
-          I18N.languages().forEach(function (l) { var o = document.createElement('option'); o.value = l[0]; o.textContent = l[1]; sel.appendChild(o); });
-          sel.value = I18N.current();
-          sel.addEventListener('change', function () { I18N.set(this.value); show(st.step); });
-        }
         $('fbForm').addEventListener('submit', function (e) { e.preventDefault(); next(); });
         $('fb-back').addEventListener('click', function () { if (st.step > 1) show(st.step - 1); });
         $('fb-retry').addEventListener('click', begin);
@@ -10239,6 +10274,13 @@
         $('fb-scan').addEventListener('click', scan);
         $('fb-test').addEventListener('click', testWifi);
         $('fb-appw-gen').addEventListener('click', generateApPassword);
+        $('fb-show').addEventListener('change', function () { var ty = this.checked ? 'text' : 'password'; $('fb-pw').type = ty; $('fb-pw2').type = ty; });
+        document.querySelectorAll('#fb-roles input').forEach(function (r) { r.addEventListener('change', function () {
+          if (!this.checked) return;
+          if (this.value === 'subnet-router') $('fb-share-lan').checked = true;
+          if (this.value === 'iot-ap') { $('fb-share-ap').checked = true; $('fb-ap-always').checked = true; }
+          validate();
+        }); });
         $('fb-ssid').addEventListener('input', function () { st.wifiOk = false; $('fb-test-status').textContent = ''; validate(); });
         $('fb-wpw').addEventListener('input', function () { st.wifiOk = false; validate(); });
         document.querySelectorAll('input[name="fb-ctl"]').forEach(function (r) { r.addEventListener('change', function () { $('fb-server-row').hidden = this.value !== 'hs'; validate(); }); });
@@ -10250,6 +10292,7 @@
       return { start: start };
     })();
 
+    /* /i18n:english-only */
     fetch('/api/auth/status', { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (s) {

@@ -50,7 +50,7 @@ def identity(api, a, result):
     state = api('/api/setup/state')
     assert state.get('setup') is False, 'Setup API must report inactive'
     ap = api('/api/status').get('ap', {})
-    result['ap_ssid_is_setup'] = str(ap.get('ssid', '')).startswith('Tailnet-Gateway-Setup-')
+    result['ap_ssid_is_setup'] = str(ap.get('ssid', '')).startswith('ESP32-Tailnet-Setup-')
     assert not result['ap_ssid_is_setup'], 'Setup SSID on a configured board'
     result['reset_reason'] = system['reset_history'][0]['reason'] if system.get('reset_history') else None
     result['ops'] = ops(api)

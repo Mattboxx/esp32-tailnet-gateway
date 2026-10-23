@@ -14,7 +14,7 @@ removed. A factory reset erases everything, so the setup returns.
 
 ## Steps for the user
 
-1. Power the gateway. Join the open Wi-Fi **Tailnet-Gateway-Setup-XXXX**
+1. Power the gateway. Join the open Wi-Fi **ESP32-Tailnet-Setup-XXXX**
    (XXXX: last characters of the gateway's MAC address).
 2. The setup page opens by itself on most phones and PCs. If not, open
    **http://192.168.4.1/**.
@@ -77,7 +77,7 @@ the BOOT button prove presence; they are not printed anywhere else.
 ## Website update for Codex
 
 Replace the first-start instructions on the site's getting-started page with
-the user steps above (join *Tailnet-Gateway-Setup-XXXX*, captive page or
+the user steps above (join *ESP32-Tailnet-Setup-XXXX*, captive page or
 192.168.4.1, BOOT button or console code, wizard, restart). Mention that there
 is no default password, that the setup network is open only on an
 unconfigured gateway, and the residual risk sentence. Do not change it before

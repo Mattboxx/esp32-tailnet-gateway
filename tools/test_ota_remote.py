@@ -161,6 +161,26 @@ int main(void) {
     assert(ota_remote_select_release(rows,running.version,true,2048,tag,&size,digest)); assert(!strcmp(tag,"v0.1.31-Mattboxx-1.11-beta.1"));
     assert(!ota_remote_select_release(rows,"0.1.31-Mattboxx-1.11",true,2048,tag,&size,digest));
     cJSON_Delete(rows);
+    /* Product numbering from 2.0.0: newer than every legacy build, stages ordered,
+     * ambiguous or malformed forms refused. */
+    ota_version_t p1,p2,p3,l1,l2;
+    assert(ota_version_parse("2.0.0",&p1)&&p1.scheme==1&&p1.stage==4);
+    assert(ota_version_parse("v2.0.0-rc.1",&p2)&&p2.stage==3&&p2.serial==1);
+    assert(ota_version_parse("2.0.1",&p3)&&ota_version_parse("0.1.38-Mattboxx-1.99",&l1)&&ota_version_parse("0.1.38-Mattboxx-1.14-dev.8",&l2));
+    assert(ota_version_compare(&p1,&p2)>0&&ota_version_compare(&p3,&p1)>0&&ota_version_compare(&p2,&l1)>0&&ota_version_compare(&l1,&l2)>0);
+    assert(ota_version_parse("99.0.0-Mattboxx-1.0",&l1)&&ota_version_compare(&p2,&l1)>0); /* scheme first */
+    const char *bad2[]={"1.9.9","2.0","2.0.0-","2.0.0-rc.","2.0.0-pwn","2.0.0.1","v2.0.0/x","2.0.0-Mattboxx","200000.0.0"};
+    for(unsigned i=0;i<sizeof bad2/sizeof bad2[0];i++) assert(!ota_version_parse(bad2[i],&a));
+    rows=cJSON_CreateArray();
+    release_row(rows,"v2.0.0-rc.1",true,false,OTA_ASSET,hash,1024);
+    release_row(rows,"v2.0.0",false,false,OTA_ASSET,hash,1024);
+    release_row(rows,"v0.1.38-Mattboxx-1.99",false,false,OTA_ASSET,hash,1024);
+    /* A bridge (legacy numbering) device moves to the product release. */
+    assert(ota_remote_select_release(rows,"0.1.38-Mattboxx-1.99",false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
+    assert(ota_remote_select_release(rows,"0.1.38-Mattboxx-1.13",false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
+    assert(ota_remote_select_release(rows,"2.0.0-rc.1",false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
+    assert(!ota_remote_select_release(rows,"2.0.0",true,2048,tag,&size,digest));          /* never downgrade */
+    cJSON_Delete(rows);
     reset(); s_state.repo=2; assert(!install_release()); assert(!opens&&!begins&&!s_writer_active);
     reset(); s_state.repo=1; assert(install_release()&&boots==1); /* previous name, before the rename */
     reset(); assert(ota_writer_try_acquire()); assert(!install_release()); assert(!opens&&!begins&&s_writer_active); ota_writer_release();

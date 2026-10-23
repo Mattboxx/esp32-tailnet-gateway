@@ -563,6 +563,13 @@ static esp_err_t network_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(ap, "enabled", wifi_ap_runtime_enabled());
     cJSON_AddBoolToObject(ap, "auto_off_when_connected", wifi_ap_policy_auto_off());
     add_nvs_string(ap, "ssid", "ap_ssid");
+    /* Installations from before first-boot setup may still use the shared
+     * build-time AP password; tell the operator (the value is never sent). */
+    {
+        char *pw = nvs_param_get_str("ap_passwd");
+        cJSON_AddBoolToObject(ap, "default_password", !(pw && pw[0]) && CONFIG_ESP_WIFI_AP_PASSWORD[0]);
+        free(pw);
+    }
     /* Report the LIVE AP channel (read-only in the UI). On the single-radio
      * ESP32-S3 the AP follows the uplink channel automatically, so there is
      * no operator-settable channel — the old `ap_channel` NVS knob is dead
@@ -3639,6 +3646,21 @@ static esp_err_t system_handler(httpd_req_t *req)
         cJSON_AddStringToObject(root, "build_time", desc->time);
         cJSON_AddStringToObject(root, "idf_ver",    desc->idf_ver);
     }
+    /* Product identity and verified provenance (docs/UPSTREAM-0.1.38.md). */
+    cJSON_AddStringToObject(root, "product", "ESP32 Tailnet Gateway");
+    cJSON_AddStringToObject(root, "edition", "Mattboxx Edition");
+    cJSON_AddStringToObject(root, "build_commit", MTG_BUILD_COMMIT);
+    cJSON_AddStringToObject(root, "based_on", "Csontikka/esp32-tailscale-subnet-router");
+    cJSON_AddStringToObject(root, "base_version", "v0.1.38");
+    cJSON_AddStringToObject(root, "base_commit", "42ec1081c5ab");
+    cJSON_AddStringToObject(root, "microlink_commit", MTG_MICROLINK_COMMIT);
+    cJSON_AddStringToObject(root, "microlink_base", "Csontikka/microlink a85e8c42ee2e (v0.1.38)");
+    /* First-boot wizard choices (roles to highlight, initial interface mode). */
+    char *roles = nvs_param_get_str("ui_roles");
+    cJSON_AddStringToObject(root, "setup_roles", roles ? roles : "");
+    free(roles);
+    uint8_t adv = 0;
+    cJSON_AddBoolToObject(root, "ui_advanced_default", nvs_param_get_u8("ui_adv", &adv) == ESP_OK && adv);
     /* Included in config snapshots as information only. The normal System
      * save handler intentionally cannot activate OTA from a restored backup. */
     ota_remote_state_t update; ota_remote_get_state(&update);

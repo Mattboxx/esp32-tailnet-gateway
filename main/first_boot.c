@@ -82,13 +82,13 @@ static void mac_suffix(char out[5])
 void first_boot_setup_ssid(char *out, size_t cap)
 {
     char sfx[5]; mac_suffix(sfx);
-    snprintf(out, cap, "Tailnet-Gateway-Setup-%s", sfx);
+    snprintf(out, cap, "ESP32-Tailnet-Setup-%s", sfx);
 }
 
 void first_boot_default_ssid(char *out, size_t cap)
 {
     char sfx[5]; mac_suffix(sfx);
-    snprintf(out, cap, "Tailnet-Gateway-%s", sfx);
+    snprintf(out, cap, "ESP32-Tailnet-%s", sfx);
 }
 
 void first_boot_init(void)
@@ -429,6 +429,21 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
     if (e == ESP_OK) e = nvs_param_set_int("ts_adv_ap", share_ap ? 1 : 0);
     if (e == ESP_OK) e = nvs_param_set_str("ts_routes", cidr);
     if (e == ESP_OK) e = nvs_param_set_int("ts_adv_exit", exit_node ? 1 : 0);
+    /* Roles chosen in the wizard: the dashboard highlights them and opens the
+     * first one's guide once. Only known ids are stored. */
+    char roles[72] = "";
+    const cJSON *rl = cJSON_GetObjectItem(cmd, "roles"), *r;
+    static const char *known[] = {"lan-tailnet", "subnet-router", "iot-ap", "wol", "home-assistant", "advanced"};
+    cJSON_ArrayForEach(r, rl) {
+        for (size_t i = 0; cJSON_IsString(r) && i < sizeof known / sizeof known[0]; i++)
+            if (!strcmp(r->valuestring, known[i]) && !strstr(roles, known[i])
+                    && strlen(roles) + strlen(known[i]) + 2 < sizeof roles) {
+                if (roles[0]) strlcat(roles, ",", sizeof roles);
+                strlcat(roles, known[i], sizeof roles);
+            }
+    }
+    if (e == ESP_OK) e = nvs_param_set_str("ui_roles", roles);
+    if (e == ESP_OK) e = nvs_param_set_u8("ui_adv", bool_of(cmd, "advanced_ui", false) ? 1 : 0);
     const char *name = str_of(cmd, "device_name");
     if (e == ESP_OK && name && *name && strlen(name) <= 32) e = nvs_param_set_str("dev_name", name);
     if (e == ESP_OK) e = nvs_param_set_u8("setup_done", 1);

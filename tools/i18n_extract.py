@@ -80,8 +80,13 @@ def _js_strings(source):
     return out
 
 
+ENGLISH_ONLY = re.compile(r'i18n:english-only.*?/i18n:english-only', re.S)
+
+
 def extract():
-    source = SRC.read_text(encoding='utf-8')
+    # Regions marked i18n:english-only (first-boot setup) are intentionally
+    # not translated to save flash; they are not counted as missing.
+    source = ENGLISH_ONLY.sub('', SRC.read_text(encoding='utf-8'))
     body = source[source.index('<body'):]
     markup = re.sub(r'<script\b.*?</script>', '', body, flags=re.S)
     parser = _Markup()

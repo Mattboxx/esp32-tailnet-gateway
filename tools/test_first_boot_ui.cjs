@@ -3,7 +3,7 @@
  * flow (BOOT-button pairing, password, scan, Wi-Fi test, tailnet, features,
  * finish), setup-code pairing with a wrong code, "another device is pairing",
  * no secret in any request body, and layout at phone/tablet/desktop widths in
- * EN/IT/ES/ZH (no page overflow, clipped controls, tiny targets or script
+ * every shipped browser language, wizard English-only (no page overflow, clipped controls, tiny targets or script
  * errors). Synthetic data only; no device.
  * Run: NODE_PATH=<playwright> node tools/test_first_boot_ui.cjs [shots] */
 const { chromium } = require('playwright');
@@ -32,7 +32,7 @@ function mockGateway(opts = {}) {
       case '/api/auth/status': return send(200, { setup_mode: true, password_set: false, auth_enabled: true, auth_required: false, authenticated: false, device_name: 'Tailnet Gateway' });
       case '/api/setup/state': {
         const mine = sidHeader && sidHeader === g.sid;
-        const out = { setup: true, setup_ssid: 'Tailnet-Gateway-Setup-1A2B', default_ap_ssid: 'Tailnet-Gateway-1A2B', version: 'synthetic',
+        const out = { setup: true, setup_ssid: 'ESP32-Tailnet-Setup-1A2B', default_ap_ssid: 'ESP32-Tailnet-1A2B', version: 'synthetic',
           session: mine ? g.state : 'none', other_pairing: false, code_locked: false, finished: !!g.finish };
         if (mine && g.state === 'claimed') {
           if (g.wifi === 'testing' && ++g.polls >= 2) g.wifi = 'ok';
@@ -124,13 +124,11 @@ async function flow(browser, [width, height, locale], failures, full) {
   try {
     await page.goto('http://esp32.test/');
     await page.waitForSelector('#firstBoot', { state: 'visible' });
-    await page.waitForFunction(() => /BOOT|启动|botón|pulsante/i.test(document.getElementById('fb-pair-status').textContent) || document.getElementById('fb-pair-status').textContent.length > 10);
+    await page.waitForFunction(() => document.getElementById('fb-pair-status').textContent.includes('BOOT'));
     assert.equal(await page.isVisible('#authSetup'), false);
-    if (!locale.startsWith('en')) {
-      const intro = await page.textContent('#firstBoot .fb-step[data-step="0"] p');
-      assert.ok(!intro.startsWith('This gateway is new'), `wizard not translated in ${locale}`);
-      assert.ok(!(await page.textContent('#fb-title')).startsWith('Set up your'), `title not translated in ${locale}`);
-    }
+    /* English-only by owner decision (flash budget), in every browser language. */
+    assert.equal((await page.textContent('#fb-title')).trim(), 'Welcome to ESP32 Tailnet Gateway');
+    assert.equal(await page.getAttribute('#firstBoot', 'lang'), 'en');
     assert.equal(await page.isEnabled('#fb-next'), false);
     await check(0);
     g.press();
@@ -140,6 +138,8 @@ async function flow(browser, [width, height, locale], failures, full) {
     await page.fill('#fb-pw', SECRETS.admin); await page.fill('#fb-pw2', SECRETS.admin + 'x');
     assert.equal(await page.isEnabled('#fb-next'), false, 'mismatch refused');
     await page.fill('#fb-pw2', SECRETS.admin);
+    if (locale.startsWith('en')) assert.equal((await page.textContent('#fb-next')).trim(), 'Set password & continue');
+    await page.check('#fb-show'); assert.equal(await page.getAttribute('#fb-pw', 'type'), 'text'); await page.uncheck('#fb-show');
     await check(1);
     await page.click('#fb-next');
     await page.waitForSelector('#fb-nets button');
@@ -167,18 +167,22 @@ async function flow(browser, [width, height, locale], failures, full) {
     await check(3);
     await page.click('#fb-next');
     await page.waitForSelector('#fb-apname', { state: 'visible' });
-    assert.equal(await page.inputValue('#fb-apname'), 'Tailnet-Gateway-1A2B');
+    assert.equal(await page.inputValue('#fb-apname'), 'ESP32-Tailnet-1A2B');
     const apPw = await page.inputValue('#fb-appw');
     assert.match(apPw, /^[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{4}$/);
     await page.fill('#fb-appw', SECRETS.admin);
     assert.equal(await page.isEnabled('#fb-next'), false, 'AP password must differ from admin');
     await page.click('#fb-appw-gen');
-    await page.check('#fb-share-lan');
-    await page.check('input[name="fb-mode"][value="advanced"]');
+    await page.check('#fb-roles input[value="subnet-router"]');
+    assert.equal(await page.isChecked('#fb-share-lan'), true, 'Connect a network selects the subnet route');
+    await page.check('#fb-roles input[value="wol"]');
+    await page.check('#fb-roles input[value="advanced"]');
     await check(4);
     await page.click('#fb-next');
     await page.waitForSelector('#fb-summary dt');
-    assert.ok((await page.textContent('#fb-summary')).includes('HomeNetwork'));
+    const summaryText = await page.textContent('#fb-summary');
+    assert.ok(summaryText.includes('HomeNetwork'));
+    for (const s of [...Object.values(SECRETS), await page.inputValue('#fb-appw')]) assert.ok(!summaryText.includes(s), 'secret in summary');
     await check(5);
     await page.click('#fb-next');
     await page.waitForSelector('#fb-done', { state: 'visible' });
@@ -187,9 +191,9 @@ async function flow(browser, [width, height, locale], failures, full) {
     assert.deepEqual(g.finish.wifi, { ssid: 'HomeNetwork', password: SECRETS.wifi });
     assert.deepEqual(g.finish.tailnet, { auth_key: SECRETS.key, login_server: 'https://headscale.example.com', hostname: 'home-gateway' });
     assert.equal(g.finish.share_lan, true); assert.equal(g.finish.exit_node, false); assert.equal(g.finish.ap_recovery_only, true);
-    assert.equal(g.finish.ap_ssid, 'Tailnet-Gateway-1A2B'); assert.ok(g.finish.ap_password.length >= 8 && g.finish.ap_password !== SECRETS.admin);
+    assert.equal(g.finish.ap_ssid, 'ESP32-Tailnet-1A2B');
+    assert.deepEqual(g.finish.roles, ['subnet-router', 'wol', 'advanced']); assert.equal(g.finish.advanced_ui, true); assert.ok(g.finish.ap_password.length >= 8 && g.finish.ap_password !== SECRETS.admin);
     assert.ok((await page.textContent('#fb-done-open')).includes('http://192.168.1.77/'));
-    assert.equal(await page.evaluate(() => localStorage.getItem('ui-advanced')), '1');
     assert.equal(await page.inputValue('#fb-pw'), '', 'secrets cleared from the form');
     for (const b of g.bodies) for (const s of [...Object.values(SECRETS), g.finish.ap_password])
       assert.ok(!b.includes(s), 'secret sent in clear');

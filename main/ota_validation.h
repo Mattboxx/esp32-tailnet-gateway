@@ -48,7 +48,11 @@ static inline const char *ota_release_download_tail(const char *url, const char 
     return url + h + r + d;
 }
 
-typedef struct { uint32_t upstream[3], edition[2], stage, serial; } ota_version_t;
+/* Two numbering schemes. Legacy fork builds: "0.1.38-Mattboxx-1.13[-rc.1]"
+ * (upstream base + edition). Product builds from 2.0.0 on: "2.0.0[-rc.1]".
+ * Every product version is newer than every legacy one, so a legacy-tagged
+ * bridge release can move old devices to an updater that understands both. */
+typedef struct { uint32_t scheme, upstream[3], edition[2], stage, serial; } ota_version_t;
 
 static inline bool ota_number(const char **p, uint32_t *out)
 {
@@ -72,9 +76,14 @@ static inline bool ota_version_parse(const char *text, ota_version_t *out)
         if (!ota_number(&p, &v.upstream[i])) return false;
         if (i < 2 && *p++ != '.') return false;
     }
-    if (strncmp(p, "-Mattboxx-", 10)) return false;
-    p += 10;
-    if (!ota_number(&p, &v.edition[0]) || *p++ != '.' || !ota_number(&p, &v.edition[1])) return false;
+    if (!strncmp(p, "-Mattboxx-", 10)) {
+        p += 10;
+        if (!ota_number(&p, &v.edition[0]) || *p++ != '.' || !ota_number(&p, &v.edition[1])) return false;
+    } else {
+        /* Product numbering; 0.x would be ambiguous with the upstream base. */
+        if (v.upstream[0] < 2) return false;
+        v.scheme = 1;
+    }
     v.stage = 4;
     if (*p == '-') {
         ++p;
@@ -94,8 +103,8 @@ static inline bool ota_version_parse(const char *text, ota_version_t *out)
 
 static inline int ota_version_compare(const ota_version_t *a, const ota_version_t *b)
 {
-    uint32_t aa[] = {a->upstream[0], a->upstream[1], a->upstream[2], a->edition[0], a->edition[1], a->stage, a->serial};
-    uint32_t bb[] = {b->upstream[0], b->upstream[1], b->upstream[2], b->edition[0], b->edition[1], b->stage, b->serial};
+    uint32_t aa[] = {a->scheme, a->upstream[0], a->upstream[1], a->upstream[2], a->edition[0], a->edition[1], a->stage, a->serial};
+    uint32_t bb[] = {b->scheme, b->upstream[0], b->upstream[1], b->upstream[2], b->edition[0], b->edition[1], b->stage, b->serial};
     for (unsigned i = 0; i < sizeof aa / sizeof aa[0]; ++i)
         if (aa[i] != bb[i]) return aa[i] > bb[i] ? 1 : -1;
     return 0;
