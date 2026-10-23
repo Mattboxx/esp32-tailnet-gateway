@@ -108,6 +108,12 @@ main:focus { outline: none; }
 figure { margin: 24px 0; }
 figure img { border-radius: var(--radius); border: 1px solid var(--line); display: block; }
 figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }
+.ui-preview { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 28px; align-items: start; margin: 24px 0 40px; }
+.ui-preview > a { display: block; }
+.ui-preview img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+.ui-shot { margin: 0; }
+.ui-preview > div h3:first-child { margin-top: 0; }
+@media (max-width: 760px) { .ui-preview { grid-template-columns: minmax(0, 1fr); } }
 details { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 10px 0; background: var(--surface); }
 summary { cursor: pointer; font-weight: 600; }
 

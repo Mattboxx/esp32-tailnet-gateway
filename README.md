@@ -20,6 +20,8 @@ access, subnet routing, remote recovery and optional automation.
 [![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailnet-gateway?label=stable&color=0B7A4B)](../../releases/latest)
 
 [Website](https://mattboxx.github.io/esp32-tailnet-gateway/) ·
+[Real firmware screenshots](https://mattboxx.github.io/esp32-tailnet-gateway/screenshots/) ·
+[MQTT between two homes](https://mattboxx.github.io/esp32-tailnet-gateway/mqtt-across-networks/) ·
 [Install firmware](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/) ·
 [Download](../../releases/latest) ·
 [Getting started](docs/GETTING-STARTED.md) ·

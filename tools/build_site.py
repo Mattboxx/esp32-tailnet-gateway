@@ -21,7 +21,6 @@ import json
 import re
 import shutil
 import sys
-from datetime import date
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -224,7 +223,7 @@ def jsonld(data) -> str:
 
 def render(page: Page, pages: list[Page]) -> str:
     canonical = SITE_URL + page.slug
-    full_title = NAME if not page.slug else f'{page.title} — {NAME}'
+    full_title = page.meta.get('search_title') or (NAME if not page.slug else f'{page.title} — {NAME}')
     nav_pages = sorted([p for p in pages if p.nav], key=lambda p: p.order)
     nav = ''.join(
         f'<li><a href="{page.rel(p.slug)}"{" aria-current=\"page\"" if p is page else ""}>{html.escape(p.nav)}</a></li>'
@@ -263,6 +262,10 @@ def render(page: Page, pages: list[Page]) -> str:
                            'description': DESCRIPTION, 'url': SITE_URL, 'license': 'https://opensource.org/licenses/MIT',
                            'codeRepository': REPO_URL, 'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'USD'}})
         structured.append({'@context': 'https://schema.org', '@type': 'WebSite', 'name': NAME, 'url': SITE_URL})
+    if page.meta.get('image'):
+        structured.append({'@context': 'https://schema.org', '@type': 'WebPage',
+                           'name': page.title, 'url': canonical,
+                           'primaryImageOfPage': SITE_URL + page.meta['image']})
     if page.schema == 'faq':
         qa = re.findall(r'<details[^>]*>\s*<summary>(.*?)</summary>(.*?)</details>', body, re.S)
         structured.append({'@context': 'https://schema.org', '@type': 'FAQPage', 'mainEntity': [
@@ -278,6 +281,7 @@ def render(page: Page, pages: list[Page]) -> str:
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{html.escape(full_title)}</title>
 <meta name="description" content="{html.escape(page.description)}">
+<meta name="robots" content="index, follow, max-image-preview:large">
 <link rel="canonical" href="{canonical}">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -395,7 +399,8 @@ def build(out: Path) -> list[Page]:
                       '<p><a href="{{root}}">Go to the home page</a> or use Search.</p>')
     # GitHub Pages serves /404.html for any missing path, so links must be absolute.
     html404 = render(not_found, pages).replace('href="../', f'href="{SITE_URL}').replace('src="../', f'src="{SITE_URL}')
-    html404 = html404.replace('<meta name="referrer"', '<meta name="robots" content="noindex">\n<meta name="referrer"')
+    html404 = html404.replace('<meta name="robots" content="index, follow, max-image-preview:large">',
+                              '<meta name="robots" content="noindex">')
     (out / '404.html').write_text(html404, encoding='utf-8')
     for old, new in REDIRECTS.items():
         assert new in slugs, new
@@ -403,10 +408,17 @@ def build(out: Path) -> list[Page]:
         (out / old / 'index.html').write_text(redirect_page(new, old.count('/')), encoding='utf-8')
     index = [{'t': p.title, 'u': p.slug, 'd': p.description, 'x': text_of(p.body)[:1600]} for p in pages]
     (out / 'search-index.js').write_text('window.SEARCH_INDEX=' + json.dumps(index, ensure_ascii=False) + ';\n', encoding='utf-8')
-    today = date.today().isoformat()
+    # A deployment is not an edit to every page. Omit optional lastmod rather
+    # than claiming that every document changed on each rebuild.
+    def sitemap_entry(page: Page) -> str:
+        sources = set(re.findall(r'<img\b[^>]*\bsrc="\{\{root\}\}([^"]+)"', page.body))
+        images = ''.join('<image:image><image:loc>' + html.escape(SITE_URL + src) +
+                         '</image:loc></image:image>' for src in sorted(sources))
+        return f'  <url><loc>{SITE_URL}{page.slug}</loc>{images}</url>\n'
     (out / 'sitemap.xml').write_text(
-        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' +
-        ''.join(f'  <url><loc>{SITE_URL}{p.slug}</loc><lastmod>{today}</lastmod></url>\n' for p in pages) +
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+        'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n' +
+        ''.join(sitemap_entry(p) for p in pages) +
         '</urlset>\n', encoding='utf-8')
     (out / 'robots.txt').write_text(f'User-agent: *\nAllow: /\nSitemap: {SITE_URL}sitemap.xml\n', encoding='utf-8')
     (out / 'site.webmanifest').write_text(json.dumps({
