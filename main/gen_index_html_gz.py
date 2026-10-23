@@ -121,11 +121,11 @@ def i18n_bundle(folder):
     return {'langs': meta, 'h': hashes, 'tr': tr, 'p': patterns}
 
 
-def build_html(src):
+def build_html(src, english_only=False):
     src = Path(src)
     text = minify(src.read_text(encoding='utf-8'))
     head_close = '</head>'
-    bundle = i18n_bundle(src.parent / 'i18n')
+    bundle = None if english_only else i18n_bundle(src.parent / 'i18n')
     if bundle:
         data = json.dumps(bundle, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
         text = text.replace(head_close, '<script id="i18n-data">window.I18N_DATA=' + data + ';</script>\n' + head_close, 1)
@@ -148,15 +148,19 @@ def build_html(src):
 
 def main() -> int:
     args = sys.argv[1:]
+    # --english-only: no translation bundle (the UI then offers English only).
+    english_only = bool(args) and args[0] == '--english-only'
+    if english_only:
+        args = args[1:]
     if len(args) == 3 and args[0] == '--html':
-        Path(args[2]).write_bytes(build_html(args[1]))
+        Path(args[2]).write_bytes(build_html(args[1], english_only))
         return 0
     if len(args) != 2:
         print('usage: gen_index_html_gz.py [--html] <input.html> <output>', file=sys.stderr)
         return 2
     src, dst = Path(args[0]), Path(args[1])
     original = src.stat().st_size
-    raw = build_html(src)
+    raw = build_html(src, english_only)
 
     buf = io.BytesIO()
     with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=9, mtime=0) as gz:
