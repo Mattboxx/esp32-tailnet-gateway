@@ -22,7 +22,8 @@ DRIVERS+=['candidate_ota_guard']
 DRIVERS+=['task_memory']
 DRIVERS+=['mqtt_activation']
 DRIVERS+=['task_reaper']
-SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT TAILNET PEER_DNS OTA GATEWAY POLICY OPS LEASE HEALTH JSON TRANSFER RETRY CAP DISCOVERY WEB PROFILE SC MQTTSTATE ETH MQTTCMD TASKMEM REAPER'.split()
+DRIVERS+=['first_boot']
+SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT TAILNET PEER_DNS OTA GATEWAY POLICY OPS LEASE HEALTH JSON TRANSFER RETRY CAP DISCOVERY WEB PROFILE SC MQTTSTATE ETH MQTTCMD TASKMEM REAPER FIRSTBOOT'.split()
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -37,6 +38,7 @@ def main():
         env.setdefault('CJSON_SOURCE',str(sdk/'json/cJSON/cJSON.c'))
         env.setdefault('LWIP_SOURCE',str(sdk/'lwip/lwip'))
         env.setdefault('MQTT_SOURCE',str(sdk/'mqtt/esp-mqtt/mqtt_client.c'))
+        env.setdefault('MBEDTLS_DIR',str(sdk/'mbedtls/mbedtls'))
     if args.sanitizers:
         if os.name=='nt':parser.error('Use Linux ASan/UBSan; do not mark unavailable Windows sanitizers as passed')
         for prefix in SANITIZERS:env[prefix+'_SANITIZE']='1'
@@ -91,6 +93,8 @@ def main():
         runtime=Path.home()/'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules'
         if runtime.is_dir():env.setdefault('NODE_PATH',str(runtime))
         run('browser',['node','tools/test_automation_ui.cjs'])
+        run('setup-crypto',['node','tools/test_setup_crypto.cjs'])
+        run('first-boot-ui',['node','tools/test_first_boot_ui.cjs'],900)
         run('site-browser',['node','tools/test_site_browser.cjs'],600)
         run('ui-layout',['node','tools/test_ui_layout.cjs'],1200)
     summary=dict(results=results,build_requested=args.build,browser_requested=args.browser,

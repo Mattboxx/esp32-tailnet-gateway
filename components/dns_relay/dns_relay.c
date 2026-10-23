@@ -353,6 +353,33 @@ static void worker_task(void *arg)
 
 /* ───────────────────── Listener ───────────────────── */
 
+/* Captive-portal answer for first-boot setup: every A query resolves to the
+ * setup AP address with a short TTL, any other type gets an empty NOERROR,
+ * so phones and PCs open the setup page. Returns the response length, or 0
+ * for anything that is not a single standard query (dropped). */
+static int dns_captive_answer(const uint8_t *q, int qlen, uint32_t ip_nbo, uint8_t *out, int cap)
+{
+    if (!dns_is_std_query(q, qlen)) return 0;
+    int ql = dns_question_len(q, qlen);
+    if (ql <= 0) return 0;
+    int end = 12 + ql;
+    if (end + 16 > cap) return 0;
+    memcpy(out, q, end);
+    out[2] = 0x84 | (q[2] & 0x01);                    /* QR, AA, keep RD */
+    out[3] = 0x80;                                    /* RA, NOERROR */
+    out[6] = out[7] = out[8] = out[9] = out[10] = out[11] = 0;
+    uint16_t qtype = (uint16_t)(q[end - 4] << 8 | q[end - 3]);
+    uint16_t qclass = (uint16_t)(q[end - 2] << 8 | q[end - 1]);
+    if (qtype != 1 || qclass != 1) return end;
+    out[7] = 1;                                       /* ANCOUNT = 1 */
+    static const uint8_t rr[] = {0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 0, 30, 0, 4};
+    memcpy(out + end, rr, sizeof rr);
+    memcpy(out + end + sizeof rr, &ip_nbo, 4);
+    return end + (int)sizeof rr + 4;
+}
+
+static volatile uint32_t s_captive_nbo = 0;        /* first-boot captive answer; 0 = relay */
+
 static void listener_task(void *arg)
 {
     (void)arg;
@@ -410,6 +437,13 @@ static void listener_task(void *arg)
         if (qlen <= 0) continue;            /* timeout -> re-check enable state */
 
         st_queries++;
+
+        uint32_t captive = s_captive_nbo;
+        if (captive) {
+            int rl = dns_captive_answer(qbuf, qlen, captive, cbuf, sizeof cbuf);
+            if (rl > 0) sendto(listen_sock, cbuf, rl, 0, (struct sockaddr *)&client, client_len);
+            continue;
+        }
 
         /* Cache fast-path: serve repeats straight from SPIRAM, no worker. */
         int kl = dns_is_std_query(qbuf, qlen) ? dns_question_len(qbuf, qlen) : 0;
@@ -555,4 +589,10 @@ void dns_relay_get_stats(dns_relay_stats_t *out)
         xSemaphoreGive(s_cache_mtx);
     }
     out->entries = used;
+}
+
+void dns_relay_set_captive(uint32_t answer_ip_nbo)
+{
+    s_captive_nbo = answer_ip_nbo;
+    ESP_LOGI(TAG, "captive portal answers %s", answer_ip_nbo ? "on" : "off");
 }

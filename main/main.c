@@ -73,6 +73,7 @@
 #include "cli.h"
 #include "esp_ota_ops.h"
 #include "task_reaper.h"
+#include "first_boot.h"
 
 /* The examples use WiFi configuration that you can set via project configuration menu.
 
@@ -204,7 +205,7 @@ static bool ap_policy_apply_runtime(bool on)
         if (ap_policy_is_shutdown()) return true;
         esp_netif_t *ap  = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
         esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-        if (ap) (void)esp_netif_napt_enable(ap);
+        if (ap && !first_boot_active()) (void)esp_netif_napt_enable(ap);
         if (ap && sta) softap_set_dns_addr(ap, sta);
         ESP_LOGW(TAG_AP, "AP enabled (recovery/always-on policy)");
     } else {
@@ -328,6 +329,8 @@ static bool wifi_apply_eap(const wifi_network_t *n)
  * live esp_wifi + esp_netif config. Called once from wifi_init_sta()
  * with idx=0, then again from the STA_DISCONNECTED handler when the
  * rotation advances. */
+static void wifi_apply_entry(const wifi_network_t *entry, int idx);
+
 static void wifi_apply_network(int idx)
 {
     wifi_network_t n;
@@ -335,7 +338,12 @@ static void wifi_apply_network(int idx)
         ESP_LOGW("WiFi Sta", "wifi_apply_network: no network at idx %d", idx);
         return;
     }
+    wifi_apply_entry(&n, idx);
+}
 
+static void wifi_apply_entry(const wifi_network_t *entry, int idx)
+{
+    wifi_network_t n = *entry;
     wifi_config_t cfg = {
         .sta = {
             .scan_method        = WIFI_ALL_CHANNEL_SCAN,
@@ -389,6 +397,63 @@ static void wifi_apply_network(int idx)
     }
 }
 
+/* First-boot wizard: trial association with the candidate uplink. The
+ * credentials stay in RAM; nothing is saved until the sealed "finish". */
+static volatile fb_wifi_state_t s_setup_test = FB_WIFI_IDLE;
+static volatile uint32_t s_setup_test_ip, s_setup_test_mask;
+static volatile int s_setup_test_reason, s_setup_test_attempts;
+static volatile int64_t s_setup_test_started_us;
+#define SETUP_TEST_ATTEMPTS 3
+#define SETUP_TEST_TIMEOUT_US (30LL * 1000000LL)
+
+esp_err_t wifi_setup_test_start(const char *ssid, const char *password)
+{
+    if (!first_boot_active() || !ssid || !password) return ESP_ERR_INVALID_STATE;
+    wifi_network_t n = {0};
+    strlcpy(n.ssid, ssid, sizeof n.ssid);
+    strlcpy(n.passwd, password, sizeof n.passwd);
+    n.valid = 1;
+    s_setup_test_ip = s_setup_test_mask = 0;
+    s_setup_test_reason = 0;
+    s_setup_test_attempts = 0;
+    s_setup_test_started_us = esp_timer_get_time();
+    s_setup_test = FB_WIFI_TESTING;
+    (void)esp_wifi_disconnect();
+    wifi_apply_entry(&n, 0);
+    memset(&n, 0, sizeof n);
+    esp_err_t err = esp_wifi_connect();
+    if (err != ESP_OK) {
+        s_setup_test_reason = -1;
+        s_setup_test = FB_WIFI_FAILED;
+    }
+    return err;
+}
+
+void wifi_setup_test_get(fb_wifi_state_t *state, uint32_t *ip_nbo, uint32_t *mask_nbo, int *reason)
+{
+    if (s_setup_test == FB_WIFI_TESTING
+            && esp_timer_get_time() - s_setup_test_started_us > SETUP_TEST_TIMEOUT_US) {
+        s_setup_test_reason = -2;
+        s_setup_test = FB_WIFI_FAILED;
+        (void)esp_wifi_disconnect();
+    }
+    if (state) *state = s_setup_test;
+    if (ip_nbo) *ip_nbo = s_setup_test_ip;
+    if (mask_nbo) *mask_nbo = s_setup_test_mask;
+    if (reason) *reason = s_setup_test_reason;
+}
+
+static void setup_test_disconnected(int reason)
+{
+    if (s_setup_test != FB_WIFI_TESTING) return;
+    if (++s_setup_test_attempts >= SETUP_TEST_ATTEMPTS) {
+        s_setup_test_reason = reason;
+        s_setup_test = FB_WIFI_FAILED;
+        return;
+    }
+    (void)esp_wifi_connect();
+}
+
 static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                                int32_t event_id, void *event_data)
 {
@@ -431,6 +496,11 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
         ap_connect = 0;
         if (shutting_down) return;
+        if (first_boot_active()) {
+            /* No saved uplink yet: only the wizard's trial association runs. */
+            setup_test_disconnected(event ? (int)event->reason : 0);
+            return;
+        }
         /* Recovery-only AP: give the saved WiFi a minute to come back before
          * re-opening the AP; it then stays up until the uplink has an address
          * again (GOT_IP below turns it off). Brief drops never flap the AP. */
@@ -457,6 +527,11 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
         ESP_LOGI(TAG_STA, "Got IP:" IPSTR, IP2STR(&event->ip_info.ip));
+        if (first_boot_active() && s_setup_test == FB_WIFI_TESTING) {
+            s_setup_test_ip = event->ip_info.ip.addr;
+            s_setup_test_mask = event->ip_info.netmask.addr;
+            s_setup_test = FB_WIFI_OK;
+        }
         s_retry_num = 0;
         s_net_retries = 0;   /* successful association — clear the rotation counter */
         ap_connect = 1;
@@ -563,6 +638,14 @@ esp_netif_t *wifi_init_softap(void)
     char *nvs_pw   = nvs_param_get_str("ap_passwd");
     const char *use_ssid = (nvs_ssid && nvs_ssid[0]) ? nvs_ssid : EXAMPLE_ESP_WIFI_AP_SSID;
     const char *use_pw   = (nvs_pw   && nvs_pw[0])   ? nvs_pw   : EXAMPLE_ESP_WIFI_AP_PASSWD;
+    /* Unconfigured device: open, recognisable setup AP (no shared default
+     * password); pairing and sealed requests protect the setup itself. */
+    char setup_ssid[40];
+    if (first_boot_active()) {
+        first_boot_setup_ssid(setup_ssid, sizeof setup_ssid);
+        use_ssid = setup_ssid;
+        use_pw = "";
+    }
     /* Throughput-regression fix (2026-05-24): the ESP32-S3 has a single
      * 2.4 GHz radio shared by AP and STA. If the two interfaces sit on
      * different channels the radio has to time-share between them, which
@@ -597,6 +680,7 @@ esp_netif_t *wifi_init_softap(void)
      * casual scanners from listing it. */
     uint8_t hidden = 0;
     nvs_param_get_u8("ap_hidden", &hidden);
+    if (first_boot_active()) hidden = 0;
 
     wifi_config_t wifi_ap_config = {
         .ap = {
@@ -615,7 +699,7 @@ esp_netif_t *wifi_init_softap(void)
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_ap_config));
     ESP_LOGI(TAG_AP, "wifi_init_softap: SSID '%s' channel %d (from %s)",
              use_ssid, (int)channel,
-             (nvs_ssid && nvs_ssid[0]) ? "NVS" : "Kconfig");
+             first_boot_active() ? "first-boot setup" : (nvs_ssid && nvs_ssid[0]) ? "NVS" : "Kconfig");
 
     /* WARN level on purpose: the runtime default log level is WARN, so
      * this is the one line a first-time flasher actually sees on serial
@@ -717,7 +801,7 @@ void softap_set_dns_addr(esp_netif_t *esp_netif_ap,esp_netif_t *esp_netif_sta)
      * No hard-coded public resolver is used. */
     esp_netif_dns_info_t dns = {0};
     bool used_override = false;
-    if (dns_relay_is_enabled() && dns_relay_is_healthy()) {
+    if (first_boot_active() || (dns_relay_is_enabled() && dns_relay_is_healthy())) {
         esp_netif_ip_info_t ap_ip = {0};
         if (esp_netif_get_ip_info(esp_netif_ap, &ap_ip) == ESP_OK && ap_ip.ip.addr) {
             dns.ip.type = ESP_IPADDR_TYPE_V4;
@@ -946,10 +1030,11 @@ void app_main(void)
      * accessor is lazy too, but doing it explicitly here makes setup-mode
      * state deterministic before any WiFi event can run. */
     wifi_networks_init();
+    first_boot_init();
     {
         uint8_t auto_off = 0;
         (void)nvs_param_get_u8("ap_auto_off", &auto_off);
-        s_ap_auto_off = auto_off != 0;
+        s_ap_auto_off = auto_off != 0 && !first_boot_active();
         ESP_LOGI(TAG_AP, "AP policy: %s",
                  s_ap_auto_off ? "recovery-only (off while uplink is up)" : "always on");
     }
@@ -980,6 +1065,7 @@ void app_main(void)
 
     /* Start WiFi */
     ESP_ERROR_CHECK(esp_wifi_start() );
+    first_boot_start();   /* captive DNS + presence watcher; no-op when configured */
     /* A router is normally mains-powered. Default to disabled modem sleep so forwarded
      * packets are not held until a DTIM wake-up; this improves latency and
      * sustained LAN/AP-to-Tailnet throughput at the cost of higher power
@@ -1011,8 +1097,8 @@ void app_main(void)
      * once it has an address; before that, the AP netif stays default. */
     esp_netif_set_default_netif(esp_netif_sta);
 
-    /* Enable napt on the AP netif */
-    if (esp_netif_napt_enable(esp_netif_ap) != ESP_OK) {
+    /* Enable napt on the AP netif (never for the open first-boot AP) */
+    if (!first_boot_active() && esp_netif_napt_enable(esp_netif_ap) != ESP_OK) {
         ESP_LOGE(TAG_STA, "NAPT not enabled on the netif: %p", esp_netif_ap);
     }
 
