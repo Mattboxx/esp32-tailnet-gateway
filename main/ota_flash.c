@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT */
 #include "ota_flash.h"
 #include <stdbool.h>
+#include <stdint.h>
 #include "esp_attr.h"
 #include "esp_cpu.h"
 #include "esp_memory_utils.h"
@@ -31,6 +32,25 @@ static SemaphoreHandle_t s_mutex, s_done;
 static httpd_handle_t s_server;
 static TaskHandle_t s_httpd_task;
 
+/* httpd_queue_work() delivers a loopback datagram to the server's control
+ * socket. lwIP drops it silently when the receive buffer cannot be allocated
+ * (low internal RAM) or the socket mailbox is full, although the send already
+ * succeeded. The server therefore claims a job before running it; a job still
+ * unclaimed after START_WAIT_MS is withdrawn and sent once more, then reported
+ * as a timeout. A claimed job is always awaited: flash work and its borrowed
+ * buffer cannot be abandoned. A late delivery finds nothing to claim. */
+#ifndef START_WAIT_MS
+#define START_WAIT_MS 15000
+#endif
+#define DELIVERIES 2
+enum { JOB_IDLE, JOB_QUEUED, JOB_RUNNING };
+static uint32_t s_state;
+
+static bool job_transition(uint32_t from, uint32_t to)
+{
+    return __atomic_compare_exchange_n(&s_state, &from, to, false, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE);
+}
+
 static void identify_httpd(void *unused)
 {
     (void)unused;
@@ -40,6 +60,7 @@ static void identify_httpd(void *unused)
 static void flash_work(void *unused)
 {
     (void)unused;
+    if (!job_transition(JOB_QUEUED, JOB_RUNNING)) return;   /* withdrawn or duplicate delivery */
     s_job.result = ESP_ERR_INVALID_STATE;
     /* No fallback to the external caller stack if initialization/domain is
      * wrong. This also makes every failure acknowledge its borrowed data. */
@@ -110,15 +131,29 @@ static esp_err_t execute(flash_job_t *job)
                          ? portMAX_DELAY : pdMS_TO_TICKS(1000);
     if (xSemaphoreTake(s_mutex, admission) != pdTRUE) return ESP_ERR_TIMEOUT;
     s_job = *job;
-    esp_err_t queued = httpd_queue_work(server, flash_work, NULL);
-    if (queued != ESP_OK) {
-        xSemaphoreGive(s_mutex);
-        return queued;
+    esp_err_t result = ESP_ERR_TIMEOUT;
+    bool ran = false;
+    for (int delivery = 0; delivery < DELIVERIES && !ran; delivery++) {
+        __atomic_store_n(&s_state, JOB_QUEUED, __ATOMIC_RELEASE);
+        esp_err_t queued = httpd_queue_work(server, flash_work, NULL);
+        if (queued == ESP_OK && xSemaphoreTake(s_done, pdMS_TO_TICKS(START_WAIT_MS)) == pdTRUE) {
+            ran = true;
+        } else if (!job_transition(JOB_QUEUED, JOB_IDLE)) {
+            /* An earlier, delayed delivery claimed it: let the flash work end. */
+            while (xSemaphoreTake(s_done, portMAX_DELAY) != pdTRUE) { }
+            ran = true;
+        } else if (queued != ESP_OK) {
+            result = queued;
+            break;
+        }
     }
-    while (xSemaphoreTake(s_done, portMAX_DELAY) != pdTRUE) { }
-    *job = s_job;
+    if (ran) {
+        *job = s_job;
+        result = job->result;
+    }
+    __atomic_store_n(&s_state, JOB_IDLE, __ATOMIC_RELEASE);
     xSemaphoreGive(s_mutex);
-    return job->result;
+    return result;
 }
 
 const esp_partition_t *ota_flash_next_partition(void)
