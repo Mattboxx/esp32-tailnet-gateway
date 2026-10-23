@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased — 2.0.2]
+
+### Fixed
+
+- GitHub firmware installation could restart with a panic while beginning the
+  update. Cache-sensitive flash operations now run on a reserved internal-RAM
+  stack, separately from the HTTPS downloader's PSRAM stack. This applies to
+  both **Install latest update** and scheduled automatic installation.
+- An affected 2.0.0/2.0.1 installation needs one manual firmware upload or USB
+  update to receive the correction; keep existing settings when using USB.
+
+### Preserved
+
+- Existing settings, app identity, partition layout and update verification.
+- English-only Web UI in the experimental W5500 image; WiFi translations stay.
+
 ## [2.0.1] — 2026-10-23
 
 ### Fixed

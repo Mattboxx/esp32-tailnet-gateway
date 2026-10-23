@@ -1,5 +1,9 @@
 # Feature implementation and validation matrix
 
+F14 source increment for Firmware v2.0.2: `main/ota_flash.c` separates the
+PSRAM HTTPS downloader from internal-stack OTA operations (ADR-030). All 42
+requirements remain. Exact-image execution and acceptance records stay local.
+
 **Firmware v2.0.0:** all 42 requirements and their implementation history remain
 preserved. This product version consolidates the original development
 milestones; current run-by-run qualification, remaining-case lists and owner

@@ -55,7 +55,7 @@ static void status_set(const char *s) { strlcpy(s_state.status,s,sizeof s_state.
 static esp_app_desc_t running={.version="0.1.31-Mattboxx-1.10-dev",.project_name="esp32-tailscale-subnet-router"};
 static const esp_app_desc_t *esp_app_get_description(void) { return &running; }
 static esp_partition_t partition={2048};
-static const esp_partition_t *esp_ota_get_next_update_partition(void *p) { (void)p; return &partition; }
+static const esp_partition_t *ota_flash_next_partition(void) { return &partition; }
 static unsigned char image[1024];
 static int opens,reads,offset,begins,writes,aborts,ends,boots,restarts,releases;
 static int fault; /* 1 length,2 prefix EOF,3 hash,4 begin,5 write,6 end,7 boot,8 truncated,9 incomplete,10 redirect,11 allowed redirect,12 timeout,13 crypto */
@@ -86,13 +86,13 @@ static int mbedtls_sha256_update(mbedtls_sha256_context *h,const unsigned char *
 static int mbedtls_sha256_finish(mbedtls_sha256_context *h,unsigned char out[32]) { assert(h->used==1024); memset(out,fault==3?2:1,32); return 0; }
 static int64_t clock_us;
 static int64_t esp_timer_get_time(void) { clock_us+=fault==12?200000000:100; return clock_us; }
-static esp_err_t esp_ota_begin(const esp_partition_t *p,size_t n,esp_ota_handle_t *h) { assert(p==&partition&&n==1024); begins++; if(fault==4)return -1; *h=1; return ESP_OK; }
-static esp_err_t esp_ota_write(esp_ota_handle_t h,const void *p,size_t n) { assert(h==1&&p&&n); writes++; return fault==5?-1:0; }
-static esp_err_t esp_ota_end(esp_ota_handle_t h) { assert(h==1); ends++; return fault==6?-1:0; }
-static esp_err_t esp_ota_set_boot_partition(const esp_partition_t *p) { assert(p==&partition); boots++; return fault==7?-1:0; }
-static void esp_ota_abort(esp_ota_handle_t h) { assert(h==1); aborts++; }
+static esp_err_t ota_flash_begin(const esp_partition_t *p,size_t n,esp_ota_handle_t *h) { assert(p==&partition&&n==1024); begins++; if(fault==4)return -1; *h=1; return ESP_OK; }
+static esp_err_t ota_flash_write(esp_ota_handle_t h,const void *p,size_t n) { assert(h==1&&p&&n); writes++; return fault==5?-1:0; }
+static esp_err_t ota_flash_end(esp_ota_handle_t h) { assert(h==1); ends++; return fault==6?-1:0; }
+static esp_err_t ota_flash_set_boot_partition(const esp_partition_t *p) { assert(p==&partition); boots++; return fault==7?-1:0; }
+static void ota_flash_abort(esp_ota_handle_t h) { assert(h==1); aborts++; }
 static void vTaskDelay(int t) { (void)t; }
-static void esp_restart(void) { restarts++; }
+static void ota_flash_restart(void) { restarts++; }
 '''
 tests = r'''
 static void reset(void) {
@@ -240,7 +240,8 @@ typedef http_buffer_t *esp_http_client_handle_t;
 typedef struct { uint32_t size; } esp_partition_t;
 typedef struct { char version[32]; } esp_app_desc_t;
 static esp_partition_t part={1u<<20}; static esp_app_desc_t app={"0.1.38-Mattboxx-1.14-dev.6"};
-static const esp_partition_t *esp_ota_get_next_update_partition(void *p){(void)p;return &part;}
+static bool no_partition;
+static const esp_partition_t *ota_flash_next_partition(void){return no_partition?NULL:&part;}
 static const esp_app_desc_t *esp_app_get_description(void){return &app;}
 static void *heap_caps_malloc(size_t n,int caps){(void)caps;return malloc(n);}
 static int answers[3],calls; static char urls[3][128]; static int fail_transport;
@@ -269,6 +270,10 @@ int main(void){
     memset(&s_state,0,sizeof s_state);calls=0;answers[0]=200;fail_transport=1;assert(!check_release()&&calls==1);
     /* Both names missing: clean failure, nothing cached. */
     assert(!run(404,404)&&calls==2&&!s_state.checked&&!s_state.latest_version[0]);
+    /* Unavailable executor or slot must not be presented as "up to date". */
+    no_partition=true;
+    assert(!run(200,0)&&calls==1&&!s_state.checked&&!s_state.update_available);
+    assert(strstr(s_state.status,"unavailable")); no_partition=false;
     puts("PASS: actual release check across the repository rename: current first, previous only on 404, no fallback on other errors (fixtures)");
 }
 '''

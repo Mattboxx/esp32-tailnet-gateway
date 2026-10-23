@@ -2,6 +2,28 @@
 
 Decisions are explicit, revisable with evidence and never remove approved scope.
 
+## ADR-030 — Remote OTA separates HTTPS and cache-sensitive flash work (2026-10-23)
+
+ESP-IDF 5.5.3 requires an internal-RAM stack when it freezes caches for flash
+mapping. The GitHub downloader's 16 KiB PSRAM stack therefore cannot safely
+call OTA operations, including the metadata mapping in `esp_ota_begin`.
+Moving the entire TLS stack into scarce internal RAM is not an acceptable fix.
+
+`ota_flash` reserves a 4 KiB internal stack, static TCB, one mailbox and static
+synchronization objects at boot. The HTTPS worker synchronously dispatches slot
+lookup, begin/write/end/abort, boot selection and restart to that task. No jobs
+are allocated, and its runtime stack-domain check fails closed without a
+caller-stack fallback. Admission is bounded; accepted operations retain their
+borrowed data until acknowledged. Consuming end/abort calls wait for ownership
+instead of abandoning a live SDK handle on an admission timeout. Stack/resource
+measurements belong to exact-image qualification, not estimates of TLS needs.
+
+The existing global OTA writer exclusion, image identity/chip/version checks,
+HTTPS verification, redirect allowlist and SHA-256 verification are preserved.
+The local HTTP upload remains a separate path on the internal HTTP server
+stack. An already affected installation must use local upload or USB once to
+receive the fix; its old GitHub install path cannot repair itself.
+
 ## ADR-029 — First-boot setup: open AP, physical pairing, sealed requests (2026-10-23)
 
 The owner asked for an AP + captive-portal first boot with no default admin
