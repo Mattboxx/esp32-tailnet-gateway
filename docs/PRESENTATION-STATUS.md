@@ -1,11 +1,11 @@
 # Firmware and installation availability
 
-**ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v2.0.0**.
+**ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v2.0.1**.
 One ESP32. Multiple Tailnet roles. Enable only what you need.
 
 ## Current downloads
 
-- [Firmware v2.0.0](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.0)
+- [Firmware v2.0.1](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.1)
 - [Browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
   for desktop Chrome/Edge and USB-connected ESP32-S3 N16R8 boards.
 - [Easy Install guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/)
@@ -17,6 +17,8 @@ One ESP32. Multiple Tailnet roles. Enable only what you need.
 `firmware-eth.bin` and Ethernet factory image are **experimental W5500** builds
 requiring compatible hardware and pin configuration. Factory/new-device erase
 modes remove settings; do not upload a factory image through the Web UI updater.
+Use v2.0.1 for new installations: it corrects first-boot pairing and setup
+restart handling. The WiFi image keeps four UI languages; W5500 is English-only.
 
 This edition includes Selective LAN → Tailnet TCP/UDP access, timed rules,
 destination tests and Service Watch; device registry and Smart Recovery;
