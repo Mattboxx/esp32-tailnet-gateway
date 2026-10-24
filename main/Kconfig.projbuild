@@ -82,11 +82,11 @@ menu "Example Configuration"
 
     config TSR_SNMP
         bool "SNMP agent (read-only v1/v2c)"
-        default n
+        default y
         help
-            Not in the 3.0 images (owner decision 2026-10-24: simpler
-            qualification). Off, the API answers "disabled", the web page
-            hides the card and only the die-temperature reading remains.
+            In the 3.0 images (the agent itself stays off until enabled).
+            Without it the API answers "disabled", the web page hides the
+            card and only the die-temperature reading remains.
 
     config TSR_DDNS
         bool "Dynamic DNS (DuckDNS, Cloudflare, custom URL)"

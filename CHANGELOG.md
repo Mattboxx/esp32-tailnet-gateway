@@ -34,7 +34,6 @@ USB install; settings are kept ([guide](docs/MIGRATION-3.0.md)). Work so far
   gateway's Wi-Fi, and optionally on the home network, resolve tailnet
   peers by name (`nas`, `nas.tail1234.ts.net`).
 - **Telegram and email notifications** (Automation), next to ntfy.
-- **Dynamic DNS** (Network): DuckDNS, Cloudflare or a custom HTTPS URL.
 - **Throughput test** (Tools): the gateway downloads from a URL, or the
   browser downloads from the gateway.
 - **Setup wizard:** a *Monitor and get alerts* role and optional extras

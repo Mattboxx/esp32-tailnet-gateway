@@ -239,7 +239,9 @@ PSRAM placement, cache tuning) is the base of this branch (`v3`).
    - **F46** tailnet (MagicDNS) names for AP and, optionally, LAN devices via
      the DNS relay;
    - **F47** Telegram and email notifications next to ntfy;
-   - **F48** dynamic DNS (DuckDNS, Cloudflare, custom HTTPS URL);
+   - **F48** dynamic DNS (DuckDNS, Cloudflare, custom HTTPS URL): implemented
+     and host-tested but left out of the 3.0 build and Web UI by owner
+     decision (2026-10-24) until requested again; source kept;
    - **F49** on-request throughput test in Diagnostics;
    - setup wizard presets (a monitoring role and opt-in extras).
    Pending: hardware qualification of each (flash wear and timing, real
