@@ -21,6 +21,7 @@ access, subnet routing, remote recovery and optional automation.
 [![ESP-IDF 5.5.3](https://img.shields.io/badge/ESP--IDF-5.5.3-0A0F0C.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![CodeQL](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml)
 [![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailnet-gateway?label=stable&color=0B7A4B)](../../releases/latest)
+[![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20the%20Mattboxx%20edition-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/mattboxx)
 
 [Website](https://mattboxx.github.io/esp32-tailnet-gateway/) ·
 [Real firmware screenshots](https://mattboxx.github.io/esp32-tailnet-gateway/screenshots/) ·
@@ -381,8 +382,12 @@ Bug reports, hardware reports and guide improvements are welcome. Read
 [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md);
 use the issue templates. Follow the checks in [Testing](docs/TESTING.md) for
 the published source.
-Support the Mattboxx edition on
-[Ko-fi](https://ko-fi.com/mattboxx) and the original author via
+
+Support the Mattboxx edition on Ko-fi — entirely optional:
+
+[![Support the Mattboxx edition on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mattboxx)
+
+Support the original author via
 [GitHub Sponsors](https://github.com/sponsors/Csontikka) or
 [Buy Me a Coffee](https://buymeacoffee.com/csontikka) — entirely optional.
 
