@@ -44,6 +44,21 @@ The repository has moved to `Mattboxx/esp32-tailnet-gateway`. Firmware before
 the bridge release cannot follow the rename automatically; see the
 [migration plan](MIGRATION-RENAME.md).
 
+## Release channels
+
+Each version is tested as numbered betas before it becomes stable:
+`2.0.4-beta.1`, `2.0.4-beta.2`, … then `2.0.4`. Betas are published as GitHub
+pre-releases; the stable is a normal release.
+
+| Device setting | Receives |
+|---|---|
+| Stable channel (default) | Stable releases only |
+| Beta channel | The highest version overall: a newer beta replaces an older one (`beta.2` after `beta.1`), the stable of that version replaces all its betas, and the next version's betas follow |
+
+The highest stable always ranks above every beta of the same version, and a
+device never downgrades. A device running a beta on the stable channel moves
+to the next stable release.
+
 ## Which releases qualify?
 
 Fixed repository:
