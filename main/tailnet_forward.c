@@ -24,13 +24,14 @@
 #include "netif_hooks.h"
 #include "web_ui.h"
 #include "esp_log.h"
+#include "esp_attr.h"
 
 #define NVS_KEY "tn_fwd"
 #define STORE_MAGIC 0x544e4631u
 
 typedef struct { uint32_t magic; tailnet_forward_rule_t rules[TAILNET_FORWARD_MAX]; } store_t;
-static tailnet_forward_rule_t s_rules[TAILNET_FORWARD_MAX];
-static tailnet_forward_runtime_t s_runtime[TAILNET_FORWARD_MAX];
+EXT_RAM_BSS_ATTR static tailnet_forward_rule_t s_rules[TAILNET_FORWARD_MAX];
+EXT_RAM_BSS_ATTR static tailnet_forward_runtime_t s_runtime[TAILNET_FORWARD_MAX];
 static int s_count;
 static bool s_loaded;
 static SemaphoreHandle_t s_lock;
@@ -39,7 +40,10 @@ static uint64_t s_generation;
 typedef struct { bool installed; tailnet_forward_mapping_t mapping; } active_mapping_t;
 /* Only the TCP/IP task installs/replaces these snapshots and authorizes
  * packets from them. Configuration/resolution tasks never modify live policy. */
-static active_mapping_t s_active[TAILNET_FORWARD_MAX];
+/* Internal RAM is the gateway's scarce resource: application tables live
+ * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
+ * context uses them, never an ISR or IRAM code. */
+EXT_RAM_BSS_ATTR static active_mapping_t s_active[TAILNET_FORWARD_MAX];
 #define LOCK() do { if (s_lock) xSemaphoreTake(s_lock, portMAX_DELAY); } while (0)
 #define UNLOCK() do { if (s_lock) xSemaphoreGive(s_lock); } while (0)
 

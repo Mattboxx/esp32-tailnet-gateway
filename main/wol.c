@@ -12,11 +12,15 @@
 #include "lwip/sockets.h"
 #include "nvs.h"
 #include "nvs_params.h"
+#include "esp_attr.h"
 
 #define WOL_NVS_KEY "wol_devices"
 
 static const char *TAG = "wol";
-static wol_device_t s_devices[WOL_MAX_DEVICES];
+/* Internal RAM is the gateway's scarce resource: application tables live
+ * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
+ * context uses them, never an ISR or IRAM code. */
+EXT_RAM_BSS_ATTR static wol_device_t s_devices[WOL_MAX_DEVICES];
 static int s_count;
 static bool s_loaded;
 static SemaphoreHandle_t s_lock;

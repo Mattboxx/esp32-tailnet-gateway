@@ -1212,5 +1212,20 @@
  "Your router's web page port: checks the home network.": "路由器网页端口：用于检查家庭网络。",
  "e.g. {}": "例如 {}",
  "e.g. 192.168.1.20 or nas.lan": "例如 192.168.1.20 或 nas.lan",
- "e.g. nas or 100.64.0.10": "例如 nas 或 100.64.0.10"
+ "e.g. nas or 100.64.0.10": "例如 nas 或 100.64.0.10",
+ "Check now and Install latest update also work with periodic checks OFF. Save channel and language changes first. Changing policy or starting a download requires a password-backed session. Installs never downgrade the running version.": "即使关闭定期检查，“立即检查”和“安装最新更新”仍可使用。请先保存频道和语言的更改。更改策略或开始下载需要使用密码登录的会话。安装绝不会降级当前版本。",
+ "Download and install the release found for the selected channel and language? The gateway will restart.": "下载并安装为所选频道和语言找到的版本？网关将重新启动。",
+ "Each firmware carries English plus at most one other language, which keeps memory free. GitHub installs use the language chosen here; choosing another language offers the installed version again in that language.": "每个固件包含英文和最多一种其他语言，以节省内存。从 GitHub 安装时使用此处选择的语言；选择其他语言后，会以该语言重新提供已安装的版本。",
+ "English (standard)": "英文（标准）",
+ "Firmware language": "固件语言",
+ "Not started": "未启动",
+ "No profile applied": "未应用配置文件",
+ "Other languages: choose the Firmware language under Firmware update, then install it.": "其他语言：在“固件更新”中选择固件语言，然后安装。",
+ "Paused by the resource guard": "因资源保护而暂停",
+ "The resource admission guard in Devices & Recovery is pausing optional work: free internal RAM is below its threshold.": "“设备与恢复”中的资源准入保护正在暂停可选任务：可用内部 RAM 低于阈值。",
+ "The resource admission guard is pausing optional work now: MQTT, ntfy, device checks and recovery wait until free internal RAM, its largest block and free sockets are above the thresholds. Lower the thresholds (advanced settings) or turn the guard off.": "资源准入保护目前正在暂停可选任务：MQTT、ntfy、设备检查和恢复将等待可用内部 RAM、最大内存块和空闲套接字高于阈值。请降低阈值（高级设置）或关闭保护。",
+ "ntfy test paused": "ntfy 测试已暂停",
+ "Another check or recovery is running; its result appears on this page": "另一项检查或恢复正在进行；结果将显示在此页面",
+ "This device was checked less than a minute ago; try again shortly": "该设备不到一分钟前刚检查过；请稍后再试",
+ "Deferred by the resource admission guard: free internal RAM or sockets are below its thresholds": "已被资源准入保护推迟：可用内部 RAM 或套接字低于阈值"
 }

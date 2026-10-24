@@ -86,6 +86,7 @@
 
 /* Globals owned by main.c — link status flags rendered in /api/status. */
 #include "upstream_validation.h"
+#include "esp_attr.h"
 extern volatile int ap_connect;
 extern volatile int connect_count;
 extern void wifi_sta_pause_for_scan(void);
@@ -1253,7 +1254,10 @@ typedef enum {
 #define SCAN_CACHE_MAX 32
 static volatile scan_state_t s_scan_state    = SCAN_IDLE;
 static uint16_t              s_scan_count    = 0;
-static wifi_ap_record_t      s_scan_cache[SCAN_CACHE_MAX];
+/* Internal RAM is the gateway's scarce resource: application tables live
+ * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
+ * context uses them, never an ISR or IRAM code. */
+EXT_RAM_BSS_ATTR static wifi_ap_record_t      s_scan_cache[SCAN_CACHE_MAX];
 static uint32_t              s_scan_done_ms  = 0;
 static SemaphoreHandle_t     s_scan_mutex    = NULL;
 

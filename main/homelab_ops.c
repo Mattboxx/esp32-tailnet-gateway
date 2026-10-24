@@ -49,6 +49,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "esp_attr.h"
 
 #define OPS_MAGIC 0x4f505331u
 #define OPS_EVENTS 16
@@ -63,9 +64,12 @@ typedef struct {
     uint16_t checks;uint64_t started,deadline,next,finished;
     wol_device_t device;ops_device_t profile;
 } job_t;
-static ops_store_t store;
+/* Internal RAM is the gateway's scarce resource: application tables live
+ * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
+ * context uses them, never an ISR or IRAM code. */
+EXT_RAM_BSS_ATTR static ops_store_t store;
 static result_t results[WOL_MAX_DEVICES];
-static event_t events[OPS_EVENTS];
+EXT_RAM_BSS_ATTR static event_t events[OPS_EVENTS];
 static uint32_t event_seq,job_seq,denied_jobs;
 static uint32_t service_closures;
 static module_supervisor_t supervisor;  /* worker-owned */

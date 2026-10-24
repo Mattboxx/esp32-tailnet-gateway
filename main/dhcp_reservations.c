@@ -8,6 +8,7 @@
 #include "nvs_params.h"
 #include "dhcps_ext.h"
 #include "dhcp_reservations.h"
+#include "esp_attr.h"
 
 static const char *TAG = "dhcp_res";
 
@@ -15,7 +16,10 @@ static const char *TAG = "dhcp_res";
 
 /* Cached on first init so the DHCP server's per-packet lookup path
  * never touches NVS. */
-static dhcp_reservation_t s_table[DHCP_RESERVATIONS_MAX];
+/* Internal RAM is the gateway's scarce resource: application tables live
+ * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
+ * context uses them, never an ISR or IRAM code. */
+EXT_RAM_BSS_ATTR static dhcp_reservation_t s_table[DHCP_RESERVATIONS_MAX];
 static int                s_count  = 0;
 static bool               s_loaded = false;
 

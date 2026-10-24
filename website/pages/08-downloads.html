@@ -27,7 +27,8 @@ order: 8
   <thead><tr><th>File</th><th>Use</th></tr></thead>
   <tbody>
     <tr><td><code>ESP32-Tailnet-Gateway-v{{next_version}}-WiFi-factory.bin</code></td><td>New device: esptool at <code>0x0</code>. Erases all settings.</td></tr>
-    <tr><td><code>firmware.bin</code></td><td>Wi-Fi OTA image: Web UI upload, GitHub updater, keep-settings USB update. Name kept for older updaters.</td></tr>
+    <tr><td><code>firmware.bin</code></td><td>Wi-Fi OTA image, English Web UI (standard): Web UI upload, GitHub updater, keep-settings USB update. Name kept for older updaters.</td></tr>
+    <tr><td><code>firmware-it.bin</code>, <code>firmware-es.bin</code>, <code>firmware-zh.bin</code></td><td>Same Wi-Fi image with the Web UI in English plus Italiano, Español or 简体中文 (one language per image keeps memory free). Upload in System → Firmware, or choose the Firmware language for GitHub updates; the Easy Install scripts ask which one to install.</td></tr>
     <tr><td><code>firmware-eth.bin</code>, <code>ESP32-Tailnet-Gateway-v{{next_version}}-Ethernet-EXPERIMENTAL-factory.bin</code></td><td>W5500 Ethernet build. <strong>Experimental, not hardware-qualified.</strong> Only for boards with the module wired as documented.</td></tr>
     <tr><td><code>SHA256SUMS.txt</code>, <code>release-manifest.json</code></td><td>Checksums and machine-readable build metadata.</td></tr>
     <tr><td><a href="{{root}}firmware/{{next_version}}/FIRMWARE-LICENSES.txt">FIRMWARE-LICENSES.txt</a></td><td>Firmware and bundled dependency copyright and license notices.</td></tr>
