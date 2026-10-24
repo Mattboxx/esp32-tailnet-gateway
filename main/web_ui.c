@@ -3686,6 +3686,7 @@ static esp_err_t system_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(policy, "auto_install", update.config.auto_install);
     cJSON_AddBoolToObject(policy, "beta_channel", update.config.beta_channel);
     cJSON_AddNumberToObject(policy, "install_hour", update.config.install_hour);
+    cJSON_AddStringToObject(policy, "language", update.config.language);
 
     /* Device label (the friendly name shown in the nav). */
     {
@@ -4035,6 +4036,13 @@ static esp_err_t updates_get_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(json, "auto_install", state.config.auto_install);
     cJSON_AddBoolToObject(json, "beta_channel", state.config.beta_channel);
     cJSON_AddNumberToObject(json, "install_hour", state.config.install_hour);
+    /* Web UI language variants: the one running and the one updates install. */
+    cJSON_AddStringToObject(json, "language", state.config.language);
+    cJSON_AddStringToObject(json, "running_language", OTA_UI_LANGUAGE);
+    cJSON *languages = cJSON_AddArrayToObject(json, "languages");
+    static const char *const codes[] = {"en", "it", "es", "zh"};
+    for (unsigned i = 0; languages && i < sizeof codes / sizeof codes[0]; i++)
+        if (ota_asset_for(codes[i])) cJSON_AddItemToArray(languages, cJSON_CreateString(codes[i]));
     cJSON_AddBoolToObject(json, "busy", state.busy);
     cJSON_AddBoolToObject(json, "checked", state.checked);
     cJSON_AddBoolToObject(json, "update_available", state.update_available);
@@ -4074,12 +4082,17 @@ static esp_err_t updates_save_handler(httpd_req_t *req)
     const cJSON *automatic = cJSON_GetObjectItemCaseSensitive(json, "auto_install");
     const cJSON *beta = cJSON_GetObjectItemCaseSensitive(json, "beta_channel");
     const cJSON *hour = cJSON_GetObjectItemCaseSensitive(json, "install_hour");
+    const cJSON *language = cJSON_GetObjectItemCaseSensitive(json, "language");
     if (!cJSON_IsObject(json) || !cJSON_IsBool(enabled) || !cJSON_IsBool(automatic) ||
+        (language && (!cJSON_IsString(language) || strlen(language->valuestring) > 3)) ||
         !cJSON_IsBool(beta) || !cJSON_IsNumber(hour) || hour->valuedouble < -1 || hour->valuedouble > 23 ||
         hour->valuedouble != (double)(int)hour->valuedouble) {
         cJSON_Delete(json); return updates_result(req, ESP_ERR_INVALID_ARG);
     }
-    ota_remote_config_t config = {cJSON_IsTrue(enabled), cJSON_IsTrue(automatic), cJSON_IsTrue(beta), (int)hour->valuedouble};
+    ota_remote_config_t config = {cJSON_IsTrue(enabled), cJSON_IsTrue(automatic), cJSON_IsTrue(beta), (int)hour->valuedouble, ""};
+    /* An omitted language keeps the current choice (older pages). */
+    if (language) strlcpy(config.language, language->valuestring, sizeof config.language);
+    else { ota_remote_state_t state; ota_remote_get_state(&state); memcpy(config.language, state.config.language, sizeof config.language); }
     cJSON_Delete(json); return updates_result(req, ota_remote_set_config(&config));
 }
 

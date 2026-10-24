@@ -88,7 +88,7 @@ def fnv1a(text):
     return h
 
 
-def i18n_bundle(folder):
+def i18n_bundle(folder, only=None):
     """{"langs":{code:{"name":..}}, "h":[hash...], "tr":{code:[...]}}.
 
     Keys are FNV-1a hashes of the English text instead of the text itself:
@@ -99,6 +99,10 @@ def i18n_bundle(folder):
     if not meta_path.exists():
         return None
     meta = json.loads(meta_path.read_text(encoding='utf-8'))
+    if only is not None:
+        if only not in meta:
+            raise SystemExit(f'i18n: unknown language {only!r}')
+        meta = {only: meta[only]}
     tables = {}
     for code in meta:
         path = folder / (code + '.json')
@@ -121,11 +125,11 @@ def i18n_bundle(folder):
     return {'langs': meta, 'h': hashes, 'tr': tr, 'p': patterns}
 
 
-def build_html(src, english_only=False):
+def build_html(src, english_only=False, language=None):
     src = Path(src)
     text = minify(src.read_text(encoding='utf-8'))
     head_close = '</head>'
-    bundle = None if english_only else i18n_bundle(src.parent / 'i18n')
+    bundle = None if english_only else i18n_bundle(src.parent / 'i18n', language)
     if bundle:
         data = json.dumps(bundle, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
         text = text.replace(head_close, '<script id="i18n-data">window.I18N_DATA=' + data + ';</script>\n' + head_close, 1)
@@ -149,18 +153,22 @@ def build_html(src, english_only=False):
 def main() -> int:
     args = sys.argv[1:]
     # --english-only: no translation bundle (the UI then offers English only).
+    # --lang <code>: English plus that one translation (a language variant).
     english_only = bool(args) and args[0] == '--english-only'
     if english_only:
         args = args[1:]
+    language = None
+    if len(args) >= 2 and args[0] == '--lang':
+        language, args = args[1], args[2:]
     if len(args) == 3 and args[0] == '--html':
-        Path(args[2]).write_bytes(build_html(args[1], english_only))
+        Path(args[2]).write_bytes(build_html(args[1], english_only, language))
         return 0
     if len(args) != 2:
         print('usage: gen_index_html_gz.py [--html] <input.html> <output>', file=sys.stderr)
         return 2
     src, dst = Path(args[0]), Path(args[1])
     original = src.stat().st_size
-    raw = build_html(src, english_only)
+    raw = build_html(src, english_only, language)
 
     buf = io.BytesIO()
     with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=9, mtime=0) as gz:

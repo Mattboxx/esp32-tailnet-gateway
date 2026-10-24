@@ -57,11 +57,11 @@ void ota_remote_get_state(ota_remote_state_t *out)
 }
 
 bool ota_remote_select_release(const cJSON *releases, const char *running,
-                               bool beta, uint32_t partition_size,
+                               bool beta, const char *asset_name, bool reinstall, uint32_t partition_size,
                                char tag[32], uint32_t *size, unsigned char digest[32])
 {
     ota_version_t current, best;
-    if (!cJSON_IsArray(releases) || !ota_version_parse(running, &current)) return false;
+    if (!cJSON_IsArray(releases) || !asset_name || !ota_version_parse(running, &current)) return false;
     best = current;
     bool found = false;
     const cJSON *release;
@@ -73,7 +73,10 @@ bool ota_remote_select_release(const cJSON *releases, const char *running,
         if (!cJSON_IsObject(release) || !cJSON_IsFalse(draft) || !cJSON_IsBool(pre) ||
             (!beta && cJSON_IsTrue(pre)) || !cJSON_IsString(name) ||
             !ota_version_parse(name->valuestring, &version) ||
-            (version.stage < 4 && !cJSON_IsTrue(pre)) || ota_version_compare(&version, &best) <= 0) continue;
+            (version.stage < 4 && !cJSON_IsTrue(pre))) continue;
+        /* Newer only; the running version itself only for another language. */
+        int order = ota_version_compare(&version, &best);
+        if (order < 0 || (order == 0 && (found || !reinstall))) continue;
         const cJSON *assets = cJSON_GetObjectItemCaseSensitive(release, "assets"), *asset;
         if (!cJSON_IsArray(assets)) continue;
         cJSON_ArrayForEach(asset, assets) {
@@ -82,7 +85,7 @@ bool ota_remote_select_release(const cJSON *releases, const char *running,
             const cJSON *ah = cJSON_GetObjectItemCaseSensitive(asset, "digest");
             const cJSON *as = cJSON_GetObjectItemCaseSensitive(asset, "state");
             unsigned char hash[32];
-            if (!cJSON_IsString(an) || strcmp(an->valuestring, OTA_ASSET) ||
+            if (!cJSON_IsString(an) || strcmp(an->valuestring, asset_name) ||
                 !cJSON_IsString(as) || strcmp(as->valuestring, "uploaded") ||
                 !cJSON_IsNumber(az) || az->valuedouble < 288 || az->valuedouble > partition_size ||
                 az->valuedouble != (double)(uint32_t)az->valuedouble ||
@@ -137,7 +140,9 @@ static OTA_NOINLINE bool check_release(void)
      * stale release metadata after a transport/parsing error. */
     xSemaphoreTake(s_lock, portMAX_DELAY);
     bool beta = s_state.config.beta_channel;
-    s_state.checked = false; s_state.update_available = false;
+    const char *asset = ota_asset_for(s_state.config.language);
+    bool reinstall = strcmp(s_state.config.language, OTA_UI_LANGUAGE) != 0;
+    s_state.checked = false; s_state.update_available = false; s_state.asset[0] = 0;
     s_state.latest_version[0] = s_state.release_url[0] = 0; s_state.asset_size = 0;
     xSemaphoreGive(s_lock);
     status_set("Checking GitHub releases");
@@ -170,18 +175,20 @@ static OTA_NOINLINE bool check_release(void)
     if (!target) { cJSON_Delete(json); status_set("OTA flash dispatcher unavailable or no update slot"); return false; }
     char tag[32] = {0}; uint32_t size = 0; unsigned char digest[32];
     const esp_app_desc_t *app = esp_app_get_description();
-    bool found = target && app && ota_remote_select_release(json, app->version, beta, target->size, tag, &size, digest);
+    bool found = target && app && asset && ota_remote_select_release(json, app->version, beta, asset, reinstall, target->size, tag, &size, digest);
     cJSON_Delete(json);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_state.checked = true; s_state.last_check = (uint32_t)time(NULL);
     s_state.update_available = found; s_state.asset_size = size; s_state.repo = (uint8_t)repo;
     strlcpy(s_state.latest_version, tag, sizeof s_state.latest_version);
     if (found) {
-        memcpy(s_digest, digest, sizeof s_digest);
+        memcpy(s_digest, digest, sizeof s_digest); strlcpy(s_state.asset, asset, sizeof s_state.asset);
         snprintf(s_state.release_url, sizeof s_state.release_url, "https://github.com/%s/releases/tag/%s", ota_repo(repo), tag);
     }
     xSemaphoreGive(s_lock);
-    status_set(found ? "Update available" : "No newer compatible release");
+    status_set(!found ? "No newer compatible release"
+               : app && !strcmp(tag[0] == 'v' ? tag + 1 : tag, app->version) ? "Same version in the selected language available"
+               : "Update available");
     return true;
 }
 
@@ -212,13 +219,13 @@ static OTA_NOINLINE bool install_release(void)
     char url[192];
     const char *repo = ota_repo(state.repo);
     if (!repo) { ota_writer_release(); return false; }
-    snprintf(url, sizeof url, "https://github.com/%s/releases/download/%s/" OTA_ASSET, repo, state.latest_version);
+    snprintf(url, sizeof url, "https://github.com/%s/releases/download/%s/%s", repo, state.latest_version, state.asset);
     http_buffer_t b = {.location = malloc(2048)};
     unsigned char *buffer = malloc(2048);
     esp_http_client_handle_t client = NULL;
     mbedtls_sha256_context hash; mbedtls_sha256_init(&hash);
     status_set("Downloading verified firmware");
-    if (!b.location || !buffer || !ota_download_url_allowed(url)) goto done;
+    if (!b.location || !buffer || !ota_download_url_allowed_for(url, state.asset)) goto done;
     client = http_client(url, &b);
     if (!client) goto done;
     bool opened = false;
@@ -230,7 +237,7 @@ static OTA_NOINLINE bool install_release(void)
         if (code == 200 && length == state.asset_size) { opened = true; break; }
         esp_http_client_close(client);
         if ((code != 301 && code != 302 && code != 303 && code != 307 && code != 308) ||
-            !ota_download_url_allowed(b.location) || esp_http_client_set_url(client, b.location) != ESP_OK) break;
+            !ota_download_url_allowed_for(b.location, state.asset) || esp_http_client_set_url(client, b.location) != ESP_OK) break;
     }
     if (!opened || mbedtls_sha256_starts(&hash, 0) != 0) goto done;
     size_t used = 0;
@@ -344,7 +351,8 @@ static bool start_worker_locked(void)
 esp_err_t ota_remote_set_config(const ota_remote_config_t *config)
 {
     if (!config || config->install_hour < -1 || config->install_hour > 23 ||
-        (config->auto_install && !config->enabled)) return ESP_ERR_INVALID_ARG;
+        (config->auto_install && !config->enabled) || !memchr(config->language, 0, sizeof config->language) ||
+        !ota_asset_for(config->language)) return ESP_ERR_INVALID_ARG;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     if (s_state.busy) { xSemaphoreGive(s_lock); return ESP_ERR_INVALID_STATE; }
     if (config->enabled && !start_worker_locked()) { xSemaphoreGive(s_lock); return ESP_ERR_NO_MEM; }
@@ -353,6 +361,8 @@ esp_err_t ota_remote_set_config(const ota_remote_config_t *config)
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
     if (err == ESP_OK) {
         err = nvs_set_blob(nvs, "ota_fork_v1", &saved, sizeof saved);
+        /* Separate key: the v1 blob stays readable by earlier firmware. */
+        if (err == ESP_OK) err = nvs_set_str(nvs, "ota_lang", config->language);
         if (err == ESP_OK) err = nvs_commit(nvs);
         nvs_close(nvs);
     }
@@ -382,6 +392,7 @@ void ota_remote_init(void)
     if (s_lock) return;
     s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
     s_state.config.install_hour = -1;
+    strlcpy(s_state.config.language, OTA_UI_LANGUAGE, sizeof s_state.config.language);
     /* Initialize the bounded mailbox, not a new internal stack. The lifetime-
      * long admin server attaches when started; early requests fail closed. */
     s_flash_ready = ota_flash_init() == ESP_OK;
@@ -392,7 +403,14 @@ void ota_remote_init(void)
         if (err == ESP_OK && length == sizeof saved && saved.schema == 1 && saved.enabled <= 1 &&
             saved.automatic <= 1 && saved.beta <= 1 && saved.hour >= -1 && saved.hour <= 23 &&
             (!saved.automatic || saved.enabled))
-            s_state.config = (ota_remote_config_t){saved.enabled, saved.automatic, saved.beta, saved.hour};
+            s_state.config = (ota_remote_config_t){saved.enabled, saved.automatic, saved.beta, saved.hour, OTA_UI_LANGUAGE};
+        /* Language chosen for updates; the running variant when never set. */
+        char language[sizeof s_state.config.language]; size_t n = sizeof language;
+        if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs) == ESP_OK) {
+            if (nvs_get_str(nvs, "ota_lang", language, &n) == ESP_OK && ota_asset_for(language))
+                strlcpy(s_state.config.language, language, sizeof s_state.config.language);
+            nvs_close(nvs);
+        }
     }
     if (!s_flash_ready) status_set("OTA flash dispatcher unavailable");
     else if (s_state.config.enabled && !start_worker_locked()) status_set("Update worker failed to start");

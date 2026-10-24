@@ -43,8 +43,8 @@ typedef struct { uint32_t address,length; } esp_image_segment_header_t;
 typedef struct { uint32_t magic_word,secure,pad[2]; char version[32],project_name[32]; uint8_t tail[176]; } esp_app_desc_t;
 typedef struct { uint32_t size; } esp_partition_t;
 typedef unsigned esp_ota_handle_t;
-typedef struct { bool enabled,auto_install,beta_channel; int install_hour; } ota_remote_config_t;
-typedef struct { ota_remote_config_t config; bool busy,checked,update_available; uint32_t last_check,asset_size; unsigned progress; uint8_t repo; char latest_version[32],status[96],release_url[192]; } ota_remote_state_t;
+typedef struct { bool enabled,auto_install,beta_channel; int install_hour; char language[4]; } ota_remote_config_t;
+typedef struct { ota_remote_config_t config; bool busy,checked,update_available; uint32_t last_check,asset_size; unsigned progress; uint8_t repo; char latest_version[32],status[96],release_url[192]; char asset[24]; } ota_remote_state_t;
 static ota_remote_state_t s_state;
 static unsigned char s_digest[32];
 static int s_lock;
@@ -99,6 +99,7 @@ static void reset(void) {
     memset(&s_state,0,sizeof s_state); memset(image,0,sizeof image);
     s_state.checked=s_state.update_available=true; s_state.asset_size=1024;
     strcpy(s_state.latest_version,"v0.1.31-Mattboxx-1.10");
+    strcpy(s_state.asset,OTA_ASSET);
     memset(s_digest,1,32);
     esp_image_header_t header={.magic=ESP_IMAGE_HEADER_MAGIC,.chip_id=ESP_CHIP_ID_ESP32S3};
     esp_app_desc_t app=running; app.magic_word=ESP_APP_DESC_MAGIC_WORD;
@@ -157,9 +158,9 @@ int main(void) {
     release_row(rows,"v0.1.31-Mattboxx-1.97",false,false,OTA_ASSET,"missing",1024);
     release_row(rows,"v0.1.31-Mattboxx-1.96",false,false,OTA_ASSET,hash,999999);
     char tag[32]; uint32_t size;
-    assert(ota_remote_select_release(rows,running.version,false,2048,tag,&size,digest)); assert(!strcmp(tag,"v0.1.31-Mattboxx-1.10")&&size==1024);
-    assert(ota_remote_select_release(rows,running.version,true,2048,tag,&size,digest)); assert(!strcmp(tag,"v0.1.31-Mattboxx-1.11-beta.1"));
-    assert(!ota_remote_select_release(rows,"0.1.31-Mattboxx-1.11",true,2048,tag,&size,digest));
+    assert(ota_remote_select_release(rows,running.version,false,OTA_ASSET,false,2048,tag,&size,digest)); assert(!strcmp(tag,"v0.1.31-Mattboxx-1.10")&&size==1024);
+    assert(ota_remote_select_release(rows,running.version,true,OTA_ASSET,false,2048,tag,&size,digest)); assert(!strcmp(tag,"v0.1.31-Mattboxx-1.11-beta.1"));
+    assert(!ota_remote_select_release(rows,"0.1.31-Mattboxx-1.11",true,OTA_ASSET,false,2048,tag,&size,digest));
     cJSON_Delete(rows);
     /* Product numbering from 2.0.0: newer than every legacy build, stages ordered,
      * ambiguous or malformed forms refused. */
@@ -176,10 +177,10 @@ int main(void) {
     release_row(rows,"v2.0.0",false,false,OTA_ASSET,hash,1024);
     release_row(rows,"v0.1.38-Mattboxx-1.99",false,false,OTA_ASSET,hash,1024);
     /* A bridge (legacy numbering) device moves to the product release. */
-    assert(ota_remote_select_release(rows,"0.1.38-Mattboxx-1.99",false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
-    assert(ota_remote_select_release(rows,"0.1.38-Mattboxx-1.13",false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
-    assert(ota_remote_select_release(rows,"2.0.0-rc.1",false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
-    assert(!ota_remote_select_release(rows,"2.0.0",true,2048,tag,&size,digest));          /* never downgrade */
+    assert(ota_remote_select_release(rows,"0.1.38-Mattboxx-1.99",false,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
+    assert(ota_remote_select_release(rows,"0.1.38-Mattboxx-1.13",false,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
+    assert(ota_remote_select_release(rows,"2.0.0-rc.1",false,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
+    assert(!ota_remote_select_release(rows,"2.0.0",true,OTA_ASSET,false,2048,tag,&size,digest));          /* never downgrade */
     cJSON_Delete(rows);
     /* Release policy: numbered betas of a version (2.0.4-beta.1, -beta.2, ...)
      * lead to its stable 2.0.4; the more advanced beta wins over an older one,
@@ -191,20 +192,45 @@ int main(void) {
     release_row(rows,"v2.0.4-beta.1",true,false,OTA_ASSET,hash,1024);
     release_row(rows,"v2.0.4-beta.2",true,false,OTA_ASSET,hash,1024);
     release_row(rows,"v2.0.3",false,false,OTA_ASSET,hash,1024);
-    assert(ota_remote_select_release(rows,"2.0.3",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4-beta.2"));   /* newest beta */
-    assert(ota_remote_select_release(rows,"2.0.4-beta.1",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4-beta.2"));
-    assert(!ota_remote_select_release(rows,"2.0.3",false,2048,tag,&size,digest));            /* stable channel: no beta */
+    assert(ota_remote_select_release(rows,"2.0.3",true,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4-beta.2"));   /* newest beta */
+    assert(ota_remote_select_release(rows,"2.0.4-beta.1",true,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4-beta.2"));
+    assert(!ota_remote_select_release(rows,"2.0.3",false,OTA_ASSET,false,2048,tag,&size,digest));            /* stable channel: no beta */
     release_row(rows,"v2.0.4",false,false,OTA_ASSET,hash,1024);
-    assert(ota_remote_select_release(rows,"2.0.3",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));          /* stable beats its betas */
-    assert(ota_remote_select_release(rows,"2.0.4-beta.2",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));
-    assert(ota_remote_select_release(rows,"2.0.4-beta.2",false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));   /* a beta device on the stable channel */
-    assert(!ota_remote_select_release(rows,"2.0.4",true,2048,tag,&size,digest));                                  /* no beta after its stable */
+    assert(ota_remote_select_release(rows,"2.0.3",true,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));          /* stable beats its betas */
+    assert(ota_remote_select_release(rows,"2.0.4-beta.2",true,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));
+    assert(ota_remote_select_release(rows,"2.0.4-beta.2",false,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));   /* a beta device on the stable channel */
+    assert(!ota_remote_select_release(rows,"2.0.4",true,OTA_ASSET,false,2048,tag,&size,digest));                                  /* no beta after its stable */
     release_row(rows,"v2.0.5-beta.1",true,false,OTA_ASSET,hash,1024);
-    assert(ota_remote_select_release(rows,"2.0.4",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.5-beta.1"));    /* next version's beta: beta channel only */
-    assert(!ota_remote_select_release(rows,"2.0.4",false,2048,tag,&size,digest));
+    assert(ota_remote_select_release(rows,"2.0.4",true,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.5-beta.1"));    /* next version's beta: beta channel only */
+    assert(!ota_remote_select_release(rows,"2.0.4",false,OTA_ASSET,false,2048,tag,&size,digest));
     release_row(rows,"v2.0.6-beta.1",false,false,OTA_ASSET,hash,1024);                                            /* a beta tag not marked pre-release is refused */
-    assert(ota_remote_select_release(rows,"2.0.4",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.5-beta.1"));
+    assert(ota_remote_select_release(rows,"2.0.4",true,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.5-beta.1"));
     cJSON_Delete(rows);
+    /* Web UI language variants: each language has its own asset; the running
+     * version is offered again only for another language, never an older one. */
+    assert(!strcmp(ota_asset_for("en"),OTA_ASSET)&&!ota_asset_for("xx")&&!ota_asset_for(NULL)&&!ota_asset_for(""));
+#ifdef ETH_VARIANT
+    assert(!ota_asset_for("it")&&!ota_asset_for("zh"));   /* the Ethernet image is English only */
+#else
+    assert(!strcmp(ota_asset_for("it"),"firmware-it.bin")&&!strcmp(ota_asset_for("es"),"firmware-es.bin")&&!strcmp(ota_asset_for("zh"),"firmware-zh.bin"));
+    assert(ota_download_url_allowed_for(OTA_FORK_URL "/releases/download/v2.0.4/firmware-it.bin","firmware-it.bin"));
+    assert(!ota_download_url_allowed_for(OTA_FORK_URL "/releases/download/v2.0.4/firmware-it.bin","firmware.bin"));
+    assert(!ota_download_url_allowed_for(OTA_FORK_URL "/releases/download/v2.0.4/firmware.bin","firmware-it.bin"));
+    assert(!ota_download_url_allowed_for(OTA_FORK_URL "/releases/download/v2.0.4/firmware-it.bin",NULL));
+    rows=cJSON_CreateArray();
+    release_row(rows,"v2.0.4",false,false,"firmware.bin",hash,1024);
+    release_row(rows,"v2.0.4",false,false,"firmware-it.bin",hash,1000);
+    release_row(rows,"v2.0.3",false,false,"firmware-it.bin",hash,1024);
+    assert(!ota_remote_select_release(rows,"2.0.4",false,"firmware-it.bin",false,2048,tag,&size,digest));          /* same language: up to date */
+    assert(ota_remote_select_release(rows,"2.0.4",false,"firmware-it.bin",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4")&&size==1000);
+    assert(!ota_remote_select_release(rows,"2.0.4",false,"firmware-es.bin",true,2048,tag,&size,digest));          /* no Spanish asset */
+    assert(ota_remote_select_release(rows,"2.0.3",false,"firmware-it.bin",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));
+    assert(!ota_remote_select_release(rows,"2.0.5",false,"firmware-it.bin",true,2048,tag,&size,digest));          /* never downgrade */
+    release_row(rows,"v2.0.5",false,false,"firmware-it.bin",hash,1024);
+    assert(ota_remote_select_release(rows,"2.0.4",false,"firmware-it.bin",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.5")); /* newer wins */
+    assert(!ota_remote_select_release(rows,"2.0.4",false,NULL,true,2048,tag,&size,digest));
+    cJSON_Delete(rows);
+#endif
     reset(); s_state.repo=2; assert(!install_release()); assert(!opens&&!begins&&!s_writer_active);
     reset(); s_state.repo=1; assert(install_release()&&boots==1); /* previous name, before the rename */
     reset(); assert(ota_writer_try_acquire()); assert(!install_release()); assert(!opens&&!begins&&s_writer_active); ota_writer_release();
@@ -260,8 +286,8 @@ CHECK = r'''
 #define xSemaphoreGive(a) ((void)(a))
 typedef int esp_err_t;
 static size_t strlcpy(char *d,const char *s,size_t n){size_t l=strlen(s);if(n){size_t k=l<n-1?l:n-1;memcpy(d,s,k);d[k]=0;}return l;}
-typedef struct { bool enabled,auto_install,beta_channel; int install_hour; } ota_remote_config_t;
-typedef struct { ota_remote_config_t config; bool busy,checked,update_available; uint32_t last_check,asset_size; unsigned progress; uint8_t repo; char latest_version[32],status[96],release_url[192]; } ota_remote_state_t;
+typedef struct { bool enabled,auto_install,beta_channel; int install_hour; char language[4]; } ota_remote_config_t;
+typedef struct { ota_remote_config_t config; bool busy,checked,update_available; uint32_t last_check,asset_size; unsigned progress; uint8_t repo; char latest_version[32],status[96],release_url[192]; char asset[24]; } ota_remote_state_t;
 static ota_remote_state_t s_state; static unsigned char s_digest[32]; static int s_lock;
 static void status_set(const char *s){strlcpy(s_state.status,s,sizeof s_state.status);}
 typedef struct { char *body; size_t used; bool overflow; char *location; } http_buffer_t;
@@ -283,9 +309,9 @@ static esp_err_t esp_http_client_perform(esp_http_client_handle_t c){
 static int esp_http_client_get_status_code(esp_http_client_handle_t c){(void)c;return answers[calls-1];}
 static void esp_http_client_cleanup(esp_http_client_handle_t c){(void)c;}
 static int time(void *p){(void)p;return 1800000000;}
-bool ota_remote_select_release(const cJSON *releases,const char *running,bool beta,uint32_t partition_size,char tag[32],uint32_t *size,unsigned char digest[32]);
+bool ota_remote_select_release(const cJSON *releases,const char *running,bool beta,const char *asset,bool reinstall,uint32_t partition_size,char tag[32],uint32_t *size,unsigned char digest[32]);
 ''' + selector + checker + r'''
-static bool run(int a,int b){memset(&s_state,0,sizeof s_state);calls=0;fail_transport=0;answers[0]=a;answers[1]=b;memset(urls,0,sizeof urls);return check_release();}
+static bool run(int a,int b){memset(&s_state,0,sizeof s_state);strcpy(s_state.config.language,"en");calls=0;fail_transport=0;answers[0]=a;answers[1]=b;memset(urls,0,sizeof urls);return check_release();}
 int main(void){
     /* After the rename: the current name answers; the previous one is never asked. */
     assert(run(200,0)&&calls==1&&s_state.repo==0&&s_state.update_available&&strstr(urls[0],"/repos/" OTA_REPO_CURRENT "/"));
@@ -303,6 +329,11 @@ int main(void){
     no_partition=true;
     assert(!run(200,0)&&calls==1&&!s_state.checked&&!s_state.update_available);
     assert(strstr(s_state.status,"unavailable")); no_partition=false;
+    /* No asset for the chosen language: the check completes and offers nothing. */
+    memset(&s_state,0,sizeof s_state);strcpy(s_state.config.language,"xx");calls=0;answers[0]=200;
+    assert(check_release()&&!s_state.update_available&&!s_state.asset[0]);
+    /* The found asset is remembered for the download. */
+    assert(run(200,0)&&!strcmp(s_state.asset,OTA_ASSET));
     puts("PASS: actual release check across the repository rename: current first, previous only on 404, no fallback on other errors (fixtures)");
 }
 '''
