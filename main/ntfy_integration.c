@@ -43,6 +43,7 @@
 #include "ntfy_events.h"
 #include "tailnet_forward.h"
 #include "web_ui.h"
+#include "history.h"
 
 static const char *TAG = "ntfy";
 static ntfy_integration_config_t s_config;
@@ -57,6 +58,8 @@ static uint64_t s_operational_generation;
 
 bool ntfy_integration_queue_event(const char *message)
 {
+    /* Also to the event history and the Telegram/email channels, when on. */
+    if(message)history_event(HIST_EV_SERVICE,HIST_INFO,"%s",message);
     if(!s_lock || !message || strlen(message)>=sizeof s_operational_event)return false;
     xSemaphoreTake(s_lock,portMAX_DELAY);
     bool accepted=s_config.enabled && !s_operational_event[0];
