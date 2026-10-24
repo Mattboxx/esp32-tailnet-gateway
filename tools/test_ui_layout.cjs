@@ -12,7 +12,7 @@ const all = [[320, 640], [360, 740], [390, 844], [430, 932], [768, 1024], [1024,
 const runs = all.map(v => [...v, 'advanced', 'en-US']).concat([[390, 844, 'simple', 'en-US'], [1440, 900, 'simple', 'en-US']])
   // Every shipped translation at a narrow phone and a desktop width (longest words, CJK rendering).
   .concat(['it-IT', 'es-ES', 'zh-CN'].flatMap(l => [[320, 640, 'advanced', l], [390, 844, 'simple', l], [1440, 900, 'advanced', l]]));
-const tabs = ['status', 'network', 'tailscale', 'firewall', 'tools', 'operations', 'automation', 'system'];
+const tabs = ['status', 'network', 'tailscale', 'firewall', 'operations', 'automation', 'tools', 'system'];
 const shots = process.argv[2];
 const only = process.env.UI_TABS ? process.env.UI_TABS.split(',') : tabs;
 

@@ -254,6 +254,37 @@ async function main() {
     assert.equal(await f.page.locator('#mqtt-watchdog-target').inputValue(), mqtt.broker_watchdog_wol_mac);
     assert.deepEqual(f.errors, []);
     await f.context.close(); count++;
+    // Tabs follow overview → connectivity → protection → services → tools → admin,
+    // and every tab has an icon.
+    f = await fixture(browser);
+    await loaded(f.page);
+    assert.deepEqual(await f.page.evaluate(() => [...document.querySelectorAll('#navTabs .nav-tab')].map(t => t.dataset.page)),
+      ['status', 'network', 'tailscale', 'firewall', 'operations', 'automation', 'tools', 'system']);
+    assert.equal(await f.page.locator('#navTabs .nav-tab:not(:has(svg))').count(), 0);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Phone menu: the same button opens and closes the drawer, which sits
+    // below the bar so the button stays tappable; picking a tab closes it.
+    f = await fixture(browser, { viewport: { width: 390, height: 844 } });
+    await loaded(f.page);
+    const ham = f.page.locator('#navHamBtn'), drawer = f.page.locator('#navTabs');
+    await ham.click();
+    assert.equal(await drawer.isVisible(), true);
+    assert.equal(await ham.getAttribute('aria-expanded'), 'true');
+    assert.equal(await ham.getAttribute('aria-label'), 'Close menu');
+    assert.equal(await f.page.locator('#navHamClose').isVisible(), false);
+    const hamBox = await ham.boundingBox(), drawerBox = await drawer.boundingBox();
+    assert.ok(drawerBox.y >= hamBox.y + hamBox.height, 'drawer must not cover the menu button');
+    await ham.click();
+    assert.equal(await drawer.isVisible(), false);
+    assert.equal(await ham.getAttribute('aria-expanded'), 'false');
+    assert.equal(await ham.getAttribute('aria-label'), 'Open menu');
+    assert.equal(await f.page.evaluate(() => document.body.style.overflow), '');
+    await ham.click(); await ham.click(); await ham.click();
+    assert.equal(await drawer.isVisible(), true);
+    await f.page.locator('#navTabs .nav-tab[data-page="operations"]').click();
+    assert.equal(await drawer.isVisible(), false);
+    assert.equal(await f.page.evaluate(() => location.hash), '#operations');
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
 
     // Expired authentication opens login immediately and is never retried.
     f = await fixture(browser);
