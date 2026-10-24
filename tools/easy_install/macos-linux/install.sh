@@ -1,9 +1,9 @@
 #!/bin/sh
 # ESP32 Tailnet Gateway - Mattboxx Edition: Easy Install for macOS and Linux.
-#   sh macos-linux/install.sh new    [PORT] [LANG]   new device: erases everything
-#   sh macos-linux/install.sh update [PORT] [LANG]   configured device: keeps settings
-# LANG is the Web UI language: en (standard, English only), it, es or zh
-# (English plus that language). Asked when omitted on a terminal.
+#   sh macos-linux/install.sh new    [PORT]   new device: erases everything
+#   sh macos-linux/install.sh update [PORT]   configured device: keeps settings
+#                                              (also moves a 2.x gateway to the
+#                                              3.0 8 MB layout, settings kept)
 # Needs Python 3 and esptool 5:  python3 -m pip install --user "esptool>=5,<6"
 set -eu
 cd "$(dirname "$0")/.."
@@ -14,35 +14,13 @@ fail() { say ""; say "ERROR: $*"; exit 1; }
 
 MODE=${1:-}
 PORT=${2:-}
-LANGUAGE=${3:-}
 case "$MODE" in
   new|update) ;;
-  *) say "Usage: sh macos-linux/install.sh new|update [PORT] [en|it|es|zh]"
+  *) say "Usage: sh macos-linux/install.sh new|update [PORT]"
      say "  new     first install or reset: ERASES all settings"
      say "  update  configured device: keeps Wi-Fi, tailnet identity and settings"
      exit 2 ;;
 esac
-
-# Web UI language: one image per language keeps the board's memory free.
-if [ -z "$LANGUAGE" ] && [ -t 0 ]; then
-  say "Web interface language:"
-  say "  1  English (standard)"
-  say "  2  Italiano"
-  say "  3  Espanol"
-  say "  4  Chinese (simplified)"
-  printf 'Choose 1-4 [1]: '
-  read -r LANGUAGE || LANGUAGE=""
-  LANGUAGE=$(printf '%s' "$LANGUAGE" | tr -d '\r')
-fi
-case "$LANGUAGE" in
-  ""|1|en) APP="$FW/firmware.bin"; LANGUAGE=en ;;
-  2|it) APP="$FW/firmware-it.bin"; LANGUAGE=it ;;
-  3|es) APP="$FW/firmware-es.bin"; LANGUAGE=es ;;
-  4|zh) APP="$FW/firmware-zh.bin"; LANGUAGE=zh ;;
-  *) fail "unknown language '$LANGUAGE': use en, it, es or zh." ;;
-esac
-[ -f "$APP" ] || fail "$APP is missing from this package."
-say "Web interface language: $LANGUAGE ($APP)"
 
 # esptool 5 (hyphenated commands such as write-flash).
 if command -v esptool >/dev/null 2>&1; then
@@ -88,7 +66,7 @@ fi
 say "ESP32-S3 detected."
 
 # Fixed file names without spaces: the list is split on purpose.
-WRITE_ARGS="--flash-mode dio --flash-freq 80m --flash-size 4MB 0x0 $FW/bootloader.bin 0x8000 $FW/partitions.bin 0x19000 $FW/ota_data_initial.bin 0x20000 $APP"
+WRITE_ARGS="--flash-mode dio --flash-freq 80m --flash-size 8MB 0x0 $FW/bootloader.bin 0x8000 $FW/partitions.bin 0x19000 $FW/ota_data_initial.bin 0x20000 $FW/firmware.bin"
 if [ "$MODE" = new ]; then
   say ""
   say "WARNING: this ERASES all Wi-Fi, tailnet identity, passwords and settings on the board."

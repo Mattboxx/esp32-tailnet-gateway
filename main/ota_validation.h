@@ -9,41 +9,13 @@
 #endif
 #endif
 
-/* Each firmware variant updates only from its own release asset, so a board
- * running the Ethernet build never installs the WiFi-only image (which would
- * drop its Ethernet uplink) and a WiFi board never installs the larger
- * Ethernet image. */
+/* 3.0 ships one image (every Web UI language, Ethernet driver), so the
+ * updater has one release asset. The 2.x language and Ethernet assets
+ * (firmware-<lang>.bin, firmware-eth.bin) belong to the 4 MB layout and are
+ * never offered to this firmware. */
 #ifndef OTA_ASSET
-#if defined(CONFIG_ETH_SPI_ETHERNET_W5500) && CONFIG_ETH_SPI_ETHERNET_W5500
-#define OTA_ASSET "firmware-eth.bin"
-#else
 #define OTA_ASSET "firmware.bin"
 #endif
-#endif
-
-/* Web UI language of this build: "en" is the standard English-only image;
- * the WiFi build also ships English plus one language as firmware-<code>.bin.
- * The Ethernet image is English only. */
-#ifndef OTA_UI_LANGUAGE
-#ifdef CONFIG_TSR_UI_LANGUAGE
-#define OTA_UI_LANGUAGE CONFIG_TSR_UI_LANGUAGE
-#else
-#define OTA_UI_LANGUAGE "en"
-#endif
-#endif
-
-/* Release asset of a language variant, NULL when this build has none. */
-static inline const char *ota_asset_for(const char *language)
-{
-    if (!language) return NULL;
-    if (!strcmp(language, "en")) return OTA_ASSET;
-#if !defined(ETH_VARIANT) && !(defined(CONFIG_ETH_SPI_ETHERNET_W5500) && CONFIG_ETH_SPI_ETHERNET_W5500)
-    if (!strcmp(language, "it")) return "firmware-it.bin";
-    if (!strcmp(language, "es")) return "firmware-es.bin";
-    if (!strcmp(language, "zh")) return "firmware-zh.bin";
-#endif
-    return NULL;
-}
 
 /* Repository rename bridge. Firmware up to 1.14-dev.6 requests the releases
  * API of the previous name with redirects disabled and requires HTTP 200, so

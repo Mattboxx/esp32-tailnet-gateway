@@ -5,8 +5,8 @@
 # anyone reading the config later doesn't have to repeat the discovery.
 
 # --- Flash / partitions -----------------------------------------------------
-CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
-CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="8MB"
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
@@ -330,11 +330,17 @@ CONFIG_MBEDTLS_ECP_FIXED_POINT_OPTIM=y
 # Application tables in PSRAM .bss (EXT_RAM_BSS_ATTR): frees internal RAM.
 CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
 
-# Speed (2.0.4): code runs from PSRAM (XIP) and the lwIP/WiFi .bss now lives
-# there too, so a larger instruction cache (+16 KB internal RAM) and 64-byte
-# data-cache lines (no RAM cost) cut PSRAM stalls. Paid for with part of the
-# internal RAM freed by EXT_RAM_BSS_ATTR. CONFIG_LWIP_IRAM_OPTIMIZATION stays
-# off: it measured +28 KB of IRAM, more than it can return while WireGuard
-# crypto bounds throughput. Throughput and free heap: measure on hardware.
-CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
+# Speed: code runs from PSRAM (XIP) and the lwIP/WiFi .bss lives there too, so
+# 64-byte data-cache lines (no RAM cost) cut PSRAM stalls. The instruction
+# cache stays 16 KB: 32 KB turns the whole SRAM0 block into cache and moved
+# about 26 KB of IRAM code into the internal heap (measured, map 2026-10-24);
+# CONFIG_LWIP_IRAM_OPTIMIZATION likewise measured +28 KB of IRAM. Internal RAM
+# limits TLS (MQTT, ntfy, updates), so both stay off until a hardware
+# throughput test shows a gain worth that RAM.
 CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+
+# 3.0: the W5500 SPI Ethernet driver is in every image (about 61 KiB of app
+# flash, measured 2026-10-22). It stays OFF at runtime until pins are
+# configured (main/eth_uplink.c) and is experimental until qualified on a
+# real module.
+CONFIG_ETH_SPI_ETHERNET_W5500=y

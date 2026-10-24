@@ -140,8 +140,8 @@ static OTA_NOINLINE bool check_release(void)
      * stale release metadata after a transport/parsing error. */
     xSemaphoreTake(s_lock, portMAX_DELAY);
     bool beta = s_state.config.beta_channel;
-    const char *asset = ota_asset_for(s_state.config.language);
-    bool reinstall = strcmp(s_state.config.language, OTA_UI_LANGUAGE) != 0;
+    const char *asset = OTA_ASSET;
+    bool reinstall = false;
     s_state.checked = false; s_state.update_available = false; s_state.asset[0] = 0;
     s_state.latest_version[0] = s_state.release_url[0] = 0; s_state.asset_size = 0;
     xSemaphoreGive(s_lock);
@@ -175,7 +175,7 @@ static OTA_NOINLINE bool check_release(void)
     if (!target) { cJSON_Delete(json); status_set("OTA flash dispatcher unavailable or no update slot"); return false; }
     char tag[32] = {0}; uint32_t size = 0; unsigned char digest[32];
     const esp_app_desc_t *app = esp_app_get_description();
-    bool found = target && app && asset && ota_remote_select_release(json, app->version, beta, asset, reinstall, target->size, tag, &size, digest);
+    bool found = target && app && ota_remote_select_release(json, app->version, beta, asset, reinstall, target->size, tag, &size, digest);
     cJSON_Delete(json);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_state.checked = true; s_state.last_check = (uint32_t)time(NULL);
@@ -186,9 +186,7 @@ static OTA_NOINLINE bool check_release(void)
         snprintf(s_state.release_url, sizeof s_state.release_url, "https://github.com/%s/releases/tag/%s", ota_repo(repo), tag);
     }
     xSemaphoreGive(s_lock);
-    status_set(!found ? "No newer compatible release"
-               : app && !strcmp(tag[0] == 'v' ? tag + 1 : tag, app->version) ? "Same version in the selected language available"
-               : "Update available");
+    status_set(found ? "Update available" : "No newer compatible release");
     return true;
 }
 
@@ -351,8 +349,7 @@ static bool start_worker_locked(void)
 esp_err_t ota_remote_set_config(const ota_remote_config_t *config)
 {
     if (!config || config->install_hour < -1 || config->install_hour > 23 ||
-        (config->auto_install && !config->enabled) || !memchr(config->language, 0, sizeof config->language) ||
-        !ota_asset_for(config->language)) return ESP_ERR_INVALID_ARG;
+        (config->auto_install && !config->enabled)) return ESP_ERR_INVALID_ARG;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     if (s_state.busy) { xSemaphoreGive(s_lock); return ESP_ERR_INVALID_STATE; }
     if (config->enabled && !start_worker_locked()) { xSemaphoreGive(s_lock); return ESP_ERR_NO_MEM; }
@@ -361,8 +358,6 @@ esp_err_t ota_remote_set_config(const ota_remote_config_t *config)
     esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
     if (err == ESP_OK) {
         err = nvs_set_blob(nvs, "ota_fork_v1", &saved, sizeof saved);
-        /* Separate key: the v1 blob stays readable by earlier firmware. */
-        if (err == ESP_OK) err = nvs_set_str(nvs, "ota_lang", config->language);
         if (err == ESP_OK) err = nvs_commit(nvs);
         nvs_close(nvs);
     }
@@ -392,7 +387,6 @@ void ota_remote_init(void)
     if (s_lock) return;
     s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
     s_state.config.install_hour = -1;
-    strlcpy(s_state.config.language, OTA_UI_LANGUAGE, sizeof s_state.config.language);
     /* Initialize the bounded mailbox, not a new internal stack. The lifetime-
      * long admin server attaches when started; early requests fail closed. */
     s_flash_ready = ota_flash_init() == ESP_OK;
@@ -403,14 +397,7 @@ void ota_remote_init(void)
         if (err == ESP_OK && length == sizeof saved && saved.schema == 1 && saved.enabled <= 1 &&
             saved.automatic <= 1 && saved.beta <= 1 && saved.hour >= -1 && saved.hour <= 23 &&
             (!saved.automatic || saved.enabled))
-            s_state.config = (ota_remote_config_t){saved.enabled, saved.automatic, saved.beta, saved.hour, OTA_UI_LANGUAGE};
-        /* Language chosen for updates; the running variant when never set. */
-        char language[sizeof s_state.config.language]; size_t n = sizeof language;
-        if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &nvs) == ESP_OK) {
-            if (nvs_get_str(nvs, "ota_lang", language, &n) == ESP_OK && ota_asset_for(language))
-                strlcpy(s_state.config.language, language, sizeof s_state.config.language);
-            nvs_close(nvs);
-        }
+            s_state.config = (ota_remote_config_t){saved.enabled, saved.automatic, saved.beta, saved.hour};
     }
     if (!s_flash_ready) status_set("OTA flash dispatcher unavailable");
     else if (s_state.config.enabled && !start_worker_locked()) status_set("Update worker failed to start");

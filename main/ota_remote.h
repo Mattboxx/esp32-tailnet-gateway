@@ -8,7 +8,6 @@
 typedef struct {
     bool enabled, auto_install, beta_channel;
     int install_hour; /* -1 immediate, 0..23 local time */
-    char language[4]; /* Web UI language variant to install: "en", "it", ... */
 } ota_remote_config_t;
 typedef struct {
     ota_remote_config_t config;
