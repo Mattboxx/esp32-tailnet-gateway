@@ -463,6 +463,27 @@ async function main() {
     assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), false);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
 
+    // Resource admission guard: when it pauses optional work the operations
+    // page, the MQTT badge and a refused check say so instead of a bare code.
+    f = await fixture(browser, { page: 'operations', operationsBody: {devices:[{index:0,mac:'02:00:00:00:00:01',name:'Fixture',target:'192.0.2.1',monitor:true,notify:true,host_port:22,service_port:0,timeout_s:60,interval_s:60,max_checks:10,kind:0,scope:0,state:'idle'}],
+      events:[],monitoring:true,guard:true,guard_deferring:true,remote_commands:false,recovery_state:'idle',internal_free:17191,internal_min:15000,internal_largest:7000,sockets_used:12,socket_limit:31,
+      minimum_internal:16384,minimum_largest:8192,socket_reserve:4,interval_s:60} });
+    await f.page.waitForFunction(() => !document.getElementById('ops-settings-save').disabled);
+    assert.equal(await f.page.locator('#ops-guard-warning').isHidden(), false);
+    assert.match(await f.page.locator('#ops-summary').textContent(), /free internal 17191 B/);
+    await f.page.route('http://esp32.test/api/operations', route => route.request().method() === 'POST'
+      ? route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ ok: false, error: 'This device was checked less than a minute ago; try again shortly' }) })
+      : route.fallback());
+    await f.page.locator('#ops-devices button', { hasText: 'Check now' }).click();
+    await f.page.waitForFunction(() => document.body.textContent.includes('checked less than a minute ago'));
+    assert.doesNotMatch(await f.page.locator('#ops-job').textContent(), /refresh before another action/);
+    await f.page.waitForFunction(() => !document.getElementById('ops-settings-save').disabled);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    f = await fixture(browser, { mqttBody: {...mqtt, connected: false, status: {configured: true, guard_deferring: true, retry_in_seconds: 266}} });
+    await f.page.waitForFunction(() => document.getElementById('mqtt-badge').textContent === 'Paused by the resource guard');
+    assert.match(await f.page.locator('#mqtt-badge').getAttribute('title'), /resource admission guard/);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+
     // Firmware language: the variant GitHub installs is chosen and saved like the
     // channel; an English-only build (Ethernet) hides the choice.
     f = await fixture(browser, { page: 'system', updatesBody: {...updates, language: 'en', running_language: 'en', languages: ['en', 'it', 'es', 'zh']} });

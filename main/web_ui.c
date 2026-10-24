@@ -1957,6 +1957,8 @@ static esp_err_t mqtt_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(status, "retry_in_seconds", mqtt_status.retry_in_seconds);
         cJSON_AddBoolToObject(status, "discovery_pending", mqtt_status.discovery_pending);
         cJSON_AddNumberToObject(status, "discovery_entities", mqtt_status.discovery_entities);
+        /* The resource admission guard (Devices & Recovery) pauses connects. */
+        cJSON_AddBoolToObject(status, "guard_deferring", homelab_ops_guard_deferring());
     }
     cJSON_AddStringToObject(root, "uri", config.uri);
     cJSON_AddStringToObject(root, "username", config.username);
@@ -2172,7 +2174,8 @@ static esp_err_t ntfy_test_handler(httpd_req_t *req)
     esp_err_t err = ntfy_integration_send_test();
     httpd_resp_set_type(req, "application/json");
     if (err != ESP_OK) httpd_resp_set_status(req, "503 Service Unavailable");
-    return httpd_resp_sendstr(req, err == ESP_OK ? "{\"ok\":true}" : "{\"ok\":false}");
+    return httpd_resp_sendstr(req, err == ESP_OK ? "{\"ok\":true}"
+        : homelab_ops_guard_deferring() ? "{\"ok\":false,\"reason\":\"resource_guard\"}" : "{\"ok\":false}");
 }
 
 static const httpd_uri_t uri_ntfy = {

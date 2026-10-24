@@ -120,7 +120,10 @@ void homelab_ops_init(void) {
     portEXIT_CRITICAL(&init_lock);
     LOCK();if(initialized){UNLOCK();return;}
     memset(&store,0,sizeof store);store.magic=OPS_MAGIC;store.version=1;
-    store.settings=(ops_settings_t){.interval_s=60,.minimum_internal=16384,.minimum_largest=8192,.socket_reserve=4};
+    /* Unmeasured estimates: the gateway normally runs with about 17 KB of
+     * free internal RAM (TLS and lwIP buffers live in PSRAM), so the former
+     * 16 KB floor deferred MQTT/ntfy almost always once the guard was on. */
+    store.settings=(ops_settings_t){.interval_s=60,.minimum_internal=8192,.minimum_largest=4096,.socket_reserve=4};
     nvs_handle_t nvs;size_t size=sizeof store;
     ops_store_t *loaded=heap_caps_calloc(1,sizeof *loaded,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
     if(loaded && nvs_open(NVS_NAMESPACE,NVS_READONLY,&nvs)==ESP_OK){
@@ -190,12 +193,18 @@ void homelab_ops_resources(ops_resources_t *out) {
     LOCK();TaskHandle_t handle=task;UNLOCK();out->worker_running=handle!=NULL;
     if(handle)out->worker_stack_min=uxTaskGetStackHighWaterMark(handle);
 }
+static bool guard_allows(const ops_settings_t *settings) {
+    ops_resources_t r;homelab_ops_resources(&r);
+    return r.internal_free>=settings->minimum_internal && r.internal_largest>=settings->minimum_largest
+        && r.socket_limit-r.sockets_used>settings->socket_reserve;
+}
 bool homelab_ops_admit(void) {
     ops_settings_t settings;homelab_ops_settings(&settings);if(!settings.guard)return true;
-    ops_resources_t r;homelab_ops_resources(&r);
-    bool allowed=r.internal_free>=settings.minimum_internal && r.internal_largest>=settings.minimum_largest
-        && r.socket_limit-r.sockets_used>settings.socket_reserve;
+    bool allowed=guard_allows(&settings);
     if(!allowed){LOCK();denied_jobs++;UNLOCK();}return allowed;
+}
+bool homelab_ops_guard_deferring(void) {
+    ops_settings_t settings;homelab_ops_settings(&settings);return settings.guard && !guard_allows(&settings);
 }
 static esp_err_t ensure_worker(void) {
 #if !defined(CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM) || !CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
@@ -227,7 +236,7 @@ esp_err_t homelab_ops_request(int index,bool wake,bool remote) {
     if(wake && profile.max_checks<2)return ESP_ERR_INVALID_ARG;
     ops_settings_t settings;homelab_ops_settings(&settings);
     if(remote && !settings.remote_commands)return ESP_ERR_NOT_SUPPORTED;
-    if(!homelab_ops_admit())return ESP_ERR_NO_MEM;
+    if(!homelab_ops_admit())return ESP_ERR_NOT_ALLOWED;
     esp_err_t err=ensure_worker();if(err!=ESP_OK)return err;
     uint64_t now=now_ms();LOCK();
     int cooldown=-1,oldest=0;
@@ -235,7 +244,9 @@ esp_err_t homelab_ops_request(int index,bool wake,bool remote) {
         if(!memcmp(last_manual[i].mac,device.mac,6))cooldown=i;
         if(last_manual[i].time<last_manual[oldest].time)oldest=i;
     }
-    if(active(job.state) || (cooldown>=0 && now-last_manual[cooldown].time<60000)){UNLOCK();return ESP_ERR_INVALID_STATE;}
+    /* One job at a time; each device at most once a minute by hand. */
+    if(active(job.state)){UNLOCK();return ESP_ERR_INVALID_STATE;}
+    if(cooldown>=0 && now-last_manual[cooldown].time<60000){UNLOCK();return ESP_ERR_TIMEOUT;}
     job=(job_t){.id=++job_seq,.index=index,.state=J_PRECHECK,.wake=wake,.manual=true,.remote=remote,.started=now,
         .deadline=now+(uint64_t)profile.timeout_s*1000,.device=device,.profile=profile};
     if(cooldown<0)cooldown=oldest;
@@ -391,6 +402,9 @@ cJSON *homelab_ops_snapshot(bool detailed) {
     cJSON_AddNumberToObject(root,"checks",j.checks);cJSON_AddNumberToObject(root,"denied_jobs",denied);
     cJSON_AddNumberToObject(root,"duration_ms",j.id?(j.finished?j.finished:now_ms())-j.started:0);
     cJSON_AddBoolToObject(root,"monitoring",s.monitoring);cJSON_AddBoolToObject(root,"guard",s.guard);
+    /* Same test as guard_allows(), on the resources read above: the lock is held here. */
+    cJSON_AddBoolToObject(root,"guard_deferring",s.guard && !(r.internal_free>=s.minimum_internal
+        && r.internal_largest>=s.minimum_largest && r.socket_limit-r.sockets_used>s.socket_reserve));
     cJSON_AddBoolToObject(root,"resource_thresholds_calibrated",false);
     cJSON_AddBoolToObject(root,"remote_commands",s.remote_commands);
     cJSON_AddBoolToObject(root,"lease_notifications",s.lease_notifications);
