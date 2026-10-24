@@ -223,10 +223,28 @@ PSRAM placement, cache tuning) is the base of this branch (`v3`).
    to end on board B from a bench source (self-copy restart, resume, 3.x
    confirmed, settings kept); USB paths keep settings too. Pending: first
    publication with real GitHub assets.
-5. **Performance and memory** carried over: PSRAM `.bss` placement, 32 KB
-   instruction cache, 64-byte data-cache lines; measure free heap, stack
-   margins and routing throughput on hardware.
-6. Everything already planned stays planned (this roadmap, F01–F43).
+5. **Performance and memory** carried over: PSRAM `.bss` placement and
+   64-byte data-cache lines (the 32 KB instruction cache was reverted: it
+   cost about 26 KB of internal RAM); measure free heap, stack margins and
+   routing throughput on hardware.
+6. **Features using the new room (owner choice 2026-10-24; automations are
+   left to Home Assistant).** Each is OFF by default and, while off, has no
+   task, buffer, timer or flash write (owner requirement: no cost in RAM,
+   power or speed when disabled):
+   - **F44** persistent event history and settings copies in the `storage`
+     partition (record rings with CRC; three raw NVS copies, restored at boot
+     before NVS opens; erased by a factory reset);
+   - **F45** resource and traffic trends on Status (6 h at 1 min in PSRAM,
+     about 45 days at 10 min in flash);
+   - **F46** tailnet (MagicDNS) names for AP and, optionally, LAN devices via
+     the DNS relay;
+   - **F47** Telegram and email notifications next to ntfy;
+   - **F48** dynamic DNS (DuckDNS, Cloudflare, custom HTTPS URL);
+   - **F49** on-request throughput test in Diagnostics;
+   - setup wizard presets (a monitoring role and opt-in extras).
+   Pending: hardware qualification of each (flash wear and timing, real
+   Telegram/SMTP/DuckDNS/Cloudflare accounts, DNS clients, throughput).
+7. Everything already planned stays planned (this roadmap, F01–F49).
 
 ## Overall stabilization — mandatory, not a feature-cut milestone
 

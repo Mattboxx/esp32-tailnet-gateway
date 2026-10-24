@@ -20,7 +20,7 @@ class DevelopmentPlanTests(unittest.TestCase):
     def test_matrix_schema_and_statuses(self):
         source=(ROOT/'docs/FEATURE-IMPLEMENTATION-MATRIX.md').read_text(encoding='utf-8')
         rows=[line for line in source.splitlines() if re.match(r'^\| F\d\d \|',line)]
-        self.assertEqual([r.split('|')[1].strip() for r in rows],[f'F{n:02}' for n in range(1,44)])
+        self.assertEqual([r.split('|')[1].strip() for r in rows],[f'F{n:02}' for n in range(1,50)])
         statuses={'Da analizzare','Progettata','In sviluppo','Implementata','Testata offline',
                   'Testata su hardware','Pronta per release','Bloccata con motivazione'}
         for row in rows:
