@@ -451,6 +451,14 @@ static void migration_task(void *arg)
         esp_restart();
     }
     set_state(MIG_CHECKING, 0, "");
+    /* After the self-copy restart this runs at boot: wait for the uplink
+     * (bounded) instead of failing before WiFi has an address. */
+    for (int i = 0; i < 120; i++) {
+        esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+        esp_netif_ip_info_t info = {0};
+        if (sta && esp_netif_is_netif_up(sta) && esp_netif_get_ip_info(sta, &info) == ESP_OK && info.ip.addr) break;
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
     unsigned repo = 0;
     if (!find_target(&target, &repo)) {failure = "no 3.x release with bootloader, partition table and image found; nothing was changed"; goto fail;}
     xSemaphoreTake(s_lock, portMAX_DELAY);
