@@ -234,7 +234,10 @@ bool acl_delete(uint8_t acl_no, uint8_t rule_idx)
 #define ETH_TYPE_ARP   0x0806
 #define ETH_TYPE_IPV6  0x86DD
 
-uint8_t acl_check_packet(uint8_t acl_no, struct pbuf *p)
+/* raw_ip: the pbuf starts at the IPv4 header (PPP), never guessed as an
+ * Ethernet frame: a raw packet's source address bytes can look like an
+ * EtherType or an 802.3 length and would otherwise skip the rules. */
+static uint8_t acl_check_at(uint8_t acl_no, struct pbuf *p, bool raw_ip)
 {
     if (acl_no >= MAX_ACL_LISTS || p == NULL) {
         return ACL_NO_MATCH;
@@ -247,7 +250,7 @@ uint8_t acl_check_packet(uint8_t acl_no, struct pbuf *p)
     /* Check if packet has Ethernet header by examining structure.
      * ESP-IDF WiFi passes full Ethernet frames to netif->input.
      * Ethernet header: 6 bytes dst MAC + 6 bytes src MAC + 2 bytes EtherType */
-    if (payload_len >= ETH_HEADER_LEN) {
+    if (!raw_ip && payload_len >= ETH_HEADER_LEN) {
         uint16_t ethertype = (payload[12] << 8) | payload[13];
 
         /* Check for common EtherTypes indicating this is an Ethernet frame */
@@ -400,6 +403,16 @@ uint8_t acl_check_packet(uint8_t acl_no, struct pbuf *p)
     }
 
     return result;
+}
+
+uint8_t acl_check_packet(uint8_t acl_no, struct pbuf *p)
+{
+    return acl_check_at(acl_no, p, false);
+}
+
+uint8_t acl_check_ip_packet(uint8_t acl_no, struct pbuf *p)
+{
+    return acl_check_at(acl_no, p, true);
 }
 
 acl_entry_t* acl_get_rules(uint8_t acl_no)

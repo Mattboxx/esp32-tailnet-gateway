@@ -71,6 +71,9 @@ static unsigned freed, inputs, translated, local_dns;
 static void pbuf_realloc(struct pbuf *p,uint16_t length) { assert(length<=p->tot_len);p->tot_len=length;if(p->len>length)p->len=length; }
 static struct pbuf *pbuf_coalesce(struct pbuf *p,int layer) { assert(layer==PBUF_RAW);return p; }
 void pbuf_free(struct pbuf *p) { assert(core_depth==1 && p); ++freed; }
+/* Cellular PPP ACL decision (netif_hooks); denied packets never reach policy or ip4_input. */
+static int ppp_deny;
+static bool netif_hooks_ppp_input_allowed(struct pbuf *p,struct netif *n){(void)p;(void)n;return !ppp_deny;}
 static err_t __real_ip4_input(struct pbuf *p,struct netif *n) {
     assert(core_depth==1); ++inputs;
     uint8_t header[24]; assert(pbuf_copy_partial(p,header,sizeof header,0)==sizeof header);
@@ -116,6 +119,7 @@ int main(void) {
     assert(__wrap_ip4_input(&p,&sta)==ERR_OK && freed==1 && !inputs && !translated);
     packet(bytes,false,6,0xc0000263,0xc0000201,2222); p.payload=bytes;
     assert(__wrap_ip4_input(&p,&sta)==42 && translated==1 && inputs==1);
+    ppp_deny=1;{unsigned f=freed,in=inputs,tr=translated;assert(__wrap_ip4_input(&p,&sta)==ERR_OK&&freed==f+1&&inputs==in&&translated==tr);freed=f;}ppp_deny=0;
     /* A new saved policy cannot alter an old physical binding before the
      * TCP/IP installer replaces both the binding and its immutable policy. */
     tailnet_forward_mapping_t old=s_active[0].mapping;

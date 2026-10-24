@@ -5697,7 +5697,7 @@ void web_ui_init(void)
      * instead of WebCrypto's ~100 ms. */
     httpd_config_t conf           = HTTPD_DEFAULT_CONFIG();
     conf.uri_match_fn             = httpd_uri_match_wildcard;
-    conf.max_uri_handlers         = 104;
+    conf.max_uri_handlers         = 110;
     conf.stack_size               = 12288;
     /* Local uploads and queued GitHub OTA work freeze flash caches. */
     conf.task_caps                = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;

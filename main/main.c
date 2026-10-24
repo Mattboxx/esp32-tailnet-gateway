@@ -59,6 +59,7 @@
 #include "snmp_agent.h"
 #include "snmp_ops.h"
 #include "eth_uplink.h"
+#include "cell_uplink.h"
 #include "service_check.h"
 #include "wifi_networks.h"
 #include "wol.h"
@@ -1135,6 +1136,7 @@ void app_main(void)
     eth_uplink_init();   /* optional SPI Ethernet: prepared, not started */
     netif_hooks_init();
     eth_uplink_start();  /* refuses to run without the Ethernet ACL hooks */
+    cell_uplink_init();  /* optional cellular modem: off unless configured; needs the PPP ACL hooks */
 
     /* Install ACL wrappers first; SNMP must chain through them, not bypass
      * them. The agent remains disabled unless explicitly configured. */

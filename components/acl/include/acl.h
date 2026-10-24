@@ -151,6 +151,14 @@ bool acl_delete(uint8_t acl_no, uint8_t rule_idx);
 uint8_t acl_check_packet(uint8_t acl_no, struct pbuf *p);
 
 /**
+ * @brief Check a raw IPv4 packet (no Ethernet header, e.g. PPP) against an ACL list
+ * @param acl_no ACL list index (0-3)
+ * @param p Packet buffer starting at the IPv4 header
+ * @return Action code (ACL_DENY, ACL_ALLOW, or ACL_NO_MATCH)
+ */
+uint8_t acl_check_ip_packet(uint8_t acl_no, struct pbuf *p);
+
+/**
  * @brief Get the ACL rules array for a list (for display/NVS)
  * @param acl_no ACL list index (0-3)
  * @return Pointer to the rules array, or NULL if invalid acl_no
