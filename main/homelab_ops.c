@@ -531,7 +531,11 @@ cJSON *homelab_ops_capabilities(void) {
         else if(!strcmp(id,"mqtt")){configured=mqtt.enabled;running=mqtt_integration_connected();reason="Observed broker connection; no Home Assistant delivery confirmation.";}
         else if(!strcmp(id,"home-assistant")){configured=mqtt.enabled&&mqtt.home_assistant_discovery;reason="Discovery intent; broker delivery and HA entity creation are not acknowledged here.";}
         else if(!strcmp(id,"ntfy")){configured=ntfy.enabled;reason="Configuration only; last publish does not establish persistent availability.";}
+#if CONFIG_TSR_SNMP
         else if(!strcmp(id,"snmp")){configured=snmp_agent_is_enabled();running=snmp_agent_is_running();reason="Read-only local agent runtime.";}
+#else
+        else if(!strcmp(id,"snmp")){compiled=false;configured=running=0;reason="Not included in this firmware.";}
+#endif
         else if(!strcmp(id,"ota")){configured=1;reason="Manual OTA support; automated checks/install remain explicit opt-in; no publisher-signing claim.";}
         else if(!strcmp(id,"diagnostic-export")){configured=1;reason="Local on-request allowlisted operational subset; never uploaded automatically.";}
         else if(!strcmp(id,"web-ui")){configured=1;reason="Compiled administration UI; session/access checks remain independent.";}

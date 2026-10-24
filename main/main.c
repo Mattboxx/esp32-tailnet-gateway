@@ -71,7 +71,9 @@
 #include "mac_deny.h"
 #include "history.h"
 #include "notify_channels.h"
+#if CONFIG_TSR_DDNS
 #include "ddns.h"
+#endif
 #include "tailnet_names.h"
 #include "settings_snapshot.h"
 #include "reset_history.h"
@@ -1009,7 +1011,9 @@ void app_main(void)
 
     /* Event/metrics history: off by default, then no task, buffer or flash use. */
     notify_channels_init();   /* Telegram/email: off by default, nothing runs */
+#if CONFIG_TSR_DDNS
     ddns_init();              /* dynamic DNS: off by default, no timer */
+#endif
     history_init();
     settings_snapshot_log_boot();
 
@@ -1182,7 +1186,9 @@ void app_main(void)
     wol_init();
     homelab_ops_init();
     service_check_init();  /* opt-in Service Gateway watch; OFF unless saved */
+#if CONFIG_TSR_SNMP
     homelab_snmp_register();
+#endif
     runtime_metrics_init();
     mqtt_integration_init();
     ntfy_integration_init();

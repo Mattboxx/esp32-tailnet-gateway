@@ -57,7 +57,15 @@ message(STATUS "index.html: ${_gz_out}")
 # uplink without IPv6 addresses); the two other files are used as shipped.
 set(_lwip_mdns "${IDF_PATH}/components/lwip/lwip/src/apps/mdns")
 
-idf_component_register(SRCS "main.c"
+# Optional modules (see Kconfig.projbuild): off in the 3.0 images.
+set(_tsr_optional "")
+if(CONFIG_TSR_SNMP)
+    list(APPEND _tsr_optional "snmp_ops.c")
+endif()
+if(CONFIG_TSR_DDNS)
+    list(APPEND _tsr_optional "ddns.c")
+endif()
+idf_component_register(SRCS "main.c" ${_tsr_optional}
                             "ap_policy.c"
                             "log_capture.c"
                             "nvs_params.c"
@@ -72,7 +80,6 @@ idf_component_register(SRCS "main.c"
                             "wifi_power_save.c"
                             "wol.c"
                             "homelab_ops.c"
-                            "snmp_ops.c"
                             "health_monitor.c"
                             "homelab_ops_http.c"
                             "config_profiles.c"
@@ -85,7 +92,6 @@ idf_component_register(SRCS "main.c"
                             "settings_snapshot.c"
                             "tailnet_names.c"
                             "notify_channels.c"
-                            "ddns.c"
                             "throughput.c"
                             "service_lease.c"
                             "service_transfer.c"

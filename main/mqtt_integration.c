@@ -229,10 +229,20 @@ static void publish_discovery(void)
 
     discovery_publish_entity("sensor", "cpu_load", "CPU load", s_state_topic,
                              "{{ value_json.cpu_load_pct }}", NULL, NULL, "%");
+#if CONFIG_TSR_SNMP
     discovery_publish_entity("binary_sensor", "snmp_enabled", "SNMP enabled", s_state_topic,
                              "{{ value_json.snmp_enabled }}", NULL, NULL, NULL);
     discovery_publish_entity("binary_sensor", "snmp_running", "SNMP running", s_state_topic,
                              "{{ value_json.snmp_running }}", NULL, "connectivity", NULL);
+#else
+    /* No SNMP in this firmware: clear the retained records of earlier versions. */
+    for (unsigned i = 0; i < 2; i++) {
+        char topic[256];
+        snprintf(topic, sizeof topic, "%s/binary_sensor/%s/%s/config", cfg.discovery_prefix, s_device_id,
+                 i ? "snmp_running" : "snmp_enabled");
+        if(discovery_visit(&s_discovery))discovery_result(&s_discovery,publish(topic,"",1)>=0);
+    }
+#endif
     discovery_publish_entity("sensor", "socket_limit", "Socket limit", s_state_topic,
                              "{{ value_json.socket_limit }}", NULL, NULL, NULL);
     discovery_publish_entity("sensor", "cpu_core0", "CPU core 0 load", s_state_topic,
@@ -603,8 +613,10 @@ static void publish_state(void)
         cJSON_AddNullToObject(root, "cpu_core1_pct");
     }
     cJSON_AddNumberToObject(root, "minimum_free_heap", esp_get_minimum_free_heap_size());
+#if CONFIG_TSR_SNMP
     cJSON_AddStringToObject(root, "snmp_enabled", snmp_agent_is_enabled() ? "ON" : "OFF");
     cJSON_AddStringToObject(root, "snmp_running", snmp_agent_is_running() ? "ON" : "OFF");
+#endif
     cJSON_AddNumberToObject(root, "socket_limit", CONFIG_LWIP_MAX_SOCKETS);
     const esp_app_desc_t *app = esp_app_get_description();
     cJSON_AddStringToObject(root, "firmware", app ? app->version : "");

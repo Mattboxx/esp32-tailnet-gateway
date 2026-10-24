@@ -13,7 +13,9 @@
 #include "settings_snapshot.h"
 #include "tailnet_names.h"
 #include "notify_channels.h"
+#if CONFIG_TSR_DDNS
 #include "ddns.h"
+#endif
 #include "throughput.h"
 #include "service_evidence.h"
 #include "ml_policy.h"
@@ -279,7 +281,9 @@ esp_err_t homelab_ops_register_http(httpd_handle_t server) {
     if(err==ESP_OK)err=settings_snapshot_register_http(server);
     if(err==ESP_OK)err=tailnet_names_register_http(server);
     if(err==ESP_OK)err=notify_channels_register_http(server);
+#if CONFIG_TSR_DDNS
     if(err==ESP_OK)err=ddns_register_http(server);
+#endif
     if(err==ESP_OK)err=throughput_register_http(server);
     return err==ESP_OK?layout_migration_register_http(server):err;
 }
