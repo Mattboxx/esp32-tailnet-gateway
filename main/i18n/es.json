@@ -1159,5 +1159,17 @@
  "The access point still uses the firmware's shared default password. Set your own password here.": "El punto de acceso todavía usa la contraseña predeterminada compartida del firmware. Define aquí tu propia contraseña.",
  "Build commit": "Commit de compilación",
  "Based on": "Basado en",
- "MicroLink": "MicroLink"
+ "MicroLink": "MicroLink",
+ "Name on this network": "Nombre en esta red",
+ "Free internal RAM": "RAM interna libre",
+ "Internal RAM is the scarce resource; external PSRAM is shown in the System card": "La RAM interna es el recurso escaso; la PSRAM externa aparece en la tarjeta Sistema",
+ "Standby": "En espera",
+ "Recovery-only: turns on if the home WiFi is lost": "Solo para recuperación: se activa si se pierde el WiFi de casa",
+ "Standby: turns on if the home WiFi is lost for 60 s": "En espera: se activa si el WiFi de casa falta durante 60 s",
+ "Name in your router's client list (DHCP) and on your network as name.local. Leave empty to use this board's own name, shown in the box. The Tailscale machine name is set on the Tailscale page.": "Nombre en la lista de clientes del router (DHCP) y en la red como nombre.local. Déjalo vacío para usar el nombre propio de esta placa, que se muestra en el campo. El nombre de la máquina en Tailscale se configura en la página Tailscale.",
+ "LAN → Tailnet service gateway": "Pasarela de servicios LAN → Tailnet",
+ "1 firewall rule is active.": "Hay 1 regla de firewall activa.",
+ "{} firewall rules are active.": "Hay {} reglas de firewall activas.",
+ "No firewall rules: all four lists are empty.": "No hay reglas de firewall: las cuatro listas están vacías.",
+ "The firewall lists are an advanced feature. With no rule, traffic follows the normal routing and the other protections still apply.": "Las listas del firewall son una función avanzada. Sin reglas, el tráfico sigue el enrutamiento normal y las demás protecciones siguen activas."
 }

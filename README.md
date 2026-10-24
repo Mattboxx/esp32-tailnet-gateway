@@ -195,14 +195,14 @@ drop-in targets.
 
 ## 9. Screenshots
 
-Firmware v2.0.1 Web UI, rendered from the page embedded in the firmware with
+Firmware v2.0.3 Web UI, rendered from the page embedded in the firmware with
 invented documentation data (no real network, device or credential).
 [Captures from a real gateway](https://mattboxx.github.io/esp32-tailnet-gateway/screenshots/)
 are on the website.
 
 <p align="center">
-<img src="docs/images/v2-status.png" alt="Status dashboard: uplink, Tailnet and peers, Selective Tailnet Service Gateway summary and goal-based guides" width="88%">
-<br><em>Status: connection summary, service rules and "What do you want to do?" guides</em>
+<img src="docs/images/v2-status.png" alt="Status dashboard: uplink, Tailnet, peers and internal RAM at a glance, the Service Gateway rules summary, uplink with the board's .local name and the access point in standby" width="88%">
+<br><em>Status: live summary first; the Service Gateway card appears once rules are in use</em>
 </p>
 
 <p align="center">

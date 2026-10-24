@@ -558,7 +558,7 @@
       font-weight: var(--weight-medium);
       color: var(--fg-primary);
       text-align: right;
-      word-break: break-all;
+      overflow-wrap: anywhere;   /* long names wrap, words are not split mid-way */
     }
 
     .stat-value.mono { font-family: var(--font-mono); font-size: var(--text-xs); }
@@ -1596,6 +1596,7 @@
     html:lang(zh-Hans) body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", system-ui, sans-serif; }
     html:lang(de) .btn, html:lang(fr) .btn, html:lang(es) .btn, html:lang(it) .btn { white-space: normal; text-align: center; }
     body.ui-simple [data-advanced] { display: none !important; }
+    body:not(.ui-simple) .fw-simple-summary { display: none; }
     .adv-note { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; justify-content: space-between;
       border: 1px dashed var(--border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: var(--sp-4);
       color: var(--fg-secondary); font-size: var(--text-md); }
@@ -2005,27 +2006,18 @@
         <div class="glance-item" id="glance-uplink"><span class="glance-label">Uplink</span><strong>—</strong></div>
         <div class="glance-item" id="glance-tailnet"><span class="glance-label">Tailnet</span><strong>—</strong></div>
         <div class="glance-item" id="glance-peers"><span class="glance-label">Peers online</span><strong>—</strong></div>
-        <div class="glance-item" id="glance-memory"><span class="glance-label">Free memory</span><strong>—</strong></div>
+        <div class="glance-item" id="glance-memory" title="Internal RAM is the scarce resource; external PSRAM is shown in the System card"><span class="glance-label">Free internal RAM</span><strong>—</strong></div>
       </div>
 
-      <div class="card mb-4" id="sg-home-card" data-capability="lan-tailnet-forwarding">
+      <!-- Shown when service rules exist, a temporary rule is open or the
+           first-boot wizard chose this role; the goal tile below always offers it. -->
+      <div class="card mb-4" id="sg-home-card" data-capability="lan-tailnet-forwarding" hidden>
         <div class="card-header"><div class="card-header-left"><span class="card-title">Selective Tailnet Service Gateway</span></div><span class="badge badge-neutral" id="sg-home-badge">—</span></div>
         <div class="card-body">
           <p>Let existing LAN devices use specific Tailnet services through this gateway — no Tailscale client on them, no access-point change, no new default gateway. Each rule admits one TCP/UDP service to an allowed source address.</p>
           <p class="form-hint" id="sg-home-summary" role="status">Loading service rules…</p>
           <div class="page-header-actions"><button class="btn btn-primary" id="sg-home-guide" type="button">Publish a Tailnet service</button>
             <a class="btn btn-secondary" href="#network" id="sg-home-open">Open service rules</a></div>
-        </div>
-      </div>
-
-      <!-- Goal launcher: guided setup by purpose -->
-      <div class="card mb-4" id="wizard-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">What do you want to do?</span></div></div>
-        <div class="card-body">
-          <p class="form-hint">Pick a goal. Each guide checks prerequisites, explains risks, asks before exposing anything and lets you restore the previous settings. Nothing changes until you save.</p>
-          <div class="goal-grid" id="goal-grid"></div>
-          <p class="form-hint" style="margin-top:var(--sp-4)">All guides</p>
-          <div id="wizard-list" class="btn-row" style="margin-top:var(--sp-2)"></div>
         </div>
       </div>
 
@@ -2083,6 +2075,10 @@
             <div class="stat-row">
               <span class="stat-label">Traffic</span>
               <span class="stat-value mono" id="uplink-traffic">—</span>
+            </div>
+            <div class="stat-row">
+              <span class="stat-label">Name on this network</span>
+              <a class="stat-value mono" id="uplink-lan-name" href="#" data-no-i18n>—</a>
             </div>
           </div>
         </div>
@@ -2285,6 +2281,16 @@
         </div>
       </div><!-- /grid row 2 -->
 
+      <!-- Goal launcher: guided setup by purpose, after the live status -->
+      <div class="card mt-4 mb-4" id="wizard-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">What do you want to do?</span></div></div>
+        <div class="card-body">
+          <p class="form-hint">Pick a goal. Each guide checks prerequisites, explains risks, asks before exposing anything and lets you restore the previous settings. Nothing changes until you save.</p>
+          <div class="goal-grid" id="goal-grid"></div>
+          <p class="form-hint" style="margin-top:var(--sp-4)">All guides</p>
+          <div id="wizard-list" class="btn-row" style="margin-top:var(--sp-2)"></div>
+        </div>
+      </div>
     </div><!-- /page-status -->
 
     <!-- =================================================================
@@ -2309,10 +2315,10 @@
           <div class="grid grid-cols-2">
             <div class="form-group">
               <label class="form-label" for="net-hostname">Hostname</label>
-              <input class="input" type="text" id="net-hostname" placeholder="esp32-tailscale" maxlength="63">
-              <span class="form-hint">Used as DHCP Option 12 on every uplink and as the default Tailscale machine name.</span>
+              <input class="input" type="text" id="net-hostname" maxlength="63">
+              <span class="form-hint">Name in your router's client list (DHCP) and on your network as name.local. Leave empty to use this board's own name, shown in the box. The Tailscale machine name is set on the Tailscale page.</span>
             </div>
-            <div class="form-group">
+            <div class="form-group" data-advanced>
               <label class="form-label" for="net-sta-ttl">STA outgoing TTL override (0 = off)</label>
               <input class="input mono" type="number" id="net-sta-ttl" min="0" max="255" step="1" placeholder="0">
               <span class="form-hint">Rewrites the TTL hop-limit on every outgoing IPv4 frame on the STA side. Typical use: set to <strong>64</strong> to cloak a tethered downstream as the phone's own traffic when the upstream carrier throttles hotspot-detected packets. Applied live on save.</span>
@@ -2542,7 +2548,7 @@
 
       <!-- ===== LAN -> Tailnet forwarding (independent of AP-side NAPT) ===== -->
       <div class="card mt-4" data-capability="lan-tailnet-forwarding">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">LAN → Tailnet Port Forwarding</span></div><span class="badge badge-neutral" id="tf-badge">—</span></div>
+        <div class="card-header"><div class="card-header-left"><span class="card-title">LAN → Tailnet service gateway</span></div><span class="badge badge-neutral" id="tf-badge">—</span></div>
         <div class="card-body">
           <p class="form-hint" style="margin:0 0 0.75rem 0;">Expose selected Tailnet services on the ESP32 uplink-LAN address. LAN clients do not need Tailscale and do not need to join the ESP32 access point. This table is fully separate from AP-side port forwarding.</p>
           <p class="form-hint">Source CIDRs filter addresses, not client identity. Use the narrowest subnet and keep authentication on the remote service. A mapping being installed does not prove the service is reachable.</p>
@@ -2832,6 +2838,13 @@
         </div>
         <div class="page-header-actions">
           <button class="btn btn-secondary btn-md" id="fw-reload">Reload</button>
+        </div>
+      </div>
+      <div class="card fw-simple-summary">
+        <div class="card-body">
+          <p id="fw-simple-text" role="status">Loading…</p>
+          <p class="form-hint">The firewall lists are an advanced feature. With no rule, traffic follows the normal routing and the other protections still apply.</p>
+          <button class="btn btn-secondary btn-sm" type="button" id="fw-show-advanced">Show advanced settings</button>
         </div>
       </div>
       <div id="fw-lists" data-advanced>
@@ -4144,6 +4157,9 @@
       document.getElementById('uplink-rssi').textContent    = (ul.rssi != null ? ul.rssi + ' dBm' : '—');
       document.getElementById('uplink-channel').textContent = ul.channel != null ? String(ul.channel) : '—';
       document.getElementById('uplink-traffic').textContent = formatTraffic(ul.bytes_in, ul.bytes_out);
+      var lanName = document.getElementById('uplink-lan-name');
+      if (ul.lan_name) { lanName.textContent = ul.lan_name + '.local'; lanName.href = 'http://' + ul.lan_name + '.local/'; }
+      else { lanName.textContent = '—'; lanName.removeAttribute('href'); }
       renderSignalBars('uplink-signal-bars', ul.rssi != null ? ul.rssi : -90);
 
       var uplinkBadge = document.getElementById('uplink-status-badge');
@@ -4168,8 +4184,12 @@
       // AP
       var ap = data.ap || {};
       var apEnabled = ap.enabled !== false;
+      /* Recovery-only access point: off while the uplink works, back on after
+       * 60 s without the home WiFi. That is a standby, not a disabled feature. */
+      var apStandby = !apEnabled && ap.auto_off_when_connected === true;
       var apStatus = document.getElementById('ap-runtime-status');
-      apStatus.textContent = apEnabled ? 'Enabled' : 'Disabled';
+      apStatus.textContent = apEnabled ? 'Enabled' : apStandby ? 'Standby' : 'Disabled';
+      apStatus.title = apStandby ? 'Recovery-only: turns on if the home WiFi is lost' : '';
       apStatus.style.color = apEnabled ? 'var(--success)' : 'var(--text-muted)';
       document.getElementById('ap-ssid').textContent    = ap.ssid    || '—';
       document.getElementById('ap-ip').textContent      = ap.ip ? (ap.ip + (ap.prefix != null ? '/' + ap.prefix : '')) : '—';
@@ -4182,7 +4202,7 @@
       var apClientsBadge = document.getElementById('ap-clients-badge');
       apClientsBadge.textContent = apEnabled
         ? (ap.clients != null ? ap.clients + ' client' + (ap.clients !== 1 ? 's' : '') : '—')
-        : 'Disabled';
+        : apStandby ? 'Standby' : 'Disabled';
       apClientsBadge.className = (apEnabled && typeof ap.clients === 'number' && ap.clients > 0) ? 'badge badge-success' : 'badge badge-neutral';
       document.getElementById('card-ap').className = apEnabled ? 'card card-stripe-accent' : 'card';
       setFeatureCardState('card-ap', apEnabled);
@@ -4190,20 +4210,25 @@
       /* System tile — internal DRAM + SPIRAM bars, CPU load %, CPU temp.
        * Backend reports mem_internal_free/total, mem_spiram_free/total,
        * cpu_load_pct, cpu_temp_c (degC) — all optional, "—" if absent. */
-      function renderMemBar(freeBytes, totalBytes, valEl, barEl) {
+      /* Internal RAM is almost fully allocated by design (WiFi, lwIP, VPN);
+       * what matters is the absolute headroom, so it is coloured by free KB.
+       * External PSRAM keeps the percentage scale. */
+      function renderMemBar(freeBytes, totalBytes, valEl, barEl, minFreeKB) {
         if (!totalBytes) { valEl.textContent = '—'; barEl.style.width = '0%'; return; }
         var freeKB  = Math.round(freeBytes / 1024);
         var totalKB = Math.round(totalBytes / 1024);
         var usedPct = Math.max(0, Math.min(100, Math.round(100 * (totalBytes - freeBytes) / totalBytes)));
         valEl.textContent = freeKB + ' / ' + totalKB + ' KB free';
-        barEl.style.width = (100 - usedPct) + '%';
-        barEl.style.background = (usedPct > 90) ? 'var(--danger)'
-                                : (usedPct > 75) ? 'var(--warning)'
-                                :                  'var(--success)';
+        barEl.style.width = Math.max(2, 100 - usedPct) + '%';
+        barEl.style.background = minFreeKB
+          ? (freeKB < minFreeKB ? 'var(--danger)' : freeKB < minFreeKB * 1.5 ? 'var(--warning)' : 'var(--success)')
+          : (usedPct > 90) ? 'var(--danger)'
+          : (usedPct > 75) ? 'var(--warning)'
+          :                  'var(--success)';
       }
       renderMemBar(data.mem_internal_free, data.mem_internal_total,
                     document.getElementById('sys-mem-internal-val'),
-                    document.getElementById('sys-mem-internal-bar'));
+                    document.getElementById('sys-mem-internal-bar'), 8);
       renderMemBar(data.mem_spiram_free, data.mem_spiram_total,
                     document.getElementById('sys-mem-spiram-val'),
                     document.getElementById('sys-mem-spiram-bar'));
@@ -5113,9 +5138,15 @@
     /* Choices made in the first-boot wizard live on the gateway (the setup page
      * ran on another address). Recommend those roles and open the first
      * role's guide once per browser. */
+    var s_setup_roles = null, s_sg_rules = 0, s_sg_open = 0;
+    function updateServiceGatewayCard() {
+      var card = document.getElementById('sg-home-card');
+      if (card) card.hidden = !(s_sg_rules > 0 || s_sg_open > 0 || (s_setup_roles && s_setup_roles.indexOf('lan-tailnet') >= 0));
+    }
     function applySetupChoices() {
       fetch('/api/system', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
         var roles = String(d.setup_roles || '').split(',').filter(Boolean), seen = null;
+        s_setup_roles = roles; updateServiceGatewayCard();
         try { seen = localStorage.getItem('setup-roles-opened'); if (localStorage.getItem('ui-advanced') === null && d.ui_advanced_default) setUiAdvanced(true); } catch (e) {}
         document.querySelectorAll('#goal-grid .goal-tile').forEach(function (b, i) {
           var g = GOALS[i]; if (g && roles.indexOf(g.wizard || 'advanced') >= 0) b.classList.add('recommended');
@@ -5398,6 +5429,7 @@
           s_net_list.forEach(function (n) { if (!n.static_ip) n.static_ip = {}; });
           renderNetList();
           document.getElementById('net-hostname').value     = d.hostname || '';
+          document.getElementById('net-hostname').placeholder = d.lan_name || '';
           document.getElementById('net-sta-ttl').value      = (typeof d.sta_ttl_override === 'number') ? d.sta_ttl_override : 0;
           document.getElementById('net-hostname-save').disabled = true;
           document.getElementById('net-sta-save').disabled  = true;
@@ -5455,10 +5487,11 @@
           var clients = (typeof ap.clients === 'number') ? ap.clients : 0;
           var apEnabled = ap.enabled !== false;
           apBadge.className = (apEnabled && clients > 0) ? 'badge badge-success' : 'badge badge-neutral';
-          apBadge.textContent = apEnabled ? (clients === 1 ? '1 client' : (clients + ' clients')) : 'Disabled';
+          var apStandby = !apEnabled && ap.auto_off_when_connected === true;
+          apBadge.textContent = apEnabled ? (clients === 1 ? '1 client' : (clients + ' clients')) : apStandby ? 'Standby' : 'Disabled';
           apClients.textContent = apEnabled
             ? (clients + (ap.ip ? '   (AP IP: ' + ap.ip + ')' : ''))
-            : 'Disabled — client WiFi is in standby while the uplink is connected';
+            : apStandby ? 'Standby: turns on if the home WiFi is lost for 60 s' : 'Off';
         }).catch(function () {});
 
       /* DHCP reservations + connected-client/lease snapshot. */
@@ -6067,7 +6100,7 @@
         var rules=Array.isArray(d.rules)?d.rules:[],enabled=rules.filter(function(r){return r.enabled;}).length,
           installed=rules.filter(function(r){return r.installed;}).length,
           tested=rules.filter(function(r){return r.destination_check&&r.destination_check.state==='reachable';}).length;
-        loaded=true;badge.textContent=rules.length+' / '+(d.max||8);
+        loaded=true;s_sg_rules=rules.length;updateServiceGatewayCard();badge.textContent=rules.length+' / '+(d.max||8);
         badge.className='badge '+(installed?'badge-success':'badge-neutral');
         out.textContent=!rules.length?'No service rules yet. Start with the guide: it checks prerequisites, explains the exposure and helps you test the destination before enabling it.'
           :rules.length+' rule(s) · '+enabled+' enabled · '+installed+' installed · '+tested+' with a reachable destination test'
@@ -6076,6 +6109,7 @@
       .then(function(leases){
         if(!Array.isArray(leases))return;
         var open=leases.filter(function(l){return l&&l.temporary&&l.effective_enabled&&Number.isInteger(l.remaining_s)&&l.remaining_s>0;});
+        s_sg_open=open.length;updateServiceGatewayCard();
         if(!open.length)return;
         var next=Math.min.apply(null,open.map(function(l){return l.remaining_s;}));
         out.textContent+=' '+open.length+' temporary rule(s) open; the next closes in '+(next>=3600?Math.round(next/360)/10+' h':Math.max(1,Math.round(next/60))+' min')+'.';
@@ -7692,9 +7726,12 @@
       apiFetch('/api/firewall')
         .then(function (r) { return r.json(); })
         .then(function (d) {
-          var html = '';
-          (d.lists || []).forEach(function (list) { html += renderAclCard(list); });
+          var html = '', rules = 0;
+          (d.lists || []).forEach(function (list) { html += renderAclCard(list); rules += (list.rules || []).length; });
           document.getElementById('fw-lists').innerHTML = html;
+          document.getElementById('fw-simple-text').textContent = rules
+            ? (rules === 1 ? '1 firewall rule is active.' : rules + ' firewall rules are active.')
+            : 'No firewall rules: all four lists are empty.';
           attachFirewallHandlers();
         })
         .catch(function () {
@@ -7702,6 +7739,8 @@
             '<div style="padding:1.5rem; text-align:center; color:var(--danger);">Failed to load firewall rules.</div>';
         });
     }
+
+    document.getElementById('fw-show-advanced').addEventListener('click', function () { setUiAdvanced(true); });
 
     function attachFirewallHandlers() {
       var names = ['to_esp', 'from_esp', 'to_ap', 'from_ap'];

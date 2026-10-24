@@ -754,9 +754,18 @@ async function main() {
     assert.match(await f.page.locator('#goal-grid .goal-tile.primary').textContent(),/Connect a LAN device to a Tailnet service/); // the killer feature leads the goal launcher
     await f.page.waitForFunction(()=>document.getElementById('sg-home-summary').textContent.startsWith('No service rules yet'));
     assert.equal(await f.page.locator('#sg-home-badge').textContent(),'0 / 8');
-    await f.page.locator('#sg-home-guide').click();
+    // No rule, no temporary access and the role not chosen at setup: the home card stays out of the way.
+    assert.equal(await f.page.locator('#sg-home-card').isHidden(),true);
+    // The goal launcher sits after the live status cards and still offers the guide.
+    assert.equal(await f.page.evaluate(()=>!!(document.getElementById('card-uplink').compareDocumentPosition(document.getElementById('wizard-card'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
+    await f.page.locator('#goal-grid .goal-tile.primary').click();
     await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&document.getElementById('wizard-title').textContent==='Publish a Tailnet service to the LAN');
     assert.equal(await f.page.locator('#wizard-exposure-row').isHidden(),false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Role chosen in the first-boot wizard: the home card is shown before any rule exists.
+    f=await fixture(browser,{page:'status',systemBody:{web_auth_enabled:true,session_timeout_s:0,wifi_power_save:false,wifi_power_save_active:false,wifi_power_save_known:true,setup_roles:'lan-tailnet'}});
+    await f.page.waitForFunction(()=>!document.getElementById('sg-home-card').hidden);
+    assert.match(await f.page.locator('#sg-home-summary').textContent(),/No service rules yet/);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Templates: risk hint, first free listen port per protocol, UDP template.
     f=await fixture(browser,{page:'network'});
@@ -768,6 +777,30 @@ async function main() {
     await f.page.locator('#tf-template').selectOption('syslog');await f.page.locator('#tf-add').click();
     assert.equal(await f.page.locator('.tf-proto').nth(2).inputValue(),'udp');assert.equal(await f.page.locator('.tf-listen').nth(2).inputValue(),'15514');
     assert.equal(await f.page.locator('.tf-enabled:checked').count(),0);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Status details: the board's own .local name, a recovery-only access point in standby,
+    // internal RAM coloured by absolute headroom (normal ~20 KB is not an alarm).
+    f=await fixture(browser,{page:'status',statusBody:{sta:{connected:true,ssid:'Home',lan_name:'esp32-tailnet-1a2b'},
+      ap:{enabled:false,auto_off_when_connected:true,clients:0},mem_internal_free:20480,mem_internal_total:380000}});
+    await f.page.waitForFunction(()=>document.getElementById('uplink-lan-name').textContent==='esp32-tailnet-1a2b.local');
+    assert.equal(await f.page.locator('#uplink-lan-name').getAttribute('href'),'http://esp32-tailnet-1a2b.local/');
+    assert.equal(await f.page.locator('#ap-runtime-status').textContent(),'Standby');
+    assert.equal(await f.page.locator('#ap-clients-badge').textContent(),'Standby');
+    assert.equal(await f.page.locator('#glance-memory .glance-label').textContent(),'Free internal RAM');
+    assert.equal(await f.page.locator('#sys-mem-internal-bar').evaluate(e=>e.style.background),'var(--success)');
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    f=await fixture(browser,{page:'status',statusBody:{sta:{connected:true},ap:{enabled:false,auto_off_when_connected:false},mem_internal_free:6144,mem_internal_total:380000}});
+    await f.page.waitForFunction(()=>document.getElementById('ap-runtime-status').textContent==='Disabled');
+    assert.equal(await f.page.locator('#uplink-lan-name').textContent(),'—');
+    assert.equal(await f.page.locator('#sys-mem-internal-bar').evaluate(e=>e.style.background),'var(--danger)');
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Simple mode keeps a firewall summary instead of an empty page.
+    f=await fixture(browser,{page:'firewall',simpleMode:true});
+    await f.page.waitForFunction(()=>document.getElementById('fw-simple-text').textContent!=='Loading…');
+    assert.equal(await f.page.locator('.fw-simple-summary').isVisible(),true);
+    assert.equal(await f.page.locator('#fw-lists').isVisible(),false);
+    await f.page.locator('#fw-show-advanced').click();
+    assert.equal(await f.page.locator('.fw-simple-summary').isVisible(),false);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Home card lists open temporary access with the soonest closure.
     f=await fixture(browser,{page:'status',forwardBody:{rules:[{index:0,rule_token:5,name:'NAS',enabled:true,installed:true,protocol:'tcp',listen_port:15001,tailnet_destination:'100.64.0.9',destination_port:5001,allowed_source_subnet:'192.168.1.20/32',accepted_packets:3,blocked_packets:0,error:''}],max:8},
@@ -835,14 +868,14 @@ async function main() {
     // Keyboard only: open the primary guide, confirm exposure, start, Escape returns focus.
     f=await fixture(browser,{page:'status'});
     await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===13);
-    await f.page.locator('#sg-home-guide').focus();await f.page.keyboard.press('Enter');
+    await f.page.locator('#goal-grid .goal-tile.primary').focus();await f.page.keyboard.press('Enter');
     await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&document.activeElement.id==='wizard-close');
     await f.page.waitForFunction(()=>!document.getElementById('wizard-checks').textContent.includes('checking'));
     await f.page.locator('#wizard-exposure').focus();await f.page.keyboard.press('Space');
     assert.equal(await f.page.locator('#wizard-exposure').isChecked(),true);
     await f.page.keyboard.press('Tab');assert.equal(await f.page.evaluate(()=>document.activeElement.id),'wizard-start');
     await f.page.keyboard.press('Escape');
-    await f.page.waitForFunction(()=>document.getElementById('wizard-panel').hidden&&document.activeElement.id==='sg-home-guide');
+    await f.page.waitForFunction(()=>document.getElementById('wizard-panel').hidden&&document.activeElement.classList.contains('goal-tile'));
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Board without PSRAM: destination test and service watch are gated by the manifest.
     f=await fixture(browser,{page:'network',forwardBody:{rules:[{index:0,rule_token:77,name:'NAS',enabled:false,installed:false,protocol:'tcp',listen_port:15000,tailnet_destination:'100.64.0.9',destination_port:5000,allowed_source_subnet:'192.168.1.20/32',accepted_packets:0,blocked_packets:0,error:''}],max:8},

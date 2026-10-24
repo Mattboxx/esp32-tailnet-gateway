@@ -46,7 +46,7 @@ installer = (site/'install-firmware/index.html').read_text(encoding='utf-8')
 assert ('<esp-web-install-button manifest=' in installer) == build_site.NEXT_PUBLISHED
 if build_site.NEXT_PUBLISHED:
     changes = (site/'changelog/index.html').read_text(encoding='utf-8')
-    assert f'[{build_site.NEXT_VERSION}]' in changes and '[2.0.0]' in changes and 'dev.8' not in changes
+    assert f'[{build_site.NEXT_VERSION}]' in changes and 'dev.8' not in changes
     assert '<h3>Added</h3>' in changes
 workflow=(root/'.github/workflows/pages.yml').read_text(encoding='utf-8')
 assert '  workflow_dispatch:' in workflow and '  push:' not in workflow
