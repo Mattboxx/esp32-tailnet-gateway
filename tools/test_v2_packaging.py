@@ -6,8 +6,24 @@ import tempfile
 import unittest
 import zipfile
 
-from package_v2 import (CURRENT_REPOSITORY, RENAMED_REPOSITORY, check_variant,
-                        repository_url, validate_version, write_sums, zip_dir)
+from package_v2 import (CURRENT_REPOSITORY, LAYOUT, RENAMED_REPOSITORY, check_variant,
+                        language_variants, repository_url, validate_version, write_sums, zip_dir)
+
+WIFI_ASSETS = b'firmware.bin\0firmware-it.bin\0firmware-es.bin\0firmware-zh.bin\0'
+
+
+def synthetic_build(folder, root, language='en', ethernet=False, version='2.0.0', boot=b'boot'):
+    """Metadata-only build folder: not an ESP image."""
+    (folder/'config').mkdir(parents=True, exist_ok=True)
+    (folder/'project_description.json').write_text(json.dumps({
+        'project_name': 'esp32_tsr', 'project_version': version, 'project_path': str(root)}))
+    flags = '#define CONFIG_LWIP_MAX_SOCKETS 31\n#define CONFIG_TSR_UI_LANGUAGE "%s"\n' % language
+    if ethernet: flags += '#define CONFIG_ETH_SPI_ETHERNET_W5500 1\n'
+    (folder/'config/sdkconfig.h').write_text(flags)
+    assets = b'firmware-eth.bin\0' if ethernet else WIFI_ASSETS
+    (folder/'firmware.bin').write_bytes(f'synthetic {version} {language} '.encode() + assets)
+    for name in LAYOUT:
+        if name != 'firmware.bin': (folder/name).write_bytes(boot + name.encode())
 
 
 class V2PackagingTests(unittest.TestCase):
@@ -49,20 +65,39 @@ class V2PackagingTests(unittest.TestCase):
         # Metadata checks only: not ESP image validation or hardware.
         from package_v2 import ROOT
         with tempfile.TemporaryDirectory() as directory:
-            folder = Path(directory); (folder/'config').mkdir()
-            (folder/'project_description.json').write_text(json.dumps({
-                'project_name': 'esp32_tsr', 'project_version': '2.0.0', 'project_path': str(ROOT)}))
+            folder = Path(directory)
             for ethernet in (False, True):
-                flags = '#define CONFIG_LWIP_MAX_SOCKETS 31\n'
-                if ethernet: flags += '#define CONFIG_ETH_SPI_ETHERNET_W5500 1\n'
-                (folder/'config/sdkconfig.h').write_text(flags)
-                asset = b'/firmware-eth.bin' if ethernet else b'/firmware.bin'
-                (folder/'firmware.bin').write_bytes(b'synthetic 2.0.0 '+asset)
+                synthetic_build(folder, ROOT, ethernet=ethernet)
                 self.assertEqual(check_variant(folder, ethernet, '2.0.0')['project_name'], 'esp32_tsr')
                 with self.assertRaises(AssertionError): check_variant(folder, not ethernet, '2.0.0')
                 with self.assertRaises(AssertionError): check_variant(folder, ethernet, '2.0.1')
+                with self.assertRaises(AssertionError): check_variant(folder, ethernet, '2.0.0', 'it')
             (folder/'config/sdkconfig.h').write_text('#define CONFIG_LWIP_MAX_SOCKETS 16\n')
             with self.assertRaises(AssertionError): check_variant(folder, False, '2.0.0')
+
+    def test_language_variants_are_tested_and_share_boot_files(self):
+        import hashlib
+        from package_v2 import ROOT
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            english, italian, spanish = base/'en', base/'it', base/'es'
+            synthetic_build(english, ROOT); synthetic_build(italian, ROOT, 'it'); synthetic_build(spanish, ROOT, 'es')
+            digest = lambda folder: hashlib.sha256((folder/'firmware.bin').read_bytes()).hexdigest()
+            found = language_variants(english, [f'it={italian}', f'es={spanish}'],
+                                      [f'it={digest(italian)}', f'es={digest(spanish)}'], '2.0.0')
+            self.assertEqual(list(found), ['it', 'es'])
+            self.assertEqual(language_variants(english, [], [], '2.0.0'), {})
+            bad = ([f'it={italian}'], [f'it={"0" * 64}'])                       # untested image
+            with self.assertRaises(AssertionError): language_variants(english, *bad, '2.0.0')
+            with self.assertRaises(AssertionError):                            # no hash given
+                language_variants(english, [f'it={italian}'], [], '2.0.0')
+            with self.assertRaises(AssertionError):                            # wrong language
+                language_variants(english, [f'es={italian}'], [f'es={digest(italian)}'], '2.0.0')
+            with self.assertRaises(AssertionError):                            # unknown language
+                language_variants(english, [f'fr={italian}'], [f'fr={digest(italian)}'], '2.0.0')
+            synthetic_build(italian, ROOT, 'it', boot=b'other')                # different boot files
+            with self.assertRaises(AssertionError):
+                language_variants(english, [f'it={italian}'], [f'it={digest(italian)}'], '2.0.0')
 
 
 if __name__ == '__main__': unittest.main()
