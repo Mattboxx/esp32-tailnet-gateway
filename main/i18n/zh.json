@@ -1166,5 +1166,17 @@
  "The access point still uses the firmware's shared default password. Set your own password here.": "接入点仍在使用固件共享的默认密码。请在此设置你自己的密码。",
  "Build commit": "构建提交",
  "Based on": "基于",
- "MicroLink": "MicroLink"
+ "MicroLink": "MicroLink",
+ "Name on this network": "本网络中的名称",
+ "Free internal RAM": "可用内部 RAM",
+ "Internal RAM is the scarce resource; external PSRAM is shown in the System card": "内部 RAM 是稀缺资源；外部 PSRAM 显示在“系统”卡片中",
+ "Standby": "待机",
+ "Recovery-only: turns on if the home WiFi is lost": "仅用于恢复：家庭 WiFi 断开时自动开启",
+ "Standby: turns on if the home WiFi is lost for 60 s": "待机：家庭 WiFi 断开 60 秒后自动开启",
+ "Name in your router's client list (DHCP) and on your network as name.local. Leave empty to use this board's own name, shown in the box. The Tailscale machine name is set on the Tailscale page.": "在路由器客户端列表（DHCP）中以及网络上以 name.local 显示的名称。留空则使用本开发板自身的名称（显示在输入框中）。Tailscale 设备名称在 Tailscale 页面设置。",
+ "LAN → Tailnet service gateway": "LAN → Tailnet 服务网关",
+ "1 firewall rule is active.": "已启用 1 条防火墙规则。",
+ "{} firewall rules are active.": "已启用 {} 条防火墙规则。",
+ "No firewall rules: all four lists are empty.": "没有防火墙规则：四个列表均为空。",
+ "The firewall lists are an advanced feature. With no rule, traffic follows the normal routing and the other protections still apply.": "防火墙列表属于高级功能。没有规则时，流量按正常路由转发，其他保护措施依然有效。"
 }

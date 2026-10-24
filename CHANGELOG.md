@@ -4,6 +4,28 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.3] — 2026-10-24
+
+### Improved
+
+- **Status page:** live status comes first. The Service Gateway card appears
+  only when service rules exist, a temporary rule is open or that role was
+  chosen in the first-boot wizard; *What do you want to do?* moved to the end
+  of the page and still offers every guide.
+- The Uplink card shows the board's own name on the network
+  (`esp32-tailnet-xxxx.local`, as a link).
+- A recovery-only access point is shown as **Standby** (it turns on if the home
+  WiFi is lost) instead of *Disabled*.
+- Internal RAM: the summary says *Free internal RAM*, and its bar is coloured by
+  absolute headroom, so the normal ~20 KB is no longer shown as an alarm.
+- Firewall in simple mode shows a summary of active rules instead of an empty page.
+- Network: the hostname hint describes the actual behaviour (DHCP name and
+  `name.local`; empty uses the board's own name, shown in the field) and the
+  TTL override moved to the advanced settings; the LAN → Tailnet card is named
+  *LAN → Tailnet service gateway*.
+- Long values in status rows wrap at natural points instead of mid-word on phones.
+- New strings translated into Italian, Spanish and Simplified Chinese.
+
 ## [2.0.2] — 2026-10-23
 
 ### Fixed

@@ -1,10 +1,5 @@
 # NAS and homelab recovery checklist
 
-> **1.14 development preview.** This guide includes unreleased features; it
-> does not imply a new firmware download. Public stable remains
-> [Mattboxx 1.13](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
-
-
 This firmware can provide a management node independent of your NAS operating
 system. It is not file recovery, IPMI/KVM, a power relay, or fully out-of-band
 management. A stable release channel does not certify every NAS or network.

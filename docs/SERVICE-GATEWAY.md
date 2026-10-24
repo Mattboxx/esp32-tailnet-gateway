@@ -25,7 +25,9 @@ broker on another site, `broker.your-tailnet.ts.net:1883`.
 
 1. Give the ESP32 a fixed LAN address, e.g. `192.168.1.50`, and join it to
    your tailnet. Allow its identity to reach the broker in your tailnet ACL.
-2. Status page → **Publish a Tailnet service** (or Network → LAN → Tailnet).
+2. Status → **What do you want to do?** → **Connect a LAN device to a Tailnet
+   service** (or Network → **LAN → Tailnet service gateway**). Once rules exist,
+   the Status page also shows a Service Gateway card with **Publish a Tailnet service**.
    The guide checks uplink, control connection, web password and a free slot,
    lists the risks and asks you to acknowledge the exposure.
 3. Add a rule: TCP, listen `18830`, destination `broker.your-tailnet.ts.net`,

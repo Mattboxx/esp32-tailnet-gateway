@@ -22,6 +22,7 @@
 #include "lwip/sockets.h"
 #include "sockaddr_ipv4.h"
 #include "web_ui.h"
+#include "lan_name.h"
 #include "json_guard.h"
 #include "web_origin.h"
 #include "homelab_ops.h"
@@ -377,6 +378,11 @@ static esp_err_t status_handler(httpd_req_t *req)
     }
     cJSON_AddNumberToObject(sta, "bytes_in",  (double)netif_hooks_get_sta_bytes_in());
     cJSON_AddNumberToObject(sta, "bytes_out", (double)netif_hooks_get_sta_bytes_out());
+    {
+        char lan[LAN_NAME_MAX + 1];
+        lan_name_get(lan, sizeof lan);
+        cJSON_AddStringToObject(sta, "lan_name", lan);   /* "<lan_name>.local" on the uplink */
+    }
     cJSON_AddItemToObject(root, "sta", sta);
 
     /* AP (downlink) — SSID + channel from live wifi_config, MAC, clients, IP. */
@@ -549,8 +555,14 @@ static esp_err_t network_handler(httpd_req_t *req)
     }
     cJSON_AddItemToObject(root, "networks", nets);
 
-    /* Hostname is a device-wide setting (not per-network). */
+    /* Hostname is a device-wide setting (not per-network). lan_name is what
+     * the board actually uses (saved hostname or its esp32-tailnet-xxxx). */
     add_nvs_string(root, "hostname", "hostname");
+    {
+        char lan[LAN_NAME_MAX + 1];
+        lan_name_get(lan, sizeof lan);
+        cJSON_AddStringToObject(root, "lan_name", lan);
+    }
 
     /* STA TTL hop-limit override — 0 means passthrough (no rewrite),
      * non-zero is the value the netif hook stamps on every outgoing
