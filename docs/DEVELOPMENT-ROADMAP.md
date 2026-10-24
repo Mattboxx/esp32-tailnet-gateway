@@ -194,6 +194,38 @@ Dependencies: safe admin commands, persistence/resource/job ownership from P0.
   improvements, UI/API hardening and remote-maintenance UX. Experimental work
   OFF and labeled, with tests. No gratuitous cloud/AI/external services.
 
+## 3.0 — Platform release (owner decision, 2026-10-24; current)
+
+Owner direction: no compatibility constraint from earlier firmware when it
+improves the experience and the device's capability; every module stays in
+the product (no optional-module builds except as stated here). 2.0.4-beta.3
+was cancelled before publication; its work (language variants, guard fixes,
+PSRAM placement, cache tuning) is the base of this branch (`v3`).
+
+1. **8 MB partition table, N8R8 and N16R8.** nvs unchanged at 0x9000/64 KB
+   (settings survive a USB reinstall without erase), otadata/phy_init
+   unchanged, `ota_0`/`ota_1` about 3.5 MB each, coredump 64 KB, a `storage`
+   data partition (about 800 KB) for future log history and backups; flash
+   size 8 MB in the bootloader header. Needs one USB install from 2.x; the 2.x
+   updater refuses images larger than its slot. Qualify on the test board:
+   reinstall without erase keeps settings, both OTA slots, rollback.
+2. **Single image.** All Web UI languages and the W5500 Ethernet driver in one
+   `firmware.bin` (Ethernet stays OFF until configured and labelled
+   experimental until qualified on a real module); the per-language and
+   Ethernet variants, their envs and assets end. One Easy Install package and
+   one web-installer image.
+3. **Cellular uplink (F43)** in the same image, OFF by default: UART modem
+   through `esp_modem` PPP, APN/PIN as write-only secrets, primary or
+   failover mode, data-use notice, no dialling without configuration. Real
+   modem and SIM qualification before leaving experimental.
+4. **Migration path.** A last 2.0.x release tells 2.x gateways that 3.0
+   needs one USB reinstall (settings kept) and links the guide; the web
+   installer and Easy Install default to keeping settings.
+5. **Performance and memory** carried over: PSRAM `.bss` placement, 32 KB
+   instruction cache, 64-byte data-cache lines; measure free heap, stack
+   margins and routing throughput on hardware.
+6. Everything already planned stays planned (this roadmap, F01–F43).
+
 ## Overall stabilization — mandatory, not a feature-cut milestone
 
 **F33–F37/F41:** full regression/load/soak, measured resources/performance,
