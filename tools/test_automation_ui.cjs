@@ -117,6 +117,10 @@ async function fixture(browser, options = {}) {
       body = state.statusBody || {};
     } else if (url.pathname === '/api/network' && state.networkBody) {
       body = state.networkBody;
+    } else if (url.pathname === '/api/system/migration') {
+      if (route.request().method() === 'POST') { state.savedMigration = route.request().postDataJSON();
+        state.migrationBody = {...state.migrationBody, busy: true, state: 'downloading', progress: 40, target: 'v3.0.0'}; status = 202; body = {ok: true}; }
+      else body = state.migrationBody || {layout: '3.x', needed: false};
     } else if (url.pathname === '/api/cellular') {
       if (route.request().method() === 'POST') { state.savedCellular = route.request().postDataJSON(); body = {ok: true, restart_required: true}; }
       else body = state.cellularBody || {};
@@ -305,6 +309,31 @@ async function main() {
       assert.equal(f.state.savedCellular.pin, '1234');
       assert.deepEqual(f.errors, []); await f.context.close(); count++;
     }
+    // Layout migration card: only on the 2.x table, explicit confirmation, progress.
+    f = await fixture(browser, { page: 'system' });
+    await f.page.waitForFunction(() => document.getElementById('sys-updates-reload'));
+    await f.page.waitForTimeout(500);
+    assert.equal(await f.page.locator('#mig-card').isHidden(), true);
+    await f.context.close(); count++;
+    f = await fixture(browser, { page: 'system', migrationBody: {layout: '2.x', bridge: true, needed: true, supported: true, busy: false,
+      physical_flash: 16777216, state: 'idle', progress: 0, target: '', error: ''} });
+    await f.page.waitForFunction(() => !document.getElementById('mig-card').hidden);
+    assert.equal(await f.page.locator('#mig-start').isDisabled(), true);
+    await f.page.locator('label:has(#mig-confirm)').click();
+    assert.equal(await f.page.locator('#mig-start').isDisabled(), false);
+    f.page.once('dialog', dialog => dialog.accept());
+    await f.page.locator('#mig-start').click();
+    await f.page.waitForFunction(() => document.getElementById('mig-status').textContent.includes('Downloading and checking 3.0'));
+    assert.deepEqual(f.state.savedMigration, {confirm: 'MIGRATE'});
+    assert.match(await f.page.locator('#mig-status').textContent(), /v3\.0\.0 · 40%/);
+    assert.equal(await f.page.locator('#mig-progress-wrap').isHidden(), false);
+    assert.equal(await f.page.locator('#mig-start').isDisabled(), true);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    f = await fixture(browser, { page: 'system', migrationBody: {layout: '2.x', bridge: true, needed: true, supported: false, busy: false,
+      physical_flash: 4194304, state: 'idle', progress: 0, target: '', error: ''} });
+    await f.page.waitForFunction(() => document.getElementById('mig-status').textContent.includes('needs 8 MB'));
+    assert.equal(await f.page.locator('#mig-confirm').isDisabled(), true);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Tabs follow overview → connectivity → protection → services → tools → admin,
     // and every tab has an icon.
     f = await fixture(browser);

@@ -3521,6 +3521,19 @@
         </div>
       </div>
 
+      <!-- ===== 2.x -> 3.x flash layout migration (2.1 bridge only) ===== -->
+      <div class="card mb-4" id="mig-card" hidden>
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Move to the 3.0 flash layout</span></div><span class="badge badge-warning" id="mig-badge">Needed for 3.0</span></div>
+        <div class="card-body">
+          <p class="form-hint">Firmware 3.0 needs a new flash layout with larger update slots. This gateway can switch over the network: it downloads 3.0 from GitHub, checks every file, writes 3.0 next to the running firmware and then rewrites the boot loader and the partition table. All settings stay (WiFi, Tailscale identity, passwords, rules). It takes a few minutes and ends with a restart into 3.0.</p>
+          <p class="form-hint"><strong>Keep the power on.</strong> A power cut during the last step (well under a second) needs a USB reinstall with Easy Install or the web installer; settings are still kept. If anything fails before that step, nothing changes. If 3.0 does not start, the gateway returns to this firmware.</p>
+          <p id="mig-status" role="status">Not loaded</p>
+          <div id="mig-progress-wrap" hidden style="background:var(--bg-subtle); border-radius:var(--radius-sm); height:0.5rem; overflow:hidden; margin-bottom:var(--sp-3);"><div id="mig-progress" style="background:var(--accent); height:100%; width:0%; transition:width 0.2s;"></div></div>
+          <label class="feature-switch"><input type="checkbox" id="mig-confirm"><span class="feature-switch-track" aria-hidden="true"></span><span>The power supply is stable and I want to move this gateway to 3.0 now</span></label>
+          <div class="page-header-actions"><button class="btn btn-primary" id="mig-start" type="button" disabled>Migrate to 3.0</button></div>
+        </div>
+      </div>
+
       <!-- ===== Firmware update: opt-in GitHub + local upload ===== -->
       <div class="card mt-4">
         <div class="card-header">
@@ -5243,7 +5256,7 @@
       if (page === 'firewall') loadFirewall();
       if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); }
       if (page === 'operations') loadOperations();
-      if (page === 'system') { loadSystem(); loadProfiles(); }
+      if (page === 'system') { loadSystem(); loadProfiles(); loadMigration(); }
       if (page === 'tools') { loadDiag(); loadPrecrashLog(); }
     }
 
@@ -6356,6 +6369,46 @@
         if(!r.ok||!d.ok)throw new Error(d.error||('HTTP '+r.status));
         showToast('success','Cellular settings saved','Restart the device to apply them.',5000);await loadCellular();}
       catch(e){document.getElementById('cell-status').textContent='Not saved: '+e.message;btn.disabled=false;}
+    });
+    /* 2.x -> 3.x layout migration: shown only while the 2.x table is in use. */
+    var MIG_STATES={idle:'Ready',copying_self:'Preparing (copying this firmware into the first slot; the gateway restarts once)',checking:'Looking for the 3.0 release',
+      downloading:'Downloading and checking 3.0',verifying:'Verifying the written 3.0 image',writing_boot:'Writing the boot loader and partition table: keep the power on',
+      done:'Done: restarting into 3.0',failed:'Not done'};
+    var s_mig_poll=null;
+    function loadMigration(){
+      clearTimeout(s_mig_poll);s_mig_poll=null;
+      return apiFetch('/api/system/migration',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
+        var card=document.getElementById('mig-card');
+        card.hidden=!(d&&d.needed);
+        if(!d||!d.needed)return;
+        var text=MIG_STATES[d.state]||d.state;
+        if(d.target)text+=' · '+d.target;
+        if(d.busy&&d.progress)text+=' · '+d.progress+'%';
+        if(d.error)text+=' — '+d.error;
+        if(!d.bridge)text='This firmware cannot migrate the flash layout: install the 2.1 bridge update first.';
+        else if(!d.supported&&!d.busy)text='Not possible on this board: 3.0 needs 8 MB of flash (this one has '+Math.round(d.physical_flash/1048576)+' MB).';
+        document.getElementById('mig-status').textContent=text;
+        document.getElementById('mig-progress-wrap').hidden=!d.busy;
+        document.getElementById('mig-progress').style.width=(d.progress||0)+'%';
+        var badge=document.getElementById('mig-badge');
+        badge.textContent=d.busy?'In progress':d.state==='failed'?'Not done':'Needed for 3.0';
+        badge.className='badge '+(d.state==='failed'?'badge-danger':d.busy?'badge-info':'badge-warning');
+        document.getElementById('mig-start').disabled=!d.supported||d.busy||!document.getElementById('mig-confirm').checked;
+        document.getElementById('mig-confirm').disabled=!d.supported||d.busy;
+        if(d.busy&&location.hash==='#system')s_mig_poll=setTimeout(loadMigration,2000);
+      }).catch(function(){
+        /* A restart during the migration drops the connection: keep asking. */
+        if(location.hash==='#system'&&!document.getElementById('mig-card').hidden)s_mig_poll=setTimeout(loadMigration,4000);
+      });
+    }
+    document.getElementById('mig-confirm').addEventListener('change',function(){document.getElementById('mig-start').disabled=!this.checked;});
+    document.getElementById('mig-start').addEventListener('click',async function(){
+      if(!confirm('Move this gateway to the 3.0 flash layout now? It restarts into 3.0 when done. Keep the power on.'))return;
+      var btn=this;btn.disabled=true;
+      try{var r=await apiFetch('/api/system/migration',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'MIGRATE'})});
+        if(!r.ok)throw new Error(r.status===409?'already running, or an update is in progress':'HTTP '+r.status);
+        await loadMigration();}
+      catch(e){document.getElementById('mig-status').textContent='Not started: '+e.message;btn.disabled=false;}
     });
     function loadServiceWatch(){
       document.getElementById('sw-save').disabled=true;
