@@ -155,6 +155,38 @@ async function fixture(browser, options = {}) {
       if (state.wolFails) return route.abort('failed');
       if (state.wolDelay) await new Promise(resolve => setTimeout(resolve, state.wolDelay));
       body = { devices: [{ name: 'Fixture NAS', mac: mqtt.broker_watchdog_wol_mac, port: 9 }] };
+    } else if (url.pathname === '/api/events') {
+      const cfg = state.histConfig || {events: false, metrics: false, snapshots: false};
+      body = {config: cfg, persist: true, storage: true, boot: 3, now: 1700000000, uptime: 600, events: cfg.events ? (state.histEvents || []) : []};
+    } else if (url.pathname === '/api/history/config') {
+      state.savedHistory = route.request().postDataJSON(); state.histConfig = {...(state.histConfig || {}), ...state.savedHistory}; body = {ok: true, persist: true};
+    } else if (url.pathname === '/api/history') {
+      const cfg = state.histConfig || {events: false, metrics: false, snapshots: false};
+      body = {config: cfg, persist: true, storage: true, boot: 3, now: 1700000000, uptime: 600, range: url.searchParams.get('range'), step: 60,
+        points: state.histPoints || []};
+    } else if (url.pathname === '/api/system/snapshots') {
+      if (route.request().method() === 'POST') { (state.snapPosts = state.snapPosts || []).push(route.request().postDataJSON()); body = {ok: true}; }
+      else body = {available: true, before_update: false, restore_pending: false, slots: [
+        {slot: 1, valid: true, seq: 4, t: 1700000000, reason: 'update', firmware: '3.0.0<b>x</b>'}, {slot: 2, valid: false, seq: 0, t: 0, reason: '', firmware: ''},
+        {slot: 3, valid: false, seq: 0, t: 0, reason: '', firmware: ''}]};
+    } else if (url.pathname === '/api/tailnet-names') {
+      if (route.request().method() === 'POST') { state.savedNames = route.request().postDataJSON(); body = {ok: true}; }
+      else body = {enabled: !!(state.savedNames && state.savedNames.enabled), lan: false, relay: true, lan_listening: false, peers: 5};
+    } else if (url.pathname === '/api/notify') {
+      if (route.request().method() === 'POST') { state.savedNotify = route.request().postDataJSON(); body = {ok: true}; }
+      else body = {events: 'problems', waiting: 0, dropped: 0,
+        telegram: {enabled: !!state.savedNotify, has_token: !!state.savedNotify, chat: state.savedNotify ? state.savedNotify.telegram.chat : '', sent: 0, failed: 1, last_error: 'Telegram answered 401: Unauthorized'},
+        email: {enabled: false, host: '', port: 465, security: 'tls', user: '', has_password: false, from: '', to: '', sent: 0, failed: 0, last_error: ''}};
+    } else if (url.pathname === '/api/notify/test') {
+      state.notifyTest = route.request().postDataJSON(); body = {ok: true, queued: true};
+    } else if (url.pathname === '/api/ddns') {
+      if (route.request().method() === 'POST') { state.savedDdns = route.request().postDataJSON(); body = {ok: true}; }
+      else body = {provider: 'off', name: '', zone: '', has_token: false, has_url: false, status: 'Not updated yet', public_ip: '203.0.113.7', updated_ip: '', updated_ago_s: -1, running: false};
+    } else if (url.pathname === '/api/diag/speedtest') {
+      if (route.request().method() === 'POST') { state.savedSpeed = route.request().postDataJSON(); state.speedPolls = 0; body = {ok: true}; }
+      else { state.speedPolls = (state.speedPolls || 0) + 1;
+        body = state.speedPolls < 2 ? {running: true, bytes: 1048576, elapsed_ms: 1000, kbps: 8389, first_byte_ms: 40, http: 200, result: ''}
+                                    : {running: false, bytes: 12582912, elapsed_ms: 10000, kbps: 10066, first_byte_ms: 40, http: 200, result: 'time limit reached'}; }
     }
     if (state.rejectProtected && ['/api/mqtt', '/api/ntfy'].includes(url.pathname)) status = 401;
     await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
@@ -1104,12 +1136,14 @@ async function main() {
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Goal launcher and simple mode: advanced sections hidden but reachable, never disabled.
     f = await fixture(browser, { page: 'status', simpleMode: true });
-    await f.page.waitForFunction(() => document.querySelectorAll('#goal-grid .goal-tile').length === 6);
+    await f.page.waitForFunction(() => document.querySelectorAll('#goal-grid .goal-tile').length === 7);
     assert.equal(await f.page.locator('body.ui-simple').count(), 1);
     await f.page.locator('#goal-grid .goal-tile', { hasText: 'Connect a LAN device' }).click();
     await f.page.waitForFunction(() => !document.getElementById('wizard-panel').hidden);
     assert.equal(await f.page.locator('#wizard-title').textContent(), 'Publish a Tailnet service to the LAN');
     await f.page.locator('#wizard-close').click();
+    await f.page.locator('#goal-grid .goal-tile', { hasText: 'Monitor the gateway' }).click();
+    await f.page.waitForFunction(() => document.getElementById('page-tools').classList.contains('active'));
     await f.page.evaluate(() => { location.hash = 'firewall'; });
     await f.page.waitForFunction(() => document.getElementById('page-firewall').classList.contains('active'));
     assert.equal(await f.page.locator('#fw-lists').isHidden(), true);
@@ -1147,6 +1181,106 @@ async function main() {
     await f.page.waitForFunction(() => document.querySelector('#goal-grid .goal-tile'));
     assert.equal(await f.page.evaluate(() => document.documentElement.lang), 'en');
     assert.match(await f.page.locator('#wizard-card .card-title').textContent(), /What do you want to do\?/);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // 3.0 history: off by default, saving the switches, escaped and filtered events.
+    f = await fixture(browser, { page: 'tools', histEvents: [
+      {k: 'boot', l: 'info', b: 3, t: 1700000000, u: 1, m: 'Started 3.0.0 from ota_1, reset SW'},
+      {k: 'security', l: 'warn', b: 3, t: 0, u: 300, m: 'Admin login failed <img src=x onerror=alert(1)>'},
+      {k: 'crash', l: 'error', b: 2, t: 0, u: 50, m: 'Crash: task=x'}] });
+    await f.page.waitForFunction(() => document.getElementById('hist-badge').textContent === 'Off');
+    assert.equal(await f.page.locator('#hist-events-wrap').isHidden(), true);
+    assert.equal(await f.page.locator('#hist-save').isDisabled(), true);
+    await f.page.locator('#hist-card label.feature-switch', { hasText: 'Record events' }).click();
+    await f.page.locator('#hist-card label.feature-switch', { hasText: 'Record trends' }).click();
+    await f.page.locator('#hist-save').click();
+    await f.page.waitForFunction(() => document.getElementById('hist-badge').textContent === 'On');
+    assert.deepEqual(f.state.savedHistory, { events: true, metrics: true, snapshots: false });
+    await f.page.waitForFunction(() => document.querySelectorAll('#hist-tbody tr').length === 3);
+    assert.equal(await f.page.locator('#hist-tbody img').count(), 0, 'event text is escaped');
+    assert.match(await f.page.locator('#hist-tbody').textContent(), /<img src=x/);
+    assert.match(await f.page.locator('#hist-tbody tr').nth(2).textContent(), /Start 2, after/);   // no clock, other boot
+    assert.match(await f.page.locator('#hist-tbody tr').nth(1).textContent(), /5m ago/);          // no clock, this boot
+    await f.page.selectOption('#hist-filter', 'problems');
+    await f.page.waitForFunction(() => document.querySelectorAll('#hist-tbody tr').length === 2);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Trends: hidden while off; lines and rates once on.
+    f = await fixture(browser, { page: 'status' });
+    await f.page.waitForFunction(() => document.getElementById('status-updated'));
+    await f.page.waitForTimeout(300);
+    assert.equal(await f.page.locator('#trend-card').isHidden(), true, 'no trends card while off');
+    await f.context.close();
+    f = await fixture(browser, { page: 'status', histConfig: { events: false, metrics: true, snapshots: false },
+      histPoints: [[0, 3, 600, 45000, 30000, 7000000, 750000, 75000, -60, 20, 4, 3], [0, 3, 540, 46000, 31000, 7100000, 0, 0, 0, -1, 4, 1]] });
+    await f.page.waitForFunction(() => document.querySelectorAll('#trend-grid .trend').length === 8);
+    assert.equal(await f.page.locator('#trend-grid svg path').count(), 6, 'series with fewer than two values draw no line');
+    const trendText = await f.page.locator('#trend-grid').textContent();
+    assert.match(trendText, /Uplink download100\.0 kbit\/s/);   // 750000 B in 60 s
+    assert.match(trendText, /Internal RAM free43\.9 KB/);        // newest point last
+    assert.match(trendText, /Wi-Fi signal-60 dBm/);
+    await f.page.selectOption('#trend-range', 'week');
+    await f.page.waitForFunction(() => document.getElementById('trend-status').textContent.includes('One point every 1 minutes'));
+    assert.ok(f.calls.includes('/api/history'));
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Settings copies: list, escaped firmware text, restore and delete need a confirmation.
+    f = await fixture(browser, { page: 'system' });
+    f.page.on('dialog', dialog => dialog.accept());
+    await f.page.waitForFunction(() => document.getElementById('snap-badge').textContent === '1 of 3');
+    assert.equal(await f.page.locator('#snap-tbody b').count(), 0, 'firmware text escaped');
+    assert.equal(await f.page.locator('#snap-tbody button[data-snap-restore]').count(), 1);
+    await f.page.locator('#snap-take').click();
+    await f.page.waitForFunction(() => document.getElementById('snap-status').textContent.includes('only by hand'));
+    await f.page.locator('#snap-tbody button[data-snap-delete="1"]').click();
+    await f.page.locator('#snap-tbody button[data-snap-restore="1"]').click();
+    await f.page.waitForFunction(() => document.getElementById('snap-status').textContent.includes('Restarting'));
+    assert.deepEqual(f.state.snapPosts, [{ action: 'take' }, { action: 'delete', slot: 1, confirm: true }, { action: 'restore', slot: 1, confirm: true }]);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Tailnet names, notifications, dynamic DNS and the throughput test.
+    f = await fixture(browser, { page: 'tailscale' });
+    await f.page.waitForFunction(() => document.getElementById('tsn-status').textContent.startsWith('Off'));
+    await f.page.locator('#tsn-card label.feature-switch', { hasText: 'Answer tailnet names' }).click();
+    await f.page.locator('#tsn-save').click();
+    await f.page.waitForFunction(() => document.getElementById('tsn-badge').textContent === 'On');
+    assert.deepEqual(f.state.savedNames, { enabled: true, lan: false });
+    assert.match(await f.page.locator('#tsn-status').textContent(), /5 tailnet peers known/);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    f = await fixture(browser, { page: 'automation' });
+    await f.page.waitForFunction(() => document.getElementById('nt-status').textContent === 'Off.');
+    assert.match(await f.page.locator('#nt-tg-status').textContent(), /401: Unauthorized/);
+    await f.page.locator('#nt-card label.feature-switch', { hasText: 'Send to Telegram' }).click();
+    await f.page.fill('#nt-tg-token', '123456789:AAH4kq_ZXcvbnm-1234567890qwertyuiopASD');
+    await f.page.fill('#nt-tg-chat', ' 42 ');
+    await f.page.locator('#nt-save').click();
+    await f.page.waitForFunction(() => document.getElementById('nt-badge').textContent === 'On');
+    assert.equal(f.state.savedNotify.telegram.token, '123456789:AAH4kq_ZXcvbnm-1234567890qwertyuiopASD');
+    assert.equal(f.state.savedNotify.telegram.chat, '42'); assert.equal(f.state.savedNotify.email.password, '');
+    assert.equal(await f.page.inputValue('#nt-tg-token'), '', 'token cleared from the form');
+    assert.equal(await f.page.getAttribute('#nt-tg-token', 'placeholder'), 'Saved — leave empty to keep');
+    await f.page.selectOption('#nt-mail-security', 'starttls');
+    assert.equal(await f.page.inputValue('#nt-mail-port'), '587', 'STARTTLS suggests port 587');
+    await f.page.locator('#nt-test-tg').click();
+    await f.page.waitForFunction(() => document.getElementById('nt-status').textContent.includes('queued'));
+    assert.deepEqual(f.state.notifyTest, { channel: 'telegram' });
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    f = await fixture(browser, { page: 'network' });
+    await f.page.waitForFunction(() => document.getElementById('ddns-status').textContent === 'Off.');
+    await f.page.selectOption('#ddns-provider', 'duckdns');
+    assert.equal(await f.page.locator('#ddns-zone').isHidden(), true); assert.equal(await f.page.locator('#ddns-url').isHidden(), true);
+    assert.equal(await f.page.locator('#ddns-name-label').textContent(), 'Sub-domain');
+    await f.page.fill('#ddns-name', 'myhome'); await f.page.fill('#ddns-token', 'a7c4d2e1-0b3f-4c5d-9e8f-1234567890ab');
+    await f.page.locator('#ddns-save').click();
+    await f.page.waitForFunction(() => document.getElementById('ddns-token').value === '');
+    assert.deepEqual(f.state.savedDdns, { provider: 'duckdns', name: 'myhome', zone: '', token: 'a7c4d2e1-0b3f-4c5d-9e8f-1234567890ab', url: '', update_now: false });
+    await f.page.selectOption('#ddns-provider', 'custom');
+    assert.equal(await f.page.locator('#ddns-url').isVisible(), true); assert.equal(await f.page.locator('#ddns-name').isHidden(), true);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    f = await fixture(browser, { page: 'tools' });
+    await f.page.waitForSelector('#thr-start');
+    await f.page.fill('#thr-url', 'http://100.64.0.7/big.iso');
+    await f.page.locator('#thr-start').click();
+    await f.page.waitForFunction(() => document.getElementById('thr-status').textContent.includes('time limit reached'), null, { timeout: 8000 });
+    assert.deepEqual(f.state.savedSpeed, { url: 'http://100.64.0.7/big.iso', seconds: 10 });
+    assert.match(await f.page.locator('#thr-status').textContent(), /12\.0 MB in 10\.0 s — 10\.07 Mbit\/s/);
+    assert.equal(await f.page.locator('#thr-start').isDisabled(), false);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }

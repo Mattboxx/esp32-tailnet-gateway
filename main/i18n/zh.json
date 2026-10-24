@@ -1457,5 +1457,7 @@
  "Not started: {}": "未启动：{}",
  "Not completed: {}": "未完成：{}",
  "No data: {}": "无数据：{}",
- "Throughput test: {} Mbit/s over {} KB": "吞吐量测试：{} Mbit/s，共 {} KB"
+ "Throughput test: {} Mbit/s over {} KB": "吞吐量测试：{} Mbit/s，共 {} KB",
+ "History, trends, settings copies and Telegram, email or ntfy notifications.": "历史、趋势、设置副本，以及 Telegram、电子邮件或 ntfy 通知。",
+ "Monitor the gateway and get alerts": "监控网关并接收警报"
 }
