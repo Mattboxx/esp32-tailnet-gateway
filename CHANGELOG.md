@@ -4,7 +4,17 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.3] — 2026-10-24
+## [2.0.4] — 2026-10-24
+
+### Improved
+
+- The Service Gateway card on the Status page appears only while a service
+  rule is **enabled** or temporary access is open. Choosing the role during
+  setup, or saving a disabled rule, no longer brings it back.
+- iPhone and iPad: the sign-in, password and setup screens no longer show the
+  dashboard underneath when the on-screen keyboard opens.
+
+## [2.0.3] — 2026-10-24 (beta)
 
 ### Improved
 

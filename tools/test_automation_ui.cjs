@@ -239,11 +239,17 @@ async function main() {
     await f.page.locator('#authLogin').waitFor({ state: 'visible' });
     assert.equal(f.calls.includes('/api/mqtt'), false);
     assert.equal(f.calls.includes('/api/ntfy'), false);
+    // Nothing of the dashboard is rendered behind the sign-in screen (iOS keyboard scroll).
+    assert.equal(await f.page.evaluate(() => document.body.classList.contains('auth-open')
+      && getComputedStyle(document.querySelector('.page-container')).visibility === 'hidden'
+      && getComputedStyle(document.querySelector('.nav')).visibility === 'hidden'
+      && getComputedStyle(document.body).overflow === 'hidden'), true);
     f.state.authenticated = true;
     await f.page.evaluate(() => { window.loginPasswordRequest = () => Promise.resolve({ ok: true }); });
     await f.page.locator('#login-pw').fill('synthetic-password');
     await f.page.locator('#loginSubmitBtn').click();
     await loaded(f.page);
+    assert.equal(await f.page.evaluate(() => document.body.classList.contains('auth-open')), false);
     assert.equal(f.calls.filter(url => url === '/api/wol').length, 1);
     assert.equal(await f.page.locator('#mqtt-watchdog-target').inputValue(), mqtt.broker_watchdog_wol_mac);
     assert.deepEqual(f.errors, []);
@@ -735,9 +741,12 @@ async function main() {
     assert.equal(await f.page.locator('.tf-test').isDisabled(),false);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Primary guide runs one destination test inline from "Check result".
+    // A saved but disabled rule does not bring the home card back.
     f=await fixture(browser,{page:'status',forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
     await f.page.waitForFunction(()=>document.getElementById('wizard-list').children.length===13);
-    await f.page.locator('#sg-home-guide').click();
+    await f.page.waitForFunction(()=>document.getElementById('sg-home-badge').textContent==='1 / 8');
+    assert.equal(await f.page.locator('#sg-home-card').isHidden(),true);
+    await f.page.locator('#goal-grid .goal-tile.primary').click();
     await f.page.waitForFunction(()=>!document.getElementById('wizard-checks').textContent.includes('checking'));
     assert.match(await f.page.locator('#wizard-checks').textContent(),/✓ A free service rule slot/);
     await f.page.locator('#wizard-exposure').check();await f.page.locator('#wizard-start').click();
@@ -762,20 +771,21 @@ async function main() {
     await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&document.getElementById('wizard-title').textContent==='Publish a Tailnet service to the LAN');
     assert.equal(await f.page.locator('#wizard-exposure-row').isHidden(),false);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
-    // Role chosen in the first-boot wizard: the home card is shown before any rule exists.
+    // Role chosen in the first-boot wizard: recommended in the goal launcher only;
+    // the home card still waits for an enabled rule.
     f=await fixture(browser,{page:'status',systemBody:{web_auth_enabled:true,session_timeout_s:0,wifi_power_save:false,wifi_power_save_active:false,wifi_power_save_known:true,setup_roles:'lan-tailnet'}});
-    await f.page.waitForFunction(()=>!document.getElementById('sg-home-card').hidden);
-    assert.match(await f.page.locator('#sg-home-summary').textContent(),/No service rules yet/);
+    await f.page.waitForFunction(()=>document.getElementById('sg-home-summary').textContent.startsWith('No service rules yet'));
+    assert.equal(await f.page.locator('#sg-home-card').isHidden(),true);
     // The chosen role is only recommended: no guide opens by itself at sign-in.
     await f.page.waitForFunction(()=>document.querySelector('#goal-grid .goal-tile.recommended'));
     assert.equal(await f.page.locator('#wizard-panel').isHidden(),true);
     // The exposure acknowledgement is asked once per browser, then remembered.
-    await f.page.locator('#sg-home-guide').click();
+    await f.page.locator('#goal-grid .goal-tile.primary').click();
     await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden);
     assert.equal(await f.page.locator('#wizard-exposure').isChecked(),false);
     await f.page.locator('#wizard-exposure').check();
     await f.page.locator('#wizard-close').click();
-    await f.page.locator('#sg-home-guide').click();
+    await f.page.locator('#goal-grid .goal-tile.primary').click();
     await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&!document.getElementById('wizard-checks').textContent.includes('checking'));
     assert.equal(await f.page.locator('#wizard-exposure').isChecked(),true);
     assert.equal(await f.page.locator('#wizard-start').isDisabled(),false);
@@ -819,6 +829,7 @@ async function main() {
     f=await fixture(browser,{page:'status',forwardBody:{rules:[{index:0,rule_token:5,name:'NAS',enabled:true,installed:true,protocol:'tcp',listen_port:15001,tailnet_destination:'100.64.0.9',destination_port:5001,allowed_source_subnet:'192.168.1.20/32',accepted_packets:3,blocked_packets:0,error:''}],max:8},
       leasesBody:[{index:0,rule_token:5,temporary:true,effective_enabled:true,remaining_s:840,status:'active'},{index:1,rule_token:6,temporary:true,effective_enabled:false,remaining_s:0,status:'expired'}]});
     await f.page.waitForFunction(()=>document.getElementById('sg-home-summary').textContent.includes('temporary'));
+    assert.equal(await f.page.locator('#sg-home-card').isHidden(),false); // an enabled rule shows the card
     assert.match(await f.page.locator('#sg-home-summary').textContent(),/1 rule\(s\) · 1 enabled · 1 installed .* 1 temporary rule\(s\) open; the next closes in 14 min\./);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // ntfy system events are opt-in and saved with the rest of the card.
