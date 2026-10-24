@@ -115,6 +115,8 @@ async function fixture(browser, options = {}) {
       else body = { settings: state.tailscaleSettings || {}, runtime: state.tailscaleRuntime || {}, peers: [] };
     } else if (url.pathname === '/api/status') {
       body = state.statusBody || {};
+    } else if (url.pathname === '/api/network' && state.networkBody) {
+      body = state.networkBody;
     } else if (url.pathname === '/api/tailnet-forward/import') {
       const input=route.request().postDataJSON();
       if(state.importDelay)await new Promise(resolve=>setTimeout(resolve,state.importDelay));
@@ -254,6 +256,25 @@ async function main() {
     assert.equal(await f.page.locator('#mqtt-watchdog-target').inputValue(), mqtt.broker_watchdog_wol_mac);
     assert.deepEqual(f.errors, []);
     await f.context.close(); count++;
+    // Status refresh: no read while the browser tab is hidden; a stale page
+    // refreshes once on return, a fresh one does not.
+    f = await fixture(browser, { page: 'status' });
+    await f.page.waitForFunction(() => /^Last updated \d/.test(document.getElementById('status-updated').textContent));
+    const statusReads = () => f.calls.filter(p => p === '/api/status').length;
+    const setHidden = hidden => f.page.evaluate(h => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+      document.dispatchEvent(new Event('visibilitychange'));
+    }, hidden);
+    let reads = statusReads();
+    await setHidden(false); await f.page.waitForTimeout(300);
+    assert.equal(statusReads(), reads, 'fresh page must not refresh on return');
+    await f.page.evaluate(() => { s_status_fetched = 0; });
+    await setHidden(true); await f.page.waitForTimeout(300);
+    assert.equal(statusReads(), reads, 'hidden page must not read status');
+    await setHidden(false);
+    await f.page.waitForTimeout(300);
+    assert.equal(statusReads(), reads + 1);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Tabs follow overview → connectivity → protection → services → tools → admin,
     // and every tab has an icon.
     f = await fixture(browser);
@@ -670,6 +691,38 @@ async function main() {
     await f.page.locator('#ops-refresh').click();await f.page.waitForFunction(()=>!document.getElementById('ops-settings-save').disabled);
     for(const button of await f.page.locator('#ops-devices button').all()) assert.equal(await button.isDisabled(),false);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // A running check is followed live: badges and the job line update without
+    // a reload, unsaved edits stay, and polling stops when the job ends.
+    const liveDevice={index:0,mac:'02:00:00:00:00:01',name:'Fixture',target:'',monitor:false,notify:false,host_port:22,service_port:0,timeout_s:60,interval_s:60,max_checks:10,kind:0,scope:0,state:'idle',latency_ms:0};
+    const liveBody=(state,device)=>({devices:[{...liveDevice,...device}],events:[],monitoring:false,guard:false,remote_commands:false,recovery_state:state,device_index:0,packet_sent:false,
+      host_verified:state==='reachable',service_verified:false,minimum_internal:16384,minimum_largest:8192,socket_reserve:4,interval_s:60});
+    f=await fixture(browser,{page:'operations',operationsBody:liveBody('checking-service',{})});
+    await f.page.waitForFunction(()=>!document.getElementById('ops-settings-save').disabled);
+    const liveBadge=f.page.locator('#ops-devices .card-header .badge');
+    assert.equal(await liveBadge.textContent(),'Checking the service…');
+    assert.equal(await f.page.locator('#ops-cancel').isDisabled(),false);
+    // Empty fields show an example; optional port 0 is an empty field.
+    assert.equal(await f.page.locator('#ops-devices input[type=text]').getAttribute('placeholder'),'e.g. 192.168.1.20 or nas.lan');
+    assert.equal(await f.page.locator('#ops-devices input[type=number]').nth(1).inputValue(),'');
+    assert.equal(await f.page.locator('#ops-devices .form-hint').count(),8);
+    assert.equal(await f.page.locator('#health-gateway-port').inputValue(),'');
+    assert.equal(await f.page.locator('#health-dns').getAttribute('placeholder'),'e.g. example.com');
+    await f.page.locator('#ops-devices input[type=text]').fill('draft.example');
+    const pollsBefore=f.calls.filter(p=>p==="/api/operations").length;
+    f.state.operationsBody=liveBody('reachable',{state:'reachable',latency_ms:12});
+    await f.page.waitForFunction(()=>document.querySelector('#ops-devices .card-header .badge').textContent==='Reachable · 12 ms',null,{timeout:6000});
+    assert.match(await liveBadge.getAttribute('class'),/badge-success/);
+    assert.match(await f.page.locator('#ops-job').textContent(),/Recovery: reachable/);
+    assert.equal(await f.page.locator('#ops-devices input[type=text]').inputValue(),'draft.example');
+    assert.equal(await f.page.locator('#ops-cancel').isDisabled(),true);
+    const pollsAfter=f.calls.filter(p=>p==="/api/operations").length;
+    await f.page.waitForTimeout(2600);
+    assert.equal(f.calls.filter(p=>p==='/api/operations').length,pollsAfter,'polling must stop once the job ends');
+    assert.ok(pollsAfter>pollsBefore);
+    // Saving connectivity checks sends 0 for an empty optional port.
+    await f.page.locator('#health-save').click();await f.page.waitForFunction(()=>!document.getElementById('ops-refresh').disabled);
+    assert.equal(f.state.savedOperation.gateway_port,0);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
     f=await fixture(browser,{page:'operations'});
     await f.page.waitForFunction(()=>!document.getElementById('health-save').disabled);
     await f.page.locator('label:has(#health-enabled)').click();assert.equal(await f.page.locator('#health-enabled').isChecked(),true);await f.page.locator('#health-dns').fill('operator.example');
@@ -842,6 +895,26 @@ async function main() {
     assert.equal(await f.page.locator('#ap-clients-badge').textContent(),'Standby');
     assert.equal(await f.page.locator('#glance-memory .glance-label').textContent(),'Free internal RAM');
     assert.equal(await f.page.locator('#sys-mem-internal-bar').evaluate(e=>e.style.background),'var(--success)');
+    // "Change" opens the hostname field, which previews the .local address it gives.
+    f.state.networkBody={hostname:'',lan_name:'esp32-tailnet-1a2b',lan_name_default:'esp32-tailnet-1a2b',networks:[],sta_ttl_override:0};
+    await f.page.locator('#uplink-lan-name-edit').click();
+    await f.page.waitForFunction(()=>location.hash==='#network'&&document.activeElement&&document.activeElement.id==='net-hostname');
+    const preview=f.page.locator('#net-hostname-preview');
+    await f.page.waitForFunction(()=>document.getElementById('net-hostname-preview').textContent!=='');
+    assert.equal(await preview.textContent(),'Address on your network: http://esp32-tailnet-1a2b.local/');
+    assert.equal(await f.page.locator('#net-hostname').getAttribute('placeholder'),'esp32-tailnet-1a2b');
+    await f.page.locator('#net-hostname').fill('NAS-Gateway');
+    assert.equal(await preview.textContent(),'Address on your network after a restart: http://nas-gateway.local/');
+    await f.page.locator('#net-hostname').fill('a'.repeat(33));
+    assert.equal(await preview.textContent(),'Longer than 32 characters: the .local address stays esp32-tailnet-1a2b.local');
+    await f.page.locator('#net-hostname').fill('bad_name');
+    assert.equal(await preview.textContent(),'Address on your network: http://esp32-tailnet-1a2b.local/');
+    assert.equal(await f.page.locator('#net-hostname-save').isDisabled(),true);
+    // After a saved rename the active name stays until the restart.
+    f.state.networkBody={...f.state.networkBody,hostname:'nas-gateway'};
+    await f.page.evaluate(()=>loadNetwork());
+    await f.page.waitForFunction(()=>document.getElementById('net-hostname').value==='nas-gateway');
+    assert.equal(await preview.textContent(),'Address on your network after a restart: http://nas-gateway.local/');
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     f=await fixture(browser,{page:'status',statusBody:{sta:{connected:true},ap:{enabled:false,auto_off_when_connected:false},mem_internal_free:6144,mem_internal_total:380000}});
     await f.page.waitForFunction(()=>document.getElementById('ap-runtime-status').textContent==='Disabled');

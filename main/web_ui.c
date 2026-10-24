@@ -380,7 +380,7 @@ static esp_err_t status_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(sta, "bytes_out", (double)netif_hooks_get_sta_bytes_out());
     {
         char lan[LAN_NAME_MAX + 1];
-        lan_name_get(lan, sizeof lan);
+        lan_name_active(lan, sizeof lan);
         cJSON_AddStringToObject(sta, "lan_name", lan);   /* "<lan_name>.local" on the uplink */
     }
     cJSON_AddItemToObject(root, "sta", sta);
@@ -555,13 +555,16 @@ static esp_err_t network_handler(httpd_req_t *req)
     }
     cJSON_AddItemToObject(root, "networks", nets);
 
-    /* Hostname is a device-wide setting (not per-network). lan_name is what
-     * the board actually uses (saved hostname or its esp32-tailnet-xxxx). */
+    /* Hostname is a device-wide setting (not per-network). lan_name is the
+     * name answering now (a newly saved hostname applies after a restart);
+     * lan_name_default is the per-board name used when none is saved. */
     add_nvs_string(root, "hostname", "hostname");
     {
         char lan[LAN_NAME_MAX + 1];
-        lan_name_get(lan, sizeof lan);
+        lan_name_active(lan, sizeof lan);
         cJSON_AddStringToObject(root, "lan_name", lan);
+        lan_name_default(lan, sizeof lan);
+        cJSON_AddStringToObject(root, "lan_name_default", lan);
     }
 
     /* STA TTL hop-limit override — 0 means passthrough (no rewrite),

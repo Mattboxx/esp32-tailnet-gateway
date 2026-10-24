@@ -54,6 +54,20 @@ void lan_name_get(char *out, size_t cap)
 static char s_name[LAN_NAME_MAX + 1];
 static bool s_added;
 
+void lan_name_default(char *out, size_t cap)
+{
+    uint8_t mac[6] = {0};
+    (void)esp_read_mac(mac, ESP_MAC_WIFI_SOFTAP);
+    lan_name_from(NULL, mac, out, cap);
+}
+
+void lan_name_active(char *out, size_t cap)
+{
+    /* s_name is written once, before the responder starts, and never again. */
+    if (s_name[0] && cap > 0) snprintf(out, cap, "%s", s_name);
+    else lan_name_get(out, cap);
+}
+
 static void name_result(struct netif *netif, u8_t result, s8_t slot)
 {
     (void)netif; (void)slot;

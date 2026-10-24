@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.4] — beta 1, 2026-10-24
+## [2.0.4] — beta 2, 2026-10-24
 
 ### Improved
 
@@ -24,6 +24,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   header with its state. In simple mode the guard thresholds are an advanced
   setting and the connectivity checks card keeps its title.
 - Field rows on Network, Automation and System use the same column layout.
+- Devices & Recovery: *Check now* and *Recover with WoL* show the result live.
+  While a job runs the page re-reads its state every 2 s, updates only the
+  device badge and job line (unsaved edits stay), and stops when the job ends.
+  Badges read *Reachable · 12 ms*, *Not reachable*, *Checking the service…*.
+- Devices & Recovery: every field explains what it is for and shows an
+  example while empty; optional ports are empty instead of 0.
+- The `.local` name is easier to change: *Change* next to *Name on this
+  network* on the Status page opens the hostname field, which previews the
+  address it gives and says when a restart is needed. Status and Network show
+  the name that answers now until the restart.
+- Status refresh pauses while the browser tab is hidden and catches up at once
+  when you return, instead of waiting up to 30 s.
 
 ## [2.0.3] — 2026-10-24 (beta)
 
