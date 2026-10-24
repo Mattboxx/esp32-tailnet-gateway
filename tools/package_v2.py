@@ -7,7 +7,8 @@ Outputs build/release-v<version>/:
   ESP32-Tailnet-Gateway-v<version>-EASY-INSTALL-Windows-macOS-Linux.zip
       guided scripts for Windows (bundled esptool.exe) and macOS/Linux
   assets/        files to attach to the GitHub release (firmware.bin keeps its
-                 name for the updater)
+                 name for the updater; bootloader.bin and partitions.bin for
+                 the 2.1 migration bridge)
   web-installer/ files for website/firmware/<version>/ (ESP Web Tools)
 
 Never rebuilds: the tested image must match --tested-sha256 (ADR-026). No NVS
@@ -171,6 +172,12 @@ def main():
     assets = out / 'assets'
     assets.mkdir()
     shutil.copyfile(a.wifi_dir / 'firmware.bin', assets / 'firmware.bin')
+    # The 2.1 bridge moves 2.x gateways to the 3.x layout with these two files
+    # (it checks their digests from the release API and their contents).
+    shutil.copyfile(a.wifi_dir / 'bootloader.bin', assets / 'bootloader.bin')
+    shutil.copyfile(a.wifi_dir / 'partitions.bin', assets / 'partitions.bin')
+    table = (assets / 'partitions.bin').read_bytes()
+    assert table[4 * 32:4 * 32 + 12] == bytes.fromhex('aa50001100003a0000003800'), 'partitions.bin is not the 3.x layout'
     shutil.copyfile(factory, assets / factory.name)
     shutil.copyfile(easy_zip, assets / easy_zip.name)
     shutil.copyfile(pkg / 'FIRMWARE-LICENSES.txt', assets / 'FIRMWARE-LICENSES.txt')
