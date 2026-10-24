@@ -19,7 +19,7 @@ const runs = [['desktop-adv', 1440, 900, true], ['desktop-simple', 1440, 900, fa
     for (const [label, width, height, advanced] of runs) {
       const touch = width < 768;
       const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale: 'en-US' });
-      await context.addInitScript(a => { try { localStorage.setItem('ui-advanced', a ? '1' : '0'); localStorage.setItem('setup-roles-opened', 'x'); } catch (e) {} }, advanced);
+      await context.addInitScript(a => { try { localStorage.setItem('ui-advanced', a ? '1' : '0'); } catch (e) {} }, advanced);
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', e => errors.push(e.message));

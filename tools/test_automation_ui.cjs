@@ -766,6 +766,19 @@ async function main() {
     f=await fixture(browser,{page:'status',systemBody:{web_auth_enabled:true,session_timeout_s:0,wifi_power_save:false,wifi_power_save_active:false,wifi_power_save_known:true,setup_roles:'lan-tailnet'}});
     await f.page.waitForFunction(()=>!document.getElementById('sg-home-card').hidden);
     assert.match(await f.page.locator('#sg-home-summary').textContent(),/No service rules yet/);
+    // The chosen role is only recommended: no guide opens by itself at sign-in.
+    await f.page.waitForFunction(()=>document.querySelector('#goal-grid .goal-tile.recommended'));
+    assert.equal(await f.page.locator('#wizard-panel').isHidden(),true);
+    // The exposure acknowledgement is asked once per browser, then remembered.
+    await f.page.locator('#sg-home-guide').click();
+    await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden);
+    assert.equal(await f.page.locator('#wizard-exposure').isChecked(),false);
+    await f.page.locator('#wizard-exposure').check();
+    await f.page.locator('#wizard-close').click();
+    await f.page.locator('#sg-home-guide').click();
+    await f.page.waitForFunction(()=>!document.getElementById('wizard-panel').hidden&&!document.getElementById('wizard-checks').textContent.includes('checking'));
+    assert.equal(await f.page.locator('#wizard-exposure').isChecked(),true);
+    assert.equal(await f.page.locator('#wizard-start').isDisabled(),false);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Templates: risk hint, first free listen port per protocol, UDP template.
     f=await fixture(browser,{page:'network'});

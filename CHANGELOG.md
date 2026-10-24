@@ -24,6 +24,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   TTL override moved to the advanced settings; the LAN → Tailnet card is named
   *LAN → Tailnet service gateway*.
 - Long values in status rows wrap at natural points instead of mid-word on phones.
+- No guide opens by itself at sign-in any more: the roles chosen during setup
+  are highlighted in *What do you want to do?*. The exposure acknowledgement
+  of a guide is asked once per browser; new service rules still start disabled.
 - New strings translated into Italian, Spanish and Simplified Chinese.
 
 ## [2.0.2] — 2026-10-23
