@@ -132,7 +132,7 @@ class UpstreamIntegrationTests(unittest.TestCase):
         self.assertNotIn('Csontikka', source + validation)
         self.assertIn('.crt_bundle_attach = esp_crt_bundle_attach', source)
         self.assertIn('.disable_auto_redirect = true', source)
-        self.assertIn('ota_download_url_allowed(b.location)', source)
+        self.assertIn('ota_download_url_allowed_for(b.location, state.asset)', source)
         installer = source.split('static OTA_NOINLINE bool install_release', 1)[1].split('static void worker', 1)[0]
         self.assertLess(installer.index('image_matches('), installer.index('ota_flash_begin('))
         self.assertLess(installer.index('memcmp(actual, s_digest'), installer.index('ota_flash_set_boot_partition('))
