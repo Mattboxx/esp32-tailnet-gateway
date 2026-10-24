@@ -70,6 +70,7 @@
 #include "tailnet_forward.h"
 #include "mac_deny.h"
 #include "history.h"
+#include "tailnet_names.h"
 #include "settings_snapshot.h"
 #include "reset_history.h"
 #include "ota.h"
@@ -499,6 +500,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                  (int)s_manual_scan_active,
                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+        tailnet_names_uplink(0);
         if (ap_connect)
             history_event(HIST_EV_UPLINK, HIST_WARN, "Wi-Fi uplink lost (reason %u)", event ? (unsigned)event->reason : 0);
         ap_connect = 0;
@@ -540,6 +542,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             s_setup_test = FB_WIFI_OK;
         }
         history_event(HIST_EV_UPLINK, HIST_INFO, "Wi-Fi uplink connected, " IPSTR, IP2STR(&event->ip_info.ip));
+        tailnet_names_uplink(event->ip_info.ip.addr);
         s_retry_num = 0;
         s_net_retries = 0;   /* successful association — clear the rotation counter */
         ap_connect = 1;
@@ -942,6 +945,7 @@ void app_main(void)
      * (re-)bind. Loads enable + upstream-override from NVS itself. */
     dns_relay_init();
     dns_relay_set_state_cb(dns_relay_state_cb);
+    tailnet_names_init();   /* off by default: the relay is unchanged */
 
     /* If a core dump was saved on the previous boot, extract a one-line
      * summary (task name + PC + first backtrace frames) for the local

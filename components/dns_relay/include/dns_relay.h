@@ -77,6 +77,18 @@ typedef struct {
 
 void dns_relay_get_stats(dns_relay_stats_t *out);
 
+/* Optional listener on the uplink (LAN) address, for LAN devices that use
+ * this gateway as their resolver. Off by default; `ip_nbo` is the current
+ * uplink address (0 while it has none). */
+void dns_relay_set_lan(bool on, uint32_t ip_nbo);
+bool dns_relay_lan_listening(void);
+
+/* Optional local resolver tried before the cache: returns the length of a
+ * complete response written to `out`, or 0 to forward the query as usual.
+ * Runs on the relay listener task; must not block. NULL = none (default). */
+typedef int (*dns_relay_local_cb_t)(const uint8_t *query, int len, uint8_t *out, int cap);
+void dns_relay_set_local_resolver(dns_relay_local_cb_t cb);
+
 #ifdef __cplusplus
 }
 #endif

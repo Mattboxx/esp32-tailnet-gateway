@@ -13,7 +13,7 @@ import sys
 
 ROOT=Path(__file__).resolve().parents[1]
 DRIVERS='release_packaging device_session feature_preservation upstream_033 upstream_038 ntfy_stack ntfy_logic ntfy_transport ntfy_stream snmp_codec route_hook netif_hooks runtime_recovery portmap forwarding_transactions web_port tailnet_filter tailnet_state tailnet_api tailnet_core tailnet_sdk peer_dns ota_remote gateway_operations tailnet_authorization peer_convergence policy_protocols policy_reassembly ops_core ops_api service_lease health_monitor development_plan candidate_observer'.split()
-DRIVERS+=['json_guard','service_transfer','service_retry','capabilities','mqtt_discovery','web_security','config_profiles','service_check','mqtt_state','eth_uplink','mqtt_commands','cell_uplink','layout_migration','storage_store','history_snapshot']
+DRIVERS+=['json_guard','service_transfer','service_retry','capabilities','mqtt_discovery','web_security','config_profiles','service_check','mqtt_state','eth_uplink','mqtt_commands','cell_uplink','layout_migration','storage_store','history_snapshot','tailnet_names']
 DRIVERS+=['soak_serial']
 DRIVERS+=['lab_echo']
 DRIVERS+=['coord_recovery']

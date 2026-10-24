@@ -1348,5 +1348,17 @@
  "Settings restored from copy {}": "Impostazioni ripristinate dalla copia {}",
  "Installed {} from GitHub; restarting": "Installata {} da GitHub; riavvio",
  "First start of {} after an update": "Primo avvio di {} dopo un aggiornamento",
- "{} events not recorded (too many at once)": "{} eventi non registrati (troppi insieme)"
+ "{} events not recorded (too many at once)": "{} eventi non registrati (troppi insieme)",
+ "Also answer devices on the home network": "Rispondi anche ai dispositivi della rete di casa",
+ "Answer tailnet names": "Rispondi ai nomi della tailnet",
+ "Devices on this gateway's access point can reach tailnet peers by name:": "I dispositivi sull'access point di questo gateway possono raggiungere i peer della tailnet per nome:",
+ "Listens for DNS on the WiFi uplink address too. Useful only for LAN devices that use this gateway as their DNS server and reach 100.64.0.0/10 through it (a route on your router); all their other lookups are forwarded as well.": "Ascolta il DNS anche sull'indirizzo dell'uplink WiFi. Utile solo per i dispositivi LAN che usano questo gateway come server DNS e raggiungono 100.64.0.0/10 attraverso di esso (una rotta sul tuo router); anche tutte le loro altre ricerche vengono inoltrate.",
+ "Needs the access-point DNS relay (Network). Names of all peers in the tailnet become visible to the devices that ask.": "Richiede il relay DNS dell'access point (Rete). I nomi di tutti i peer della tailnet diventano visibili ai dispositivi che li chiedono.",
+ "Off: name lookups are forwarded as before.": "Disattivato: le ricerche dei nomi vengono inoltrate come prima.",
+ "On, but the DNS relay is off: switch it on under Network.": "Attivo, ma il relay DNS è spento: attivalo in Rete.",
+ "Tailnet names for local devices": "Nomi della tailnet per i dispositivi locali",
+ "resolves to the peer's 100.x address, without a Tailscale client on the device. Unknown names inside the tailnet domain are answered \"not found\" and never sent to the public resolver. A name is not access: reaching the peer still depends on this gateway's routes, firewall and the tailnet policy. Off by default.": "si risolve nell'indirizzo 100.x del peer, senza un client Tailscale sul dispositivo. Ai nomi sconosciuti nel dominio della tailnet si risponde \"non trovato\" e non vengono mai inviati al resolver pubblico. Un nome non è un accesso: raggiungere il peer dipende comunque dalle rotte, dal firewall di questo gateway e dalla policy della tailnet. Disattivato di default.",
+ "{} tailnet peers known.": "{} peer della tailnet conosciuti.",
+ "Also listening on the uplink address.": "In ascolto anche sull'indirizzo dell'uplink.",
+ "Waiting for the uplink address.": "In attesa dell'indirizzo dell'uplink."
 }

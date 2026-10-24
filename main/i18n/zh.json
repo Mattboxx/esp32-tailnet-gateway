@@ -1361,5 +1361,17 @@
  "Settings restored from copy {}": "已从副本 {} 恢复设置",
  "Installed {} from GitHub; restarting": "已从 GitHub 安装 {}；正在重启",
  "First start of {} after an update": "更新后首次启动 {}",
- "{} events not recorded (too many at once)": "{} 个事件未记录（同时过多）"
+ "{} events not recorded (too many at once)": "{} 个事件未记录（同时过多）",
+ "Also answer devices on the home network": "同时回应家庭网络中的设备",
+ "Answer tailnet names": "解析 tailnet 名称",
+ "Devices on this gateway's access point can reach tailnet peers by name:": "连接到此网关接入点的设备可以按名称访问 tailnet 对等节点：",
+ "Listens for DNS on the WiFi uplink address too. Useful only for LAN devices that use this gateway as their DNS server and reach 100.64.0.0/10 through it (a route on your router); all their other lookups are forwarded as well.": "也在 WiFi 上行地址上监听 DNS。仅适用于把此网关用作 DNS 服务器并通过它访问 100.64.0.0/10（需在路由器上添加路由）的局域网设备；它们的其他查询也会被转发。",
+ "Needs the access-point DNS relay (Network). Names of all peers in the tailnet become visible to the devices that ask.": "需要接入点 DNS 中继（网络）。tailnet 中所有对等节点的名称对查询的设备可见。",
+ "Off: name lookups are forwarded as before.": "已关闭：名称查询像以前一样转发。",
+ "On, but the DNS relay is off: switch it on under Network.": "已开启，但 DNS 中继已关闭：请在 网络 中开启。",
+ "Tailnet names for local devices": "本地设备的 tailnet 名称",
+ "resolves to the peer's 100.x address, without a Tailscale client on the device. Unknown names inside the tailnet domain are answered \"not found\" and never sent to the public resolver. A name is not access: reaching the peer still depends on this gateway's routes, firewall and the tailnet policy. Off by default.": "会解析为该对等节点的 100.x 地址，设备上无需 Tailscale 客户端。tailnet 域内的未知名称会返回“未找到”，绝不发送到公共解析器。名称不等于访问权限：能否访问对等节点仍取决于此网关的路由、防火墙和 tailnet 策略。默认关闭。",
+ "{} tailnet peers known.": "已知 {} 个 tailnet 对等节点。",
+ "Also listening on the uplink address.": "也在上行地址上监听。",
+ "Waiting for the uplink address.": "正在等待上行地址。"
 }
