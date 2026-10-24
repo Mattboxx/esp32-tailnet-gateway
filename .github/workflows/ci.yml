@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        env: [esp32-s3, esp32-s3-eth]
+        env: [esp32-s3, esp32-s3-eth, esp32-s3-it, esp32-s3-es, esp32-s3-zh]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,9 +43,9 @@ jobs:
         run: python -m pip install platformio==6.1.18
       - name: Build
         run: |
-          # eth_sdkconfig.py derives Ethernet from the generated WiFi config.
+          # variant_sdkconfig.py derives Ethernet and language variants from the generated WiFi config.
           # Matrix jobs have separate clean checkouts, not a shared sdkconfig.
-          if [ "${{ matrix.env }}" = "esp32-s3-eth" ]; then
+          if [ "${{ matrix.env }}" != "esp32-s3" ]; then
             pio run -e esp32-s3
           fi
           pio run -e ${{ matrix.env }}

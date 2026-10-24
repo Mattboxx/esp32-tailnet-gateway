@@ -26,15 +26,16 @@ file(GLOB _i18n_files "${CMAKE_CURRENT_LIST_DIR}/i18n/*.json")
 if(_i18n_files)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_i18n_files})
 endif()
-# The experimental W5500 image serves the UI in English only: with the
-# translations it exceeded the 1920 KiB app partition (2.0.1, by 10 KiB).
-# A separate generated file keeps a WiFi build from reusing that page.
-if(CONFIG_ETH_SPI_ETHERNET_W5500)
+# One Web UI language per image keeps flash free: the standard image and the
+# experimental W5500 image are English only; a language variant
+# (CONFIG_TSR_UI_LANGUAGE) adds one translation to English. Each variant has
+# its own generated file so builds never reuse another variant's page.
+if(CONFIG_ETH_SPI_ETHERNET_W5500 OR NOT CONFIG_TSR_UI_LANGUAGE OR CONFIG_TSR_UI_LANGUAGE STREQUAL "en")
     set(_index_flags "--english-only")
     set(_index_c "index_html_data_en.c")
 else()
-    set(_index_flags "")
-    set(_index_c "index_html_data.c")
+    set(_index_flags "--lang" "${CONFIG_TSR_UI_LANGUAGE}")
+    set(_index_c "index_html_data_${CONFIG_TSR_UI_LANGUAGE}.c")
 endif()
 find_package(Python3 REQUIRED)
 execute_process(

@@ -8,6 +8,7 @@
 typedef struct {
     bool enabled, auto_install, beta_channel;
     int install_hour; /* -1 immediate, 0..23 local time */
+    char language[4]; /* Web UI language variant to install: "en", "it", ... */
 } ota_remote_config_t;
 typedef struct {
     ota_remote_config_t config;
@@ -16,13 +17,15 @@ typedef struct {
     unsigned progress;
     uint8_t repo; /* ota_repo() index that answered the last release check */
     char latest_version[32], status[96], release_url[192];
+    char asset[24]; /* release asset of the found update */
 } ota_remote_state_t;
 
 void ota_remote_init(void);
 void ota_remote_get_state(ota_remote_state_t *out);
 esp_err_t ota_remote_set_config(const ota_remote_config_t *config);
 esp_err_t ota_remote_request(bool install);
-/* Parser exposed to the real-C regression fixture, not to the network. */
+/* Parser exposed to the real-C regression fixture, not to the network.
+ * reinstall also accepts the running version (another language variant). */
 bool ota_remote_select_release(const cJSON *releases, const char *running,
-                               bool beta, uint32_t partition_size,
+                               bool beta, const char *asset, bool reinstall, uint32_t partition_size,
                                char tag[32], uint32_t *size, unsigned char digest[32]);

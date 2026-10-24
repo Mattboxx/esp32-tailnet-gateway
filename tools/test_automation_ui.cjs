@@ -77,7 +77,7 @@ async function fixture(browser, options = {}) {
     } else if (url.pathname === '/api/system/updates') {
       if (route.request().method() === 'POST') {
         state.savedUpdates = route.request().postDataJSON();
-        state.updatesBody = { ...updates, ...state.savedUpdates };
+        state.updatesBody = { ...(state.updatesBody || updates), ...state.savedUpdates };
       }
       if (state.updatesFailures) { state.updatesFailures--; status = 503; }
       body = state.updatesBody || updates;
@@ -463,6 +463,26 @@ async function main() {
     assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), false);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
 
+    // Firmware language: the variant GitHub installs is chosen and saved like the
+    // channel; an English-only build (Ethernet) hides the choice.
+    f = await fixture(browser, { page: 'system', updatesBody: {...updates, language: 'en', running_language: 'en', languages: ['en', 'it', 'es', 'zh']} });
+    await f.page.waitForFunction(() => !document.getElementById('sys-updates-language-group').hidden && !document.getElementById('sys-updates-language').disabled);
+    assert.deepEqual(await f.page.locator('#sys-updates-language option').allTextContents(), ['English (standard)', 'Italiano', 'Español', '简体中文']);
+    assert.equal(await f.page.locator('#sys-updates-language').inputValue(), 'en');
+    assert.equal(await f.page.locator('#ui-lang-more').isHidden(), false);
+    await f.page.locator('#sys-updates-language').selectOption('it');
+    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);   // save first
+    await f.page.locator('#sys-updates-save').click();
+    await f.page.waitForFunction(() => !document.getElementById('sys-updates-install').disabled);
+    assert.equal(f.state.savedUpdates.language, 'it');
+    assert.equal(await f.page.locator('#sys-updates-language').inputValue(), 'it');
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    f = await fixture(browser, { page: 'system', updatesBody: {...updates, language: 'en', running_language: 'en', languages: ['en']} });
+    await f.page.waitForFunction(() => !document.getElementById('sys-updates-check').disabled);
+    assert.equal(await f.page.locator('#sys-updates-language-group').isHidden(), true);
+    assert.equal(await f.page.locator('#ui-lang-more').isHidden(), true);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+
     // A successful check with no candidate disables installation, not checks.
     // Refresh/polling must preserve this until a newer candidate is found.
     f = await fixture(browser, { page: 'system' });
@@ -736,7 +756,10 @@ async function main() {
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Profiles: token-bound preview, conflict re-preview, apply, rollback.
     f=await fixture(browser,{page:'system'});
-    await f.page.waitForFunction(()=>document.getElementById('profile-select').options.length===3&&!document.getElementById('profile-preview').disabled);
+    // The selector shows the active profile; with none applied it says so.
+    await f.page.waitForFunction(()=>document.getElementById('profile-select').options.length===4&&!document.getElementById('profile-select').disabled);
+    assert.equal(await f.page.locator('#profile-select').inputValue(),'');
+    assert.equal(await f.page.locator('#profile-preview').isDisabled(),true);
     assert.equal(await f.page.locator('#profile-apply').isDisabled(),true);
     await f.page.locator('#profile-select').selectOption('monitoring');await f.page.locator('#profile-preview').click();
     await f.page.waitForFunction(()=>document.getElementById('profile-changes').children.length===2&&!document.getElementById('profile-apply').disabled);
@@ -752,11 +775,13 @@ async function main() {
     await f.page.locator('#profile-apply').click();
     await f.page.waitForFunction(()=>document.getElementById('profile-status').textContent.includes('Applied'));
     assert.match(await f.page.locator('#profile-status').textContent(),/Active: Monitoring/);
+    assert.equal(await f.page.locator('#profile-select').inputValue(),'monitoring');
     const applied=f.state.profilePosts.filter(x=>x.action==='apply');assert.equal(applied.length,2);
     assert.deepEqual(Object.keys(applied[1]).sort(),['action','profile','token']);assert.equal(applied[1].token,102);
     f.page.once('dialog',d=>d.accept());await f.page.locator('#profile-rollback').click();
     await f.page.waitForFunction(()=>document.getElementById('profile-status').textContent.includes('Rolled back'));
     assert.match(await f.page.locator('#profile-status').textContent(),/Left as you changed them: Health Monitor worker/);
+    assert.equal(await f.page.locator('#profile-select').inputValue(),'');
     assert.equal(await f.page.locator('#profile-rollback').isDisabled(),true);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Guided setup: exposure confirmation, snapshot, focus, diff and restore.

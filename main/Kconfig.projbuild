@@ -79,4 +79,12 @@ menu "Example Configuration"
         endchoice
 
     endmenu
+
+    config TSR_UI_LANGUAGE
+        string "Web UI language bundled with English"
+        default "en"
+        help
+            "en" builds the standard English-only page. "it", "es" or "zh"
+            add that translation (main/i18n/<code>.json) to English. The
+            GitHub updater installs the matching firmware-<code>.bin asset.
 endmenu

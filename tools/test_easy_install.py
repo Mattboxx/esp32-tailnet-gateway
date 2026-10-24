@@ -48,7 +48,7 @@ exit 0
 def package(folder: Path):
     fw = folder / 'firmware'
     fw.mkdir(parents=True)
-    names = ['bootloader.bin', 'partitions.bin', 'ota_data_initial.bin', 'firmware.bin', 'ESP32-Tailnet-Gateway-v2.0.0-WiFi-factory.bin']
+    names = ['bootloader.bin', 'partitions.bin', 'ota_data_initial.bin', 'firmware.bin', 'firmware-it.bin', 'firmware-es.bin', 'firmware-zh.bin']
     for n in names:
         (fw / n).write_bytes(n.encode() * 16)
     shutil.copytree(TEMPLATE / 'macos-linux', folder / 'macos-linux')
@@ -90,7 +90,20 @@ with tempfile.TemporaryDirectory() as d:
     assert 'erase' not in w[0]
     rc, out, calls = run(pkg, ['new', '/dev/ttyFAKE0'], answer='ERASE\n')
     w = writes(calls)
-    assert rc == 0 and len(w) == 2 and 'erase-flash' in w[0] and 'write-flash 0x0 firmware/ESP32-Tailnet-Gateway-v2.0.0-WiFi-factory.bin' in w[1], (out, calls)
+    assert rc == 0 and len(w) == 2 and 'erase-flash' in w[0] and '0x0 firmware/bootloader.bin' in w[1] and '0x20000 firmware/firmware.bin' in w[1], (out, calls)
+    # Web UI language: the chosen image goes to the app slot, in both modes.
+    rc, out, calls = run(pkg, ['update', '/dev/ttyFAKE0', 'it'])
+    w = writes(calls)
+    assert rc == 0 and len(w) == 1 and '0x20000 firmware/firmware-it.bin' in w[0] and '0x0 firmware/bootloader.bin' in w[0], (out, calls)
+    rc, out, calls = run(pkg, ['new', '/dev/ttyFAKE0', 'zh'], answer='ERASE\n')
+    w = writes(calls)
+    assert rc == 0 and len(w) == 2 and 'erase-flash' in w[0] and '0x20000 firmware/firmware-zh.bin' in w[1], (out, calls)
+    rc, out, calls = run(pkg, ['update', '/dev/ttyFAKE0', '3'])
+    assert rc == 0 and '0x20000 firmware/firmware-es.bin' in writes(calls)[0], (out, calls)
+    rc, out, calls = run(pkg, ['update', '/dev/ttyFAKE0', 'xx'])
+    assert rc == 1 and not calls and 'unknown language' in out
+    rc, out, calls = run(pkg, ['new', '/dev/ttyFAKE0', 'xx'], answer='ERASE\n')
+    assert rc == 1 and not calls
     rc, out, calls = run(pkg, ['new', '/dev/ttyFAKE0'], answer='yes\n')
     assert rc == 2 and not writes(calls) and 'Nothing was written' in out
     rc, out, calls = run(pkg, ['update', '/dev/ttyFAKE0'], env={'STUB_CHIP_RC': '2'})
@@ -113,4 +126,4 @@ with tempfile.TemporaryDirectory() as d:
 # Regression: packages built on Windows must keep LF checksum lists.
 for sums in (ROOT / 'build').glob('release-v*/**/SHA256SUMS.txt'):
     assert b'\r' not in sums.read_bytes(), f'CRLF in {sums}'
-print('PASS: Easy Install install.sh: update/new offsets, ERASE confirmation, checksum, chip, port discovery and esptool version guards (stub esptool)')
+print('PASS: Easy Install install.sh: update/new offsets, language images, ERASE confirmation, checksum, chip, port discovery and esptool version guards (stub esptool)')

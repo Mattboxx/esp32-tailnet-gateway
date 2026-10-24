@@ -21,6 +21,30 @@
 #endif
 #endif
 
+/* Web UI language of this build: "en" is the standard English-only image;
+ * the WiFi build also ships English plus one language as firmware-<code>.bin.
+ * The Ethernet image is English only. */
+#ifndef OTA_UI_LANGUAGE
+#ifdef CONFIG_TSR_UI_LANGUAGE
+#define OTA_UI_LANGUAGE CONFIG_TSR_UI_LANGUAGE
+#else
+#define OTA_UI_LANGUAGE "en"
+#endif
+#endif
+
+/* Release asset of a language variant, NULL when this build has none. */
+static inline const char *ota_asset_for(const char *language)
+{
+    if (!language) return NULL;
+    if (!strcmp(language, "en")) return OTA_ASSET;
+#if !defined(ETH_VARIANT) && !(defined(CONFIG_ETH_SPI_ETHERNET_W5500) && CONFIG_ETH_SPI_ETHERNET_W5500)
+    if (!strcmp(language, "it")) return "firmware-it.bin";
+    if (!strcmp(language, "es")) return "firmware-es.bin";
+    if (!strcmp(language, "zh")) return "firmware-zh.bin";
+#endif
+    return NULL;
+}
+
 /* Repository rename bridge. Firmware up to 1.14-dev.6 requests the releases
  * API of the previous name with redirects disabled and requires HTTP 200, so
  * it cannot follow a GitHub rename. This bridge looks up releases under the
@@ -128,7 +152,7 @@ static inline bool ota_digest_parse(const char *text, unsigned char out[32])
 
 /* Fixed release URLs are constructed locally. Redirects may go only to the
  * GitHub release asset CDN, with HTTPS and no credentials/custom ports. */
-static inline bool ota_download_url_allowed(const char *url)
+static inline bool ota_download_url_allowed_for(const char *url, const char *asset)
 {
     if (!url || strlen(url) >= 2048) return false;
     for (const unsigned char *p = (const unsigned char *)url; *p; ++p)
@@ -137,10 +161,14 @@ static inline bool ota_download_url_allowed(const char *url)
     for (unsigned i = 0; i < OTA_REPO_COUNT && !tag; ++i) tag = ota_release_download_tail(url, ota_repo(i));
     if (tag) {
         const char *slash = strchr(tag, '/');
-        if (!slash || (size_t)(slash - tag) >= 32 || strcmp(slash, "/" OTA_ASSET)) return false;
+        if (!slash || (size_t)(slash - tag) >= 32 || !asset || strcmp(slash + 1, asset)) return false;
         char version[32] = {0}; memcpy(version, tag, (size_t)(slash - tag));
         ota_version_t v; return ota_version_parse(version, &v);
     }
     const char *prefix = "https://release-assets.githubusercontent.com/github-production-release-asset/";
     return !strncmp(url, prefix, strlen(prefix)) && url[strlen(prefix)] != '\0';
+}
+static inline bool ota_download_url_allowed(const char *url)
+{
+    return ota_download_url_allowed_for(url, OTA_ASSET);
 }

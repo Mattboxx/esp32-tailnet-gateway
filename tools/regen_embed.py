@@ -1,5 +1,5 @@
-"""PIO pre-build hook: regenerate main/index_html_data.c when index.html
-changed.
+"""PIO pre-build hook: regenerate main/index_html_data*.c when index.html
+or a translation changed.
 
 The CMakeLists.txt does `file(READ HEX) ...` at configure time and emits
 `index_html_data.c`. CMake's CMAKE_CONFIGURE_DEPENDS is supposed to
@@ -13,22 +13,27 @@ reconfigures cleanly on the next build.
 
 SPDX-License-Identifier: MIT
 """
+import glob
 import os
 Import("env")  # type: ignore  # noqa: F821
 
 PROJECT_DIR = env.subst("$PROJECT_DIR")  # noqa: F821
-HTML        = os.path.join(PROJECT_DIR, "main", "index.html")
-GENERATED   = os.path.join(PROJECT_DIR, "main", "index_html_data.c")
-CMAKELISTS  = os.path.join(PROJECT_DIR, "main", "CMakeLists.txt")
+MAIN        = os.path.join(PROJECT_DIR, "main")
+HTML        = os.path.join(MAIN, "index.html")
+CMAKELISTS  = os.path.join(MAIN, "CMakeLists.txt")
 
-if os.path.exists(HTML) and os.path.exists(GENERATED):
-    if os.path.getmtime(HTML) > os.path.getmtime(GENERATED):
-        print("regen_embed: index.html is newer than the embedded C array — regenerating.")
+# One generated page per Web UI variant (index_html_data_<lang>.c); the
+# translations in main/i18n/ are inputs as well.
+sources = [HTML] + glob.glob(os.path.join(MAIN, "i18n", "*.json"))
+generated = glob.glob(os.path.join(MAIN, "index_html_data*.c"))
+newest = max((os.path.getmtime(s) for s in sources if os.path.exists(s)), default=0)
+stale = [g for g in generated if os.path.getmtime(g) < newest]
+if stale:
+    print("regen_embed: index.html or translations changed — regenerating the embedded page.")
+    for path in stale:
         try:
-            os.remove(GENERATED)
+            os.remove(path)
         except OSError:
             pass
-        # Touch CMakeLists.txt so CMake notices and reconfigures.
-        if os.path.exists(CMAKELISTS):
-            now = None  # uses current time
-            os.utime(CMAKELISTS, now)
+    # Touch CMakeLists.txt so CMake notices and reconfigures.
+    os.utime(CMAKELISTS, None)
