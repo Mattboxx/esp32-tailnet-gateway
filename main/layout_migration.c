@@ -383,7 +383,8 @@ static bool find_target(mig_target_t *target, unsigned *answered)
         body[used] = 0;
         cJSON *json = cJSON_ParseWithLength(body, (size_t)used);
         ota_remote_state_t updates; ota_remote_get_state(&updates);
-        found = mig_pick_release(json, updates.config.beta_channel, target);
+        /* A bench source serves development builds: any channel. */
+        found = mig_pick_release(json, test_source() || updates.config.beta_channel, target);
         cJSON_Delete(json);
         if (found) *answered = repo;   /* downloads use the repository that answered */
     }
