@@ -1,20 +1,17 @@
-# Name,    Type, SubType, Offset,  Size,  Flags
-# Note: keep offsets in sync with CONFIG_PARTITION_TABLE_OFFSET (default 0x8000).
-# nvs bumped 24K → 64K (2026-05-22): one day after a factory_reset wipe,
-# the partition was already returning ESP_ERR_NVS_NOT_ENOUGH_SPACE on
-# every ts_hostname / ts_routes write. 64K is well above what the live
-# key inventory needs (~3.5K of actual data; the rest of the 24K was
-# fragmented across superseded versions). Subsequent partitions keep
-# their 64K-aligned offsets — ota_0 stays at 0x20000.
-# ota_0 / ota_1 grown 1664K → 1920K (2026-05-24): the original "storage"
-# (FAT, 320K) partition went unused by every component — no FATFS mount,
-# no fopen, no esp_partition_find_first("storage") anywhere in main/,
-# components/, or external/microlink. Reclaimed and split across the
-# two OTA slots so each holds 1920K, giving the running firmware 256K
-# of fresh headroom over the previous 1664K ceiling.
-nvs,       data, nvs,     0x9000,  64K,
-otadata,   data, ota,     0x19000, 8K,
-phy_init,  data, phy,     0x1b000, 4K,
-ota_0,     app,  ota_0,   0x20000, 1920K,
-ota_1,     app,  ota_1,   ,        1920K,
-coredump,  data, coredump,,        64K,
+# Name,    Type, SubType,  Offset,   Size,  Flags
+# 3.0 layout for 8 MB of flash: ESP32-S3 N8R8 and N16R8 (a 16 MB board uses
+# the first 8 MB). Keep offsets in sync with CONFIG_PARTITION_TABLE_OFFSET
+# (0x8000), tools/package_v2.py and the Easy Install scripts.
+# nvs, otadata and phy_init keep their 2.x offsets and sizes, so a USB
+# reinstall without erase keeps every setting. nvs is 64K: the live key
+# inventory needs about 3.5K, the rest absorbs superseded versions.
+# ota_0/ota_1 grow 1920K -> 3584K (2.x layout: 4 MB of flash): room for every
+# Web UI language, Ethernet and the cellular uplink in one image. storage is
+# a littlefs data partition reserved for log history and backups.
+nvs,       data, nvs,      0x9000,   64K,
+otadata,   data, ota,      0x19000,  8K,
+phy_init,  data, phy,      0x1b000,  4K,
+ota_0,     app,  ota_0,    0x20000,  3584K,
+ota_1,     app,  ota_1,    0x3a0000, 3584K,
+coredump,  data, coredump, 0x720000, 64K,
+storage,   data, littlefs, 0x730000, 832K,

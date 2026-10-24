@@ -1,22 +1,21 @@
-"""Package an exact, already tested firmware 2.x image for release (local only).
+"""Package an exact, already tested firmware image for release (local only).
+
+3.0 ships one image for ESP32-S3 N8R8 and N16R8 (8 MB layout): every Web UI
+language and the experimental W5500 Ethernet driver, OFF until configured.
 
 Outputs build/release-v<version>/:
   ESP32-Tailnet-Gateway-v<version>-EASY-INSTALL-Windows-macOS-Linux.zip
-      guided scripts for Windows (bundled esptool.exe) and macOS/Linux,
-      with every Web UI language image to choose from
-  assets/        files to attach to the GitHub release (firmware.bin,
-                 firmware-<lang>.bin and firmware-eth.bin keep their names
-                 for the updaters)
-  web-installer/ files for website/firmware/<version>/ (ESP Web Tools):
-                 the standard English image only
+      guided scripts for Windows (bundled esptool.exe) and macOS/Linux
+  assets/        files to attach to the GitHub release (firmware.bin keeps its
+                 name for the updater)
+  web-installer/ files for website/firmware/<version>/ (ESP Web Tools)
 
-Never rebuilds: the tested image must match --tested-sha256 (ADR-026). The
-Ethernet image is labelled experimental. No NVS or device data is included.
+Never rebuilds: the tested image must match --tested-sha256 (ADR-026). No NVS
+or device data is included.
 
-    python tools/package_v2.py --version 2.0.0-rc.1 --prerelease \
-        --wifi-dir build/development-2.0.0-rc.1/target/esp32-s3 \
-        --tested-sha256 <sha> [--eth-dir .../esp32-s3-eth] \
-        [--lang-dir it=.../esp32-s3-it --lang-sha256 it=<sha> ...] \
+    python tools/package_v2.py --version 3.0.0-rc.1 --prerelease \
+        --wifi-dir build/development-3.0.0-rc.1/target/esp32-s3 \
+        --tested-sha256 <sha> \
         --esptool build/release-0.1.38-Mattboxx-1.13/esptool.exe \
         --esptool-license build/release-0.1.38-Mattboxx-1.13/ESPTOOL-LICENSE.txt
 """
@@ -40,9 +39,8 @@ RENAMED_REPOSITORY = 'Mattboxx/esp32-tailnet-gateway'
 # Offsets from sdkconfig (bootloader, partition table) and partitions.csv.
 LAYOUT = {'bootloader.bin': 0x0, 'partitions.bin': 0x8000, 'ota_data_initial.bin': 0x19000, 'firmware.bin': 0x20000}
 NVS = (0x9000, 0x19000)
-FLASH_ARGS = ['--flash-mode', 'dio', '--flash-freq', '80m', '--flash-size', '4MB']
-# Web UI language variants of the WiFi image (English plus one language).
-LANGUAGES = {'it': 'Italiano', 'es': 'Español', 'zh': '简体中文'}
+FLASH_ARGS = ['--flash-mode', 'dio', '--flash-freq', '80m', '--flash-size', '8MB']
+BOARD = 'ESP32-S3 N8R8 or N16R8 (8 MB layout, 8 MB octal PSRAM)'
 
 
 def sha(path):
@@ -70,22 +68,18 @@ def check_partitions():
             rows[cells[0]] = int(cells[3], 0)
     assert rows['otadata'] == LAYOUT['ota_data_initial.bin'] and rows['ota_0'] == LAYOUT['firmware.bin']
     assert rows['nvs'] == NVS[0]
+    assert rows['storage'] + 832 * 1024 <= 8 * 1024 * 1024, 'The layout must fit 8 MB of flash (N8R8)'
 
 
-def check_variant(folder, eth, version, language='en'):
+def check_build(folder, version):
     config = (folder / 'config/sdkconfig.h').read_text()
     assert '#define CONFIG_LWIP_MAX_SOCKETS 31' in config
-    assert ('#define CONFIG_ETH_SPI_ETHERNET_W5500 1' in config) == eth, 'Variant does not match the build'
-    assert f'#define CONFIG_TSR_UI_LANGUAGE "{language}"' in config, 'Web UI language does not match the build'
+    assert '#define CONFIG_ETH_SPI_ETHERNET_W5500 1' in config, 'The single image includes the Ethernet driver'
+    assert '#define CONFIG_ESPTOOLPY_FLASHSIZE "8MB"' in config, 'Not the 8 MB layout build'
     image = (folder / 'firmware.bin').read_bytes()
     assert version.encode() in image, 'Version missing from the image'
-    asset = b'firmware-eth.bin\0' if eth else b'firmware.bin\0'
-    assert asset in image, 'Updater asset name missing from the image'
-    if eth:
-        assert b'firmware-it.bin' not in image, 'The Ethernet image is English only'
-    else:
-        assert b'firmware-eth.bin' not in image
-        assert all(f'firmware-{code}.bin'.encode() in image for code in LANGUAGES), 'Language assets missing from the updater'
+    assert b'firmware.bin\0' in image, 'Updater asset name missing from the image'
+    assert b'firmware-eth.bin' not in image and b'firmware-it.bin' not in image, '2.x variant assets in the image'
     description = json.loads((folder / 'project_description.json').read_text(encoding='utf-8'))
     validate_build_description(description, ROOT, version)
     return description
@@ -114,35 +108,12 @@ def zip_dir(src, dest, top):
             z.writestr(info, path.read_bytes())
 
 
-def language_variants(wifi_dir, dirs, hashes, version):
-    """{code: folder} of tested language images that share the English boot files."""
-    folders = dict(item.split('=', 1) for item in dirs)
-    tested = dict(item.split('=', 1) for item in hashes)
-    assert set(folders) == set(tested), 'Give --lang-dir and --lang-sha256 for the same languages'
-    assert set(folders) <= set(LANGUAGES), 'Unknown language variant'
-    result = {}
-    for code in sorted(folders, key=list(LANGUAGES).index):
-        folder = Path(folders[code])
-        assert sha(folder / 'firmware.bin') == tested[code].lower(), f'Not the tested {code} image (ADR-026)'
-        check_variant(folder, False, version, code)
-        for name in LAYOUT:
-            if name != 'firmware.bin':
-                assert (folder / name).read_bytes() == (wifi_dir / name).read_bytes(), f'{code}: {name} differs from the English build'
-        result[code] = folder
-    return result
-
-
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--version', required=True)
     p.add_argument('--prerelease', action='store_true')
     p.add_argument('--wifi-dir', type=Path, required=True)
     p.add_argument('--tested-sha256', required=True)
-    p.add_argument('--eth-dir', type=Path)
-    p.add_argument('--lang-dir', action='append', default=[], metavar='CODE=DIR',
-                   help='WiFi image with English plus one language (it, es, zh)')
-    p.add_argument('--lang-sha256', action='append', default=[], metavar='CODE=SHA',
-                   help='tested firmware.bin hash of that language image')
     p.add_argument('--esptool', type=Path, required=True)
     p.add_argument('--esptool-license', type=Path, required=True)
     p.add_argument('--out', type=Path)
@@ -153,10 +124,7 @@ def main():
     validate_version(a.version, project, a.prerelease)
     check_partitions()
     assert sha(a.wifi_dir / 'firmware.bin') == a.tested_sha256.lower(), 'Not the tested image (ADR-026)'
-    description = check_variant(a.wifi_dir, False, a.version)
-    if a.eth_dir:
-        check_variant(a.eth_dir, True, a.version)
-    languages = language_variants(a.wifi_dir, a.lang_dir, a.lang_sha256, a.version)
+    description = check_build(a.wifi_dir, a.version)
     v = a.version
     out = (a.out or ROOT / 'build' / f'release-v{v}').resolve()
     out.mkdir(parents=True, exist_ok=False)
@@ -165,15 +133,13 @@ def main():
     notes = f'{source_url}/releases/tag/v{v}'
     channel = ' (release candidate, pre-release)' if a.prerelease else ''
 
-    # Easy Install package: shared boot files, the English image and every
-    # language image; the scripts write the chosen one to the app slot.
+    # Easy Install package: the scripts write the boot files and the image
+    # (a new device is erased first; an update keeps NVS).
     pkg = out / 'easy-install'
     (pkg / 'firmware').mkdir(parents=True)
     for name in LAYOUT:
         shutil.copyfile(a.wifi_dir / name, pkg / 'firmware' / name)
-    for code, folder in languages.items():
-        shutil.copyfile(folder / 'firmware.bin', pkg / 'firmware' / f'firmware-{code}.bin')
-    factory = out / f'{stem}-WiFi-factory.bin'
+    factory = out / f'{stem}-factory.bin'
     merge(a.esptool, a.wifi_dir, factory)
     shutil.copytree(TEMPLATES / 'windows', pkg / 'windows')
     shutil.copytree(TEMPLATES / 'macos-linux', pkg / 'macos-linux')
@@ -187,13 +153,11 @@ def main():
     start = start.replace('{VERSION}', v).replace('{CHANNEL}', channel).replace('{NOTES_URL}', notes)
     (pkg / 'START-HERE.txt').write_bytes(start.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8'))
     (pkg / 'FIRMWARE-LICENSES.txt').write_text(collect_release_notices(ROOT, a.wifi_dir), encoding='utf-8')
-    files = [f'firmware/{n}' for n in LAYOUT] + [f'firmware/firmware-{code}.bin' for code in languages]
+    files = [f'firmware/{n}' for n in LAYOUT]
     manifest = {'product': PRODUCT, 'version': v, 'channel': 'pre-release' if a.prerelease else 'stable',
-                'variant': 'wifi', 'chip': 'esp32s3', 'board': 'ESP32-S3 N16R8 (16MB flash, 8MB octal PSRAM)',
+                'variant': 'single image (WiFi, Ethernet driver, every Web UI language)', 'chip': 'esp32s3', 'board': BOARD,
                 'app_identity': description.get('project_name'), 'flash': {k: hex(o) for k, o in LAYOUT.items()},
                 'flash_args': FLASH_ARGS, 'tested_image_sha256': a.tested_sha256.lower(), 'source': source_url,
-                'web_ui_languages': {'en': 'firmware/firmware.bin',
-                                     **{code: f'firmware/firmware-{code}.bin' for code in languages}},
                 'files': {f: {'sha256': sha(pkg / f), 'bytes': (pkg / f).stat().st_size} for f in files}}
     (pkg / 'release-manifest.json').write_text(json.dumps(manifest, indent=1) + '\n', encoding='utf-8')
     write_sums(pkg, files + ['release-manifest.json'])
@@ -207,17 +171,12 @@ def main():
     assets = out / 'assets'
     assets.mkdir()
     shutil.copyfile(a.wifi_dir / 'firmware.bin', assets / 'firmware.bin')
-    for code, folder in languages.items():
-        shutil.copyfile(folder / 'firmware.bin', assets / f'firmware-{code}.bin')
     shutil.copyfile(factory, assets / factory.name)
     shutil.copyfile(easy_zip, assets / easy_zip.name)
     shutil.copyfile(pkg / 'FIRMWARE-LICENSES.txt', assets / 'FIRMWARE-LICENSES.txt')
-    if a.eth_dir:
-        shutil.copyfile(a.eth_dir / 'firmware.bin', assets / 'firmware-eth.bin')
-        merge(a.esptool, a.eth_dir, assets / f'{stem}-Ethernet-EXPERIMENTAL-factory.bin')
     release = dict(manifest, files={n.name: {'sha256': sha(n), 'bytes': n.stat().st_size}
                                     for n in sorted(assets.iterdir())},
-                   ethernet='experimental, not hardware-qualified' if a.eth_dir else 'not included')
+                   ethernet='driver included, OFF until configured; experimental, not hardware-qualified')
     (assets / 'release-manifest.json').write_text(json.dumps(release, indent=1) + '\n', encoding='utf-8')
     write_sums(assets, [n.name for n in assets.iterdir()])
 

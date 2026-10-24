@@ -43,7 +43,7 @@ typedef struct { uint32_t address,length; } esp_image_segment_header_t;
 typedef struct { uint32_t magic_word,secure,pad[2]; char version[32],project_name[32]; uint8_t tail[176]; } esp_app_desc_t;
 typedef struct { uint32_t size; } esp_partition_t;
 typedef unsigned esp_ota_handle_t;
-typedef struct { bool enabled,auto_install,beta_channel; int install_hour; char language[4]; } ota_remote_config_t;
+typedef struct { bool enabled,auto_install,beta_channel; int install_hour; } ota_remote_config_t;
 typedef struct { ota_remote_config_t config; bool busy,checked,update_available; uint32_t last_check,asset_size; unsigned progress; uint8_t repo; char latest_version[32],status[96],release_url[192]; char asset[24]; } ota_remote_state_t;
 static ota_remote_state_t s_state;
 static unsigned char s_digest[32];
@@ -130,12 +130,9 @@ int main(void) {
     const char *stages[]={"dev","alpha1","beta.1","rc2",""};
     for(int i=0;i<5;i++) { char v[32]; snprintf(v,sizeof v,"0.1.31-Mattboxx-1.10%s%s",i==4?"":"-",stages[i]); assert(ota_version_parse(v,&a)); if(i) assert(ota_version_compare(&a,&b)>0); b=a; }
     assert(ota_download_url_allowed(OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/" OTA_ASSET));
-#ifdef ETH_VARIANT
-    /* Variant isolation: the Ethernet build never accepts the WiFi image, and the reverse. */
-    assert(!ota_download_url_allowed(OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/firmware.bin"));
-#else
-    assert(!ota_download_url_allowed(OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/firmware-eth.bin"));
-#endif
+    /* One 3.0 image: the 2.x Ethernet and language assets are never accepted. */
+    const char *other_assets[]={"firmware-eth.bin","firmware-it.bin","firmware-es.bin","firmware-zh.bin"};
+    for(unsigned i=0;i<4;i++){char url[160];snprintf(url,sizeof url,OTA_FORK_URL "/releases/download/v0.1.31-Mattboxx-1.10/%s",other_assets[i]);assert(!ota_download_url_allowed(url));}
     /* Rename bridge: both fixed release paths, nothing that merely shares a prefix. */
     assert(!strcmp(ota_repo(0),OTA_REPO_CURRENT)&&!strcmp(ota_repo(1),OTA_REPO_PREVIOUS)&&!ota_repo(2));
     assert(ota_download_url_allowed("https://github.com/" OTA_REPO_PREVIOUS "/releases/download/v0.1.31-Mattboxx-1.10/" OTA_ASSET));
@@ -206,13 +203,9 @@ int main(void) {
     release_row(rows,"v2.0.6-beta.1",false,false,OTA_ASSET,hash,1024);                                            /* a beta tag not marked pre-release is refused */
     assert(ota_remote_select_release(rows,"2.0.4",true,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.5-beta.1"));
     cJSON_Delete(rows);
-    /* Web UI language variants: each language has its own asset; the running
-     * version is offered again only for another language, never an older one. */
-    assert(!strcmp(ota_asset_for("en"),OTA_ASSET)&&!ota_asset_for("xx")&&!ota_asset_for(NULL)&&!ota_asset_for(""));
-#ifdef ETH_VARIANT
-    assert(!ota_asset_for("it")&&!ota_asset_for("zh"));   /* the Ethernet image is English only */
-#else
-    assert(!strcmp(ota_asset_for("it"),"firmware-it.bin")&&!strcmp(ota_asset_for("es"),"firmware-es.bin")&&!strcmp(ota_asset_for("zh"),"firmware-zh.bin"));
+    /* Asset-parameterized selection (kept generic): reinstall offers the running
+     * version once, never an older one; URL guard follows the given asset. */
+    assert(!strcmp(OTA_ASSET,"firmware.bin"));
     assert(ota_download_url_allowed_for(OTA_FORK_URL "/releases/download/v2.0.4/firmware-it.bin","firmware-it.bin"));
     assert(!ota_download_url_allowed_for(OTA_FORK_URL "/releases/download/v2.0.4/firmware-it.bin","firmware.bin"));
     assert(!ota_download_url_allowed_for(OTA_FORK_URL "/releases/download/v2.0.4/firmware.bin","firmware-it.bin"));
@@ -230,7 +223,6 @@ int main(void) {
     assert(ota_remote_select_release(rows,"2.0.4",false,"firmware-it.bin",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.5")); /* newer wins */
     assert(!ota_remote_select_release(rows,"2.0.4",false,NULL,true,2048,tag,&size,digest));
     cJSON_Delete(rows);
-#endif
     reset(); s_state.repo=2; assert(!install_release()); assert(!opens&&!begins&&!s_writer_active);
     reset(); s_state.repo=1; assert(install_release()&&boots==1); /* previous name, before the rename */
     reset(); assert(ota_writer_try_acquire()); assert(!install_release()); assert(!opens&&!begins&&s_writer_active); ota_writer_release();
@@ -245,7 +237,7 @@ int main(void) {
     puts("PASS: real-C fork version/channel/release selection, digest/URL guards, partial reads, exclusive writer, redirects, download/hash/image/flash failure cleanup and commit-before-reboot");
 }
 '''
-for variant in ([], ['-DOTA_ASSET="firmware-eth.bin"', '-DETH_VARIANT']):
+for variant in ([],):
   with tempfile.TemporaryDirectory(prefix='ota-remote-') as directory:
       path = Path(directory)
       (path / 'test.c').write_text(fixture + writer + selector + installer + tests, encoding='utf-8')
@@ -286,7 +278,7 @@ CHECK = r'''
 #define xSemaphoreGive(a) ((void)(a))
 typedef int esp_err_t;
 static size_t strlcpy(char *d,const char *s,size_t n){size_t l=strlen(s);if(n){size_t k=l<n-1?l:n-1;memcpy(d,s,k);d[k]=0;}return l;}
-typedef struct { bool enabled,auto_install,beta_channel; int install_hour; char language[4]; } ota_remote_config_t;
+typedef struct { bool enabled,auto_install,beta_channel; int install_hour; } ota_remote_config_t;
 typedef struct { ota_remote_config_t config; bool busy,checked,update_available; uint32_t last_check,asset_size; unsigned progress; uint8_t repo; char latest_version[32],status[96],release_url[192]; char asset[24]; } ota_remote_state_t;
 static ota_remote_state_t s_state; static unsigned char s_digest[32]; static int s_lock;
 static void status_set(const char *s){strlcpy(s_state.status,s,sizeof s_state.status);}
@@ -311,7 +303,7 @@ static void esp_http_client_cleanup(esp_http_client_handle_t c){(void)c;}
 static int time(void *p){(void)p;return 1800000000;}
 bool ota_remote_select_release(const cJSON *releases,const char *running,bool beta,const char *asset,bool reinstall,uint32_t partition_size,char tag[32],uint32_t *size,unsigned char digest[32]);
 ''' + selector + checker + r'''
-static bool run(int a,int b){memset(&s_state,0,sizeof s_state);strcpy(s_state.config.language,"en");calls=0;fail_transport=0;answers[0]=a;answers[1]=b;memset(urls,0,sizeof urls);return check_release();}
+static bool run(int a,int b){memset(&s_state,0,sizeof s_state);calls=0;fail_transport=0;answers[0]=a;answers[1]=b;memset(urls,0,sizeof urls);return check_release();}
 int main(void){
     /* After the rename: the current name answers; the previous one is never asked. */
     assert(run(200,0)&&calls==1&&s_state.repo==0&&s_state.update_available&&strstr(urls[0],"/repos/" OTA_REPO_CURRENT "/"));
@@ -329,9 +321,6 @@ int main(void){
     no_partition=true;
     assert(!run(200,0)&&calls==1&&!s_state.checked&&!s_state.update_available);
     assert(strstr(s_state.status,"unavailable")); no_partition=false;
-    /* No asset for the chosen language: the check completes and offers nothing. */
-    memset(&s_state,0,sizeof s_state);strcpy(s_state.config.language,"xx");calls=0;answers[0]=200;
-    assert(check_release()&&!s_state.update_available&&!s_state.asset[0]);
     /* The found asset is remembered for the download. */
     assert(run(200,0)&&!strcmp(s_state.asset,OTA_ASSET));
     puts("PASS: actual release check across the repository rename: current first, previous only on 404, no fallback on other errors (fixtures)");

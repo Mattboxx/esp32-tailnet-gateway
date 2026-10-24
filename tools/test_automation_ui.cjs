@@ -484,26 +484,6 @@ async function main() {
     assert.match(await f.page.locator('#mqtt-badge').getAttribute('title'), /resource admission guard/);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
 
-    // Firmware language: the variant GitHub installs is chosen and saved like the
-    // channel; an English-only build (Ethernet) hides the choice.
-    f = await fixture(browser, { page: 'system', updatesBody: {...updates, language: 'en', running_language: 'en', languages: ['en', 'it', 'es', 'zh']} });
-    await f.page.waitForFunction(() => !document.getElementById('sys-updates-language-group').hidden && !document.getElementById('sys-updates-language').disabled);
-    assert.deepEqual(await f.page.locator('#sys-updates-language option').allTextContents(), ['English (standard)', 'Italiano', 'Español', '简体中文']);
-    assert.equal(await f.page.locator('#sys-updates-language').inputValue(), 'en');
-    assert.equal(await f.page.locator('#ui-lang-more').isHidden(), false);
-    await f.page.locator('#sys-updates-language').selectOption('it');
-    assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);   // save first
-    await f.page.locator('#sys-updates-save').click();
-    await f.page.waitForFunction(() => !document.getElementById('sys-updates-install').disabled);
-    assert.equal(f.state.savedUpdates.language, 'it');
-    assert.equal(await f.page.locator('#sys-updates-language').inputValue(), 'it');
-    assert.deepEqual(f.errors, []); await f.context.close(); count++;
-    f = await fixture(browser, { page: 'system', updatesBody: {...updates, language: 'en', running_language: 'en', languages: ['en']} });
-    await f.page.waitForFunction(() => !document.getElementById('sys-updates-check').disabled);
-    assert.equal(await f.page.locator('#sys-updates-language-group').isHidden(), true);
-    assert.equal(await f.page.locator('#ui-lang-more').isHidden(), true);
-    assert.deepEqual(f.errors, []); await f.context.close(); count++;
-
     // A successful check with no candidate disables installation, not checks.
     // Refresh/polling must preserve this until a newer candidate is found.
     f = await fixture(browser, { page: 'system' });

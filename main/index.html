@@ -3310,8 +3310,7 @@
         <div class="card-body">
           <label class="feature-switch"><input type="checkbox" id="ui-advanced-toggle"><span class="feature-switch-track" aria-hidden="true"></span><span>Show advanced settings</span></label>
           <div class="form-group" style="margin-top:var(--sp-3)"><label class="form-label" for="ui-lang">Language</label><select class="select" id="ui-lang" data-no-i18n></select>
-            <span class="form-hint">Detected from your browser; stored in this browser only. Technical values, addresses and keys are never translated.</span>
-            <span class="form-hint" id="ui-lang-more" hidden>Other languages: choose the Firmware language under Firmware update, then install it.</span></div>
+            <span class="form-hint">Detected from your browser; stored in this browser only. Technical values, addresses and keys are never translated.</span></div>
           <p class="form-hint">Simple mode hides expert sections (firewall chains, DHCP tables, MTU, SNMP, logging, hardware diagnostics). Nothing is disabled; hidden settings keep working. This choice is stored in this browser only.</p>
         </div>
       </div>
@@ -3529,18 +3528,14 @@
             <label class="feature-switch"><input type="checkbox" id="sys-updates-beta" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>Include beta / pre-release updates</span></label>
             <span class="form-hint">OFF = stable releases only. Applies to both manual and automatic GitHub installs. Beta firmware may be unstable.</span>
           </div>
-          <div class="form-group" id="sys-updates-language-group" hidden>
-            <label class="form-label" for="sys-updates-language">Firmware language</label>
-            <select class="select" id="sys-updates-language" disabled data-no-i18n></select>
-            <span class="form-hint">Each firmware carries English plus at most one other language, which keeps memory free. GitHub installs use the language chosen here; choosing another language offers the installed version again in that language.</span>
-          </div>
+
           <div class="form-footer-actions" style="margin:0.75rem 0; flex-wrap:wrap;">
             <button class="btn btn-secondary btn-md" id="sys-updates-reload">Refresh status</button>
             <button class="btn btn-primary btn-md" id="sys-updates-save" disabled>Save update settings</button>
             <button class="btn btn-secondary btn-md" id="sys-updates-check" disabled>Check now</button>
             <button class="btn btn-primary btn-md" id="sys-updates-install" disabled>Install latest update</button>
           </div>
-          <span class="form-hint">Check now and Install latest update also work with periodic checks OFF. Save channel and language changes first. Changing policy or starting a download requires a password-backed session. Installs never downgrade the running version.</span>
+          <span class="form-hint">Check now and Install latest update also work with periodic checks OFF. Save channel changes first. Changing policy or starting a download requires a password-backed session. Installs never downgrade the running version.</span>
           <hr style="border:none; border-top:1px solid var(--border); margin:1rem 0 0.5rem 0;">
           <div class="form-group">
             <label class="form-label" for="sys-ota-file">Manual upload (firmware.bin)</label>
@@ -8758,7 +8753,6 @@
       var enabled = document.getElementById('sys-updates-enabled').checked;
       document.getElementById('sys-updates-enabled').disabled = !editable;
       document.getElementById('sys-updates-beta').disabled = !editable;
-      document.getElementById('sys-updates-language').disabled = !editable;
       document.getElementById('sys-updates-auto').disabled = !editable || !enabled;
       document.getElementById('sys-updates-hour').disabled = !editable || !enabled || !document.getElementById('sys-updates-auto').checked;
       document.getElementById('sys-updates-save').disabled = !editable || !s_updatesDirty;
@@ -8769,7 +8763,6 @@
       install.title = upToDate ? 'No newer compatible release. Use Check now to check again.' : 'Check and install the latest newer compatible release.';
       if (s_updatesLoaded) setFeatureCardState('sys-updates-policy', enabled);
     }
-    var FIRMWARE_LANGUAGES = {en: 'English (standard)', it: 'Italiano', es: 'Español', zh: '简体中文'};
     function loadRemoteUpdates() {
       if (s_updatesPending) return s_updatesPending;
       s_updatesPending = readAutomationSettings('/api/system/updates').then(function (d) {
@@ -8782,16 +8775,7 @@
           document.getElementById('sys-updates-beta').checked = d.beta_channel;
           document.getElementById('sys-updates-hour').value = d.install_hour;
         }
-        /* Language variants: English (standard) plus the languages this build
-         * can install; hidden where only English exists (Ethernet image). */
-        var langs = Array.isArray(d.languages) ? d.languages.filter(function (l) { return FIRMWARE_LANGUAGES[l]; }) : [];
-        var langSelect = document.getElementById('sys-updates-language');
-        if (!langSelect.options.length) langs.forEach(function (l) {
-          var o = document.createElement('option'); o.value = l; o.textContent = FIRMWARE_LANGUAGES[l]; langSelect.appendChild(o);
-        });
-        document.getElementById('sys-updates-language-group').hidden = langs.length < 2;
-        document.getElementById('ui-lang-more').hidden = langs.length < 2;
-        if (!s_updatesDirty && langs.indexOf(d.language) >= 0) langSelect.value = d.language;
+
         document.getElementById('sys-updates-latest').textContent = d.latest_version || (d.checked ? 'No newer compatible release' : 'Not checked');
         document.getElementById('sys-updates-status').textContent = (d.status || 'Ready') + (d.busy && d.progress ? ' · ' + d.progress + '%' : '');
         document.getElementById('sys-updates-last-check').textContent = d.last_check > 1700000000 ? 'Last successful check: ' + new Date(d.last_check * 1000).toLocaleString() : 'No successful check recorded this boot';
@@ -8810,7 +8794,7 @@
       }).finally(function () { s_updatesPending = null; });
       return s_updatesPending;
     }
-    ['enabled', 'auto', 'beta', 'hour', 'language'].forEach(function (field) {
+    ['enabled', 'auto', 'beta', 'hour'].forEach(function (field) {
       document.getElementById('sys-updates-' + field).addEventListener('change', function () {
         if (field === 'enabled' && !this.checked) document.getElementById('sys-updates-auto').checked = false;
         s_updatesDirty = true; updatesControls();
@@ -8829,13 +8813,12 @@
         auto_install: document.getElementById('sys-updates-auto').checked,
         beta_channel: document.getElementById('sys-updates-beta').checked,
         install_hour: Number(document.getElementById('sys-updates-hour').value)};
-      if (!document.getElementById('sys-updates-language-group').hidden) body.language = document.getElementById('sys-updates-language').value;
       if (body.auto_install && !confirm('Enable unattended firmware installs and automatic gateway restarts?')) return;
       updatesPost('', body).then(function () { s_updatesDirty = false; return loadRemoteUpdates(); }).catch(function () {});
     });
     document.getElementById('sys-updates-check').addEventListener('click', function () { updatesPost('/check').then(loadRemoteUpdates).catch(function () {}); });
     document.getElementById('sys-updates-install').addEventListener('click', function () {
-      if (!confirm('Download and install the release found for the selected channel and language? The gateway will restart.')) return;
+      if (!confirm('Download and install the latest newer compatible release from the selected channel? The gateway will restart.')) return;
       updatesPost('/install').then(loadRemoteUpdates).catch(function () {});
     });
     setInterval(function () { if (location.hash === '#system' && !s_updatesDirty && s_updatesLoaded) loadRemoteUpdates(); }, 5000);
