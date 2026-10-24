@@ -20,6 +20,7 @@
 #include "lwip/inet.h"
 #include "lwip/tcpip.h"
 #include "nvs_params.h"
+#include "esp_attr.h"
 
 #define FOURVIA6_FLOW_COUNT 48
 #define FOURVIA6_TCP_TIMEOUT_US (15LL * 60LL * 1000000LL)
@@ -46,7 +47,10 @@ static uint8_t s_prefix_len;
 static uint16_t s_site_id;
 static char s_lan_cidr[19];
 static char s_prefix_text[64];
-static fourvia6_flow_t s_flows[FOURVIA6_FLOW_COUNT];
+/* Internal RAM is the gateway's scarce resource: application tables live
+ * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
+ * context uses them, never an ISR or IRAM code. */
+EXT_RAM_BSS_ATTR static fourvia6_flow_t s_flows[FOURVIA6_FLOW_COUNT];
 static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
 static uint32_t s_translated;
 static uint32_t s_dropped;

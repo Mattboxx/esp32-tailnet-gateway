@@ -1205,5 +1205,20 @@
  "Your router's web page port: checks the home network.": "Puerto de la página web del router: comprueba la red de casa.",
  "e.g. {}": "p. ej. {}",
  "e.g. 192.168.1.20 or nas.lan": "p. ej. 192.168.1.20 o nas.lan",
- "e.g. nas or 100.64.0.10": "p. ej. nas o 100.64.0.10"
+ "e.g. nas or 100.64.0.10": "p. ej. nas o 100.64.0.10",
+ "Check now and Install latest update also work with periodic checks OFF. Save channel and language changes first. Changing policy or starting a download requires a password-backed session. Installs never downgrade the running version.": "Comprobar ahora e Instalar la última actualización funcionan también con las comprobaciones periódicas desactivadas. Guarda primero los cambios de canal e idioma. Cambiar la política o iniciar una descarga requiere una sesión con contraseña. Las instalaciones nunca vuelven a una versión anterior.",
+ "Download and install the release found for the selected channel and language? The gateway will restart.": "¿Descargar e instalar la versión encontrada para el canal y el idioma elegidos? El gateway se reiniciará.",
+ "Each firmware carries English plus at most one other language, which keeps memory free. GitHub installs use the language chosen here; choosing another language offers the installed version again in that language.": "Cada firmware incluye inglés y como máximo otro idioma, lo que deja memoria libre. Las instalaciones desde GitHub usan el idioma elegido aquí; al elegir otro idioma se ofrece de nuevo la versión instalada en ese idioma.",
+ "English (standard)": "Inglés (estándar)",
+ "Firmware language": "Idioma del firmware",
+ "Not started": "No iniciado",
+ "No profile applied": "Ningún perfil aplicado",
+ "Other languages: choose the Firmware language under Firmware update, then install it.": "Otros idiomas: elige el Idioma del firmware en Actualización de firmware y luego instálalo.",
+ "Paused by the resource guard": "En pausa por la protección de recursos",
+ "The resource admission guard in Devices & Recovery is pausing optional work: free internal RAM is below its threshold.": "La protección de recursos en Dispositivos y recuperación está pausando el trabajo opcional: la RAM interna libre está por debajo del umbral.",
+ "The resource admission guard is pausing optional work now: MQTT, ntfy, device checks and recovery wait until free internal RAM, its largest block and free sockets are above the thresholds. Lower the thresholds (advanced settings) or turn the guard off.": "La protección de recursos está pausando ahora el trabajo opcional: MQTT, ntfy, las comprobaciones de dispositivos y la recuperación esperan a que la RAM interna libre, su bloque más grande y los sockets libres superen los umbrales. Baja los umbrales (ajustes avanzados) o desactiva la protección.",
+ "ntfy test paused": "Prueba de ntfy en pausa",
+ "Another check or recovery is running; its result appears on this page": "Hay otra comprobación o recuperación en curso; el resultado aparece en esta página",
+ "This device was checked less than a minute ago; try again shortly": "Este dispositivo se comprobó hace menos de un minuto; inténtalo de nuevo en breve",
+ "Deferred by the resource admission guard: free internal RAM or sockets are below its thresholds": "Aplazado por la protección de recursos: la RAM interna libre o los sockets están por debajo de los umbrales"
 }

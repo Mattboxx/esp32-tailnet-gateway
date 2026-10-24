@@ -22,6 +22,7 @@
 
 #include "acl.h"
 #include "esp_timer.h"
+#include "esp_attr.h"
 
 /* Protocol numbers (from IANA) */
 #define IPPROTO_ICMP 1
@@ -53,7 +54,10 @@ static const char* acl_desc[MAX_ACL_LISTS] = {
 };
 
 /* ACL rule tables - one array per direction */
-static acl_entry_t acl_lists[MAX_ACL_LISTS][MAX_ACL_ENTRIES];
+/* Internal RAM is the gateway's scarce resource: application tables live
+ * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
+ * context uses them, never an ISR or IRAM code. */
+EXT_RAM_BSS_ATTR static acl_entry_t acl_lists[MAX_ACL_LISTS][MAX_ACL_ENTRIES];
 
 /* ACL statistics per list */
 static acl_stats_t acl_stats[MAX_ACL_LISTS];

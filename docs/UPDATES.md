@@ -44,6 +44,26 @@ The repository has moved to `Mattboxx/esp32-tailnet-gateway`. Firmware before
 the bridge release cannot follow the rename automatically; see the
 [migration plan](MIGRATION-RENAME.md).
 
+## Web UI languages
+
+To keep flash and memory free each firmware image carries English plus at
+most one other language:
+
+| Image | Web UI |
+|---|---|
+| `firmware.bin` (standard, browser installer) | English |
+| `firmware-it.bin` | English and Italiano |
+| `firmware-es.bin` | English and Español |
+| `firmware-zh.bin` | English and 简体中文 |
+| `firmware-eth.bin` (experimental Ethernet) | English |
+
+The GitHub updater installs the image of the language chosen in **System →
+Firmware update → Firmware language** (by default the running one). Choosing
+another language offers the installed version again in that language; a
+device never moves to an older version. The Easy Install package contains
+every image and its scripts ask which language to install. A manual upload
+accepts any of them.
+
 ## Release channels
 
 Each version is tested as numbered betas before it becomes stable:

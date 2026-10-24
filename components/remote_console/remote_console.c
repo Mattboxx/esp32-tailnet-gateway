@@ -30,6 +30,7 @@
 #include "remote_console.h"
 #include "web_password.h"
 #include "esp_netif.h"
+#include "esp_attr.h"
 
 /* Must match the NVS_NAMESPACE define in main/nvs_params.h. Duplicated
  * here to avoid a circular component dependency on main. */
@@ -129,7 +130,10 @@ static int rc_client_fd = -1;           /* Socket for active session output */
 
 /* Capture buffer for stdout - larger for help output */
 #define RC_CAPTURE_BUF_SIZE 8192
-static char rc_capture_buf[RC_CAPTURE_BUF_SIZE];
+/* Internal RAM is the gateway's scarce resource: application tables live
+ * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
+ * context uses them, never an ISR or IRAM code. */
+EXT_RAM_BSS_ATTR static char rc_capture_buf[RC_CAPTURE_BUF_SIZE];
 static size_t rc_capture_pos = 0;
 static bool rc_capturing = false;
 

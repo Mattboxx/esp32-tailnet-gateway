@@ -177,6 +177,17 @@ Dependencies: safe admin commands, persistence/resource/job ownership from P0.
   addressing, routing, Tailscale, diagnostics, reconnect, WiFi/Ethernet uplink
   preference and safe interface transitions. Test host faults and actual boards;
   untested physical variants remain labeled. Do not destabilize WiFi-only units.
+- **F43 (owner request, 2026-10-24):** optional cellular (GSM/LTE) data uplink
+  with a SIM: an external UART modem (for example SIMCom SIM7600/A7670 or
+  Quectel EC2x) driven by ESP-IDF `esp_modem` as a PPP network interface, used
+  as primary uplink or as failover when WiFi/Ethernet is lost. Settings: APN,
+  optional user/password, SIM PIN (secret, write-only like other passwords),
+  failover-only versus always-on, data-use notice. OFF by default; never dial
+  without explicit configuration (data costs). Tailscale over carrier NAT is
+  expected to use DERP; label direct-path results by evidence. Needs its own
+  image variant like Ethernet (flash budget, UART pins, modem power of about
+  2 A peaks) and real-modem qualification; until then experimental. Nearest
+  alternative today: a phone hotspot or USB/WiFi LTE router as the WiFi uplink.
 - **F40:** deeper flow diagnostics/peer management, useful SNMP/HA metrics,
   configurable critical-service checks, recovery of optional modules, OTA
   refinements, network-path optimization, fewer allocations/less memory, IPv6

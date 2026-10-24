@@ -8,6 +8,7 @@
 #include "nvs.h"
 #include "nvs_params.h"
 #include "wifi_networks.h"
+#include "esp_attr.h"
 
 static const char *TAG = "wifi_nets";
 
@@ -15,7 +16,10 @@ static const char *TAG = "wifi_nets";
 
 /* Cached on first wifi_networks_init() call so reads don't hit NVS on
  * every iteration of the STA reconnect loop. */
-static wifi_network_t s_nets[WIFI_NETWORKS_MAX];
+/* Internal RAM is the gateway's scarce resource: application tables live
+ * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
+ * context uses them, never an ISR or IRAM code. */
+EXT_RAM_BSS_ATTR static wifi_network_t s_nets[WIFI_NETWORKS_MAX];
 static int            s_count = 0;
 static bool           s_loaded = false;
 

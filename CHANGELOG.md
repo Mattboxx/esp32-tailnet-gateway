@@ -4,7 +4,44 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.4] — beta 2, 2026-10-24
+## [2.0.4] — beta 3, 2026-10-24
+
+### Changed
+
+- **One Web UI language per firmware image.** The standard image
+  (`firmware.bin`, also used by the browser installer) is English only;
+  `firmware-it.bin`, `firmware-es.bin` and `firmware-zh.bin` carry English
+  plus one language. This frees about 65 KB of app flash (98.2 % to 94.9 %
+  for the English image). A gateway keeps its language on GitHub updates;
+  **System → Firmware update → Firmware language** chooses another one, and
+  choosing a different language offers the installed version again in that
+  language (never an older one). The Easy Install package contains every
+  language and its scripts ask which one to install. The Ethernet image stays
+  English only. Coming from an earlier 2.0.x with the Italian, Spanish or
+  Chinese interface: the first update installs the English image; choose the
+  language and install once more.
+- Application tables (scan cache, firewall lists, saved networks, Service
+  Gateway rules, 4via6 flows, DHCP reservations, WoL devices, Devices &
+  Recovery store, console capture) moved from internal RAM to PSRAM, leaving
+  more internal RAM for WiFi, lwIP and the VPN.
+- Resource admission guard defaults: 8 KB free internal RAM and a 4 KB
+  largest block (were 16 KB / 8 KB). Estimates, not measured limits; saved
+  settings are unchanged.
+
+### Fixed
+
+- MQTT and ntfy stopped connecting with no explanation when the resource
+  admission guard was on: at the normal ~17 KB of free internal RAM the old
+  default threshold paused all optional work. The Health & resources card now
+  warns while the guard is pausing work, the MQTT badge reads *Paused by the
+  resource guard* and the ntfy test says the same.
+- *Check now* answered `ESP_ERR_INVALID_STATE — refresh before another
+  action`. Refusals now say why (another check running, the same device
+  checked less than a minute ago, or the resource guard) and the page keeps
+  working.
+- The configuration profile selector showed *Gateway* whatever was active; it
+  now shows the active profile, or *No profile applied*.
+- Network: the *Device-wide network* card touched the *Uplink networks* card.
 
 ### Improved
 
