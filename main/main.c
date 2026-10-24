@@ -69,6 +69,8 @@
 #include "portmap.h"
 #include "tailnet_forward.h"
 #include "mac_deny.h"
+#include "history.h"
+#include "settings_snapshot.h"
 #include "reset_history.h"
 #include "ota.h"
 #include "ota_remote.h"
@@ -497,6 +499,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                  (int)s_manual_scan_active,
                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+        if (ap_connect)
+            history_event(HIST_EV_UPLINK, HIST_WARN, "Wi-Fi uplink lost (reason %u)", event ? (unsigned)event->reason : 0);
         ap_connect = 0;
         if (shutting_down) return;
         if (first_boot_active()) {
@@ -535,6 +539,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             s_setup_test_mask = event->ip_info.netmask.addr;
             s_setup_test = FB_WIFI_OK;
         }
+        history_event(HIST_EV_UPLINK, HIST_INFO, "Wi-Fi uplink connected, " IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         s_net_retries = 0;   /* successful association — clear the rotation counter */
         ap_connect = 1;
@@ -903,6 +908,10 @@ void app_main(void)
     /* Before any PSRAM-stack worker: their exits must not allocate. */
     (void)task_reaper_init();
 
+    /* A settings restore requested from the web UI is applied here, before
+     * NVS is opened (one 4-byte flash read when none is pending). */
+    settings_snapshot_boot();
+
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -991,6 +1000,10 @@ void app_main(void)
             nvs_close(ch);
         }
     }
+
+    /* Event/metrics history: off by default, then no task, buffer or flash use. */
+    history_init();
+    settings_snapshot_log_boot();
 
     /* Tailscale (microlink) settings — separate NVS keys (ts_*); loader
      * lives in tailscale_manager.c. Microlink lifecycle wires in later

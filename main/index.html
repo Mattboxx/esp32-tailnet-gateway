@@ -1695,6 +1695,14 @@
       .card-header { flex-wrap: wrap; row-gap: var(--sp-2); }
       .card-header-actions { flex-wrap: wrap; gap: var(--sp-2); }
     }
+    /* Trends (history of resources and traffic) */
+    .trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3); }
+    .trend { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); min-width: 0; }
+    .trend-head { display: flex; justify-content: space-between; gap: var(--sp-2); font-size: var(--text-xs); color: var(--fg-muted); }
+    .trend-now { font-weight: 600; color: var(--fg); white-space: nowrap; }
+    .trend svg { width: 100%; height: 48px; display: block; margin-top: 4px; }
+    .trend-range { font-size: var(--text-xs); color: var(--fg-muted); }
+    .hist-table td { vertical-align: top; }
   </style>
 </head>
 <body>
@@ -2310,6 +2318,18 @@
 
         </div>
       </div><!-- /grid row 2 -->
+
+      <!-- Trends: shown when the metrics history is on (Tools → History) -->
+      <div class="card mt-4" id="trend-card" hidden>
+        <div class="card-header">
+          <div class="card-header-left"><span class="card-title">Trends</span></div>
+          <div class="card-header-right"><select class="input" id="trend-range" aria-label="Period" style="width:auto;"><option value="live">Last 6 hours</option><option value="day">Last 24 hours</option><option value="week">Last 7 days</option><option value="month">Last 30 days</option></select></div>
+        </div>
+        <div class="card-body">
+          <p class="form-hint" id="trend-status" role="status">Loading…</p>
+          <div class="trend-grid" id="trend-grid"></div>
+        </div>
+      </div>
 
       <!-- Shown only while a service rule is enabled or temporary access is
            open; Network and the goal tile below always offer the feature. -->
@@ -3083,6 +3103,44 @@
         </div>
       </div>
 
+      <!-- ===== Event and trend history (3.x storage area) ===== -->
+      <div class="card mt-4" id="hist-card">
+        <div class="card-header">
+          <div class="card-header-left"><span class="card-title">History</span></div>
+          <span class="badge badge-neutral" id="hist-badge">Off</span>
+        </div>
+        <div class="card-body">
+          <p class="form-hint">Keeps a local record in the storage area of the flash: starts, crashes, updates, uplink and tailnet changes, admin logins and settings copies, plus a trend sample of memory, traffic, signal, CPU and peers once a minute (shown on Status). Nothing is sent anywhere. Everything is off by default; while off it uses no memory, no processor time and no flash writes.</p>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="hist-events"><span class="feature-switch-track" aria-hidden="true"></span><span>Record events</span></label>
+            <span class="form-hint">About 2 KB of PSRAM and one small background task while on. Keeps the most recent events (about 10,000), oldest first replaced.</span>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="hist-metrics"><span class="feature-switch-track" aria-hidden="true"></span><span>Record trends</span></label>
+            <span class="form-hint">About 12 KB of PSRAM while on: 6 hours at one-minute detail, then about 45 days at ten-minute detail in flash.</span>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="hist-snapshots"><span class="feature-switch-track" aria-hidden="true"></span><span>Save a settings copy before each firmware update</span></label>
+            <span class="form-hint">Takes one or two seconds before the download starts. Copies are listed under System → Settings copies.</span>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-primary" id="hist-save" type="button" disabled>Save</button></div>
+          <p class="form-hint" id="hist-status" role="status">Loading…</p>
+          <div id="hist-events-wrap" hidden>
+            <div class="form-row" style="align-items:flex-end;">
+              <div class="form-group"><label class="form-label" for="hist-filter">Show</label>
+                <select class="input" id="hist-filter"><option value="">All events</option><option value="problems">Errors and warnings</option><option value="update">Updates</option><option value="uplink">Uplink</option><option value="tailnet">Tailnet</option><option value="security">Security</option><option value="settings">Settings</option></select></div>
+              <button class="btn btn-secondary btn-md" id="hist-refresh" type="button">Refresh</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="table hist-table" style="width:100%;">
+                <thead><tr><th style="white-space:nowrap;">When</th><th>Type</th><th>Event</th></tr></thead>
+                <tbody id="hist-tbody"><tr><td colspan="3" class="form-hint">—</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== Reset history (moved here from System — it's a diagnostic) ===== -->
       <div class="card mt-4">
         <div class="card-header">
@@ -3531,6 +3589,25 @@
           <div id="mig-progress-wrap" hidden style="background:var(--bg-subtle); border-radius:var(--radius-sm); height:0.5rem; overflow:hidden; margin-bottom:var(--sp-3);"><div id="mig-progress" style="background:var(--accent); height:100%; width:0%; transition:width 0.2s;"></div></div>
           <label class="feature-switch"><input type="checkbox" id="mig-confirm"><span class="feature-switch-track" aria-hidden="true"></span><span>The power supply is stable and I want to move this gateway to 3.0 now</span></label>
           <div class="page-header-actions"><button class="btn btn-primary" id="mig-start" type="button" disabled>Migrate to 3.0</button></div>
+        </div>
+      </div>
+
+      <!-- ===== Settings copies (3.x storage area) ===== -->
+      <div class="card mt-4" id="snap-card">
+        <div class="card-header">
+          <div class="card-header-left"><span class="card-title">Settings copies</span></div>
+          <span class="badge badge-neutral" id="snap-badge">—</span>
+        </div>
+        <div class="card-body">
+          <p class="form-hint">Up to three copies of all settings (WiFi, Tailscale identity, passwords, rules), kept on this gateway to go back after a bad change or update. Copies never leave the device and cannot be downloaded; a factory reset erases them. Restoring restarts the gateway and also brings back the <strong>admin password in use when the copy was saved</strong>. The current settings are saved as a copy first, so a restore can be undone.</p>
+          <div style="overflow-x:auto;">
+            <table class="table" style="width:100%;">
+              <thead><tr><th>Copy</th><th>Saved</th><th>Reason</th><th>Firmware</th><th></th></tr></thead>
+              <tbody id="snap-tbody"><tr><td colspan="5" class="form-hint">—</td></tr></tbody>
+            </table>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-secondary" id="snap-cancel" type="button" hidden>Cancel the pending restore</button><button class="btn btn-primary" id="snap-take" type="button" disabled>Save a copy now</button></div>
+          <p class="form-hint" id="snap-status" role="status">Loading…</p>
         </div>
       </div>
 
@@ -5250,14 +5327,14 @@
     }
 
     function loadPageState(page) {
-      if (page === 'status') { fetchStatus(); loadServiceGatewaySummary(); }
+      if (page === 'status') { fetchStatus(); loadServiceGatewaySummary(); histUi.loadTrends(); }
       if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); loadCellular(); loadServiceWatch(); }
       if (page === 'tailscale') loadTailscale();
       if (page === 'firewall') loadFirewall();
       if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); }
       if (page === 'operations') loadOperations();
-      if (page === 'system') { loadSystem(); loadProfiles(); loadMigration(); }
-      if (page === 'tools') { loadDiag(); loadPrecrashLog(); }
+      if (page === 'system') { loadSystem(); loadProfiles(); loadMigration(); histUi.loadSnapshots(); }
+      if (page === 'tools') { loadDiag(); loadPrecrashLog(); histUi.loadEvents(); }
     }
 
     /* Post-login crash check. If the most recent reset_history entry is a
@@ -6412,6 +6489,160 @@
         await loadMigration();}
       catch(e){document.getElementById('mig-status').textContent='Not started: '+e.message;btn.disabled=false;}
     });
+    /* History, trends and settings copies (3.x storage area). */
+    var histUi = (function () {
+      function el(id) { return document.getElementById(id); }
+      function html(v) { return String(v).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+      function when(t, b, u, now, up, boot) {
+        if (t) return new Date(t * 1000).toLocaleString();
+        if (b === boot && up >= u) return formatUptime(up - u) + ' ago';
+        return 'Start ' + b + ', after ' + formatUptime(u);
+      }
+      var KIND = {boot: 'Start', crash: 'Crash', update: 'Update', uplink: 'Uplink', tailnet: 'Tailnet', settings: 'Settings', security: 'Security', storage: 'Storage', event: 'Event'};
+      var LEVEL = {info: 'badge-neutral', warn: 'badge-warning', error: 'badge-danger'};
+      var s_cfg = null;
+      function setBadge(on, persist, storage) {
+        var b = el('hist-badge');
+        b.textContent = !storage ? 'Needs the 3.0 layout' : on ? 'On' : 'Off';
+        b.className = 'badge ' + (!storage ? 'badge-warning' : on ? 'badge-success' : 'badge-neutral');
+      }
+      function loadEvents() {
+        var filter = el('hist-filter').value;
+        return apiFetch('/api/events?limit=200', {cache: 'no-store'}).then(function (r) {
+          if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
+        }).then(function (d) {
+          if (!d) { el('hist-card').hidden = true; return; }
+          s_cfg = d.config;
+          ['events', 'metrics', 'snapshots'].forEach(function (k) { el('hist-' + k).checked = !!d.config[k]; el('hist-' + k).disabled = !d.storage; });
+          el('hist-save').disabled = true;
+          setBadge(d.config.events || d.config.metrics, d.persist, d.storage);
+          el('hist-status').textContent = !d.storage ? 'Not available on the 2.x flash layout: move to the 3.0 layout first.' :
+            d.config.events ? (d.events.length ? d.events.length + ' recent events.' : 'No events recorded yet.') : 'Event recording is off.';
+          el('hist-events-wrap').hidden = !d.config.events && !d.events.length;
+          var rows = d.events.filter(function (e) {
+            return !filter || (filter === 'problems' ? e.l !== 'info' : e.k === filter || (filter === 'update' && e.k === 'boot'));
+          }).map(function (e) {
+            return '<tr><td style="white-space:nowrap;">' + html(when(e.t, e.b, e.u, d.now, d.uptime, d.boot)) + '</td><td><span class="badge ' + (LEVEL[e.l] || 'badge-neutral') + '">' +
+              html(KIND[e.k] || e.k) + '</span></td><td>' + html(e.m) + '</td></tr>';
+          });
+          el('hist-tbody').innerHTML = rows.length ? rows.join('') : '<tr><td colspan="3" class="form-hint">No matching events.</td></tr>';
+        }).catch(function (e) { el('hist-status').textContent = 'Unavailable: ' + e.message; });
+      }
+      ['hist-events', 'hist-metrics', 'hist-snapshots'].forEach(function (id) { el(id).addEventListener('change', function () { el('hist-save').disabled = false; }); });
+      el('hist-filter').addEventListener('change', loadEvents);
+      el('hist-refresh').addEventListener('click', loadEvents);
+      el('hist-save').addEventListener('click', async function () {
+        var btn = this; btn.disabled = true;
+        try {
+          var r = await apiFetch('/api/history/config', {method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({events: el('hist-events').checked, metrics: el('hist-metrics').checked, snapshots: el('hist-snapshots').checked})});
+          var d = await r.json().catch(function () { return {}; });
+          if (!r.ok || !d.ok) throw new Error(d.reason || ('HTTP ' + r.status));
+          showToast('success', 'History settings saved', '', 3000);
+          await loadEvents();
+        } catch (e) { el('hist-status').textContent = 'Not saved: ' + e.message; btn.disabled = false; }
+      });
+
+      /* Trends: small SVG lines, oldest on the left. */
+      var SERIES = [
+        {label: 'Internal RAM free', get: function (p) { return p[3] / 1024; }, fmt: function (v) { return v.toFixed(1) + ' KB'; }},
+        {label: 'Largest internal block', get: function (p) { return p[4] / 1024; }, fmt: function (v) { return v.toFixed(1) + ' KB'; }},
+        {label: 'PSRAM free', get: function (p) { return p[5] / 1048576; }, fmt: function (v) { return v.toFixed(2) + ' MB'; }},
+        {label: 'Uplink download', rate: 6, fmt: rateText},
+        {label: 'Uplink upload', rate: 7, fmt: rateText},
+        {label: 'Wi-Fi signal', get: function (p) { return p[8] ? p[8] : null; }, fmt: function (v) { return Math.round(v) + ' dBm'; }},
+        {label: 'CPU load', get: function (p) { return p[9] >= 0 ? p[9] : null; }, fmt: function (v) { return Math.round(v) + ' %'; }},
+        {label: 'Tailnet peers online', get: function (p) { return p[10]; }, fmt: function (v) { return String(Math.round(v)); }}
+      ];
+      function rateText(v) { return v >= 1000 ? (v / 1000).toFixed(2) + ' Mbit/s' : v.toFixed(1) + ' kbit/s'; }
+      function line(values) {
+        var W = 300, H = 48, nums = values.filter(function (v) { return v !== null; });
+        if (nums.length < 2) return '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true"></svg>';
+        var lo = Math.min.apply(null, nums), hi = Math.max.apply(null, nums), span = hi - lo || 1, path = '', pen = false;
+        values.forEach(function (v, i) {
+          if (v === null) { pen = false; return; }
+          var x = values.length > 1 ? i * W / (values.length - 1) : 0, y = H - 3 - (v - lo) / span * (H - 6);
+          path += (pen ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); pen = true;
+        });
+        return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true"><path d="' + path +
+          '" fill="none" stroke="var(--accent-primary)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>';
+      }
+      var s_trend_at = 0;
+      function loadTrends() {
+        s_trend_at = Date.now();
+        var range = el('trend-range').value;
+        return apiFetch('/api/history?range=' + encodeURIComponent(range), {cache: 'no-store'}).then(function (r) {
+          if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
+        }).then(function (d) {
+          var card = el('trend-card');
+          card.hidden = !d || !d.config.metrics;
+          if (card.hidden) return;
+          var pts = d.points.slice().reverse(), step = d.step || 60;
+          el('trend-status').textContent = pts.length ? (range === 'live' ? 'One point a minute since the last start.' : 'One point every ' + Math.round(step / 60) + ' minutes.') + (d.persist || range === 'live' ? '' : ' Older trends need the 3.0 layout.') :
+            (range === 'live' ? 'The first sample arrives a minute after trends are switched on.' : 'No stored trend yet: the first point is saved after ten minutes.');
+          el('trend-grid').innerHTML = !pts.length ? '' : SERIES.map(function (s) {
+            var values = pts.map(function (p) { return s.rate !== undefined ? p[s.rate] * 8 / step / 1000 : s.get(p); });
+            var nums = values.filter(function (v) { return v !== null; }), now = nums.length ? nums[nums.length - 1] : null;
+            return '<div class="trend"><div class="trend-head"><span>' + html(s.label) + '</span><span class="trend-now">' + (now === null ? '—' : html(s.fmt(now))) + '</span></div>' +
+              line(values) + '<div class="trend-range">' + (nums.length ? html(s.fmt(Math.min.apply(null, nums))) + ' – ' + html(s.fmt(Math.max.apply(null, nums))) : '—') + '</div></div>';
+          }).join('');
+        }).catch(function (e) { el('trend-status').textContent = 'Unavailable: ' + e.message; });
+      }
+      el('trend-range').addEventListener('change', loadTrends);
+
+      /* Settings copies. */
+      var REASON = {manual: 'Saved by hand', update: 'Before a GitHub update', upload: 'Before a firmware upload', before_restore: 'Before a restore', other: 'Other'};
+      function loadSnapshots() {
+        return apiFetch('/api/system/snapshots', {cache: 'no-store'}).then(function (r) {
+          if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
+        }).then(function (d) {
+          if (!d) { el('snap-card').hidden = true; return; }
+          var count = d.slots.filter(function (x) { return x.valid; }).length;
+          el('snap-badge').textContent = !d.available ? 'Needs the 3.0 layout' : d.restore_pending ? 'Restore pending' : count + ' of 3';
+          el('snap-badge').className = 'badge ' + (!d.available || d.restore_pending ? 'badge-warning' : 'badge-neutral');
+          el('snap-take').disabled = !d.available;
+          el('snap-cancel').hidden = !d.restore_pending;
+          el('snap-status').textContent = !d.available ? 'Not available on the 2.x flash layout: move to the 3.0 layout first.' :
+            d.restore_pending ? 'A restore is waiting for the next start.' : d.before_update ? 'A copy is also saved before each firmware update.' : 'Copies are saved only by hand (see Tools → History to save one before each update).';
+          el('snap-tbody').innerHTML = d.slots.map(function (x) {
+            if (!x.valid) return '<tr><td>' + x.slot + '</td><td colspan="4" class="form-hint">Empty</td></tr>';
+            return '<tr><td>' + x.slot + '</td><td>' + html(x.t ? new Date(x.t * 1000).toLocaleString() : 'Clock not set') + '</td><td>' + html(REASON[x.reason] || x.reason) +
+              '</td><td class="mono">' + html(x.firmware) + '</td><td style="white-space:nowrap;"><button class="btn btn-secondary btn-sm" type="button" data-snap-restore="' + x.slot +
+              '">Restore</button> <button class="btn btn-ghost btn-sm text-danger" type="button" data-snap-delete="' + x.slot + '">Delete</button></td></tr>';
+          }).join('');
+        }).catch(function (e) { el('snap-status').textContent = 'Unavailable: ' + e.message; });
+      }
+      async function snapPost(body, button) {
+        if (button) button.disabled = true;
+        try {
+          var r = await apiFetch('/api/system/snapshots', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+          var d = await r.json().catch(function () { return {}; });
+          if (!r.ok || !d.ok) throw new Error(d.reason || (r.status === 401 || r.status === 403 ? 'sign in with the admin password' : 'HTTP ' + r.status));
+          return true;
+        } catch (e) { el('snap-status').textContent = 'Not done: ' + e.message; if (button) button.disabled = false; return false; }
+      }
+      el('snap-take').addEventListener('click', async function () {
+        el('snap-status').textContent = 'Saving a copy…';
+        if (await snapPost({action: 'take'}, this)) { showToast('success', 'Settings copy saved', '', 3000); await loadSnapshots(); }
+      });
+      el('snap-cancel').addEventListener('click', async function () { if (await snapPost({action: 'cancel'}, this)) await loadSnapshots(); });
+      el('snap-tbody').addEventListener('click', async function (ev) {
+        var b = ev.target.closest('button'); if (!b) return;
+        var restore = b.getAttribute('data-snap-restore'), del = b.getAttribute('data-snap-delete');
+        if (restore) {
+          if (!confirm('Restore settings copy ' + restore + ' and restart? The admin password returns to the one in use when the copy was saved.')) return;
+          el('snap-status').textContent = 'Saving the current settings, then restarting…';
+          if (await snapPost({action: 'restore', slot: Number(restore), confirm: true}, b)) {
+            el('snap-status').textContent = 'Restarting: the copy is applied at start. Sign in again afterwards.';
+            setTimeout(function () { window.location.reload(); }, 20000);
+          }
+        } else if (del) {
+          if (!confirm('Delete settings copy ' + del + '? This cannot be undone.')) return;
+          if (await snapPost({action: 'delete', slot: Number(del), confirm: true}, b)) await loadSnapshots();
+        }
+      });
+      return {loadEvents: loadEvents, loadTrends: loadTrends, loadSnapshots: loadSnapshots, trendsDue: function () { return Date.now() - s_trend_at >= 60000; }};
+    })();
     function loadServiceWatch(){
       document.getElementById('sw-save').disabled=true;
       return apiFetch('/api/service-watch',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(w){
@@ -10772,7 +11003,7 @@
       var loginVisible = document.getElementById('authLogin').style.display !== 'none';
       return !setupVisible && !loginVisible;
     }
-    setInterval(function () { if (statusRefreshDue()) fetchStatus(); }, 30000);
+    setInterval(function () { if (statusRefreshDue()) { fetchStatus(); if (histUi.trendsDue() && !document.getElementById('trend-card').hidden) histUi.loadTrends(); } }, 30000);
     document.addEventListener('visibilitychange', function () {
       if (statusRefreshDue() && Date.now() - s_status_fetched >= 30000) fetchStatus();
     });

@@ -21,6 +21,8 @@
 #include "lwip/ip4_addr.h"
 #include "lwip/sockets.h"
 #include "sockaddr_ipv4.h"
+#include "history.h"
+#include "storage_store.h"
 #include "web_ui.h"
 #include "lan_name.h"
 #include "json_guard.h"
@@ -3930,6 +3932,15 @@ static esp_err_t system_factory_reset_handler(httpd_req_t *req)
 {
     if (require_password_session(req) != ESP_OK) return ESP_FAIL;
     nvs_param_erase_all();
+    /* The settings copies hold the same secrets: erase them (and the
+     * history) too, before reporting success. 2.x layout: nothing to erase. */
+    esp_err_t wiped = storage_store_erase_all();
+    if (wiped != ESP_OK && wiped != ESP_ERR_NOT_FOUND) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_sendstr(req, "{\"ok\":false,\"reason\":\"settings erased, but the stored copies could not be erased\"}");
+        return ESP_FAIL;
+    }
     httpd_resp_set_type(req, "application/json");
     esp_err_t err = httpd_resp_sendstr(req, "{\"ok\":true,\"restarting\":true}");
     xTaskCreate(delayed_restart_task, "reboot", 2048, NULL, 5, NULL);
@@ -5041,6 +5052,7 @@ static esp_err_t auth_login_handler(httpd_req_t *req)
 
     if (!ok) {
         login_guard_failed(guard);
+        history_event(HIST_EV_SECURITY, HIST_WARN, "Admin login failed");
         /* Don't leak whether a password is set or just wrong — same 401
          * either way. */
         httpd_resp_send_err(req, HTTPD_401_UNAUTHORIZED, "unauthorised");
@@ -5261,6 +5273,7 @@ static esp_err_t auth_change_password_handler(httpd_req_t *req)
     }
 
     memset(guard, 0, sizeof *guard);
+    history_event(HIST_EV_SECURITY, HIST_INFO, "Admin password changed");
 
     /* Force re-login after a successful change — matches the OLD repo's
      * behaviour and means a stolen-cookie attacker stays out even if the
@@ -5698,7 +5711,7 @@ void web_ui_init(void)
      * instead of WebCrypto's ~100 ms. */
     httpd_config_t conf           = HTTPD_DEFAULT_CONFIG();
     conf.uri_match_fn             = httpd_uri_match_wildcard;
-    conf.max_uri_handlers         = 110;
+    conf.max_uri_handlers         = 118;
     conf.stack_size               = 12288;
     /* Local uploads and queued GitHub OTA work freeze flash caches. */
     conf.task_caps                = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;

@@ -1,6 +1,8 @@
 /* User-authorized GitHub updates for the Mattboxx edition only.
  * No telemetry, arbitrary update URL, token, NVS upload or plaintext TLS fallback.
  * SPDX-License-Identifier: MIT */
+#include "history.h"
+#include "settings_snapshot.h"
 #include "ota_remote.h"
 #include "ota_validation.h"
 #include "ota.h"
@@ -228,6 +230,7 @@ static OTA_NOINLINE bool install_release(void)
     mbedtls_sha256_context hash; mbedtls_sha256_init(&hash);
     status_set("Downloading verified firmware");
     if (!b.location || !buffer || !ota_download_url_allowed_for(url, state.asset)) goto done;
+    settings_snapshot_before_update(SNAP_UPDATE);   /* when switched on; never blocks the update */
     client = http_client(url, &b);
     if (!client) goto done;
     bool opened = false;
@@ -278,6 +281,7 @@ done:
     mbedtls_sha256_free(&hash); free(b.location); free(buffer);
     if (success) {
         status_set("Installed; restarting");
+        history_event(HIST_EV_UPDATE, HIST_INFO, "Installed %s from GitHub; restarting", state.latest_version);
         vTaskDelay(pdMS_TO_TICKS(2000)); ota_flash_restart();
     } else {
         /* A failed dispatch/abort must not admit another writer over a still
