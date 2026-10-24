@@ -27,6 +27,7 @@ by task.
 | Monitoring | [Network health](NETWORK-HEALTH.md) |
 | Automation | [MQTT](MQTT.md), [Home Assistant](HOME-ASSISTANT.md), [ntfy](NTFY.md) |
 | Wired uplink (experimental W5500) | [Ethernet](ETHERNET.md) |
+| Mobile uplink with a SIM (experimental, 3.0) | [Cellular](CELLULAR.md) |
 | Settings | [Configuration](CONFIGURATION.md), [Backup and restore](BACKUP-RESTORE.md) |
 
 The [guide coverage table](GUIDES.md) maps every guide subject to its document.
