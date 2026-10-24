@@ -25,11 +25,11 @@
 
 typedef enum {
     HIST_EV_BOOT = 1, HIST_EV_CRASH, HIST_EV_UPDATE, HIST_EV_UPLINK, HIST_EV_TAILNET,
-    HIST_EV_SETTINGS, HIST_EV_SECURITY, HIST_EV_STORAGE, HIST_EV_KIND_END
+    HIST_EV_SETTINGS, HIST_EV_SECURITY, HIST_EV_STORAGE, HIST_EV_SERVICE, HIST_EV_KIND_END
 } history_kind_t;
 typedef enum {HIST_INFO, HIST_WARN, HIST_ERROR} history_level_t;
 
-#define HIST_TEXT_MAX 120
+#define HIST_TEXT_MAX 160
 #define HIST_RATE_BURST 20       /* lines; refilled one every 3 s */
 #define HIST_SAMPLE_BYTES 28
 #define HIST_UP_UPLINK 0x01
@@ -82,4 +82,8 @@ void history_event(history_kind_t kind, history_level_t level, const char *fmt, 
  * (callable from any stack; flash access needs an internal one). */
 esp_err_t history_run_job(esp_err_t (*fn)(void *arg), void *arg);
 uint16_t history_boot_number(void);
+/* A consumer of every event line (notifications), called on the history
+ * task. Setting one keeps the event bus running without the flash log. */
+typedef void (*history_sink_t)(unsigned kind, unsigned level, uint32_t wall, const char *text);
+void history_set_sink(history_sink_t sink);
 esp_err_t history_register_http(httpd_handle_t server);

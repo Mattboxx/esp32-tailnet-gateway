@@ -106,7 +106,7 @@ size_t history_json_escape(char *out, size_t cap, const char *in)
 
 const char *history_kind_name(unsigned kind)
 {
-    static const char *const names[] = {"event", "boot", "crash", "update", "uplink", "tailnet", "settings", "security", "storage"};
+    static const char *const names[] = {"event", "boot", "crash", "update", "uplink", "tailnet", "settings", "security", "storage", "service"};
     return kind < sizeof names / sizeof names[0] ? names[kind] : "event";
 }
 
@@ -166,7 +166,9 @@ typedef struct {bool events, metrics, snapshots;} hist_config_t;
 static SemaphoreHandle_t s_lock;            /* task lifecycle, live ring, config */
 static StaticSemaphore_t s_lock_storage;
 static hist_config_t s_cfg;
-static atomic_bool s_events_on;
+static atomic_bool s_events_on;           /* events are accepted: stored or sunk */
+static volatile history_sink_t s_sink;
+static bool s_inited;
 static QueueHandle_t s_queue;               /* kept once created (producers may race a switch-off) */
 static atomic_uint s_dropped;
 static unsigned s_limited;
@@ -276,7 +278,8 @@ static void history_task(void *arg)
         xSemaphoreTake(s_lock, portMAX_DELAY);
         hist_config_t cfg = s_cfg;
         if (!cfg.metrics && s_live) {free(s_live); s_live = NULL; s_live_count = s_live_head = 0;}
-        if (!cfg.events && !cfg.metrics) {
+        history_sink_t sink = s_sink;
+        if (!cfg.events && !cfg.metrics && !sink) {
             s_task = NULL;
             xSemaphoreGive(s_lock);
             vTaskDelete(NULL);
@@ -285,6 +288,7 @@ static void history_task(void *arg)
         uint32_t now = uptime_s();
         queued_t e;
         for (int i = 0; i < 8 && s_queue && xQueueReceive(s_queue, &e, 0) == pdTRUE; i++) {
+            if (sink) sink(e.kind, e.level, e.wall, e.text);
             if (!cfg.events || !s_persist) continue;
             if (!history_rate_allow(&rate, now)) {s_limited++; continue;}
             write_event(&e);
@@ -296,7 +300,7 @@ static void history_task(void *arg)
             if (s_persist) write_event(&note);
             s_limited = 0;
         }
-        if (cfg.events && now >= next_poll) {
+        if ((cfg.events || sink) && now >= next_poll) {
             next_poll = now + POLL_PERIOD;
             int state = tailscale_is_connected();
             if (state == tailnet_seen && state != tailnet_state) {   /* stable for two polls */
@@ -340,9 +344,9 @@ static bool find_boot(const store_record_t *r, void *arg)
 /* Starts the task when a feature is on; it stops itself when both are off. */
 static esp_err_t apply_config(void)
 {
-    open_rings();
-    atomic_store_explicit(&s_events_on, s_cfg.events && s_persist, memory_order_release);
-    if (s_cfg.events && s_persist && !s_queue) {
+    if (s_cfg.events || s_cfg.metrics) open_rings();   /* notifications alone never read the flash */
+    bool accept = (s_cfg.events && s_persist) || s_sink;
+    if (accept && !s_queue) {
         queued_t *area = heap_caps_malloc(QUEUE_LEN * sizeof(queued_t), MALLOC_CAP_SPIRAM);
         static StaticQueue_t queue_storage;
         if (area) s_queue = xQueueCreateStatic(QUEUE_LEN, sizeof(queued_t), (uint8_t *)area, &queue_storage);
@@ -353,12 +357,13 @@ static esp_err_t apply_config(void)
         memset(&s_merge, 0, sizeof s_merge);
         s_have_traffic = false;
     }
-    if ((s_cfg.events || s_cfg.metrics) && !s_task &&
+    atomic_store_explicit(&s_events_on, accept && s_queue, memory_order_release);
+    if ((s_cfg.events || s_cfg.metrics || s_sink) && !s_task &&
         xTaskCreate(history_task, "history", 3584, NULL, 2, &s_task) != pdPASS) {
         s_task = NULL;
         return ESP_ERR_NO_MEM;
     }
-    return (s_cfg.metrics && !s_live) || (s_cfg.events && s_persist && !s_queue) ? ESP_ERR_NO_MEM : ESP_OK;
+    return (s_cfg.metrics && !s_live) || (accept && !s_queue) ? ESP_ERR_NO_MEM : ESP_OK;
 }
 
 /* Boot number: the last boot record + 1 (events on and stored only). */
@@ -379,14 +384,18 @@ void history_init(void)
     s_cfg.events = nvs_param_get_u8("hist_ev", &v) == ESP_OK && v == 1;
     s_cfg.metrics = nvs_param_get_u8("hist_mx", &v) == ESP_OK && v == 1;
     s_cfg.snapshots = nvs_param_get_u8("hist_snap", &v) == ESP_OK && v == 1;
-    if (!s_cfg.events && !s_cfg.metrics) return;   /* off: no flash read, no task, no buffer */
     xSemaphoreTake(s_lock, portMAX_DELAY);
-    open_rings();
-    if (s_cfg.events) number_boot();
-    esp_err_t err = apply_config();
+    s_inited = true;
+    bool any = s_cfg.events || s_cfg.metrics || s_sink;
+    if (any) {
+        if (s_cfg.events || s_cfg.metrics) open_rings();   /* off: no flash read, no task, no buffer */
+        if (s_cfg.events) number_boot();
+    }
+    esp_err_t err = any ? apply_config() : ESP_OK;
+    bool accepting = atomic_load(&s_events_on);
     xSemaphoreGive(s_lock);
     if (err) ESP_LOGW(TAG, "history not fully started: %s", esp_err_to_name(err));
-    if (!s_cfg.events || !s_persist) return;
+    if (!accepting) return;
     reset_history_entry_t entry = {0};
     bool have = reset_history_load(&entry, 1) == 1;
     const esp_app_desc_t *app = esp_app_get_description();
@@ -403,6 +412,17 @@ void history_init(void)
 }
 
 bool history_snapshots_before_update(void) {return s_cfg.snapshots;}
+
+void history_set_sink(history_sink_t sink)
+{
+    if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    s_sink = sink;
+    /* Before history_init only the sink is noted; init applies it. */
+    esp_err_t err = s_inited ? apply_config() : ESP_OK;
+    xSemaphoreGive(s_lock);
+    if (err) ESP_LOGW(TAG, "notification events not fully started: %s", esp_err_to_name(err));
+}
 
 /* --- jobs on an internal-RAM stack --- */
 typedef struct {esp_err_t (*fn)(void *); void *arg; esp_err_t result; SemaphoreHandle_t done;} job_t;

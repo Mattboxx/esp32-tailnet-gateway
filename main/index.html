@@ -1703,6 +1703,7 @@
     .trend svg { width: 100%; height: 48px; display: block; margin-top: 4px; }
     .trend-range { font-size: var(--text-xs); color: var(--fg-muted); }
     .hist-table td { vertical-align: top; }
+    .nt-head { font-size: var(--text-sm); margin: var(--sp-4) 0 var(--sp-2) 0; color: var(--accent-primary); }
   </style>
 </head>
 <body>
@@ -3392,6 +3393,48 @@
         <div class="form-footer">
           <span class="form-footer-hint">Alerts report connectivity only; local logs are never included. ntfy and its server can see message contents when enabled.</span>
           <div class="form-footer-actions"><button class="btn btn-ghost btn-md" id="ntfy-test">Send test</button><button class="btn btn-secondary btn-md" id="ntfy-reload">Reload</button><button class="btn btn-primary btn-md" id="ntfy-save" disabled>Save</button></div>
+        </div>
+      </div>
+
+      <!-- ===== Telegram and email notifications ===== -->
+      <div class="card mt-4" id="nt-card">
+        <div class="card-header">
+          <div class="card-header-left"><span class="card-title">Telegram &amp; email notifications</span></div>
+          <span class="badge badge-neutral" id="nt-badge">Off</span>
+        </div>
+        <div class="card-body">
+          <p class="form-hint">Messages about starts, crashes, updates, uplink and tailnet changes, failed admin logins and settings copies, plus the same operational results ntfy sends (recovery checks, service rules). Off by default; while off nothing runs. Messages wait while the internet is down and are sent when it returns (up to 8, at most 6 at once, then one every 2 minutes).</p>
+          <div class="form-group"><label class="form-label" for="nt-events">Send</label>
+            <select class="input" id="nt-events"><option value="problems">Warnings and errors (recommended)</option><option value="all">All events</option></select></div>
+
+          <h4 class="nt-head">Telegram</h4>
+          <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Send to Telegram</span></label>
+            <span class="form-hint">Create a bot with @BotFather, send it any message, then use your chat id (for example from @userinfobot). Messages go through Telegram's servers.</span></div>
+          <div class="grid grid-cols-2">
+            <div class="form-group"><label class="form-label" for="nt-tg-token">Bot token</label><input class="input mono" type="password" id="nt-tg-token" autocomplete="new-password" placeholder="123456789:AA… — leave empty to keep"><label class="form-hint" style="display:flex;gap:0.35rem;align-items:center;"><input type="checkbox" id="nt-tg-clear"> Clear saved token</label></div>
+            <div class="form-group"><label class="form-label" for="nt-tg-chat">Chat id</label><input class="input mono" id="nt-tg-chat" placeholder="123456789, -100… for a group, or @channel"></div>
+          </div>
+          <p class="form-hint mono" id="nt-tg-status">—</p>
+
+          <h4 class="nt-head">Email</h4>
+          <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-mail-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Send by email</span></label>
+            <span class="form-hint">Uses your mail provider's SMTP server with a verified TLS certificate; the password is never sent without TLS. Many providers need an app password.</span></div>
+          <div class="grid grid-cols-2">
+            <div class="form-group"><label class="form-label" for="nt-mail-host">SMTP server</label><input class="input mono" id="nt-mail-host" placeholder="smtp.example.com"></div>
+            <div class="form-group"><label class="form-label" for="nt-mail-security">Connection</label>
+              <select class="input" id="nt-mail-security"><option value="tls">TLS from the start (port 465)</option><option value="starttls">STARTTLS (port 587)</option></select></div>
+            <div class="form-group"><label class="form-label" for="nt-mail-port">Port</label><input class="input mono" type="number" id="nt-mail-port" min="1" max="65535" value="465"></div>
+            <div class="form-group"><label class="form-label" for="nt-mail-user">User name</label><input class="input mono" id="nt-mail-user" autocomplete="off" placeholder="name@example.com"></div>
+            <div class="form-group"><label class="form-label" for="nt-mail-pass">Password</label><input class="input" type="password" id="nt-mail-pass" autocomplete="new-password" placeholder="Leave empty to keep"></div>
+            <div class="form-group"><label class="form-label" for="nt-mail-from">From</label><input class="input mono" id="nt-mail-from" placeholder="gateway@example.com"></div>
+            <div class="form-group"><label class="form-label" for="nt-mail-to">To</label><input class="input mono" id="nt-mail-to" placeholder="me@example.com"></div>
+          </div>
+          <p class="form-hint mono" id="nt-mail-status">—</p>
+          <p class="form-hint" id="nt-status" role="status">Loading…</p>
+        </div>
+        <div class="form-footer">
+          <span class="form-footer-hint">The bot token and the password stay on the gateway and are never shown again.</span>
+          <div class="form-footer-actions"><button class="btn btn-ghost btn-md" id="nt-test-tg" type="button">Test Telegram</button><button class="btn btn-ghost btn-md" id="nt-test-mail" type="button">Test email</button><button class="btn btn-primary btn-md" id="nt-save" type="button" disabled>Save</button></div>
         </div>
       </div>
     </div>
@@ -5349,7 +5392,7 @@
       if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); loadCellular(); loadServiceWatch(); }
       if (page === 'tailscale') { loadTailscale(); loadTailnetNames(); }
       if (page === 'firewall') loadFirewall();
-      if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); }
+      if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); ntUi.load(); }
       if (page === 'operations') loadOperations();
       if (page === 'system') { loadSystem(); loadProfiles(); loadMigration(); histUi.loadSnapshots(); }
       if (page === 'tools') { loadDiag(); loadPrecrashLog(); histUi.loadEvents(); }
@@ -6507,6 +6550,71 @@
         await loadMigration();}
       catch(e){document.getElementById('mig-status').textContent='Not started: '+e.message;btn.disabled=false;}
     });
+    /* Telegram and email notifications. */
+    var ntUi = (function () {
+      function el(id) { return document.getElementById(id); }
+      var poll = null;
+      function channelText(c) { return c.sent || c.failed ? 'Sent ' + c.sent + ', failed ' + c.failed + (c.last_error ? ' — last error: ' + c.last_error : '') : 'Nothing sent yet.'; }
+      function load() {
+        clearTimeout(poll);
+        return apiFetch('/api/notify', {cache: 'no-store'}).then(function (r) {
+          if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
+        }).then(function (d) {
+          if (!d) { el('nt-card').hidden = true; return; }
+          el('nt-events').value = d.events;
+          el('nt-tg-enabled').checked = d.telegram.enabled; el('nt-tg-chat').value = d.telegram.chat;
+          el('nt-tg-token').value = ''; el('nt-tg-clear').checked = false;
+          el('nt-tg-token').placeholder = d.telegram.has_token ? 'Saved — leave empty to keep' : '123456789:AA…';
+          el('nt-mail-enabled').checked = d.email.enabled; el('nt-mail-host').value = d.email.host;
+          el('nt-mail-port').value = d.email.port; el('nt-mail-security').value = d.email.security;
+          el('nt-mail-user').value = d.email.user; el('nt-mail-from').value = d.email.from; el('nt-mail-to').value = d.email.to;
+          el('nt-mail-pass').value = ''; el('nt-mail-pass').placeholder = d.email.has_password ? 'Saved — leave empty to keep' : 'Password or app password';
+          el('nt-tg-status').textContent = channelText(d.telegram);
+          el('nt-mail-status').textContent = channelText(d.email);
+          var on = d.telegram.enabled || d.email.enabled, b = el('nt-badge');
+          b.textContent = on ? 'On' : 'Off'; b.className = 'badge ' + (on ? 'badge-success' : 'badge-neutral');
+          el('nt-status').textContent = d.waiting ? d.waiting + ' message(s) waiting to be sent.' : on ? 'Ready.' : 'Off.';
+          el('nt-save').disabled = true;
+          if (d.waiting && location.hash === '#automation') poll = setTimeout(load, 5000);
+        }).catch(function (e) { el('nt-status').textContent = 'Unavailable: ' + e.message; });
+      }
+      document.querySelectorAll('#nt-card input, #nt-card select').forEach(function (i) {
+        i.addEventListener(i.tagName === 'SELECT' || i.type === 'checkbox' ? 'change' : 'input', function () { el('nt-save').disabled = false; });
+      });
+      el('nt-mail-security').addEventListener('change', function () {
+        var port = el('nt-mail-port');
+        if (this.value === 'starttls' && port.value === '465') port.value = '587';
+        if (this.value === 'tls' && port.value === '587') port.value = '465';
+      });
+      el('nt-save').addEventListener('click', async function () {
+        var btn = this; btn.disabled = true;
+        var body = {events: el('nt-events').value,
+          telegram: {enabled: el('nt-tg-enabled').checked, chat: el('nt-tg-chat').value.trim(), token: el('nt-tg-token').value.trim(), clear_token: el('nt-tg-clear').checked},
+          email: {enabled: el('nt-mail-enabled').checked, host: el('nt-mail-host').value.trim(), port: Number(el('nt-mail-port').value),
+            security: el('nt-mail-security').value, user: el('nt-mail-user').value.trim(), password: el('nt-mail-pass').value,
+            from: el('nt-mail-from').value.trim(), to: el('nt-mail-to').value.trim()}};
+        try {
+          var r = await apiFetch('/api/notify', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+          var d = await r.json().catch(function () { return {}; });
+          if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+          showToast('success', 'Notification settings saved', '', 3000);
+          await load();
+        } catch (e) { el('nt-status').textContent = 'Not saved: ' + e.message; btn.disabled = false; }
+        finally { el('nt-tg-token').value = ''; el('nt-mail-pass').value = ''; }
+      });
+      async function test(channel) {
+        try {
+          var r = await apiFetch('/api/notify/test', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({channel: channel})});
+          var d = await r.json().catch(function () { return {}; });
+          if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+          el('nt-status').textContent = 'Test message queued; the result appears below in a few seconds.';
+          setTimeout(load, 4000);
+        } catch (e) { el('nt-status').textContent = 'Test not sent: ' + e.message; }
+      }
+      el('nt-test-tg').addEventListener('click', function () { test('telegram'); });
+      el('nt-test-mail').addEventListener('click', function () { test('email'); });
+      return {load: load};
+    })();
     /* Tailnet names for local devices. */
     function loadTailnetNames() {
       return apiFetch('/api/tailnet-names', {cache: 'no-store'}).then(function (r) {
