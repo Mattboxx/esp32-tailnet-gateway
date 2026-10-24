@@ -218,9 +218,11 @@ PSRAM placement, cache tuning) is the base of this branch (`v3`).
    through `esp_modem` PPP, APN/PIN as write-only secrets, primary or
    failover mode, data-use notice, no dialling without configuration. Real
    modem and SIM qualification before leaving experimental.
-4. **Migration path.** A last 2.0.x release tells 2.x gateways that 3.0
-   needs one USB reinstall (settings kept) and links the guide; the web
-   installer and Easy Install default to keeping settings.
+4. **Migration path.** Implemented: the 2.1 bridge (env esp32-s3-bridge,
+   main/layout_migration.c) moves 2.x gateways over the network, tested end
+   to end on board B from a bench source (self-copy restart, resume, 3.x
+   confirmed, settings kept); USB paths keep settings too. Pending: first
+   publication with real GitHub assets.
 5. **Performance and memory** carried over: PSRAM `.bss` placement, 32 KB
    instruction cache, 64-byte data-cache lines; measure free heap, stack
    margins and routing throughput on hardware.

@@ -6,10 +6,22 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [3.0.0] — in development
 
-Planned: 8 MB partition table for ESP32-S3 N8R8 and N16R8 (one USB reinstall
-from 2.x, settings kept), one firmware image with every language and
-Ethernet, optional cellular uplink. Work so far (2.0.4-beta.3 was cancelled
-before publication and continues here):
+In development: 8 MB partition table for ESP32-S3 N8R8 and N16R8, one
+firmware image with every language and Ethernet, optional cellular uplink.
+2.x gateways move over with the 2.1 bridge (over the network) or with one
+USB install; settings are kept ([guide](docs/MIGRATION-3.0.md)). Work so far
+(2.0.4-beta.3 was cancelled before publication and continues here):
+
+### Added
+
+- **Move from 2.x without a cable:** the 2.1 bridge, installed by the 2.x
+  updater, downloads 3.x from GitHub, verifies it and rewrites the boot
+  loader and partition table; settings are kept and a 3.x that does not
+  start returns to the bridge. Tested end to end on a N16R8.
+- **One image** with every Web UI language and the W5500 Ethernet driver
+  (OFF until configured), on a new 8 MB layout with 3.5 MB update slots.
+- **Cellular uplink (experimental):** UART modem with a SIM, primary or
+  failover, write-only SIM PIN and APN password ([guide](docs/CELLULAR.md)).
 
 ### Changed
 
