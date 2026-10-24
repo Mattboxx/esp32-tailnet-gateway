@@ -451,9 +451,9 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
     if (e == ESP_OK) e = nvs_param_set_int("ts_adv_exit", exit_node ? 1 : 0);
     /* Roles chosen in the wizard: the dashboard highlights them in its goal
      * launcher. Only known ids are stored. */
-    char roles[72] = "";
+    char roles[96] = "";
     const cJSON *rl = cJSON_GetObjectItem(cmd, "roles"), *r;
-    static const char *known[] = {"lan-tailnet", "subnet-router", "iot-ap", "wol", "home-assistant", "advanced"};
+    static const char *known[] = {"lan-tailnet", "subnet-router", "iot-ap", "wol", "home-assistant", "monitoring", "advanced"};
     cJSON_ArrayForEach(r, rl) {
         for (size_t i = 0; cJSON_IsString(r) && i < sizeof known / sizeof known[0]; i++)
             if (!strcmp(r->valuestring, known[i]) && !strstr(roles, known[i])
@@ -464,6 +464,12 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
     }
     if (e == ESP_OK) e = nvs_param_set_str("ui_roles", roles);
     if (e == ESP_OK) e = nvs_param_set_u8("ui_adv", bool_of(cmd, "advanced_ui", false) ? 1 : 0);
+    /* Optional extras of 3.0, each off unless ticked (same keys as their pages). */
+    const cJSON *extras = cJSON_GetObjectItem(cmd, "extras");
+    if (e == ESP_OK) e = nvs_param_set_u8("hist_ev", bool_of(extras, "history", false) ? 1 : 0);
+    if (e == ESP_OK) e = nvs_param_set_u8("hist_mx", bool_of(extras, "trends", false) ? 1 : 0);
+    if (e == ESP_OK) e = nvs_param_set_u8("hist_snap", bool_of(extras, "snapshots", false) ? 1 : 0);
+    if (e == ESP_OK) e = nvs_param_set_u8("tsn_en", bool_of(extras, "tailnet_names", false) ? 1 : 0);
     const char *name = str_of(cmd, "device_name");
     if (e == ESP_OK && name && *name && strlen(name) <= 32) e = nvs_param_set_str("dev_name", name);
     if (e == ESP_OK) e = nvs_param_set_u8("setup_done", 1);

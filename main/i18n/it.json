@@ -1444,5 +1444,7 @@
  "Not started: {}": "Non avviato: {}",
  "Not completed: {}": "Non completato: {}",
  "No data: {}": "Nessun dato: {}",
- "Throughput test: {} Mbit/s over {} KB": "Test di velocità: {} Mbit/s su {} KB"
+ "Throughput test: {} Mbit/s over {} KB": "Test di velocità: {} Mbit/s su {} KB",
+ "History, trends, settings copies and Telegram, email or ntfy notifications.": "Storico, andamenti, copie delle impostazioni e notifiche Telegram, email o ntfy.",
+ "Monitor the gateway and get alerts": "Monitora il gateway e ricevi avvisi"
 }

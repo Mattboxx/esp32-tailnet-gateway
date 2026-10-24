@@ -176,6 +176,11 @@ async function flow(browser, [width, height, locale], failures, full) {
     await page.check('#fb-roles input[value="subnet-router"]');
     assert.equal(await page.isChecked('#fb-share-lan'), true, 'Connect a network selects the subnet route');
     await page.check('#fb-roles input[value="wol"]');
+    assert.equal(await page.isChecked('#fb-x-history'), true, 'Wake or recover keeps the event history');
+    assert.equal(await page.isChecked('#fb-x-trends'), false, 'extras stay off unless chosen');
+    await page.check('#fb-roles input[value="monitoring"]');
+    assert.equal(await page.isChecked('#fb-x-trends') && await page.isChecked('#fb-x-snapshots'), true, 'Monitor and get alerts selects trends and settings copies');
+    assert.equal(await page.isChecked('#fb-x-names'), false, 'tailnet names only for the IoT role or by hand');
     await page.check('#fb-roles input[value="advanced"]');
     await check(4);
     await page.click('#fb-next');
@@ -193,7 +198,9 @@ async function flow(browser, [width, height, locale], failures, full) {
     assert.deepEqual(g.finish.tailnet, { auth_key: SECRETS.key, login_server: 'https://headscale.example.com', hostname: 'home-gateway' });
     assert.equal(g.finish.share_lan, true); assert.equal(g.finish.exit_node, false); assert.equal(g.finish.ap_recovery_only, true);
     assert.equal(g.finish.ap_ssid, 'ESP32-Tailnet-1A2B');
-    assert.deepEqual(g.finish.roles, ['subnet-router', 'wol', 'advanced']); assert.equal(g.finish.advanced_ui, true); assert.ok(g.finish.ap_password.length >= 8 && g.finish.ap_password !== SECRETS.admin);
+    assert.deepEqual(g.finish.roles, ['subnet-router', 'wol', 'monitoring', 'advanced']);
+    assert.deepEqual(g.finish.extras, { history: true, trends: true, snapshots: true, tailnet_names: false });
+    assert.ok(summaryText.includes('Event history') && summaryText.includes('Trends'), 'extras in the summary'); assert.equal(g.finish.advanced_ui, true); assert.ok(g.finish.ap_password.length >= 8 && g.finish.ap_password !== SECRETS.admin);
     assert.ok((await page.textContent('#fb-done-open')).includes('http://192.168.1.77/'));
     assert.equal(await page.getAttribute('#fb-done-open a[href="http://192.168.1.77/"]', 'href'), 'http://192.168.1.77/', 'tested address is a link');
     assert.equal(await page.getAttribute('#fb-done-open a[href="http://esp32-tailnet-1a2b.local/"]', 'href'), 'http://esp32-tailnet-1a2b.local/', 'per-board .local link');

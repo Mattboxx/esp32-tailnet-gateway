@@ -1939,6 +1939,7 @@
           <label class="fb-opt"><input type="checkbox" value="iot-ap"><span><b>IoT Gateway</b><small>Sensors and switches join the gateway's own Wi-Fi.</small></span></label>
           <label class="fb-opt"><input type="checkbox" value="wol"><span><b>Wake or recover a NAS/PC</b><small>Wake-on-LAN and recovery checks.</small></span></label>
           <label class="fb-opt"><input type="checkbox" value="home-assistant"><span><b>Home Assistant &amp; Automation</b><small>MQTT state and controls through Discovery.</small></span></label>
+          <label class="fb-opt"><input type="checkbox" value="monitoring"><span><b>Monitor and get alerts</b><small>Event history, trends and settings copies; notifications by Telegram, email or ntfy afterwards.</small></span></label>
           <label class="fb-opt"><input type="checkbox" value="advanced"><span><b>Advanced configuration</b><small>Show every setting on every page.</small></span></label>
         </div>
         <details class="fb-details"><summary>Network options</summary>
@@ -1946,6 +1947,13 @@
         <label class="fb-opt"><input type="checkbox" id="fb-share-ap" checked><span><b>Share the gateway's own Wi-Fi network</b><small>Devices connected to the gateway's Wi-Fi can reach the tailnet and be reached from it.</small></span></label>
         <label class="fb-opt"><input type="checkbox" id="fb-exit"><span><b>Offer this gateway as an exit node</b><small>Other tailnet devices can send their Internet traffic through your home connection.</small></span></label>
         <label class="fb-opt"><input type="checkbox" id="fb-ap-always"><span><b>Keep the gateway's own Wi-Fi always on</b><small>Otherwise it appears only when the home Wi-Fi is unavailable, as a recovery network.</small></span></label>
+        </details>
+        <details class="fb-details" id="fb-extras"><summary>Extras (all off unless you tick them)</summary>
+        <label class="fb-opt"><input type="checkbox" id="fb-x-history"><span><b>Keep an event history</b><small>Starts, crashes, updates, uplink and tailnet changes, kept in the gateway's flash.</small></span></label>
+        <label class="fb-opt"><input type="checkbox" id="fb-x-trends"><span><b>Record memory and traffic trends</b><small>Graphs on the Status page: 6 hours in detail, about 45 days in summary.</small></span></label>
+        <label class="fb-opt"><input type="checkbox" id="fb-x-snapshots"><span><b>Save a settings copy before each update</b><small>Go back to the previous settings from System → Settings copies.</small></span></label>
+        <label class="fb-opt"><input type="checkbox" id="fb-x-names"><span><b>Tailnet names for devices on the gateway's Wi-Fi</b><small>They can use names like nas or nas.tail1234.ts.net instead of 100.x addresses.</small></span></label>
+        <p class="auth-hint">Telegram, email and dynamic DNS need your accounts: set them up later under Automation and Network.</p>
         </details>
         <div class="form-group">
           <label class="form-label" for="fb-apname">Gateway Wi-Fi name</label>
@@ -5414,7 +5422,7 @@
         s_setup_roles = roles; updateServiceGatewayCard();
         try { if (localStorage.getItem('ui-advanced') === null && d.ui_advanced_default) setUiAdvanced(true); } catch (e) {}
         document.querySelectorAll('#goal-grid .goal-tile').forEach(function (b, i) {
-          var g = GOALS[i]; if (g && roles.indexOf(g.wizard || 'advanced') >= 0) b.classList.add('recommended');
+          var g = GOALS[i]; if (g && roles.indexOf(g.role || g.wizard || 'advanced') >= 0) b.classList.add('recommended');
         });
       }).catch(function () {});
     }
@@ -6391,6 +6399,7 @@
       {wizard:'iot-ap',title:'Set up a WiFi gateway for IoT devices',text:'Give sensors and switches their own access point.'},
       {wizard:'wol',title:'Wake or recover a NAS or PC',text:'Save a device for Wake-on-LAN, then use bounded recovery checks.'},
       {wizard:'home-assistant',title:'Connect Home Assistant',text:'MQTT state, switches and buttons through Discovery.'},
+      {role:'monitoring',href:'#tools',title:'Monitor the gateway and get alerts',text:'History, trends, settings copies and Telegram, email or ntfy notifications.'},
       {wizard:null,title:'Configure everything manually',text:'Show advanced settings on every page.'}];
     function renderGoals(){
       var grid=document.getElementById('goal-grid');if(!grid)return;grid.replaceChildren();
@@ -6399,7 +6408,7 @@
         var b=wzEl('button');b.type='button';b.className='goal-tile'+(g.primary?' primary':'');
         b.appendChild(wzEl('strong',g.title));b.appendChild(wzEl('span',g.text));
         if(f){b.disabled=true;b.title=(f.compiled===false?'Not available in this firmware':'Not supported by this board')+' — '+f.evidence;}
-        b.addEventListener('click',function(){if(g.wizard)wzOpen(g.wizard);else{setUiAdvanced(true);showToast('success','Advanced settings shown','Every page now shows all sections. Change this in System → Interface mode.',4000);}});
+        b.addEventListener('click',function(){if(g.href){location.hash=g.href;return;}if(g.wizard)wzOpen(g.wizard);else{setUiAdvanced(true);showToast('success','Advanced settings shown','Every page now shows all sections. Change this in System → Interface mode.',4000);}});
         grid.appendChild(b);
       });
     }
@@ -11075,6 +11084,9 @@
         row(dl, 'Gateway Wi-Fi', $('fb-apname').value + ' · ' + ($('fb-ap-always').checked ? T('always on') : T('only when the home Wi-Fi is unavailable')));
         var names = roles().map(function (r) { return T(document.querySelector('#fb-roles input[value="' + r + '"]').parentNode.querySelector('b').textContent); });
         row(dl, 'Gateway role', names.join(', ') || T('Decide later'));
+        var extras = [['fb-x-history', 'Event history'], ['fb-x-trends', 'Trends'], ['fb-x-snapshots', 'Settings copy before updates'], ['fb-x-names', 'Tailnet names']]
+          .filter(function (x) { return $(x[0]).checked; }).map(function (x) { return T(x[1]); });
+        row(dl, 'Extras', extras.join(', ') || T('None'));
         /* Passwords and keys are never repeated in the summary. */
       }
       function finish() {
@@ -11085,7 +11097,8 @@
           ap_ssid: $('fb-apname').value, ap_password: $('fb-appw').value, ap_recovery_only: !$('fb-ap-always').checked,
           tailnet: { auth_key: $('fb-key').value.trim(), login_server: hs ? $('fb-server').value.trim() : '', hostname: $('fb-host').value.trim() },
           share_lan: $('fb-share-lan').checked, share_ap: $('fb-share-ap').checked, exit_node: $('fb-exit').checked,
-          roles: roles(), advanced_ui: roles().indexOf('advanced') >= 0 };
+          roles: roles(), advanced_ui: roles().indexOf('advanced') >= 0,
+          extras: { history: $('fb-x-history').checked, trends: $('fb-x-trends').checked, snapshots: $('fb-x-snapshots').checked, tailnet_names: $('fb-x-names').checked } };
         apply(cmd).then(function (d) {
           if (!d.ok) { $('fb-next').disabled = false; err(d.detail || 'The settings could not be saved.'); return; }
           st.finished = true; st.key = null;
@@ -11134,7 +11147,10 @@
         document.querySelectorAll('#fb-roles input').forEach(function (r) { r.addEventListener('change', function () {
           if (!this.checked) return;
           if (this.value === 'subnet-router') $('fb-share-lan').checked = true;
-          if (this.value === 'iot-ap') { $('fb-share-ap').checked = true; $('fb-ap-always').checked = true; }
+          if (this.value === 'iot-ap') { $('fb-share-ap').checked = true; $('fb-ap-always').checked = true; $('fb-x-names').checked = true; }
+          if (this.value === 'wol') $('fb-x-history').checked = true;
+          if (this.value === 'monitoring') ['fb-x-history', 'fb-x-trends', 'fb-x-snapshots'].forEach(function (id) { $(id).checked = true; });
+          if (this.value === 'iot-ap' || this.value === 'wol' || this.value === 'monitoring') $('fb-extras').open = true;
           validate();
         }); });
         $('fb-ssid').addEventListener('input', function () { st.wifiOk = false; $('fb-test-status').textContent = ''; validate(); });
