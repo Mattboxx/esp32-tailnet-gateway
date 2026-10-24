@@ -63,9 +63,9 @@ static bool dns_relay_is_healthy(void){return healthy;}
 static int wol_count(void){return 2;}
 static bool health_monitor_enabled(void){return true;}
 static bool mqtt_integration_connected(void){return broker;}
-/* Used only with CONFIG_TSR_SNMP (not in the 3.0 images). */
-__attribute__((unused)) static bool snmp_agent_is_enabled(void){return false;}
-__attribute__((unused)) static bool snmp_agent_is_running(void){return false;}
+#define CONFIG_TSR_SNMP 1   /* as in the 3.0 images */
+static bool snmp_agent_is_enabled(void){return false;}
+static bool snmp_agent_is_running(void){return false;}
 static unsigned allocations,fail_at,live;
 static void *allocate(size_t n){if(++allocations==fail_at)return NULL;void *p=malloc(n);if(p)live++;return p;}
 static void release(void *p){if(p)live--;free(p);}
@@ -85,7 +85,7 @@ int main(void){
     assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"exit-node"),"active")));
     assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"lan-tailnet-forwarding"),"active")));
     assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"ethernet"),"compiled")));
-    assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"snmp"),"compiled")));   /* left out of this firmware */
+    assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(r,"snmp"),"compiled")));
     assert(cJSON_IsNull(cJSON_GetObjectItem(feature(r,"ethernet"),"hardware_supported")));
     { /* Compiled but disabled: unknown hardware; started: hardware true, IP observed = active; failed start: false. */
       eth_fixture=(eth_status_t){.compiled=true};cJSON *e=homelab_ops_capabilities();cJSON *f=feature(e,"ethernet");

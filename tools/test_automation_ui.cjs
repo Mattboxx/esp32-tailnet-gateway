@@ -179,9 +179,6 @@ async function fixture(browser, options = {}) {
         email: {enabled: false, host: '', port: 465, security: 'tls', user: '', has_password: false, from: '', to: '', sent: 0, failed: 0, last_error: ''}};
     } else if (url.pathname === '/api/notify/test') {
       state.notifyTest = route.request().postDataJSON(); body = {ok: true, queued: true};
-    } else if (url.pathname === '/api/ddns') {
-      if (route.request().method() === 'POST') { state.savedDdns = route.request().postDataJSON(); body = {ok: true}; }
-      else body = {provider: 'off', name: '', zone: '', has_token: false, has_url: false, status: 'Not updated yet', public_ip: '203.0.113.7', updated_ip: '', updated_ago_s: -1, running: false};
     } else if (url.pathname === '/api/diag/speedtest') {
       if (route.request().method() === 'POST') { state.savedSpeed = route.request().postDataJSON(); state.speedPolls = 0; body = {ok: true}; }
       else { state.speedPolls = (state.speedPolls || 0) + 1;
@@ -1237,7 +1234,7 @@ async function main() {
     await f.page.waitForFunction(() => document.getElementById('snap-status').textContent.includes('Restarting'));
     assert.deepEqual(f.state.snapPosts, [{ action: 'take' }, { action: 'delete', slot: 1, confirm: true }, { action: 'restore', slot: 1, confirm: true }]);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
-    // Tailnet names, notifications, dynamic DNS and the throughput test.
+    // Tailnet names, notifications and the throughput test.
     f = await fixture(browser, { page: 'tailscale' });
     await f.page.waitForFunction(() => document.getElementById('tsn-status').textContent.startsWith('Off'));
     await f.page.locator('#tsn-card label.feature-switch', { hasText: 'Answer tailnet names' }).click();
@@ -1263,18 +1260,6 @@ async function main() {
     await f.page.locator('#nt-test-tg').click();
     await f.page.waitForFunction(() => document.getElementById('nt-status').textContent.includes('queued'));
     assert.deepEqual(f.state.notifyTest, { channel: 'telegram' });
-    assert.deepEqual(f.errors, []); await f.context.close(); count++;
-    f = await fixture(browser, { page: 'network' });
-    await f.page.waitForFunction(() => document.getElementById('ddns-status').textContent === 'Off.');
-    await f.page.selectOption('#ddns-provider', 'duckdns');
-    assert.equal(await f.page.locator('#ddns-zone').isHidden(), true); assert.equal(await f.page.locator('#ddns-url').isHidden(), true);
-    assert.equal(await f.page.locator('#ddns-name-label').textContent(), 'Sub-domain');
-    await f.page.fill('#ddns-name', 'myhome'); await f.page.fill('#ddns-token', 'a7c4d2e1-0b3f-4c5d-9e8f-1234567890ab');
-    await f.page.locator('#ddns-save').click();
-    await f.page.waitForFunction(() => document.getElementById('ddns-token').value === '');
-    assert.deepEqual(f.state.savedDdns, { provider: 'duckdns', name: 'myhome', zone: '', token: 'a7c4d2e1-0b3f-4c5d-9e8f-1234567890ab', url: '', update_now: false });
-    await f.page.selectOption('#ddns-provider', 'custom');
-    assert.equal(await f.page.locator('#ddns-url').isVisible(), true); assert.equal(await f.page.locator('#ddns-name').isHidden(), true);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     f = await fixture(browser, { page: 'tools' });
     await f.page.waitForSelector('#thr-start');

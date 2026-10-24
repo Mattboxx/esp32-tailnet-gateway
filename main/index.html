@@ -2709,22 +2709,6 @@
         </div>
       </div>
 
-      <!-- ===== Dynamic DNS ===== -->
-      <div class="card mt-4" id="ddns-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Dynamic DNS</span></div><span class="badge badge-neutral" id="ddns-badge">Off</span></div>
-        <div class="card-body">
-          <p class="form-hint">Keeps a public name (for example <code>myhome.duckdns.org</code>) pointing at your home internet address. It only updates the name: nothing is opened or forwarded on your router. The public address comes from Tailscale's own connectivity check; updates run when it changes and once a day. Off by default; while off nothing runs.</p>
-          <div class="form-group"><label class="form-label" for="ddns-provider">Provider</label>
-            <select class="input" id="ddns-provider"><option value="off">Off</option><option value="duckdns">DuckDNS</option><option value="cloudflare">Cloudflare</option><option value="custom">Other (update URL)</option></select></div>
-          <div class="grid grid-cols-2">
-            <div class="form-group" data-ddns="duckdns cloudflare"><label class="form-label" for="ddns-name" id="ddns-name-label">Name</label><input class="input mono" id="ddns-name" placeholder="myhome"><span class="form-hint" id="ddns-name-hint"></span></div>
-            <div class="form-group" data-ddns="cloudflare"><label class="form-label" for="ddns-zone">Zone id</label><input class="input mono" id="ddns-zone" placeholder="32 hexadecimal characters"><span class="form-hint">Cloudflare dashboard → your domain → Overview. The A record must already exist.</span></div>
-            <div class="form-group" data-ddns="duckdns cloudflare"><label class="form-label" for="ddns-token">Token</label><input class="input mono" type="password" id="ddns-token" autocomplete="new-password" placeholder="Leave empty to keep"><span class="form-hint" id="ddns-token-hint"></span></div>
-            <div class="form-group" data-ddns="custom"><label class="form-label" for="ddns-url">Update URL</label><input class="input mono" type="password" id="ddns-url" autocomplete="off" placeholder="https://provider.example/update?host=…&amp;ip={ip}"><span class="form-hint">HTTPS only. <code>{ip}</code> is replaced by the public address; without it the provider uses the address the request comes from. Kept like a password.</span></div>
-          </div>
-          <p class="form-hint mono" id="ddns-status" role="status">Loading…</p>
-          <div class="page-header-actions"><button class="btn btn-secondary" id="ddns-update" type="button">Update now</button><button class="btn btn-primary" id="ddns-save" type="button" disabled>Save</button></div>
-        </div>
       </div>
     </div>
 
@@ -5429,7 +5413,7 @@
 
     function loadPageState(page) {
       if (page === 'status') { fetchStatus(); loadServiceGatewaySummary(); histUi.loadTrends(); }
-      if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); loadCellular(); loadServiceWatch(); ddnsUi.load(); }
+      if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); loadCellular(); loadServiceWatch(); }
       if (page === 'tailscale') { loadTailscale(); loadTailnetNames(); }
       if (page === 'firewall') loadFirewall();
       if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); ntUi.load(); }
@@ -6630,59 +6614,6 @@
           busy(false, 'Browser ← gateway: ' + formatBytes(got) + ' in ' + (ms / 1000).toFixed(1) + ' s — ' + rate(Math.round(got * 8 / ms)));
         } catch (e) { busy(false, 'Not completed: ' + e.message); }
       });
-    })();
-    /* Dynamic DNS. */
-    var ddnsUi = (function () {
-      function el(id) { return document.getElementById(id); }
-      var HINTS = {duckdns: ['Sub-domain', 'Without .duckdns.org; several separated by commas.', 'The token shown at the top of duckdns.org after signing in.'],
-                   cloudflare: ['Record name', 'The full name of an existing A record, e.g. home.example.com.', 'An API token limited to Zone → DNS → Edit for this zone.']};
-      var saved = null, poll = null;
-      function shape() {
-        var p = el('ddns-provider').value;
-        document.querySelectorAll('#ddns-card [data-ddns]').forEach(function (g) { g.hidden = g.getAttribute('data-ddns').split(' ').indexOf(p) < 0; });
-        if (HINTS[p]) { el('ddns-name-label').textContent = HINTS[p][0]; el('ddns-name-hint').textContent = HINTS[p][1]; el('ddns-token-hint').textContent = HINTS[p][2];
-          el('ddns-name').placeholder = p === 'duckdns' ? 'myhome' : 'home.example.com'; }
-        el('ddns-update').hidden = !saved || saved.provider === 'off' || p !== saved.provider;
-      }
-      function load() {
-        clearTimeout(poll);
-        return apiFetch('/api/ddns', {cache: 'no-store'}).then(function (r) {
-          if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
-        }).then(function (d) {
-          if (!d) { el('ddns-card').hidden = true; return; }
-          saved = d;
-          el('ddns-provider').value = d.provider; el('ddns-name').value = d.name; el('ddns-zone').value = d.zone;
-          el('ddns-token').value = ''; el('ddns-url').value = '';
-          el('ddns-token').placeholder = d.has_token ? 'Saved — leave empty to keep' : 'Token';
-          el('ddns-url').placeholder = d.has_url ? 'Saved — leave empty to keep' : 'https://provider.example/update?host=…&ip={ip}';
-          var on = d.provider !== 'off', b = el('ddns-badge');
-          b.textContent = on ? 'On' : 'Off'; b.className = 'badge ' + (on ? 'badge-success' : 'badge-neutral');
-          el('ddns-status').textContent = !on ? 'Off.' : d.status + (d.public_ip ? ' · public address ' + d.public_ip : ' · public address not known yet (needs Tailscale connected)');
-          el('ddns-save').disabled = true;
-          shape();
-          if (d.running && location.hash === '#network') poll = setTimeout(load, 3000);
-        }).catch(function (e) { el('ddns-status').textContent = 'Unavailable: ' + e.message; });
-      }
-      async function post(update) {
-        var body = {provider: el('ddns-provider').value, name: el('ddns-name').value.trim(), zone: el('ddns-zone').value.trim().toLowerCase(),
-                    token: el('ddns-token').value.trim(), url: el('ddns-url').value.trim(), update_now: update};
-        var r = await apiFetch('/api/ddns', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
-        var d = await r.json().catch(function () { return {}; });
-        if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
-      }
-      el('ddns-provider').addEventListener('change', function () { shape(); el('ddns-save').disabled = false; });
-      ['ddns-name', 'ddns-zone', 'ddns-token', 'ddns-url'].forEach(function (id) { el(id).addEventListener('input', function () { el('ddns-save').disabled = false; }); });
-      el('ddns-save').addEventListener('click', async function () {
-        var btn = this; btn.disabled = true;
-        try { await post(false); showToast('success', 'Dynamic DNS saved', '', 3000); setTimeout(load, 2500); }
-        catch (e) { el('ddns-status').textContent = 'Not saved: ' + e.message; btn.disabled = false; }
-        finally { el('ddns-token').value = ''; el('ddns-url').value = ''; }
-      });
-      el('ddns-update').addEventListener('click', async function () {
-        try { await post(true); el('ddns-status').textContent = 'Updating…'; setTimeout(load, 3000); }
-        catch (e) { el('ddns-status').textContent = 'Not updated: ' + e.message; }
-      });
-      return {load: load};
     })();
     /* Telegram and email notifications. */
     var ntUi = (function () {
@@ -10194,6 +10125,8 @@
         setFeatureCardState('sys-snmp-card', d.enabled);
         document.querySelectorAll('#sys-snmp-card input').forEach(function(el) { el.disabled = false; });
       }).catch(function(error) {
+        /* Firmware without the agent (asked before the capabilities arrived). */
+        if (error.status === 404) { document.getElementById('sys-snmp-card').hidden = true; return; }
         badge.textContent = 'Unavailable'; badge.className = 'badge badge-danger';
         status.textContent = (s_snmpLoaded ? 'Showing last loaded settings. ' : '') + 'Use Reload to try again. ' + error.message;
       }).finally(function() { s_snmpPending = null; });
