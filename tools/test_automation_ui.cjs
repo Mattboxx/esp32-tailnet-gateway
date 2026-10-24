@@ -830,6 +830,9 @@ async function main() {
       leasesBody:[{index:0,rule_token:5,temporary:true,effective_enabled:true,remaining_s:840,status:'active'},{index:1,rule_token:6,temporary:true,effective_enabled:false,remaining_s:0,status:'expired'}]});
     await f.page.waitForFunction(()=>document.getElementById('sg-home-summary').textContent.includes('temporary'));
     assert.equal(await f.page.locator('#sg-home-card').isHidden(),false); // an enabled rule shows the card
+    // ...after the live status cards, right above the goal launcher.
+    assert.equal(await f.page.evaluate(()=>{const u=document.getElementById('card-uplink'),s=document.getElementById('sg-home-card'),w=document.getElementById('wizard-card');
+      return !!(u.compareDocumentPosition(s)&Node.DOCUMENT_POSITION_FOLLOWING)&&s.nextElementSibling===w;}),true);
     assert.match(await f.page.locator('#sg-home-summary').textContent(),/1 rule\(s\) · 1 enabled · 1 installed .* 1 temporary rule\(s\) open; the next closes in 14 min\./);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // ntfy system events are opt-in and saved with the rest of the card.

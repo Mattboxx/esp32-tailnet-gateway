@@ -2016,18 +2016,6 @@
         <div class="glance-item" id="glance-memory" title="Internal RAM is the scarce resource; external PSRAM is shown in the System card"><span class="glance-label">Free internal RAM</span><strong>—</strong></div>
       </div>
 
-      <!-- Shown only while a service rule is enabled or temporary access is
-           open; Network and the goal tile below always offer the feature. -->
-      <div class="card mb-4" id="sg-home-card" data-capability="lan-tailnet-forwarding" hidden>
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Selective Tailnet Service Gateway</span></div><span class="badge badge-neutral" id="sg-home-badge">—</span></div>
-        <div class="card-body">
-          <p>Let existing LAN devices use specific Tailnet services through this gateway — no Tailscale client on them, no access-point change, no new default gateway. Each rule admits one TCP/UDP service to an allowed source address.</p>
-          <p class="form-hint" id="sg-home-summary" role="status">Loading service rules…</p>
-          <div class="page-header-actions"><button class="btn btn-primary" id="sg-home-guide" type="button">Publish a Tailnet service</button>
-            <a class="btn btn-secondary" href="#network" id="sg-home-open">Open service rules</a></div>
-        </div>
-      </div>
-
       <!-- Row 1: Uplink + AP (side by side on tablet+) -->
       <div class="grid grid-cols-2 mb-4">
 
@@ -2287,6 +2275,18 @@
 
         </div>
       </div><!-- /grid row 2 -->
+
+      <!-- Shown only while a service rule is enabled or temporary access is
+           open; Network and the goal tile below always offer the feature. -->
+      <div class="card mt-4 mb-4" id="sg-home-card" data-capability="lan-tailnet-forwarding" hidden>
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Selective Tailnet Service Gateway</span></div><span class="badge badge-neutral" id="sg-home-badge">—</span></div>
+        <div class="card-body">
+          <p>Let existing LAN devices use specific Tailnet services through this gateway — no Tailscale client on them, no access-point change, no new default gateway. Each rule admits one TCP/UDP service to an allowed source address.</p>
+          <p class="form-hint" id="sg-home-summary" role="status">Loading service rules…</p>
+          <div class="page-header-actions"><button class="btn btn-primary" id="sg-home-guide" type="button">Publish a Tailnet service</button>
+            <a class="btn btn-secondary" href="#network" id="sg-home-open">Open service rules</a></div>
+        </div>
+      </div>
 
       <!-- Goal launcher: guided setup by purpose, after the live status -->
       <div class="card mt-4 mb-4" id="wizard-card">

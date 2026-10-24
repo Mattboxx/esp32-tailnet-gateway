@@ -181,6 +181,30 @@ int main(void) {
     assert(ota_remote_select_release(rows,"2.0.0-rc.1",false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
     assert(!ota_remote_select_release(rows,"2.0.0",true,2048,tag,&size,digest));          /* never downgrade */
     cJSON_Delete(rows);
+    /* Release policy: numbered betas of a version (2.0.4-beta.1, -beta.2, ...)
+     * lead to its stable 2.0.4; the more advanced beta wins over an older one,
+     * the stable wins over all its betas, the stable channel ignores betas. */
+    ota_version_t b1,b2,s4,b5;
+    assert(ota_version_parse("2.0.4-beta.1",&b1)&&ota_version_parse("2.0.4-beta.2",&b2)&&ota_version_parse("2.0.4",&s4)&&ota_version_parse("2.0.5-beta.1",&b5));
+    assert(ota_version_compare(&b2,&b1)>0&&ota_version_compare(&s4,&b2)>0&&ota_version_compare(&b5,&s4)>0);
+    rows=cJSON_CreateArray();
+    release_row(rows,"v2.0.4-beta.1",true,false,OTA_ASSET,hash,1024);
+    release_row(rows,"v2.0.4-beta.2",true,false,OTA_ASSET,hash,1024);
+    release_row(rows,"v2.0.3",false,false,OTA_ASSET,hash,1024);
+    assert(ota_remote_select_release(rows,"2.0.3",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4-beta.2"));   /* newest beta */
+    assert(ota_remote_select_release(rows,"2.0.4-beta.1",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4-beta.2"));
+    assert(!ota_remote_select_release(rows,"2.0.3",false,2048,tag,&size,digest));            /* stable channel: no beta */
+    release_row(rows,"v2.0.4",false,false,OTA_ASSET,hash,1024);
+    assert(ota_remote_select_release(rows,"2.0.3",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));          /* stable beats its betas */
+    assert(ota_remote_select_release(rows,"2.0.4-beta.2",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));
+    assert(ota_remote_select_release(rows,"2.0.4-beta.2",false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.4"));   /* a beta device on the stable channel */
+    assert(!ota_remote_select_release(rows,"2.0.4",true,2048,tag,&size,digest));                                  /* no beta after its stable */
+    release_row(rows,"v2.0.5-beta.1",true,false,OTA_ASSET,hash,1024);
+    assert(ota_remote_select_release(rows,"2.0.4",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.5-beta.1"));    /* next version's beta: beta channel only */
+    assert(!ota_remote_select_release(rows,"2.0.4",false,2048,tag,&size,digest));
+    release_row(rows,"v2.0.6-beta.1",false,false,OTA_ASSET,hash,1024);                                            /* a beta tag not marked pre-release is refused */
+    assert(ota_remote_select_release(rows,"2.0.4",true,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.5-beta.1"));
+    cJSON_Delete(rows);
     reset(); s_state.repo=2; assert(!install_release()); assert(!opens&&!begins&&!s_writer_active);
     reset(); s_state.repo=1; assert(install_release()&&boots==1); /* previous name, before the rename */
     reset(); assert(ota_writer_try_acquire()); assert(!install_release()); assert(!opens&&!begins&&s_writer_active); ota_writer_release();
