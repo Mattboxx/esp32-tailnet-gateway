@@ -309,7 +309,9 @@ with tempfile.TemporaryDirectory(prefix='tailnet-sdk-') as directory:
     (path/'arch/cc.h').write_text(arch,encoding='utf-8')
     (path/'test_hooks.h').write_text('struct netif *test_route(const ip4_addr_t *,const ip4_addr_t *);\n#define LWIP_HOOK_IP4_ROUTE_SRC test_route\n',encoding='utf-8')
     (path/'esp_err.h').write_text('/* fixture supplies esp_err_t */\n',encoding='utf-8')
-    (path/'test.c').write_text(fixture+policy+core+tests,encoding='utf-8')
+    # No cellular PPP netif in this SDK fixture: every interface is allowed.
+    ppp='bool netif_hooks_ppp_input_allowed(struct pbuf *p,struct netif *n){(void)p;(void)n;return true;}\n'
+    (path/'test.c').write_text(fixture+policy+ppp+core+tests,encoding='utf-8')
     files=['core/ip.c','core/pbuf.c','core/mem.c','core/memp.c','core/inet_chksum.c','core/def.c','core/ipv4/ip4.c','core/ipv4/ip4_addr.c','core/ipv4/ip4_napt.c','core/ipv4/ip4_frag.c']
     binary=path/('test.exe' if os.name=='nt' else 'test')
     flags=['-std=c11','-Wall','-Wextra','-I',str(path),'-I',str(sdk/'src/include'),'-I',str(ROOT/'main'),'-Wl,--wrap=ip4_input','-Wl,--wrap=pbuf_coalesce']
