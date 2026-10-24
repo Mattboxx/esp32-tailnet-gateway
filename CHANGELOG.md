@@ -22,28 +22,36 @@ USB install; settings are kept ([guide](docs/MIGRATION-3.0.md)). Work so far
   (OFF until configured), on a new 8 MB layout with 3.5 MB update slots.
 - **Cellular uplink (experimental):** UART modem with a SIM, primary or
   failover, write-only SIM PIN and APN password ([guide](docs/CELLULAR.md)).
+- **Event history** (Tools → History): starts, crashes, updates, uplink and
+  tailnet changes, failed admin logins, settings copies, kept in the new
+  storage area of the flash.
+- **Trends** on Status: internal and PSRAM memory, uplink traffic, Wi-Fi
+  signal, CPU and online peers; 6 hours in detail, about 45 days in summary.
+- **Settings copies** (System → Settings copies): up to three copies of all
+  settings, by hand or before each update, restored at the next start;
+  never downloadable, erased by a factory reset.
+- **Tailnet names for local devices** (Tailscale page): devices on the
+  gateway's Wi-Fi, and optionally on the home network, resolve tailnet
+  peers by name (`nas`, `nas.tail1234.ts.net`).
+- **Telegram and email notifications** (Automation), next to ntfy.
+- **Dynamic DNS** (Network): DuckDNS, Cloudflare or a custom HTTPS URL.
+- **Throughput test** (Tools): the gateway downloads from a URL, or the
+  browser downloads from the gateway.
+- **Setup wizard:** a *Monitor and get alerts* role and optional extras
+  (event history, trends, settings copy before updates, tailnet names).
+- All of these are **off by default** and use no memory, processor time or
+  flash writes while off. Offline tests only so far; hardware qualification
+  pending.
 
 ### Changed
 
-- **One Web UI language per firmware image.** The standard image
-  (`firmware.bin`, also used by the browser installer) is English only;
-  `firmware-it.bin`, `firmware-es.bin` and `firmware-zh.bin` carry English
-  plus one language. This frees about 65 KB of app flash (98.2 % to 94.9 %
-  for the English image). A gateway keeps its language on GitHub updates;
-  **System → Firmware update → Firmware language** chooses another one, and
-  choosing a different language offers the installed version again in that
-  language (never an older one). The Easy Install package contains every
-  language and its scripts ask which one to install. The Ethernet image stays
-  English only. Coming from an earlier 2.0.x with the Italian, Spanish or
-  Chinese interface: the first update installs the English image; choose the
-  language and install once more.
 - Application tables (scan cache, firewall lists, saved networks, Service
   Gateway rules, 4via6 flows, DHCP reservations, WoL devices, Devices &
   Recovery store, console capture) moved from internal RAM to PSRAM, leaving
   more internal RAM for WiFi, lwIP and the VPN.
-- Faster execution from PSRAM: instruction cache 16 → 32 KB and 64-byte
-  data-cache lines. Net static internal RAM still about 23 KB lower than
-  beta 2 (build report); speed and free heap to be confirmed on hardware.
+- 64-byte data-cache lines for code and data in PSRAM. Free internal RAM
+  measured on a N16R8: about 44 KB on 3.0.0-dev.2 versus about 17 KB on
+  2.0.4-beta.2; speed to be confirmed on hardware.
 - Resource admission guard defaults: 8 KB free internal RAM and a 4 KB
   largest block (were 16 KB / 8 KB). Estimates, not measured limits; saved
   settings are unchanged.
