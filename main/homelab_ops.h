@@ -30,6 +30,9 @@ void homelab_ops_init(void);
 esp_err_t homelab_ops_start_optional_worker(void);
 void homelab_ops_resources(ops_resources_t *out);
 bool homelab_ops_admit(void);
+/* True while the enabled guard would defer optional work (MQTT, ntfy, checks,
+ * recovery); unlike homelab_ops_admit() it counts no denial. For status only. */
+bool homelab_ops_guard_deferring(void);
 bool homelab_ops_device(int index,ops_device_t *out);
 esp_err_t homelab_ops_set_device(int index,const ops_device_t *profile);
 void homelab_ops_settings(ops_settings_t *out);

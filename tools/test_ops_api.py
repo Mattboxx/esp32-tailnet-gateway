@@ -31,6 +31,8 @@ fixture=r'''
 #define ESP_ERR_INVALID_ARG -2
 #define ESP_ERR_INVALID_STATE -3
 #define ESP_ERR_NO_MEM -4
+#define ESP_ERR_TIMEOUT -5
+#define ESP_ERR_NOT_ALLOWED -6
 #define MALLOC_CAP_SPIRAM 0
 #define MALLOC_CAP_8BIT 0
 #define HTTPD_400_BAD_REQUEST 400
@@ -79,6 +81,8 @@ int main(void){
     for(unsigned i=0;i<sizeof bad/sizeof bad[0];i++){assert(call(bad[i],true)==400);assert(mutations==1);}
     module_error=ESP_ERR_INVALID_STATE;assert(call(recover,true)==409);
     module_error=ESP_ERR_NO_MEM;assert(call(recover,true)==503);
+    module_error=ESP_ERR_TIMEOUT;assert(call(recover,true)==429);      /* once a minute per device */
+    module_error=ESP_ERR_NOT_ALLOWED;assert(call(recover,true)==503);  /* resource admission guard */
     module_error=-99;assert(call(recover,true)==500);module_error=0;
     unsigned before=mutations;heap_fail=1;assert(call(recover,true)==500 && mutations==before);heap_fail=0;
     assert(call("{\"action\":\"lease\",\"index\":0,\"rule_token\":123,\"seconds\":60,\"permanent\":false}",true)==200);

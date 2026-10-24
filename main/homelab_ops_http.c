@@ -195,8 +195,14 @@ static esp_err_t post_ops(httpd_req_t *req) {
         }
     }
     cJSON_Delete(root);
-    if(err!=ESP_OK){httpd_resp_set_status(req,err==ESP_ERR_INVALID_ARG?"400 Bad Request":err==ESP_ERR_INVALID_STATE?"409 Conflict":err==ESP_ERR_NO_MEM?"503 Service Unavailable":"500 Internal Server Error");
-        cJSON *reply=cJSON_CreateObject();if(reply){cJSON_AddBoolToObject(reply,"ok",false);cJSON_AddStringToObject(reply,"error",esp_err_to_name(err));}return send_json(req,reply);}
+    if(err!=ESP_OK){httpd_resp_set_status(req,err==ESP_ERR_INVALID_ARG?"400 Bad Request":err==ESP_ERR_INVALID_STATE?"409 Conflict":err==ESP_ERR_TIMEOUT?"429 Too Many Requests"
+            :err==ESP_ERR_NO_MEM||err==ESP_ERR_NOT_ALLOWED?"503 Service Unavailable":"500 Internal Server Error");
+        /* Plain reasons the page can show as they are. */
+        const char *reason=err==ESP_ERR_INVALID_STATE?"Another check or recovery is running; its result appears on this page"
+            :err==ESP_ERR_TIMEOUT?"This device was checked less than a minute ago; try again shortly"
+            :err==ESP_ERR_NOT_ALLOWED?"Deferred by the resource admission guard: free internal RAM or sockets are below its thresholds"
+            :err==ESP_ERR_NO_MEM?"Not enough memory for the optional worker":esp_err_to_name(err);
+        cJSON *reply=cJSON_CreateObject();if(reply){cJSON_AddBoolToObject(reply,"ok",false);cJSON_AddStringToObject(reply,"error",reason);}return send_json(req,reply);}
     cJSON *reply=cJSON_CreateObject();if(reply)cJSON_AddBoolToObject(reply,"ok",true);return send_json(req,reply);
 }
 /* Queue one destination check; the result appears in /api/tailnet-forward. */

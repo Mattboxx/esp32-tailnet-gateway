@@ -767,6 +767,7 @@
     #page-operations .card-body > .btn + p,
     #page-operations .card-body > .btn-row + p { margin-top: var(--sp-3); }
     #page-operations .card-body > pre:empty { display: none; }
+    .ops-guard-warning { color: var(--warning); }
     #page-operations .card-body > pre { margin: var(--sp-2) 0 0; }
     .ops-device { margin-top: var(--sp-4); background: var(--bg-page); }
     .ops-device .card-header { gap: var(--sp-2); flex-wrap: wrap; }
@@ -3125,7 +3126,8 @@
       <div class="page-header"><div class="page-header-left"><h1 class="page-title">Devices &amp; Recovery</h1><p class="page-subtitle">Verify a host and its service, not just a sent magic packet.</p></div>
         <div class="page-header-actions"><button class="btn btn-secondary" id="ops-refresh">Refresh</button><a class="btn btn-secondary" href="/api/diagnostics/export" download>Sanitized export</a></div></div>
       <div class="card mb-4"><div class="card-header"><span class="card-title">Health &amp; resources</span></div><div class="card-body">
-        <p id="ops-summary" role="status">Not loaded</p><p class="form-hint">Control connected does not prove the tunnel or a remote service works. No public Internet probe runs automatically.</p>
+        <p id="ops-summary" role="status">Not loaded</p>
+        <p class="form-hint ops-guard-warning" id="ops-guard-warning" role="status" hidden>The resource admission guard is pausing optional work now: MQTT, ntfy, device checks and recovery wait until free internal RAM, its largest block and free sockets are above the thresholds. Lower the thresholds (advanced settings) or turn the guard off.</p><p class="form-hint">Control connected does not prove the tunnel or a remote service works. No public Internet probe runs automatically.</p>
         <details><summary>Actual firmware capabilities</summary><p id="ops-capability-status" role="status">Not loaded</p><ul id="ops-capabilities"></ul></details>
         <label class="feature-switch"><input type="checkbox" id="ops-monitoring"><span class="feature-switch-track" aria-hidden="true"></span><span>Monitor configured devices</span></label>
         <label class="feature-switch"><input type="checkbox" id="ops-guard"><span class="feature-switch-track" aria-hidden="true"></span><span>Resource admission guard</span></label>
@@ -6356,7 +6358,10 @@
       s_ops_busy=true;
       opsControls();
       try {var r=await fetch('/api/operations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-        var data=await r.json();if(!r.ok || !data.ok)throw new Error(data.error || 'Operation rejected');await loadOperations();
+        var data=await r.json();
+        if(!r.ok&&data&&typeof data.error==='string'&&[409,429,503].indexOf(r.status)>=0){
+          showToast('warning','Not started',data.error,7000);await loadOperations();return;}
+        if(!r.ok || !data.ok)throw new Error(data.error || 'Operation rejected');await loadOperations();
       } catch(e){s_ops_state=null;document.getElementById('ops-job').textContent=e.message+' — refresh before another action';}
       finally {s_ops_busy=false;opsControls();}
     }
@@ -6370,7 +6375,8 @@
           || !data.devices.every(function(d){return d&&typeof d.mac==='string'&&typeof d.name==='string'&&typeof d.target==='string'&&typeof d.monitor==='boolean'&&typeof d.notify==='boolean'
             && ['index','host_port','service_port','timeout_s','interval_s','max_checks','kind','scope'].every(function(k){return Number.isInteger(d[k])&&d[k]>=0;});}))throw new Error('Incomplete operational response');
         s_ops_state=data;
-        document.getElementById('ops-summary').textContent='Control: '+(data.control_connected?'connected':'not connected')+' · policy authority: '+(data.authority_ready==null?'unknown':data.authority_ready?'ready (not a port grant)':'blocked / incomplete')+' · sockets '+data.sockets_used+'/'+data.socket_limit+' · internal minimum '+data.internal_min+' B · largest block '+data.internal_largest+' B';
+        document.getElementById('ops-summary').textContent='Control: '+(data.control_connected?'connected':'not connected')+' · policy authority: '+(data.authority_ready==null?'unknown':data.authority_ready?'ready (not a port grant)':'blocked / incomplete')+' · sockets '+data.sockets_used+'/'+data.socket_limit+(Number.isInteger(data.internal_free)?' · free internal '+data.internal_free+' B':'')+' · internal minimum '+data.internal_min+' B · largest block '+data.internal_largest+' B';
+        document.getElementById('ops-guard-warning').hidden=data.guard_deferring!==true;
         document.getElementById('ops-monitoring').checked=data.monitoring;document.getElementById('ops-guard').checked=data.guard;document.getElementById('ops-remote').checked=data.remote_commands;
         document.getElementById('ops-lease-notify').checked=data.lease_notifications===true;
         [['ops-min','minimum_internal'],['ops-largest','minimum_largest'],['ops-sockets','socket_reserve'],['ops-interval','interval_s']].forEach(function(pair){document.getElementById(pair[0]).value=data[pair[1]];});
@@ -8357,8 +8363,10 @@
         var st = d.status || {};
         badge.className = 'badge badge-warning';
         badge.textContent = st.configured === false ? 'Incomplete settings'
+          : st.guard_deferring === true ? 'Paused by the resource guard'
           : st.retry_in_seconds ? 'Retry in ' + st.retry_in_seconds + ' s'
           : 'Connecting…';
+        badge.title = st.guard_deferring === true ? 'The resource admission guard in Devices & Recovery is pausing optional work: free internal RAM is below its threshold.' : '';
       }
       document.getElementById('mqtt-enabled').checked = !!d.enabled;
       setFeatureCardState('mqtt-card', !!d.enabled);
@@ -8536,6 +8544,7 @@
       }
       var btn=this; btn.disabled=true;
       apiFetch('/api/ntfy/test',{method:'POST'}).then(function(r){return r.json();}).then(function(d){
+        if(!d.ok&&d.reason==='resource_guard'){showToast('warning','ntfy test paused','The resource admission guard in Devices & Recovery is pausing optional work: free internal RAM is below its threshold.',7000);return;}
         showToast(d.ok?'success':'error', d.ok?'ntfy test sent':'ntfy test failed', d.ok?'Check the configured topic.':'Save and verify the server, topic and token.',5000);
       }).catch(function(){showToast('error','ntfy test failed','Network error.',5000);}).finally(function(){btn.disabled=false;});
     });

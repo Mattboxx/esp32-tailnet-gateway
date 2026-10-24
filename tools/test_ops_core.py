@@ -66,6 +66,9 @@ int main(void){
     resources.sockets_used=27;assert(!homelab_ops_admit());resources.sockets_used=26;
     resources.internal_largest=79;assert(!homelab_ops_admit());resources.internal_largest=80;
     resources.internal_free=99;assert(!homelab_ops_admit());assert(denied_jobs==3);
+    /* The status probe reports the same decision without counting a denial. */
+    assert(homelab_ops_guard_deferring()&&denied_jobs==3);resources.internal_free=100;assert(!homelab_ops_guard_deferring());
+    store.settings.guard=0;resources.internal_free=1;assert(!homelab_ops_guard_deferring());store.settings.guard=1;resources.internal_free=100;
     job=(job_t){.id=1,.index=0,.state=J_PRECHECK,.deadline=99999,.manual=true,.wake=true,.profile=p};job_t local=job;
     apply_probe_locked(&local,0,100);assert(job.state==J_WAKE && !job.packet_sent);
     job.state=J_WAIT;local=job;apply_probe_locked(&local,0,100);assert(job.state==J_WAIT && !job.host_seen);
@@ -87,7 +90,7 @@ with tempfile.TemporaryDirectory(prefix='ops-core-') as directory:
     adapters='static ops_resources_t resources;\nstatic void homelab_ops_settings(ops_settings_t *out){*out=store.settings;}\nstatic void homelab_ops_resources(ops_resources_t *out){*out=resources;}\n'
     program.write_text(fixture+woltype+types+globals+adapters+''.join(function(n) for n in (
         'static uint32_t checksum(', 'static bool valid_settings(', 'static bool valid_profile(',
-        'static void event_locked(', 'static esp_err_t save_locked(', 'void homelab_ops_service_closed(', 'bool homelab_ops_admit(', 'static void finish_locked(', 'static void apply_probe_locked('))+body,encoding='utf-8')
+        'static void event_locked(', 'static esp_err_t save_locked(', 'void homelab_ops_service_closed(', 'static bool guard_allows(', 'bool homelab_ops_admit(', 'bool homelab_ops_guard_deferring(', 'static void finish_locked(', 'static void apply_probe_locked('))+body,encoding='utf-8')
     flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-variable','-Wno-misleading-indentation','-g','-I',str(ROOT/'main')]
     if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run(['gcc',*flags,str(program),'-o',str(binary)],check=True)
