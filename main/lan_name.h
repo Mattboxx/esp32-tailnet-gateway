@@ -20,6 +20,11 @@ extern "C" {
 void lan_name_from(const char *configured, const uint8_t ap_mac[6], char *out, size_t cap);
 /* This board's name, from the saved "hostname" and its MAC. */
 void lan_name_get(char *out, size_t cap);
+/* The name the mDNS responder answers to now; a hostname saved since boot
+ * applies after a restart. Before the responder starts: lan_name_get(). */
+void lan_name_active(char *out, size_t cap);
+/* The per-board esp32-tailnet-xxxx name used when no hostname is saved. */
+void lan_name_default(char *out, size_t cap);
 /* The uplink has an address: start the mDNS responder or announce the new
  * address. Does nothing while first-boot setup is active. */
 void lan_name_uplink_up(void);

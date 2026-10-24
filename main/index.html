@@ -1631,6 +1631,7 @@
     html:lang(zh-Hans) body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", system-ui, sans-serif; }
     html:lang(de) .btn, html:lang(fr) .btn, html:lang(es) .btn, html:lang(it) .btn { white-space: normal; text-align: center; }
     body.ui-simple [data-advanced] { display: none !important; }
+    .stat-edit { margin-left: var(--sp-2); font-size: var(--text-xs); font-weight: var(--weight-medium); }
     body:not(.ui-simple) .fw-simple-summary { display: none; }
     .adv-note { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; justify-content: space-between;
       border: 1px dashed var(--border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: var(--sp-4);
@@ -2105,7 +2106,7 @@
               <span class="stat-value mono" id="uplink-traffic">—</span>
             </div>
             <div class="stat-row">
-              <span class="stat-label">Name on this network</span>
+              <span class="stat-label">Name on this network <a class="stat-edit" href="#network" id="uplink-lan-name-edit">Change</a></span>
               <a class="stat-value mono" id="uplink-lan-name" href="#" data-no-i18n>—</a>
             </div>
           </div>
@@ -2355,7 +2356,8 @@
           <div class="grid grid-cols-2">
             <div class="form-group">
               <label class="form-label" for="net-hostname">Hostname</label>
-              <input class="input" type="text" id="net-hostname" maxlength="63">
+              <input class="input" type="text" id="net-hostname" maxlength="63" autocomplete="off" autocapitalize="off" spellcheck="false">
+              <span class="form-hint" id="net-hostname-preview" role="status"></span>
               <span class="form-hint">Name in your router's client list (DHCP) and on your network as name.local. Leave empty to use this board's own name, shown in the box. The Tailscale machine name is set on the Tailscale page.</span>
             </div>
             <div class="form-group" data-advanced>
@@ -3131,10 +3133,10 @@
         <label class="feature-switch"><input type="checkbox" id="ops-lease-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify via ntfy when temporary service access closes</span></label>
         <p class="form-hint">OFF by default. Notifications are best-effort; local access closes even when ntfy is unavailable. No rule addresses or names are sent.</p>
         <div class="form-hint" data-advanced>Guard thresholds are engineering defaults, not calibrated device limits. Remote commands require a trusted broker/topic and existing integration permissions.</div>
-        <div class="form-row" data-advanced><div class="form-group"><label class="form-label" for="ops-min">Minimum internal free bytes</label><input class="input" id="ops-min" type="number" min="0" max="262144"></div>
-          <div class="form-group"><label class="form-label" for="ops-largest">Minimum largest block</label><input class="input" id="ops-largest" type="number" min="0" max="131072"></div>
-          <div class="form-group"><label class="form-label" for="ops-sockets">Reserved socket slots</label><input class="input" id="ops-sockets" type="number" min="0" max="31"></div>
-          <div class="form-group"><label class="form-label" for="ops-interval">Monitor interval (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600"></div></div>
+        <div class="form-row" data-advanced><div class="form-group"><label class="form-label" for="ops-min">Minimum internal free bytes</label><input class="input" id="ops-min" type="number" min="0" max="262144" placeholder="e.g. 16384"><span class="form-hint">Below this free internal RAM new checks wait (resource guard).</span></div>
+          <div class="form-group"><label class="form-label" for="ops-largest">Minimum largest block</label><input class="input" id="ops-largest" type="number" min="0" max="131072" placeholder="e.g. 8192"></div>
+          <div class="form-group"><label class="form-label" for="ops-sockets">Reserved socket slots</label><input class="input" id="ops-sockets" type="number" min="0" max="31" placeholder="e.g. 4"><span class="form-hint">Sockets kept free for the VPN and this web page.</span></div>
+          <div class="form-group"><label class="form-label" for="ops-interval">Monitor interval (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600" placeholder="e.g. 60"><span class="form-hint">How often monitored devices are checked.</span></div></div>
         <button class="btn btn-primary" id="ops-settings-save" disabled>Save monitoring settings</button>
       </div></div>
       <div class="card mb-4" data-capability="health"><div class="card-header"><span class="card-title">Layered connectivity checks</span></div><div class="card-body">
@@ -3142,14 +3144,14 @@
         <label class="feature-switch"><input type="checkbox" id="health-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable configured connectivity checks</span></label>
         <label class="feature-switch"><input type="checkbox" id="health-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify repeated failures through enabled ntfy</span></label>
         <div class="form-row">
-          <div class="form-group"><label class="form-label" for="health-interval">Interval between checks (30–3600 s)</label><input class="input" type="number" id="health-interval" min="30" max="3600"></div>
-          <div class="form-group"><label class="form-label" for="health-threshold">Failures before down (1–5)</label><input class="input" type="number" id="health-threshold" min="1" max="5"></div>
-          <div class="form-group"><label class="form-label" for="health-gateway-port">Uplink gateway TCP port (0 = skip)</label><input class="input" type="number" id="health-gateway-port" min="0" max="65535"></div>
-          <div class="form-group"><label class="form-label" for="health-dns">DNS lookup name (blank = skip)</label><input class="input" id="health-dns" maxlength="95" autocomplete="off"></div>
-          <div class="form-group"><label class="form-label" for="health-internet">Internet target IPv4 (blank = skip)</label><input class="input" id="health-internet" maxlength="15" autocomplete="off"></div>
-          <div class="form-group"><label class="form-label" for="health-internet-port">Internet target TCP port</label><input class="input" type="number" id="health-internet-port" min="0" max="65535"></div>
-          <div class="form-group"><label class="form-label" for="health-tailnet">Tailnet target / cached hostname (blank = skip)</label><input class="input" id="health-tailnet" maxlength="95" autocomplete="off"></div>
-          <div class="form-group"><label class="form-label" for="health-tailnet-port">Tailnet service TCP port</label><input class="input" type="number" id="health-tailnet-port" min="0" max="65535"></div>
+          <div class="form-group"><label class="form-label" for="health-interval">Interval between checks (30–3600 s)</label><input class="input" type="number" id="health-interval" min="30" max="3600" placeholder="e.g. 300"></div>
+          <div class="form-group"><label class="form-label" for="health-threshold">Failures before down (1–5)</label><input class="input" type="number" id="health-threshold" min="1" max="5" placeholder="e.g. 3"></div>
+          <div class="form-group"><label class="form-label" for="health-gateway-port">Uplink gateway TCP port (empty = skip)</label><input class="input" type="number" id="health-gateway-port" min="0" max="65535" placeholder="e.g. 80"><span class="form-hint">Your router's web page port: checks the home network.</span></div>
+          <div class="form-group"><label class="form-label" for="health-dns">DNS lookup name (blank = skip)</label><input class="input" id="health-dns" maxlength="95" autocomplete="off" placeholder="e.g. example.com"></div>
+          <div class="form-group"><label class="form-label" for="health-internet">Internet target IPv4 (blank = skip)</label><input class="input" id="health-internet" maxlength="15" autocomplete="off" placeholder="e.g. 1.1.1.1"><span class="form-hint">A public server you trust, reached with a TCP connection.</span></div>
+          <div class="form-group"><label class="form-label" for="health-internet-port">Internet target TCP port</label><input class="input" type="number" id="health-internet-port" min="0" max="65535" placeholder="e.g. 443"></div>
+          <div class="form-group"><label class="form-label" for="health-tailnet">Tailnet target / cached hostname (blank = skip)</label><input class="input" id="health-tailnet" maxlength="95" autocomplete="off" placeholder="e.g. nas or 100.64.0.10"><span class="form-hint">A device in your Tailnet, reached through the VPN.</span></div>
+          <div class="form-group"><label class="form-label" for="health-tailnet-port">Tailnet service TCP port</label><input class="input" type="number" id="health-tailnet-port" min="0" max="65535" placeholder="e.g. 5000"></div>
         </div><button class="btn btn-primary" id="health-save" disabled>Save connectivity checks</button>
         <p id="health-status" role="status">Not loaded</p><pre class="mono" id="health-checks" style="white-space:pre-wrap"></pre>
       </div></div>
@@ -4504,7 +4506,9 @@
     }
 
     // Fetch with fallback to sample data; 401 → login overlay
+    var s_status_fetched = 0;
     function fetchStatus(isRetry) {
+      s_status_fetched = Date.now();
       var refreshIcon = document.querySelector('#refreshBtn svg');
       if (refreshIcon) refreshIcon.style.animation = 'spin 0.7s linear infinite';
 
@@ -5469,7 +5473,9 @@
           s_net_list.forEach(function (n) { if (!n.static_ip) n.static_ip = {}; });
           renderNetList();
           document.getElementById('net-hostname').value     = d.hostname || '';
-          document.getElementById('net-hostname').placeholder = d.lan_name || '';
+          document.getElementById('net-hostname').placeholder = d.lan_name_default || d.lan_name || '';
+          s_lan_names = { active: d.lan_name || '', fallback: d.lan_name_default || d.lan_name || '' };
+          updateHostnamePreview();
           document.getElementById('net-sta-ttl').value      = (typeof d.sta_ttl_override === 'number') ? d.sta_ttl_override : 0;
           document.getElementById('net-hostname-save').disabled = true;
           document.getElementById('net-sta-save').disabled  = true;
@@ -5677,6 +5683,25 @@
     /* The hostname card now also holds the STA TTL override — wire both
      * inputs to mark the shared Save button dirty, and submit both on
      * click so a single save handles either change. */
+    /* The .local address a hostname gives, as lan_name_from() derives it:
+     * a valid label of at most 32 characters, lowercased, else the
+     * board's own name. The responder takes a new name at the next restart. */
+    var s_lan_names = null;
+    function updateHostnamePreview() {
+      var out = document.getElementById('net-hostname-preview');
+      if (!s_lan_names) { out.textContent = ''; return; }
+      var v = document.getElementById('net-hostname').value.trim();
+      var valid = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(v);
+      if (v && valid && v.length > 32) { out.textContent = 'Longer than 32 characters: the .local address stays ' + s_lan_names.fallback + '.local'; return; }
+      var next = (v && valid ? v.toLowerCase() : s_lan_names.fallback) + '.local';
+      out.textContent = next === s_lan_names.active + '.local'
+        ? 'Address on your network: http://' + next + '/'
+        : 'Address on your network after a restart: http://' + next + '/';
+    }
+    document.getElementById('net-hostname').addEventListener('input', updateHostnamePreview);
+    document.getElementById('uplink-lan-name-edit').addEventListener('click', function () {
+      setTimeout(function () { var h = document.getElementById('net-hostname'); h.scrollIntoView({ block: 'center' }); h.focus(); }, 300);
+    });
     ['net-hostname', 'net-sta-ttl'].forEach(function (id) {
       document.getElementById(id).addEventListener('input', function () {
         document.getElementById('net-hostname-save').disabled = false;
@@ -5873,6 +5898,45 @@
     var s_ops_capabilities = null;
     var s_health_state = null;
     var s_health_sequence = 0;
+    /* A check or recovery runs on the board after the request returns; while
+     * it is active the page re-reads the state every 2 s and updates only the
+     * status texts and device badges, so unsaved edits are kept. */
+    var OPS_ACTIVE=['precheck','sending-wol','waiting-for-host','checking-service'];
+    var OPS_STATE_TEXT={idle:'Not checked yet',precheck:'Checking…','sending-wol':'Sending WoL…','waiting-for-host':'Waiting for the device…','checking-service':'Checking the service…',
+      reachable:'Reachable','not-reachable':'Not reachable',inconclusive:'Inconclusive',cancelled:'Cancelled','resource-deferred':'Deferred: low resources','service-access-closed':'Service access closed'};
+    var s_ops_badges={},s_ops_poll=null,s_ops_polls=0;
+    function opsBadge(badge,d,data){
+      var live=OPS_ACTIVE.indexOf(data.recovery_state)>=0&&data.device_index===d.index,s=live?data.recovery_state:d.state;
+      badge.className='badge '+(live?'badge-info':s==='reachable'?'badge-success':s==='not-reachable'?'badge-danger':s==='inconclusive'||s==='resource-deferred'?'badge-warning':'badge-neutral');
+      badge.replaceChildren(document.createTextNode(OPS_STATE_TEXT[s]||s));
+      if(!live&&s==='reachable'&&Number.isInteger(d.latency_ms)&&d.latency_ms>0)badge.append(document.createTextNode(' · '+d.latency_ms+' ms'));
+    }
+    function opsShowJob(data){
+      document.getElementById('ops-job').textContent='Recovery: '+data.recovery_state+' · WoL send: '+(data.packet_sent===true?'confirmed locally (not proof of boot)':'not confirmed; a partial send may have occurred')+' · host verified: '+(data.host_verified===true?'yes':'not verified')+' · service verified: '+(data.service_verified===true?'yes':'not verified');
+      document.getElementById('ops-events').textContent=data.events.slice().sort(function(a,b){return b.sequence-a.sequence;}).map(function(e){return '#'+e.sequence+' '+e.state+' ('+Math.round(e.uptime_ms/1000)+'s uptime)';}).join('\n');
+    }
+    function opsSchedulePoll(data){
+      clearTimeout(s_ops_poll);s_ops_poll=null;
+      /* Bounded: a job ends within its 600 s timeout. */
+      if(!data||OPS_ACTIVE.indexOf(data.recovery_state)<0||++s_ops_polls>300)return;
+      s_ops_poll=setTimeout(opsPoll,2000);
+    }
+    async function opsPoll(){
+      s_ops_poll=null;
+      if(location.hash!=='#operations'){s_ops_polls=0;return;}
+      if(s_ops_busy||s_ops_loading)return opsSchedulePoll(s_ops_state);
+      var sequence=s_ops_sequence;
+      try{
+        var response=await fetch('/api/operations',{cache:'no-store'});if(!response.ok)throw new Error('HTTP '+response.status);
+        var data=await response.json();
+        if(sequence!==s_ops_sequence||!s_ops_state)return;
+        if(!data||typeof data.recovery_state!=='string'||!Array.isArray(data.devices)||!Array.isArray(data.events))throw new Error('Incomplete operational response');
+        ['recovery_state','job_id','device_index','packet_sent','host_verified','service_verified'].forEach(function(k){s_ops_state[k]=data[k];});
+        opsShowJob(data);
+        data.devices.forEach(function(d){var badge=d&&s_ops_badges[d.mac];if(badge&&typeof d.state==='string')opsBadge(badge,d,data);});
+        opsControls();opsSchedulePoll(data);
+      }catch(e){if(sequence===s_ops_sequence)opsSchedulePoll(s_ops_state);}
+    }
     function opsControls() {
       var ready=!!s_ops_state&&!s_ops_busy&&!s_ops_loading;
       var recovery=s_ops_capabilities&&s_ops_capabilities['smart-recovery'];
@@ -6274,6 +6338,7 @@
       }catch(e){if(sequence===s_ops_sequence){s_ops_capabilities=null;document.getElementById('ops-capabilities').replaceChildren();document.getElementById('ops-capability-status').textContent=e.message+'; optional recovery actions unavailable until refresh.';}}
       finally{if(sequence===s_ops_sequence)opsControls();}
     }
+    function opsPort(id) { return document.getElementById(id).value===''?0:opsNumber(id); }
     function opsNumber(id) { var input=document.getElementById(id); if(!input.checkValidity() || input.value==='') throw new Error('Invalid '+id); return Number(input.value); }
     async function opsAction(payload) {
       if(s_ops_busy||s_ops_loading||!s_ops_state) return;
@@ -6298,21 +6363,26 @@
         document.getElementById('ops-monitoring').checked=data.monitoring;document.getElementById('ops-guard').checked=data.guard;document.getElementById('ops-remote').checked=data.remote_commands;
         document.getElementById('ops-lease-notify').checked=data.lease_notifications===true;
         [['ops-min','minimum_internal'],['ops-largest','minimum_largest'],['ops-sockets','socket_reserve'],['ops-interval','interval_s']].forEach(function(pair){document.getElementById(pair[0]).value=data[pair[1]];});
-        document.getElementById('ops-job').textContent='Recovery: '+data.recovery_state+' · WoL send: '+(data.packet_sent===true?'confirmed locally (not proof of boot)':'not confirmed; a partial send may have occurred')+' · host verified: '+(data.host_verified===true?'yes':'not verified')+' · service verified: '+(data.service_verified===true?'yes':'not verified');
-        var list=document.getElementById('ops-devices');list.replaceChildren();
+        opsShowJob(data);
+        var list=document.getElementById('ops-devices');list.replaceChildren();s_ops_badges={};
         data.devices.forEach(function(d){
           var row=document.createElement('div');row.className='card ops-device';
           var head=document.createElement('div');head.className='card-header';
           var title=document.createElement('span');title.className='card-title';title.textContent=d.name||d.mac;
-          var badge=document.createElement('span');badge.className='badge badge-neutral';badge.textContent=d.state;head.append(title,badge);
+          var badge=document.createElement('span');opsBadge(badge,d,data);s_ops_badges[d.mac]=badge;head.append(title,badge);
           var body=document.createElement('div');body.className='card-body';row.append(head,body);
           var grid=document.createElement('div');grid.className='form-row';body.appendChild(grid);
           var fields={};
-          function field(text,control){var label=document.createElement('label');label.className='form-group';var caption=document.createElement('span');caption.className='form-label';caption.textContent=text;label.append(caption,control);grid.appendChild(label);}
-          [['kind','Device type',['NAS','PC','Server','IoT','Network infrastructure','Tailnet service','Other']],['scope','Target scope',['Automatic routing','Local uplink subnet only','Tailnet address only']]].forEach(function(f){var select=document.createElement('select');select.className='input';f[2].forEach(function(text,i){var option=document.createElement('option');option.value=i;option.textContent=text;select.appendChild(option);});select.value=d[f[0]]||0;fields[f[0]]=select;field(f[1],select);});
-          [['target','Check target','text'],['host_port','Host TCP port','number'],['service_port','Optional service TCP port (0 = none)','number'],['timeout_s','Recovery timeout (5–600 s)','number'],['interval_s','Device interval (30–3600 s)','number'],['max_checks','Maximum checks (1–60)','number']].forEach(function(f){
-            var input=document.createElement('input');input.className='input';input.type=f[2];input.value=d[f[0]];input.maxLength=95;
-            if(f[2]==='number'){input.min=f[0]==='max_checks'?1:f[0]==='timeout_s'?5:f[0]==='interval_s'?30:0;input.max=f[0]==='max_checks'?60:f[0]==='timeout_s'?600:f[0]==='interval_s'?3600:65535;}field(f[1],input);fields[f[0]]=input;
+          function field(text,control,help){var label=document.createElement('label');label.className='form-group';var caption=document.createElement('span');caption.className='form-label';caption.textContent=text;var note=document.createElement('span');note.className='form-hint';note.textContent=help;label.append(caption,control,note);grid.appendChild(label);}
+          [['kind','Device type',['NAS','PC','Server','IoT','Network infrastructure','Tailnet service','Other'],'A label for you; it does not change the checks.'],['scope','Target scope',['Automatic routing','Local uplink subnet only','Tailnet address only'],'Where the target may be: any route, only your home network, or only a Tailnet address (100.x).']].forEach(function(f){var select=document.createElement('select');select.className='input';f[2].forEach(function(text,i){var option=document.createElement('option');option.value=i;option.textContent=text;select.appendChild(option);});select.value=d[f[0]]||0;fields[f[0]]=select;field(f[1],select,f[3]);});
+          [['target','Check target','text','e.g. 192.168.1.20 or nas.lan','IP address or name the gateway contacts to see whether the device is on.'],
+           ['host_port','Host TCP port','number','e.g. 22','A port that answers as soon as the device is on: SSH 22, web 80, file sharing 445.'],
+           ['service_port','Optional service TCP port','number','e.g. 5000','An app that must answer too, such as the NAS web page. Leave empty to skip.'],
+           ['timeout_s','Recovery timeout (5–600 s)','number','e.g. 120','How long to wait for the device after a check or WoL starts.'],
+           ['interval_s','Device interval (30–3600 s)','number','e.g. 300','How often the device is checked while monitoring is on.'],
+           ['max_checks','Maximum checks (1–60)','number','e.g. 10','Attempts before the device is reported not reachable.']].forEach(function(f){
+            var input=document.createElement('input');input.className='input';input.type=f[2];input.value=f[0]==='service_port'&&!d[f[0]]?'':d[f[0]];input.maxLength=95;input.placeholder=f[3];
+            if(f[2]==='number'){input.min=f[0]==='max_checks'?1:f[0]==='timeout_s'?5:f[0]==='interval_s'?30:0;input.max=f[0]==='max_checks'?60:f[0]==='timeout_s'?600:f[0]==='interval_s'?3600:65535;}field(f[1],input,f[4]);fields[f[0]]=input;
           });
           var switches=document.createElement('div');switches.className='switch-stack';body.appendChild(switches);
           function toggle(text,checked){var label=document.createElement('label');label.className='feature-switch';var input=document.createElement('input');input.type='checkbox';input.checked=checked;var track=document.createElement('span');track.className='feature-switch-track';track.setAttribute('aria-hidden','true');var caption=document.createElement('span');caption.textContent=text;label.append(input,track,caption);switches.appendChild(label);return input;}
@@ -6327,7 +6397,7 @@
             opsAction(payload);}catch(e){document.getElementById('ops-job').textContent=e.message;}
           };actions.appendChild(button);});list.appendChild(row);
         });
-        document.getElementById('ops-events').textContent=data.events.slice().sort(function(a,b){return b.sequence-a.sequence;}).map(function(e){return '#'+e.sequence+' '+e.state+' ('+Math.round(e.uptime_ms/1000)+'s uptime)';}).join('\n');
+        s_ops_polls=0;opsSchedulePoll(data);
         await Promise.all([loadHealth(),loadCapabilities(sequence)]);
       }catch(e){if(sequence===s_ops_sequence){document.getElementById('ops-summary').textContent=e.message+' — saved view is stale; refresh before actions';s_ops_state=null;}}
       finally{if(sequence===s_ops_sequence){s_ops_loading=false;opsControls();}}
@@ -6344,13 +6414,13 @@
           ||!['dns_name','internet_ip','tailnet_target'].every(function(k){return typeof data[k]==='string';})
           ||!data.checks.every(function(c){return c&&typeof c.role==='string'&&typeof c.state==='string'&&Number.isFinite(c.observed_uptime_ms)&&Number.isInteger(c.consecutive_failures);}))throw new Error('Incomplete connectivity response');
         s_health_state=data;document.getElementById('health-enabled').checked=data.enabled;document.getElementById('health-notify').checked=data.notify;
-        [['interval_s','health-interval'],['failure_threshold','health-threshold'],['gateway_port','health-gateway-port'],['dns_name','health-dns'],['internet_ip','health-internet'],['internet_port','health-internet-port'],['tailnet_target','health-tailnet'],['tailnet_port','health-tailnet-port']].forEach(function(p){document.getElementById(p[1]).value=data[p[0]];});
+        [['interval_s','health-interval'],['failure_threshold','health-threshold'],['gateway_port','health-gateway-port'],['dns_name','health-dns'],['internet_ip','health-internet'],['internet_port','health-internet-port'],['tailnet_target','health-tailnet'],['tailnet_port','health-tailnet-port']].forEach(function(p){document.getElementById(p[1]).value=/_port$/.test(p[0])&&data[p[0]]===0?'':data[p[0]];});
         document.getElementById('health-status').textContent=(data.enabled?'Configured checks enabled':'Active checks disabled')+' · WiFi association: '+(data.wifi_associated===true?'yes':'not observed')+' · uplink address: '+(data.uplink_address_available===true?'available':'not observed')+' · control: '+(data.control_connected===true?'connected':'not connected')+' · policy authority: '+(data.policy_authority_ready===true?'ready (not a service grant)':'not ready')+' · global tunnel: not verified';
         document.getElementById('health-checks').textContent=data.checks.map(function(c){return c.role+': '+c.state+' · failures '+c.consecutive_failures+' · observed at '+Math.round(c.observed_uptime_ms/1000)+' s uptime\n'+(typeof c.reason==='string'?c.reason:'Evidence unavailable')+'\nNext: '+(typeof c.next_step==='string'?c.next_step:'Inspect diagnostics');}).join('\n\n');
       }catch(e){if(sequence===s_health_sequence){s_health_state=null;document.getElementById('health-status').textContent=e.message+' — refresh before saving';}}
       finally{if(sequence===s_health_sequence)opsControls();}
     }
-    document.getElementById('health-save').onclick=function(){try{if(!s_health_state)return;opsAction({action:'health',enabled:document.getElementById('health-enabled').checked,notify:document.getElementById('health-notify').checked,interval_s:opsNumber('health-interval'),failure_threshold:opsNumber('health-threshold'),gateway_port:opsNumber('health-gateway-port'),dns_name:document.getElementById('health-dns').value,internet_ip:document.getElementById('health-internet').value,internet_port:opsNumber('health-internet-port'),tailnet_target:document.getElementById('health-tailnet').value,tailnet_port:opsNumber('health-tailnet-port')});}catch(e){document.getElementById('health-status').textContent=e.message;}};
+    document.getElementById('health-save').onclick=function(){try{if(!s_health_state)return;opsAction({action:'health',enabled:document.getElementById('health-enabled').checked,notify:document.getElementById('health-notify').checked,interval_s:opsNumber('health-interval'),failure_threshold:opsNumber('health-threshold'),gateway_port:opsPort('health-gateway-port'),dns_name:document.getElementById('health-dns').value,internet_ip:document.getElementById('health-internet').value,internet_port:opsPort('health-internet-port'),tailnet_target:document.getElementById('health-tailnet').value,tailnet_port:opsPort('health-tailnet-port')});}catch(e){document.getElementById('health-status').textContent=e.message;}};
     var s_wol_list = [];
     var s_wol_max = 12;
 
@@ -10535,16 +10605,21 @@
       });
     }
 
-    // Auto-refresh every 30 seconds when on Status page
-    setInterval(function () {
+    /* Status page: traffic, memory and the System card come from one
+     * /api/status read every 30 s. Nothing is read while the browser tab is
+     * hidden; on return (phones suspend timers) a stale page refreshes at once. */
+    function statusRefreshDue() {
       var statusSection = document.getElementById('page-status');
-      if (statusSection && statusSection.classList.contains('active')) {
-        // Only auto-refresh when authenticated (overlay not showing)
-        var setupVisible = document.getElementById('authSetup').style.display !== 'none';
-        var loginVisible = document.getElementById('authLogin').style.display !== 'none';
-        if (!setupVisible && !loginVisible) fetchStatus();
-      }
-    }, 30000);
+      if (document.hidden || !statusSection || !statusSection.classList.contains('active')) return false;
+      // Only auto-refresh when authenticated (overlay not showing)
+      var setupVisible = document.getElementById('authSetup').style.display !== 'none';
+      var loginVisible = document.getElementById('authLogin').style.display !== 'none';
+      return !setupVisible && !loginVisible;
+    }
+    setInterval(function () { if (statusRefreshDue()) fetchStatus(); }, 30000);
+    document.addEventListener('visibilitychange', function () {
+      if (statusRefreshDue() && Date.now() - s_status_fetched >= 30000) fetchStatus();
+    });
 
     /* Network tab: refresh the dynamic widgets (connected clients,
      * active leases, byte-count-ish bits in /api/status) on a 10 s
