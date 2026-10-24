@@ -1,0 +1,10 @@
+# Name,    Type, SubType,  Offset,   Size,  Flags
+# 2.x layout (4 MB of flash), used only by the 2.1 migration bridge build
+# (env esp32-s3-bridge): it runs on gateways that still have this table and
+# moves them to partitions.csv. Do not change: it must match the 2.x boards.
+nvs,       data, nvs,      0x9000,   64K,
+otadata,   data, ota,      0x19000,  8K,
+phy_init,  data, phy,      0x1b000,  4K,
+ota_0,     app,  ota_0,    0x20000,  1920K,
+ota_1,     app,  ota_1,    0x200000, 1920K,
+coredump,  data, coredump, 0x3e0000, 64K,

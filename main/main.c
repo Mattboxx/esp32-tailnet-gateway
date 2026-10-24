@@ -60,6 +60,7 @@
 #include "snmp_ops.h"
 #include "eth_uplink.h"
 #include "cell_uplink.h"
+#include "layout_migration.h"
 #include "service_check.h"
 #include "wifi_networks.h"
 #include "wol.h"
@@ -912,6 +913,7 @@ void app_main(void)
     microlink_json_memory_init();
     remove_legacy_outbound_settings();
     ota_remote_init();
+    layout_migration_init();   /* 2.x layout detection; the bridge may resume */
 
     /* Install the ESP_LOG ring buffer + RTC-NOINIT pre-crash buffer as
      * early as possible so the boot-time output is recoverable from

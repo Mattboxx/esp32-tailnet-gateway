@@ -27,7 +27,7 @@ typedef struct {
 } cell_config_t;
 
 typedef struct {
-    bool enabled_at_boot, task_running, has_ip, selected, restart_required;
+    bool compiled, enabled_at_boot, task_running, has_ip, selected, restart_required;
     uint8_t state, registration;          /* registration: 3GPP stat, 0xff unknown */
     int16_t rssi_dbm;                     /* 0: unknown */
     uint32_t ip, connects;

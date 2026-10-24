@@ -79,4 +79,21 @@ menu "Example Configuration"
         endchoice
 
     endmenu
+
+    config TSR_MIGRATION_BRIDGE
+        bool "2.x to 3.0 migration bridge build (2.x flash layout)"
+        default n
+        help
+            Builds the 2.1 bridge release for gateways with the 2.x (4 MB)
+            partition table: English-only, no Ethernet or cellular driver,
+            and the layout migration that rewrites the bootloader and the
+            partition table. Never set it in a 3.x image.
+
+    config TSR_MIGRATION_SOURCE_URL
+        string "Migration test source (developers only; empty = GitHub releases)"
+        default ""
+        depends on TSR_MIGRATION_BRIDGE
+        help
+            Plain-HTTP folder with migration.json and the 3.x images, for
+            bench tests of the bridge. Release builds keep it empty.
 endmenu

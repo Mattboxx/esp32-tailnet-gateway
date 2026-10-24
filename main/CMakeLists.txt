@@ -27,9 +27,15 @@ if(_i18n_files)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${_i18n_files})
 endif()
 # 3.0: one image with every Web UI language (the 3.5 MB app slots of the 8 MB
-# layout have room); gen_index_html_gz.py keeps --english-only/--lang for tests.
-set(_index_flags "")
-set(_index_c "index_html_data.c")
+# layout have room). The 2.1 migration bridge must fit a 1920 KiB 2.x slot and
+# stays English only.
+if(CONFIG_TSR_MIGRATION_BRIDGE)
+    set(_index_flags "--english-only")
+    set(_index_c "index_html_data_en.c")
+else()
+    set(_index_flags "")
+    set(_index_c "index_html_data.c")
+endif()
 find_package(Python3 REQUIRED)
 execute_process(
     COMMAND ${Python3_EXECUTABLE}
@@ -73,6 +79,7 @@ idf_component_register(SRCS "main.c"
                             "service_check.c"
                             "eth_uplink.c"
                             "cell_uplink.c"
+                            "layout_migration.c"
                             "service_lease.c"
                             "service_transfer.c"
                             "mqtt_integration.c"
