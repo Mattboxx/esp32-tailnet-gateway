@@ -77,6 +77,15 @@ static volatile int      s_listen_sock   = -1;     /* listener-owned; workers re
 
 static TaskHandle_t s_listener = NULL;
 
+/* Optional second listener on the uplink (LAN) address, and an optional local
+ * resolver consulted before the cache. Both off unless the firmware turns
+ * them on; off, each costs one load per query. */
+static volatile bool     s_lan_on        = false;
+static volatile uint32_t s_lan_nbo       = 0;      /* uplink IP; 0 = not bound */
+static volatile bool     s_lan_dirty     = false;
+static volatile int      s_lan_sock      = -1;
+static volatile dns_relay_local_cb_t s_local_cb = NULL;
+
 /* Explicit registration-based health callback (see git history: weak-symbol
  * overrides didn't resolve reliably across the component link boundary). */
 static dns_relay_state_cb_t s_state_cb = NULL;
@@ -91,6 +100,7 @@ static void notify_state(bool healthy)
 typedef struct {
     struct sockaddr_in client;
     socklen_t          client_len;
+    bool               lan;            /* reply through the LAN listener */
     int                qlen;
     uint8_t            q[DNS_RELAY_BUF_SIZE];
 } dns_work_t;
@@ -128,8 +138,8 @@ static uint32_t pick_upstream(void)
     return 0;
 }
 
-/* Open + bind the listening socket. Returns the fd or -1. */
-static int open_listen_sock(void)
+/* Open + bind a listening socket. Returns the fd or -1. */
+static int open_listen_sock(uint32_t bind_nbo)
 {
     int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (s < 0) {
@@ -142,7 +152,7 @@ static int open_listen_sock(void)
     struct sockaddr_in addr = {
         .sin_family = AF_INET,
         .sin_port   = htons(DNS_RELAY_PORT),
-        .sin_addr.s_addr = s_bind_nbo ? s_bind_nbo : INADDR_ANY,
+        .sin_addr.s_addr = bind_nbo ? bind_nbo : INADDR_ANY,
     };
     if (bind(s, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         ESP_LOGE(TAG, "bind() failed: errno=%d", errno);
@@ -336,7 +346,7 @@ static void worker_task(void *arg)
             continue;
         }
 
-        int ls = s_listen_sock;            /* listener-owned; bound to AP:53 */
+        int ls = w->lan ? s_lan_sock : s_listen_sock;   /* listener-owned sockets */
         if (ls >= 0) {
             sendto(ls, rbuf, rlen, 0, (struct sockaddr *)&w->client, w->client_len);
         }
@@ -383,7 +393,8 @@ static volatile uint32_t s_captive_nbo = 0;        /* first-boot captive answer;
 static void listener_task(void *arg)
 {
     (void)arg;
-    int listen_sock = -1;
+    int listen_sock = -1, lan_sock = -1;
+    int64_t lan_retry_us = 0;
     uint8_t qbuf[DNS_RELAY_BUF_SIZE];
     uint8_t cbuf[DNS_RELAY_BUF_SIZE];      /* cache-hit response scratch */
 
@@ -398,7 +409,7 @@ static void listener_task(void *arg)
         bool want_listening = s_enabled && s_bind_nbo != 0;
         if (want_listening && (listen_sock < 0 || s_socket_dirty)) {
             if (listen_sock >= 0) { s_listen_sock = -1; close(listen_sock); listen_sock = -1; }
-            listen_sock = open_listen_sock();
+            listen_sock = open_listen_sock(s_bind_nbo);
             s_socket_dirty = false;
             if (listen_sock < 0) {
                 s_healthy = false;
@@ -426,13 +437,35 @@ static void listener_task(void *arg)
 
         if (listen_sock < 0) {
             s_healthy = false;
+            if (lan_sock >= 0) {s_lan_sock = -1; close(lan_sock); lan_sock = -1;}
             vTaskDelay(pdMS_TO_TICKS(500));
             continue;
         }
 
+        /* LAN listener: only while switched on and the uplink has an address. */
+        bool want_lan = s_lan_on && s_lan_nbo != 0 && s_lan_nbo != s_bind_nbo && !s_captive_nbo;
+        if (lan_sock >= 0 && (!want_lan || s_lan_dirty)) {s_lan_sock = -1; close(lan_sock); lan_sock = -1;}
+        if (want_lan && lan_sock < 0 && esp_timer_get_time() >= lan_retry_us) {
+            s_lan_dirty = false;
+            lan_sock = open_listen_sock(s_lan_nbo);
+            s_lan_sock = lan_sock;
+            if (lan_sock < 0) lan_retry_us = esp_timer_get_time() + 10LL * 1000000;
+        }
+
+        int sock = listen_sock;
+        if (lan_sock >= 0) {
+            fd_set ready;
+            FD_ZERO(&ready); FD_SET(listen_sock, &ready); FD_SET(lan_sock, &ready);
+            struct timeval wait = {.tv_sec = 0, .tv_usec = 500 * 1000};
+            int n = select((listen_sock > lan_sock ? listen_sock : lan_sock) + 1, &ready, NULL, NULL, &wait);
+            if (n <= 0) continue;
+            if (!FD_ISSET(listen_sock, &ready)) sock = lan_sock;
+        }
+        bool from_lan = sock == lan_sock;
+
         struct sockaddr_in client = {0};
         socklen_t client_len = sizeof(client);
-        int qlen = recvfrom(listen_sock, qbuf, sizeof(qbuf), 0,
+        int qlen = recvfrom(sock, qbuf, sizeof(qbuf), 0,
                             (struct sockaddr *)&client, &client_len);
         if (qlen <= 0) continue;            /* timeout -> re-check enable state */
 
@@ -441,8 +474,19 @@ static void listener_task(void *arg)
         uint32_t captive = s_captive_nbo;
         if (captive) {
             int rl = dns_captive_answer(qbuf, qlen, captive, cbuf, sizeof cbuf);
-            if (rl > 0) sendto(listen_sock, cbuf, rl, 0, (struct sockaddr *)&client, client_len);
+            if (rl > 0) sendto(sock, cbuf, rl, 0, (struct sockaddr *)&client, client_len);
             continue;
+        }
+
+        /* Local names (e.g. tailnet peers): answered here, never forwarded. */
+        dns_relay_local_cb_t local = s_local_cb;
+        if (local) {
+            int rl = local(qbuf, qlen, cbuf, sizeof cbuf);
+            if (rl > 0) {
+                st_hits++;
+                sendto(sock, cbuf, rl, 0, (struct sockaddr *)&client, client_len);
+                continue;
+            }
         }
 
         /* Cache fast-path: serve repeats straight from SPIRAM, no worker. */
@@ -451,7 +495,7 @@ static void listener_task(void *arg)
             int rl = 0;
             if (cache_get(qbuf, kl, cbuf, &rl)) {
                 st_hits++;
-                sendto(listen_sock, cbuf, rl, 0, (struct sockaddr *)&client, client_len);
+                sendto(sock, cbuf, rl, 0, (struct sockaddr *)&client, client_len);
                 continue;
             }
         }
@@ -462,6 +506,7 @@ static void listener_task(void *arg)
         if (!w) continue;                   /* out of SPIRAM -> drop; client retries */
         w->client     = client;
         w->client_len = client_len;
+        w->lan        = from_lan;
         w->qlen       = qlen;
         memcpy(w->q, qbuf, qlen);
         if (xQueueSend(s_workq, &w, 0) != pdTRUE) {
@@ -596,3 +641,15 @@ void dns_relay_set_captive(uint32_t answer_ip_nbo)
     s_captive_nbo = answer_ip_nbo;
     ESP_LOGI(TAG, "captive portal answers %s", answer_ip_nbo ? "on" : "off");
 }
+
+void dns_relay_set_lan(bool on, uint32_t ip_nbo)
+{
+    if (s_lan_on == on && s_lan_nbo == ip_nbo) return;
+    s_lan_on = on;
+    s_lan_nbo = ip_nbo;
+    s_lan_dirty = true;
+}
+
+bool dns_relay_lan_listening(void) { return s_lan_sock >= 0; }
+
+void dns_relay_set_local_resolver(dns_relay_local_cb_t cb) { s_local_cb = cb; }

@@ -2918,6 +2918,24 @@
         </div>
         <div class="card-body-flush" id="ts-peers-body" style="min-height:3rem;"></div>
       </div>
+
+      <!-- Tailnet (MagicDNS) names for devices behind the gateway -->
+      <div class="card mt-4" id="tsn-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Tailnet names for local devices</span></div><span class="badge badge-neutral" id="tsn-badge">Off</span></div>
+        <div class="card-body">
+          <p class="form-hint">Devices on this gateway's access point can reach tailnet peers by name: <code>nas</code> or <code>nas.tail1234.ts.net</code> resolves to the peer's 100.x address, without a Tailscale client on the device. Unknown names inside the tailnet domain are answered "not found" and never sent to the public resolver. A name is not access: reaching the peer still depends on this gateway's routes, firewall and the tailnet policy. Off by default.</p>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="tsn-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Answer tailnet names</span></label>
+            <span class="form-hint">Needs the access-point DNS relay (Network). Names of all peers in the tailnet become visible to the devices that ask.</span>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="tsn-lan"><span class="feature-switch-track" aria-hidden="true"></span><span>Also answer devices on the home network</span></label>
+            <span class="form-hint">Listens for DNS on the WiFi uplink address too. Useful only for LAN devices that use this gateway as their DNS server and reach 100.64.0.0/10 through it (a route on your router); all their other lookups are forwarded as well.</span>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-primary" id="tsn-save" type="button" disabled>Save</button></div>
+          <p class="form-hint" id="tsn-status" role="status">Loading…</p>
+        </div>
+      </div>
     </div>
 
     <!-- =================================================================
@@ -5329,7 +5347,7 @@
     function loadPageState(page) {
       if (page === 'status') { fetchStatus(); loadServiceGatewaySummary(); histUi.loadTrends(); }
       if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); loadCellular(); loadServiceWatch(); }
-      if (page === 'tailscale') loadTailscale();
+      if (page === 'tailscale') { loadTailscale(); loadTailnetNames(); }
       if (page === 'firewall') loadFirewall();
       if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); }
       if (page === 'operations') loadOperations();
@@ -6488,6 +6506,32 @@
         if(!r.ok)throw new Error(r.status===409?'already running, or an update is in progress':'HTTP '+r.status);
         await loadMigration();}
       catch(e){document.getElementById('mig-status').textContent='Not started: '+e.message;btn.disabled=false;}
+    });
+    /* Tailnet names for local devices. */
+    function loadTailnetNames() {
+      return apiFetch('/api/tailnet-names', {cache: 'no-store'}).then(function (r) {
+        if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
+      }).then(function (d) {
+        if (!d) { document.getElementById('tsn-card').hidden = true; return; }
+        document.getElementById('tsn-enabled').checked = d.enabled;
+        document.getElementById('tsn-lan').checked = d.lan;
+        document.getElementById('tsn-save').disabled = true;
+        var b = document.getElementById('tsn-badge');
+        b.textContent = d.enabled ? 'On' : 'Off'; b.className = 'badge ' + (d.enabled ? 'badge-success' : 'badge-neutral');
+        document.getElementById('tsn-status').textContent = !d.enabled ? 'Off: name lookups are forwarded as before.' :
+          !d.relay ? 'On, but the DNS relay is off: switch it on under Network.' :
+          (d.peers + ' tailnet peers known.') + (d.lan ? (d.lan_listening ? ' Also listening on the uplink address.' : ' Waiting for the uplink address.') : '');
+      }).catch(function (e) { document.getElementById('tsn-status').textContent = 'Unavailable: ' + e.message; });
+    }
+    ['tsn-enabled', 'tsn-lan'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { document.getElementById('tsn-save').disabled = false; }); });
+    document.getElementById('tsn-save').addEventListener('click', async function () {
+      var btn = this; btn.disabled = true;
+      try {
+        var r = await apiFetch('/api/tailnet-names', {method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({enabled: document.getElementById('tsn-enabled').checked, lan: document.getElementById('tsn-lan').checked})});
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        await loadTailnetNames();
+      } catch (e) { document.getElementById('tsn-status').textContent = 'Not saved: ' + e.message; btn.disabled = false; }
     });
     /* History, trends and settings copies (3.x storage area). */
     var histUi = (function () {
