@@ -24,6 +24,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   Gateway rules, 4via6 flows, DHCP reservations, WoL devices, Devices &
   Recovery store, console capture) moved from internal RAM to PSRAM, leaving
   more internal RAM for WiFi, lwIP and the VPN.
+- Faster execution from PSRAM: instruction cache 16 → 32 KB and 64-byte
+  data-cache lines. Net static internal RAM still about 23 KB lower than
+  beta 2 (build report); speed and free heap to be confirmed on hardware.
 - Resource admission guard defaults: 8 KB free internal RAM and a 4 KB
   largest block (were 16 KB / 8 KB). Estimates, not measured limits; saved
   settings are unchanged.
