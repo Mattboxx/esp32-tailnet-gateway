@@ -14,7 +14,10 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_netif.h"
+#include "sdkconfig.h"
+#if CONFIG_LWIP_PPP_SUPPORT
 #include "esp_netif_ppp.h"
+#endif
 #include "esp_netif_net_stack.h"
 #include "lwip/inet.h"
 #include "lwip/netif.h"
@@ -174,11 +177,12 @@ static SemaphoreHandle_t s_lock;
 static StaticSemaphore_t s_lock_storage;
 static cell_config_t s_saved, s_running;
 static cell_status_t s_status;
-static atomic_bool s_has_ip, s_link_dead;
+static atomic_bool s_has_ip;
+static atomic_bool s_link_dead __attribute__((unused));   /* PPP builds only */
 static esp_netif_t *s_netif;
 static struct netif *s_lwip;           /* read in TCP/IP context only after creation */
 static cell_selector_t s_selector;     /* TCP/IP context only */
-static uart_port_t s_port;
+static uart_port_t s_port __attribute__((unused));       /* PPP builds only */
 
 static void defaults(cell_config_t *c)
 {
@@ -224,6 +228,7 @@ static void set_state(uint8_t state, const char *error)
     if (error && error[0]) ESP_LOGW(TAG, "%s", error);
 }
 
+#if CONFIG_LWIP_PPP_SUPPORT
 /* --- AT command channel (modem task only) --- */
 static char s_line[256];
 
@@ -497,6 +502,8 @@ retry:
     vTaskDelete(NULL);
 }
 
+#endif /* CONFIG_LWIP_PPP_SUPPORT */
+
 void cell_uplink_init(void)
 {
     ensure_lock();
@@ -504,9 +511,14 @@ void cell_uplink_init(void)
     s_running = s_saved;
     s_status.enabled_at_boot = s_running.enabled;
     s_status.registration = 0xff;
+#if !CONFIG_LWIP_PPP_SUPPORT
+    /* The 2.1 migration bridge has no PPP: settings are kept, nothing runs. */
+    if (s_running.enabled) set_state(CELL_STOPPED, "cellular support is not in this firmware");
+#else
+    s_status.compiled = true;
     if (!s_running.enabled) return;   /* nothing touched: no UART, GPIO or netif */
     esp_err_t err = open_uart();
-    if (err == ESP_OK) err = create_netif();
+    if (err == ESP_OK) err = create_netif();   /* fails closed without the PPP ACL hooks */
     if (err != ESP_OK) {
         char text[80];
         snprintf(text, sizeof text, "not started: %s", esp_err_to_name(err));
@@ -522,6 +534,7 @@ void cell_uplink_init(void)
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_status.task_running = true;
     xSemaphoreGive(s_lock);
+#endif
 }
 
 void cell_uplink_get_config(cell_config_t *out)
@@ -622,6 +635,7 @@ static esp_err_t get_cellular(httpd_req_t *req)
     /* Write-only secrets: presence only. */
     cJSON_AddBoolToObject(config, "has_password", c.password[0] != 0);
     cJSON_AddBoolToObject(config, "has_pin", c.pin[0] != 0);
+    cJSON_AddBoolToObject(status, "compiled", s.compiled);
     cJSON_AddBoolToObject(status, "enabled_at_boot", s.enabled_at_boot);
     cJSON_AddBoolToObject(status, "task_running", s.task_running);
     cJSON_AddStringToObject(status, "state", s.state < sizeof STATE_NAMES / sizeof STATE_NAMES[0] ? STATE_NAMES[s.state] : "unknown");

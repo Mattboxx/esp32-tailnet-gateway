@@ -74,6 +74,10 @@ bool ota_remote_select_release(const cJSON *releases, const char *running,
             (!beta && cJSON_IsTrue(pre)) || !cJSON_IsString(name) ||
             !ota_version_parse(name->valuestring, &version) ||
             (version.stage < 4 && !cJSON_IsTrue(pre))) continue;
+#if defined(CONFIG_TSR_MIGRATION_BRIDGE) && CONFIG_TSR_MIGRATION_BRIDGE
+        /* The 2.1 bridge reaches 3.x only through the layout migration. */
+        if (version.scheme == 1 && version.upstream[0] >= 3) continue;
+#endif
         /* Newer only; the running version itself only for another language. */
         int order = ota_version_compare(&version, &best);
         if (order < 0 || (order == 0 && (found || !reinstall))) continue;

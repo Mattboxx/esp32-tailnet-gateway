@@ -19,6 +19,9 @@ extern "C" {
 void web_ui_init(void);
 /* Shared session + browser write-origin gate for extension API handlers. */
 esp_err_t web_ui_require_auth(struct httpd_req *req);
+/* A password-backed session even when the ordinary UI gate is off: for
+ * firmware and flash-layout changes. */
+esp_err_t web_ui_require_password_session(struct httpd_req *req);
 
 /* First-boot setup endpoints: true when the request came through the
  * device's own AP and passes the same-origin screening; otherwise an error

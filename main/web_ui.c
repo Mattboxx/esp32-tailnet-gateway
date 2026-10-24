@@ -1805,6 +1805,7 @@ static esp_err_t require_password_session(httpd_req_t *req)
                         "enable web authentication and sign in to access secrets");
     return ESP_FAIL;
 }
+esp_err_t web_ui_require_password_session(httpd_req_t *req) {return require_password_session(req);}
 
 /* POST /api/wol — atomically replace the address book. */
 static esp_err_t wol_save_handler(httpd_req_t *req)

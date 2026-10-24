@@ -6333,7 +6333,7 @@
         set('cell-pwrkey',c.pwrkey);set('cell-pwrkey-high',c.pwrkey_active_high);
         document.getElementById('cell-status').textContent=cellStatusText(st,c);
         var badge=document.getElementById('cell-badge');
-        badge.textContent=!st.enabled_at_boot?'Off':st.state==='connected'?'Connected':st.state==='stopped'?'Stopped':'Connecting…';
+        badge.textContent=st.compiled===false?'Not compiled':!st.enabled_at_boot?'Off':st.state==='connected'?'Connected':st.state==='stopped'?'Stopped':'Connecting…';
         badge.className='badge '+(st.state==='connected'?'badge-success':st.state==='stopped'?'badge-danger':st.enabled_at_boot?'badge-warning':'badge-neutral');
         s_cell_loaded=true;
       }).catch(function(e){document.getElementById('cell-status').textContent='Cellular settings unavailable: '+e.message;});
