@@ -3616,7 +3616,7 @@
       </div>
 
       <!-- ===== SNMP agent (upstream v0.1.28) ===== -->
-      <div class="card feature-card mt-4" id="sys-snmp-card" data-capability="snmp" data-feature-state="unknown">
+      <div class="card feature-card mt-4" id="sys-snmp-card" data-capability="snmp" data-hide-if-absent data-feature-state="unknown">
         <div class="card-header"><div data-advanced class="card-header-left"><span class="card-title">SNMP agent</span></div><span class="badge badge-neutral" id="sys-snmp-badge">Loading…</span></div>
         <div class="card-body">
           <p class="form-hint" id="sys-snmp-load-status" role="status">Settings have not loaded yet.</p>
@@ -6965,6 +6965,8 @@
       document.querySelectorAll('[data-capability]').forEach(function(el){
         var f=capabilityUnavailable(el.dataset.capability),body=el.querySelector('.card-body')||el,note=el.querySelector(':scope > .capability-note');
         el.classList.toggle('capability-unavailable',!!f);body.inert=!!f;
+        /* Modules left out of this firmware disappear instead of greying out. */
+        if(el.hasAttribute('data-hide-if-absent'))el.hidden=!!(f&&f.compiled===false);
         if(f&&!note){note=document.createElement('p');note.className='capability-note';body.parentNode.insertBefore(note,body);}
         if(note){if(f)note.textContent=(f.compiled===false?'Not available in this firmware':'Not supported by this board')+' — '+f.evidence;else note.remove();}
       });
@@ -10170,6 +10172,8 @@
     var s_snmpLoaded = false, s_snmpPending = null;
     function loadSnmp() {
       if (s_snmpPending) return s_snmpPending;
+      var absent = capabilityUnavailable('snmp');
+      if (absent && absent.compiled === false) return Promise.resolve();   /* not in this firmware */
       var badge = document.getElementById('sys-snmp-badge');
       var status = document.getElementById('sys-snmp-load-status');
       if (!s_snmpLoaded) badge.textContent = 'Loading…';

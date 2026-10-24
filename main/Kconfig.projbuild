@@ -80,6 +80,21 @@ menu "Example Configuration"
 
     endmenu
 
+    config TSR_SNMP
+        bool "SNMP agent (read-only v1/v2c)"
+        default n
+        help
+            Not in the 3.0 images (owner decision 2026-10-24: simpler
+            qualification). Off, the API answers "disabled", the web page
+            hides the card and only the die-temperature reading remains.
+
+    config TSR_DDNS
+        bool "Dynamic DNS (DuckDNS, Cloudflare, custom URL)"
+        default n
+        help
+            Not in the 3.0 images (owner decision 2026-10-24). The module
+            and its host tests stay in the source for a later release.
+
     config TSR_MIGRATION_BRIDGE
         bool "2.x to 3.0 migration bridge build (2.x flash layout)"
         default n

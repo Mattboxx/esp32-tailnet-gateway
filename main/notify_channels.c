@@ -555,7 +555,7 @@ static void enqueue_locked(uint8_t kind, uint8_t level, uint8_t channels, uint32
     snprintf(n->text, sizeof n->text, "%s", text);
     s_count++;
     if (!s_worker) {
-        s_worker = xTaskCreateWithCaps(worker, "notify", 10240, NULL, 2, NULL, MALLOC_CAP_SPIRAM) == pdPASS;
+        s_worker = xTaskCreateWithCaps(worker, "notify", 12288, NULL, 2, NULL, MALLOC_CAP_SPIRAM) == pdPASS;
         if (!s_worker) ESP_LOGW(TAG, "no memory for the delivery worker; retried with the next message");
     }
 }

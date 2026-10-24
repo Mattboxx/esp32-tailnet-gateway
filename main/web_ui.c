@@ -5578,6 +5578,7 @@ static void reg_uri(httpd_handle_t srv, const httpd_uri_t *u)
     }
 }
 
+#if CONFIG_TSR_SNMP
 static esp_err_t snmp_get_handler(httpd_req_t *req)
 {
     if (require_auth(req) != ESP_OK) return ESP_FAIL;
@@ -5684,6 +5685,7 @@ static const httpd_uri_t uri_snmp_get = {
 static const httpd_uri_t uri_snmp_post = {
     .uri = "/api/snmp", .method = HTTP_POST, .handler = snmp_post_handler,
 };
+#endif /* CONFIG_TSR_SNMP */
 
 void web_ui_init(void)
 {
@@ -5789,8 +5791,10 @@ void web_ui_init(void)
     reg_uri(server, &uri_tailscale_reset_identity);
     reg_uri(server, &uri_system);
     reg_uri(server, &uri_system_save);
+#if CONFIG_TSR_SNMP
     reg_uri(server, &uri_snmp_get);
     reg_uri(server, &uri_snmp_post);
+#endif
     reg_uri(server, &uri_system_restart);
     reg_uri(server, &uri_system_factory_reset);
     reg_uri(server, &uri_system_ota);

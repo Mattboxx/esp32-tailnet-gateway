@@ -911,8 +911,11 @@ async function main() {
     f=await fixture(browser,{capabilityBody:{schema:2,features:[
       {id:'smart-recovery',compiled:true,hardware_supported:true,configured:true,active:false,verified:false,experimental:true,evidence:'Fixture'},
       {id:'mqtt',compiled:false,hardware_supported:null,configured:false,active:false,verified:false,experimental:false,evidence:'Fixture: not compiled'},
-      {id:'ntfy',compiled:true,hardware_supported:true,configured:true,active:null,verified:false,experimental:false,evidence:'Fixture'}]}});
+      {id:'ntfy',compiled:true,hardware_supported:true,configured:true,active:null,verified:false,experimental:false,evidence:'Fixture'},
+      {id:'snmp',compiled:false,hardware_supported:true,configured:false,active:false,verified:false,experimental:false,evidence:'Not included in this firmware.'}]}});
     await f.page.waitForFunction(()=>document.getElementById('mqtt-card').classList.contains('capability-unavailable'));
+    assert.equal(await f.page.locator('#sys-snmp-card').evaluate(e=>e.hidden),true,'a module left out of the firmware disappears');
+    assert.equal(await f.page.locator('#mqtt-card').evaluate(e=>e.hidden),false,'other not-compiled cards stay, greyed');
     assert.match(await f.page.locator('#mqtt-card .capability-note').textContent(),/Not available in this firmware — Fixture: not compiled/);
     assert.equal(await f.page.locator('#mqtt-card .card-body').evaluate(e=>e.inert),true);
     assert.equal(await f.page.locator('#ntfy-card').evaluate(e=>e.classList.contains('capability-unavailable')),false);
