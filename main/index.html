@@ -5136,8 +5136,8 @@
     }
 
     /* Choices made in the first-boot wizard live on the gateway (the setup page
-     * ran on another address). Recommend those roles and open the first
-     * role's guide once per browser. */
+     * ran on another address). Recommend those roles in the goal launcher;
+     * never open a guide by itself (it reappeared in every new browser). */
     var s_setup_roles = null, s_sg_rules = 0, s_sg_open = 0;
     function updateServiceGatewayCard() {
       var card = document.getElementById('sg-home-card');
@@ -5145,17 +5145,12 @@
     }
     function applySetupChoices() {
       fetch('/api/system', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
-        var roles = String(d.setup_roles || '').split(',').filter(Boolean), seen = null;
+        var roles = String(d.setup_roles || '').split(',').filter(Boolean);
         s_setup_roles = roles; updateServiceGatewayCard();
-        try { seen = localStorage.getItem('setup-roles-opened'); if (localStorage.getItem('ui-advanced') === null && d.ui_advanced_default) setUiAdvanced(true); } catch (e) {}
+        try { if (localStorage.getItem('ui-advanced') === null && d.ui_advanced_default) setUiAdvanced(true); } catch (e) {}
         document.querySelectorAll('#goal-grid .goal-tile').forEach(function (b, i) {
           var g = GOALS[i]; if (g && roles.indexOf(g.wizard || 'advanced') >= 0) b.classList.add('recommended');
         });
-        var first = roles.filter(function (r) { return r !== 'advanced'; })[0];
-        if (first && seen !== d.setup_roles) {
-          try { localStorage.setItem('setup-roles-opened', d.setup_roles); } catch (e) {}
-          if (typeof wzOpen === 'function') wzOpen(first);
-        }
       }).catch(function () {});
     }
 
@@ -5994,7 +5989,9 @@
       document.getElementById('wizard-title').textContent=w.title;
       document.getElementById('wizard-goal').textContent=w.goal;
       var risks=document.getElementById('wizard-risks');risks.replaceChildren();w.risks.forEach(function(r){risks.appendChild(wzEl('li',r));});
-      var confirm=document.getElementById('wizard-exposure');confirm.checked=false;
+      /* The exposure acknowledgement is asked once per browser; every new rule
+       * still starts disabled and is enabled explicitly. */
+      var confirm=document.getElementById('wizard-exposure');confirm.checked=!!w.exposure&&wzExposureAcknowledged();
       document.getElementById('wizard-exposure-row').hidden=!w.exposure;
       document.getElementById('wizard-result').textContent='';
       document.getElementById('wizard-restore').hidden=true;
@@ -6048,7 +6045,10 @@
         try{var r=await apiFetch(WZ_SECTIONS[name].url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(s_wz.snapshot[name])});if(!r.ok)failed.push(name);}catch(e){failed.push(name);}}
       result.textContent=failed.length?'Restore failed for: '+failed.join(', ')+'. Check those settings manually.':'Previous settings restored. Reload the page to see them.';
     }
-    document.getElementById('wizard-exposure').addEventListener('change',wzControls);
+    function wzExposureAcknowledged(){try{return localStorage.getItem('wizard-exposure-ack')==='1';}catch(e){return false;}}
+    document.getElementById('wizard-exposure').addEventListener('change',function(){
+      try{if(this.checked)localStorage.setItem('wizard-exposure-ack','1');else localStorage.removeItem('wizard-exposure-ack');}catch(e){}
+      wzControls();});
     document.getElementById('wizard-start').addEventListener('click',wzStart);
     document.getElementById('wizard-verify').addEventListener('click',wzVerify);
     document.getElementById('wizard-restore').addEventListener('click',wzRestore);

@@ -449,8 +449,8 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
     if (e == ESP_OK) e = nvs_param_set_int("ts_adv_ap", share_ap ? 1 : 0);
     if (e == ESP_OK) e = nvs_param_set_str("ts_routes", cidr);
     if (e == ESP_OK) e = nvs_param_set_int("ts_adv_exit", exit_node ? 1 : 0);
-    /* Roles chosen in the wizard: the dashboard highlights them and opens the
-     * first one's guide once. Only known ids are stored. */
+    /* Roles chosen in the wizard: the dashboard highlights them in its goal
+     * launcher. Only known ids are stored. */
     char roles[72] = "";
     const cJSON *rl = cJSON_GetObjectItem(cmd, "roles"), *r;
     static const char *known[] = {"lan-tailnet", "subnet-router", "iot-ap", "wol", "home-assistant", "advanced"};
