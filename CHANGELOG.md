@@ -4,7 +4,12 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.0.4] — beta 3, 2026-10-24
+## [3.0.0] — in development
+
+Planned: 8 MB partition table for ESP32-S3 N8R8 and N16R8 (one USB reinstall
+from 2.x, settings kept), one firmware image with every language and
+Ethernet, optional cellular uplink. Work so far (2.0.4-beta.3 was cancelled
+before publication and continues here):
 
 ### Changed
 
@@ -45,6 +50,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The configuration profile selector showed *Gateway* whatever was active; it
   now shows the active profile, or *No profile applied*.
 - Network: the *Device-wide network* card touched the *Uplink networks* card.
+
+## [2.0.4] — beta 2, 2026-10-24
 
 ### Improved
 
