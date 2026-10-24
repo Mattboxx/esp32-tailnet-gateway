@@ -1441,5 +1441,21 @@
  "{} · public address not known yet (needs Tailscale connected)": "{} · 公网地址尚未知晓（需要 Tailscale 已连接）",
  "Not updated: {}": "未更新：{}",
  "Dynamic DNS updated to {}": "动态 DNS 已更新为 {}",
- "Dynamic DNS not updated: {}": "动态 DNS 未更新：{}"
+ "Dynamic DNS not updated: {}": "动态 DNS 未更新：{}",
+ ") tests the tunnel, a public speed-test file tests the internet uplink.": "）测试隧道，公共测速文件测试互联网上行。",
+ "Browser download": "浏览器下载",
+ "Browser download (8 MB)": "浏览器下载（8 MB）",
+ "Download URL": "下载 URL",
+ "Downloading from the gateway…": "正在从网关下载…",
+ "Gateway download": "网关下载",
+ "Runs only when you start it.": "仅在你启动时运行。",
+ "Seconds": "秒",
+ "Throughput test": "吞吐量测试",
+ "measures the link between this device and the gateway. Data is discarded; results stay here.": "测量此设备与网关之间的链路。数据会被丢弃；结果只保留在这里。",
+ "measures what the gateway itself gets from a URL: a large file on a NAS through the tailnet (for example": "测量网关自身从某个 URL 获得的速度：通过 tailnet 访问 NAS 上的大文件（例如",
+ "Starting…": "正在启动…",
+ "Not started: {}": "未启动：{}",
+ "Not completed: {}": "未完成：{}",
+ "No data: {}": "无数据：{}",
+ "Throughput test: {} Mbit/s over {} KB": "吞吐量测试：{} Mbit/s，共 {} KB"
 }

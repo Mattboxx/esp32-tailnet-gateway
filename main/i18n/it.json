@@ -1428,5 +1428,21 @@
  "{} · public address not known yet (needs Tailscale connected)": "{} · indirizzo pubblico non ancora noto (serve Tailscale connesso)",
  "Not updated: {}": "Non aggiornato: {}",
  "Dynamic DNS updated to {}": "DNS dinamico aggiornato a {}",
- "Dynamic DNS not updated: {}": "DNS dinamico non aggiornato: {}"
+ "Dynamic DNS not updated: {}": "DNS dinamico non aggiornato: {}",
+ ") tests the tunnel, a public speed-test file tests the internet uplink.": ") prova il tunnel, un file pubblico di speed test prova l'uplink internet.",
+ "Browser download": "Download dal browser",
+ "Browser download (8 MB)": "Download dal browser (8 MB)",
+ "Download URL": "URL da scaricare",
+ "Downloading from the gateway…": "Download dal gateway…",
+ "Gateway download": "Download dal gateway",
+ "Runs only when you start it.": "Gira solo quando lo avvii.",
+ "Seconds": "Secondi",
+ "Throughput test": "Test di velocità",
+ "measures the link between this device and the gateway. Data is discarded; results stay here.": "misura il collegamento tra questo dispositivo e il gateway. I dati vengono scartati; i risultati restano qui.",
+ "measures what the gateway itself gets from a URL: a large file on a NAS through the tailnet (for example": "misura quanto ottiene il gateway stesso da un URL: un file grande su un NAS attraverso la tailnet (per esempio",
+ "Starting…": "Avvio…",
+ "Not started: {}": "Non avviato: {}",
+ "Not completed: {}": "Non completato: {}",
+ "No data: {}": "Nessun dato: {}",
+ "Throughput test: {} Mbit/s over {} KB": "Test di velocità: {} Mbit/s su {} KB"
 }

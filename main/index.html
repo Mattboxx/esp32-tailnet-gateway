@@ -3140,6 +3140,20 @@
         </div>
       </div>
 
+      <!-- ===== Throughput test (on request) ===== -->
+      <div class="card mt-4" id="thr-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Throughput test</span></div><span class="badge badge-neutral" id="thr-badge">Idle</span></div>
+        <div class="card-body">
+          <p class="form-hint">Runs only when you start it. <strong>Gateway download</strong> measures what the gateway itself gets from a URL: a large file on a NAS through the tailnet (for example <code>http://100.x.y.z/file.iso</code>) tests the tunnel, a public speed-test file tests the internet uplink. <strong>Browser download</strong> measures the link between this device and the gateway. Data is discarded; results stay here.</p>
+          <div class="form-row" style="align-items:flex-end;">
+            <div class="form-group" style="flex:1 1 18rem;"><label class="form-label" for="thr-url">Download URL</label><input class="input mono" id="thr-url" placeholder="https://speed.cloudflare.com/__down?bytes=50000000"></div>
+            <div class="form-group"><label class="form-label" for="thr-seconds">Seconds</label><input class="input mono" type="number" id="thr-seconds" min="3" max="30" value="10" style="width:6rem;"></div>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-primary" id="thr-start" type="button">Gateway download</button><button class="btn btn-secondary" id="thr-browser" type="button">Browser download (8 MB)</button></div>
+          <p class="form-hint mono" id="thr-status" role="status">—</p>
+        </div>
+      </div>
+
       <!-- ===== Event and trend history (3.x storage area) ===== -->
       <div class="card mt-4" id="hist-card">
         <div class="card-header">
@@ -6568,6 +6582,46 @@
         await loadMigration();}
       catch(e){document.getElementById('mig-status').textContent='Not started: '+e.message;btn.disabled=false;}
     });
+    /* Throughput test. */
+    (function () {
+      function el(id) { return document.getElementById(id); }
+      function rate(kbps) { return kbps >= 1000 ? (kbps / 1000).toFixed(2) + ' Mbit/s' : kbps + ' kbit/s'; }
+      function busy(on, text) {
+        el('thr-start').disabled = on; el('thr-browser').disabled = on;
+        el('thr-badge').textContent = on ? 'Running' : 'Idle'; el('thr-badge').className = 'badge ' + (on ? 'badge-info' : 'badge-neutral');
+        if (text) el('thr-status').textContent = text;
+      }
+      async function poll() {
+        try {
+          var r = await apiFetch('/api/diag/speedtest', {cache: 'no-store'}); var d = await r.json();
+          var line = formatBytes(d.bytes) + ' in ' + (d.elapsed_ms / 1000).toFixed(1) + ' s — ' + rate(d.kbps);
+          if (d.running) { busy(true, line); setTimeout(poll, 1000); return; }
+          busy(false, d.bytes ? line + ' (' + d.result + (d.first_byte_ms ? ', first byte after ' + d.first_byte_ms + ' ms' : '') + ')' : 'No data: ' + d.result + (d.http ? ' (HTTP ' + d.http + ')' : ''));
+        } catch (e) { busy(false, 'Unavailable: ' + e.message); }
+      }
+      el('thr-start').addEventListener('click', async function () {
+        var url = el('thr-url').value.trim() || el('thr-url').placeholder, seconds = Number(el('thr-seconds').value) || 10;
+        busy(true, 'Starting…');
+        try {
+          var r = await apiFetch('/api/diag/speedtest', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({url: url, seconds: seconds})});
+          var d = await r.json().catch(function () { return {}; });
+          if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+          setTimeout(poll, 1000);
+        } catch (e) { busy(false, 'Not started: ' + e.message); }
+      });
+      el('thr-browser').addEventListener('click', async function () {
+        busy(true, 'Downloading from the gateway…');
+        try {
+          var start = performance.now(), got = 0;
+          var r = await apiFetch('/api/diag/speedtest/blob?bytes=8388608', {cache: 'no-store'});
+          if (!r.ok || !r.body) throw new Error('HTTP ' + r.status);
+          var reader = r.body.getReader();
+          for (;;) { var part = await reader.read(); if (part.done) break; got += part.value.length; }
+          var ms = performance.now() - start;
+          busy(false, 'Browser ← gateway: ' + formatBytes(got) + ' in ' + (ms / 1000).toFixed(1) + ' s — ' + rate(Math.round(got * 8 / ms)));
+        } catch (e) { busy(false, 'Not completed: ' + e.message); }
+      });
+    })();
     /* Dynamic DNS. */
     var ddnsUi = (function () {
       function el(id) { return document.getElementById(id); }
