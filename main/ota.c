@@ -1,5 +1,7 @@
 /* Local manual OTA upload. No release polling and no outbound HTTP. */
 #include "ota.h"
+#include "history.h"
+#include "settings_snapshot.h"
 
 #include <stdlib.h>
 #include "esp_log.h"
@@ -48,6 +50,7 @@ esp_err_t ota_upload_handler(httpd_req_t *req)
         httpd_resp_sendstr(req, "another firmware update is active");
         return ESP_FAIL;
     }
+    settings_snapshot_before_update(SNAP_UPLOAD);   /* when switched on; never blocks the update */
     ESP_LOGI(TAG, "manual upload: %d bytes -> '%s' @0x%08lx",
              req->content_len, target->label, (unsigned long)target->address);
 
@@ -98,6 +101,7 @@ esp_err_t ota_upload_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
     ESP_LOGI(TAG, "manual upload complete; next boot partition is '%s'", target->label);
+    history_event(HIST_EV_UPDATE, HIST_INFO, "Firmware uploaded from the browser (%d bytes); restart pending", req->content_len);
     httpd_resp_set_type(req, "application/json");
     (void)httpd_resp_sendstr(req, "{\"ok\":true,\"reboot_required\":true}");
     /* Boot partition is already committed: reboot even if the client left.

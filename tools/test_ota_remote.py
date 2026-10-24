@@ -86,6 +86,13 @@ static int mbedtls_sha256_update(mbedtls_sha256_context *h,const unsigned char *
 static int mbedtls_sha256_finish(mbedtls_sha256_context *h,unsigned char out[32]) { assert(h->used==1024); memset(out,fault==3?2:1,32); return 0; }
 static int64_t clock_us;
 static int64_t esp_timer_get_time(void) { clock_us+=fault==12?200000000:100; return clock_us; }
+#define SNAP_UPDATE 2
+#define HIST_EV_UPDATE 3
+#define HIST_INFO 0
+static int history_lines;
+static void history_event(int k,int l,const char *f,...) { (void)k;(void)l;(void)f; history_lines++; }
+static int snapshots;
+static void settings_snapshot_before_update(uint8_t r) { assert(r==SNAP_UPDATE&&!begins&&!writes); snapshots++; }
 static esp_err_t ota_flash_begin(const esp_partition_t *p,size_t n,esp_ota_handle_t *h) { assert(p==&partition&&n==1024); begins++; if(fault==4)return -1; *h=1; return fault==16?-1:0; }
 static esp_err_t ota_flash_write(esp_ota_handle_t h,const void *p,size_t n) { assert(h==1&&p&&n); writes++; return fault==5||fault==14?-1:0; }
 static esp_err_t ota_flash_end(esp_ota_handle_t *h) { assert(*h==1); if(fault==15)return -1; ends++; *h=0; return fault==6?-1:0; }
@@ -224,7 +231,7 @@ int main(void) {
     assert(!ota_remote_select_release(rows,"2.0.4",false,NULL,true,2048,tag,&size,digest));
     cJSON_Delete(rows);
     reset(); s_state.repo=2; assert(!install_release()); assert(!opens&&!begins&&!s_writer_active);
-    reset(); s_state.repo=1; assert(install_release()&&boots==1); /* previous name, before the rename */
+    snapshots=0; reset(); s_state.repo=1; assert(install_release()&&boots==1&&snapshots==1); /* previous name, before the rename */
     reset(); assert(ota_writer_try_acquire()); assert(!install_release()); assert(!opens&&!begins&&s_writer_active); ota_writer_release();
     for(int f=1;f<=16;f++) { if(f==11||f==14)continue; reset(); fault=f; assert(!install_release()); assert(!restarts&&!s_writer_active); if(f!=7)assert(!boots); assert(aborts<=1&&ends<=1); if(f==15||f==16)assert(aborts==1&&!ends); }
     /* Unacknowledged cleanup retains exclusion; repeated attempts cannot leak
