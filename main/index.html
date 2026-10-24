@@ -1393,9 +1393,16 @@
     /* =====================================================================
        AUTH OVERLAY
        ===================================================================== */
+    /* While a sign-in or setup screen is open nothing of the dashboard is
+     * rendered behind it: iOS scrolls the page when the keyboard opens, and
+     * the fixed overlay alone then no longer covers it. */
+    body.auth-open { overflow: hidden; }
+    body.auth-open > .nav, body.auth-open > .page-container { visibility: hidden; }
+
     .auth-overlay {
       position: fixed;
       inset: 0;
+      overflow-y: auto;
       z-index: 1000;
       background: var(--bg-page);
       display: flex;
@@ -2009,8 +2016,8 @@
         <div class="glance-item" id="glance-memory" title="Internal RAM is the scarce resource; external PSRAM is shown in the System card"><span class="glance-label">Free internal RAM</span><strong>—</strong></div>
       </div>
 
-      <!-- Shown when service rules exist, a temporary rule is open or the
-           first-boot wizard chose this role; the goal tile below always offers it. -->
+      <!-- Shown only while a service rule is enabled or temporary access is
+           open; Network and the goal tile below always offer the feature. -->
       <div class="card mb-4" id="sg-home-card" data-capability="lan-tailnet-forwarding" hidden>
         <div class="card-header"><div class="card-header-left"><span class="card-title">Selective Tailnet Service Gateway</span></div><span class="badge badge-neutral" id="sg-home-badge">—</span></div>
         <div class="card-body">
@@ -4531,6 +4538,7 @@
 
       setupEl.style.display = 'none';
       loginEl.style.display = 'none';
+      document.body.classList.toggle('auth-open', which === 'setup' || which === 'login');
 
       if (which === 'setup') {
         setupEl.style.display = 'flex';
@@ -5138,10 +5146,10 @@
     /* Choices made in the first-boot wizard live on the gateway (the setup page
      * ran on another address). Recommend those roles in the goal launcher;
      * never open a guide by itself (it reappeared in every new browser). */
-    var s_setup_roles = null, s_sg_rules = 0, s_sg_open = 0;
+    var s_setup_roles = null, s_sg_enabled = 0, s_sg_open = 0;
     function updateServiceGatewayCard() {
       var card = document.getElementById('sg-home-card');
-      if (card) card.hidden = !(s_sg_rules > 0 || s_sg_open > 0 || (s_setup_roles && s_setup_roles.indexOf('lan-tailnet') >= 0));
+      if (card) card.hidden = !(s_sg_enabled > 0 || s_sg_open > 0);
     }
     function applySetupChoices() {
       fetch('/api/system', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
@@ -6100,7 +6108,7 @@
         var rules=Array.isArray(d.rules)?d.rules:[],enabled=rules.filter(function(r){return r.enabled;}).length,
           installed=rules.filter(function(r){return r.installed;}).length,
           tested=rules.filter(function(r){return r.destination_check&&r.destination_check.state==='reachable';}).length;
-        loaded=true;s_sg_rules=rules.length;updateServiceGatewayCard();badge.textContent=rules.length+' / '+(d.max||8);
+        loaded=true;s_sg_enabled=enabled;updateServiceGatewayCard();badge.textContent=rules.length+' / '+(d.max||8);
         badge.className='badge '+(installed?'badge-success':'badge-neutral');
         out.textContent=!rules.length?'No service rules yet. Start with the guide: it checks prerequisites, explains the exposure and helps you test the destination before enabling it.'
           :rules.length+' rule(s) · '+enabled+' enabled · '+installed+' installed · '+tested+' with a reachable destination test'
@@ -10335,6 +10343,7 @@
         document.getElementById('authSetup').style.display = 'none';
         document.getElementById('authLogin').style.display = 'none';
         $('firstBoot').style.display = 'flex';
+        document.body.classList.add('auth-open');
         $('fbForm').addEventListener('submit', function (e) { e.preventDefault(); next(); });
         $('fb-back').addEventListener('click', function () { if (st.step > 1) show(st.step - 1); });
         $('fb-retry').addEventListener('click', begin);

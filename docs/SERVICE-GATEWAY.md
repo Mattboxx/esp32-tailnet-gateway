@@ -26,10 +26,10 @@ broker on another site, `broker.your-tailnet.ts.net:1883`.
 1. Give the ESP32 a fixed LAN address, e.g. `192.168.1.50`, and join it to
    your tailnet. Allow its identity to reach the broker in your tailnet ACL.
 2. Status → **What do you want to do?** → **Connect a LAN device to a Tailnet
-   service** (or Network → **LAN → Tailnet service gateway**). Once rules exist,
-   the Status page also shows a Service Gateway card with **Publish a Tailnet service**.
-   The guide checks uplink, control connection, web password and a free slot,
-   lists the risks and asks you to acknowledge the exposure.
+   service** (or Network → **LAN → Tailnet service gateway**). While a rule is
+   enabled, the Status page also shows a Service Gateway card. The guide checks
+   uplink, control connection, web password and a free slot, lists the risks
+   and asks you to acknowledge the exposure once per browser.
 3. Add a rule: TCP, listen `18830`, destination `broker.your-tailnet.ts.net`,
    port `1883`, source `192.168.1.20/32`. It is saved **disabled**.
 4. Press **Test destination**. The ESP32 itself makes one bounded TCP
