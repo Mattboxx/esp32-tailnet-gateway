@@ -71,6 +71,7 @@
 #include "mac_deny.h"
 #include "history.h"
 #include "notify_channels.h"
+#include "ddns.h"
 #include "tailnet_names.h"
 #include "settings_snapshot.h"
 #include "reset_history.h"
@@ -1008,6 +1009,7 @@ void app_main(void)
 
     /* Event/metrics history: off by default, then no task, buffer or flash use. */
     notify_channels_init();   /* Telegram/email: off by default, nothing runs */
+    ddns_init();              /* dynamic DNS: off by default, no timer */
     history_init();
     settings_snapshot_log_boot();
 
