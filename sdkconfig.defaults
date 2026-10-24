@@ -329,3 +329,12 @@ CONFIG_MBEDTLS_ECP_FIXED_POINT_OPTIM=y
 
 # Application tables in PSRAM .bss (EXT_RAM_BSS_ATTR): frees internal RAM.
 CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
+
+# Speed (2.0.4): code runs from PSRAM (XIP) and the lwIP/WiFi .bss now lives
+# there too, so a larger instruction cache (+16 KB internal RAM) and 64-byte
+# data-cache lines (no RAM cost) cut PSRAM stalls. Paid for with part of the
+# internal RAM freed by EXT_RAM_BSS_ATTR. CONFIG_LWIP_IRAM_OPTIMIZATION stays
+# off: it measured +28 KB of IRAM, more than it can return while WireGuard
+# crypto bounds throughput. Throughput and free heap: measure on hardware.
+CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
+CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
