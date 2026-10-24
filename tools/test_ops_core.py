@@ -16,6 +16,7 @@ woltype=wol[wol.index('typedef struct'):wol.index('void      wol_init')]
 globals=source[source.index('#define OPS_MAGIC'):source.index('static SemaphoreHandle_t lock;')]
 fixture=r'''
 #include <assert.h>
+#define EXT_RAM_BSS_ATTR /* PSRAM placement attribute: none on the host */
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>

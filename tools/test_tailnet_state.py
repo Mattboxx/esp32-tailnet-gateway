@@ -15,6 +15,7 @@ source='\n'.join(line for line in source.splitlines() if not line.startswith('#i
 fixture=r'''
 #define _POSIX_C_SOURCE 200809L
 #include <assert.h>
+#define EXT_RAM_BSS_ATTR /* PSRAM placement attribute: none on the host */
 #include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
