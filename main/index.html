@@ -743,6 +743,34 @@
       line-height: var(--leading-relaxed);
     }
 
+    /* Field rows: as many columns as fit (one on phones), inputs aligned. */
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+      column-gap: var(--sp-4);
+      align-items: end;
+    }
+    .form-row > .btn { justify-self: start; margin-bottom: var(--sp-4); }
+
+    /* Switches placed directly in a card body stack one per line. */
+    .card-body > .feature-switch, details > .feature-switch, .switch-stack > .feature-switch {
+      display: flex;
+      margin: var(--sp-2) 0;
+    }
+    .btn-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+    /* Devices & Recovery: text blocks, statuses and nested device cards. */
+    #page-operations .card-body > p,
+    #page-operations .card-body > .form-hint,
+    #page-operations .card-body > details { margin: 0 0 var(--sp-3); }
+    #page-operations .card-body > .feature-switch:first-of-type { margin-top: 0; }
+    #page-operations .card-body > .btn + p,
+    #page-operations .card-body > .btn-row + p { margin-top: var(--sp-3); }
+    #page-operations .card-body > pre:empty { display: none; }
+    #page-operations .card-body > pre { margin: var(--sp-2) 0 0; }
+    .ops-device { margin-top: var(--sp-4); background: var(--bg-page); }
+    .ops-device .card-header { gap: var(--sp-2); flex-wrap: wrap; }
+
     .input, .select, .textarea {
       width: 100%;
       background: var(--bg-input);
@@ -1364,7 +1392,7 @@
       .nav-tabs {
         display: none;
         position: fixed;
-        inset: 0;
+        inset: 48px 0 0 0;        /* below the sticky bar: the menu button stays usable */
         z-index: 90;
         background: var(--bg-page);
         flex-direction: column;
@@ -1380,7 +1408,7 @@
         width: 100%;
         justify-content: flex-start;
       }
-      .nav-tabs.open .nav-ham-close { display: inline-flex; }
+      /* The bar's menu button closes the drawer; no second close button. */
 
       .page-header { flex-direction: column; align-items: flex-start; }
       .stat-label  { min-width: 100px; }
@@ -1710,18 +1738,23 @@
         </svg>
         Firewall
       </a>
-      <a class="nav-tab" role="tab" data-page="tools" aria-selected="false" href="#tools">
+      <a class="nav-tab" role="tab" data-page="operations" aria-selected="false" href="#operations">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+          <path d="M18.36 6.64a9 9 0 11-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/>
         </svg>
-        Diagnostics
+        Devices &amp; Recovery
       </a>
-      <a class="nav-tab" role="tab" data-page="operations" aria-selected="false" href="#operations">Devices &amp; Recovery</a>
       <a class="nav-tab" role="tab" data-page="automation" aria-selected="false" href="#automation">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M13 2L3 14h8l-1 8 10-12h-8z"/>
         </svg>
         Automation
+      </a>
+      <a class="nav-tab" role="tab" data-page="tools" aria-selected="false" href="#tools">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+        </svg>
+        Diagnostics
       </a>
       <a class="nav-tab" role="tab" data-page="system" aria-selected="false" href="#system">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -3089,7 +3122,7 @@
     <div class="page-section" id="page-operations">
       <div class="page-header"><div class="page-header-left"><h1 class="page-title">Devices &amp; Recovery</h1><p class="page-subtitle">Verify a host and its service, not just a sent magic packet.</p></div>
         <div class="page-header-actions"><button class="btn btn-secondary" id="ops-refresh">Refresh</button><a class="btn btn-secondary" href="/api/diagnostics/export" download>Sanitized export</a></div></div>
-      <div class="card"><div class="card-header"><span class="card-title">Health &amp; resources</span></div><div class="card-body">
+      <div class="card mb-4"><div class="card-header"><span class="card-title">Health &amp; resources</span></div><div class="card-body">
         <p id="ops-summary" role="status">Not loaded</p><p class="form-hint">Control connected does not prove the tunnel or a remote service works. No public Internet probe runs automatically.</p>
         <details><summary>Actual firmware capabilities</summary><p id="ops-capability-status" role="status">Not loaded</p><ul id="ops-capabilities"></ul></details>
         <label class="feature-switch"><input type="checkbox" id="ops-monitoring"><span class="feature-switch-track" aria-hidden="true"></span><span>Monitor configured devices</span></label>
@@ -3097,14 +3130,14 @@
         <label class="feature-switch"><input type="checkbox" id="ops-remote"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow MQTT / ntfy recovery commands</span></label>
         <label class="feature-switch"><input type="checkbox" id="ops-lease-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify via ntfy when temporary service access closes</span></label>
         <p class="form-hint">OFF by default. Notifications are best-effort; local access closes even when ntfy is unavailable. No rule addresses or names are sent.</p>
-        <div class="form-hint">Guard thresholds are engineering defaults, not calibrated device limits. Remote commands require a trusted broker/topic and existing integration permissions.</div>
-        <div class="form-row"><div class="form-group"><label class="form-label" for="ops-min">Minimum internal free bytes</label><input class="input" id="ops-min" type="number" min="0" max="262144"></div>
+        <div class="form-hint" data-advanced>Guard thresholds are engineering defaults, not calibrated device limits. Remote commands require a trusted broker/topic and existing integration permissions.</div>
+        <div class="form-row" data-advanced><div class="form-group"><label class="form-label" for="ops-min">Minimum internal free bytes</label><input class="input" id="ops-min" type="number" min="0" max="262144"></div>
           <div class="form-group"><label class="form-label" for="ops-largest">Minimum largest block</label><input class="input" id="ops-largest" type="number" min="0" max="131072"></div>
           <div class="form-group"><label class="form-label" for="ops-sockets">Reserved socket slots</label><input class="input" id="ops-sockets" type="number" min="0" max="31"></div>
           <div class="form-group"><label class="form-label" for="ops-interval">Monitor interval (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600"></div></div>
         <button class="btn btn-primary" id="ops-settings-save" disabled>Save monitoring settings</button>
       </div></div>
-      <div class="card" data-capability="health"><div data-advanced class="card-header"><span class="card-title">Layered connectivity checks</span></div><div class="card-body">
+      <div class="card mb-4" data-capability="health"><div class="card-header"><span class="card-title">Layered connectivity checks</span></div><div class="card-body">
         <p class="form-hint">Optional, OFF by default. No built-in cloud target. One check every configured interval, sharing the recovery worker. A closed gateway port does not prove the router is down; a TCP connection does not verify application health. DNS answers may be cached.</p>
         <label class="feature-switch"><input type="checkbox" id="health-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable configured connectivity checks</span></label>
         <label class="feature-switch"><input type="checkbox" id="health-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify repeated failures through enabled ntfy</span></label>
@@ -3120,7 +3153,7 @@
         </div><button class="btn btn-primary" id="health-save" disabled>Save connectivity checks</button>
         <p id="health-status" role="status">Not loaded</p><pre class="mono" id="health-checks" style="white-space:pre-wrap"></pre>
       </div></div>
-      <div class="card" data-capability="smart-recovery"><div class="card-header"><span class="card-title">Device registry</span></div><div class="card-body">
+      <div class="card mb-4" data-capability="smart-recovery"><div class="card-header"><span class="card-title">Device registry</span></div><div class="card-body">
         <p class="form-hint">Add or edit MAC addresses in <a href="#automation">Automation → Wake-on-LAN</a>. Profiles remain linked to the saved MAC, not its row number. Checks use IPv4 DNS or cached Tailnet names. TCP connection success proves the selected port answered, not application health.</p>
         <p id="ops-job" role="status">No observation loaded</p><button class="btn btn-secondary" id="ops-cancel" disabled>Cancel active recovery</button><div id="ops-devices"></div>
         <pre class="mono" id="ops-events" style="white-space:pre-wrap"></pre>
@@ -3932,7 +3965,7 @@
         document.body.appendChild(navTabs);
         navTabs.classList.add('open');
         document.body.style.overflow = 'hidden';
-        if (hamBtn) hamBtn.setAttribute('aria-expanded', 'true');
+        if (hamBtn) { hamBtn.setAttribute('aria-expanded', 'true'); hamBtn.setAttribute('aria-label', 'Close menu'); hamBtn.textContent = '✕'; }
       }
       function closeHamMenu() {
         if (!navTabs) return;
@@ -3941,9 +3974,13 @@
         if (navOrigParent && navTabs.parentNode !== navOrigParent) {
           navOrigParent.insertBefore(navTabs, navOrigNext);
         }
-        if (hamBtn) hamBtn.setAttribute('aria-expanded', 'false');
+        if (hamBtn) { hamBtn.setAttribute('aria-expanded', 'false'); hamBtn.setAttribute('aria-label', 'Open menu'); hamBtn.textContent = '≡'; }
       }
-      if (hamBtn)   hamBtn.addEventListener('click', openHamMenu);
+      /* The same button opens and closes the menu: the drawer opens below the
+       * bar, so the button stays visible and tappable. */
+      if (hamBtn)   hamBtn.addEventListener('click', function () {
+        if (navTabs && navTabs.classList.contains('open')) closeHamMenu(); else openHamMenu();
+      });
       if (hamClose) hamClose.addEventListener('click', closeHamMenu);
       /* Esc closes the drawer too — common keyboard expectation. */
       document.addEventListener('keydown', function (e) {
@@ -6264,23 +6301,31 @@
         document.getElementById('ops-job').textContent='Recovery: '+data.recovery_state+' · WoL send: '+(data.packet_sent===true?'confirmed locally (not proof of boot)':'not confirmed; a partial send may have occurred')+' · host verified: '+(data.host_verified===true?'yes':'not verified')+' · service verified: '+(data.service_verified===true?'yes':'not verified');
         var list=document.getElementById('ops-devices');list.replaceChildren();
         data.devices.forEach(function(d){
-          var row=document.createElement('div');row.className='card';row.style.marginTop='1rem';
-          var title=document.createElement('h3');title.textContent=(d.name||d.mac)+' — '+d.state;row.appendChild(title);
+          var row=document.createElement('div');row.className='card ops-device';
+          var head=document.createElement('div');head.className='card-header';
+          var title=document.createElement('span');title.className='card-title';title.textContent=d.name||d.mac;
+          var badge=document.createElement('span');badge.className='badge badge-neutral';badge.textContent=d.state;head.append(title,badge);
+          var body=document.createElement('div');body.className='card-body';row.append(head,body);
+          var grid=document.createElement('div');grid.className='form-row';body.appendChild(grid);
           var fields={};
-          [['kind','Device type',['NAS','PC','Server','IoT','Network infrastructure','Tailnet service','Other']],['scope','Target scope',['Automatic routing','Local uplink subnet only','Tailnet address only']]].forEach(function(f){var label=document.createElement('label');label.className='form-group';label.textContent=f[1];var select=document.createElement('select');select.className='input';f[2].forEach(function(text,i){var option=document.createElement('option');option.value=i;option.textContent=text;select.appendChild(option);});select.value=d[f[0]]||0;fields[f[0]]=select;label.appendChild(select);row.appendChild(label);});
+          function field(text,control){var label=document.createElement('label');label.className='form-group';var caption=document.createElement('span');caption.className='form-label';caption.textContent=text;label.append(caption,control);grid.appendChild(label);}
+          [['kind','Device type',['NAS','PC','Server','IoT','Network infrastructure','Tailnet service','Other']],['scope','Target scope',['Automatic routing','Local uplink subnet only','Tailnet address only']]].forEach(function(f){var select=document.createElement('select');select.className='input';f[2].forEach(function(text,i){var option=document.createElement('option');option.value=i;option.textContent=text;select.appendChild(option);});select.value=d[f[0]]||0;fields[f[0]]=select;field(f[1],select);});
           [['target','Check target','text'],['host_port','Host TCP port','number'],['service_port','Optional service TCP port (0 = none)','number'],['timeout_s','Recovery timeout (5–600 s)','number'],['interval_s','Device interval (30–3600 s)','number'],['max_checks','Maximum checks (1–60)','number']].forEach(function(f){
-            var label=document.createElement('label');label.className='form-group';label.textContent=f[1];var input=document.createElement('input');input.className='input';input.type=f[2];input.value=d[f[0]];input.maxLength=95;
-            if(f[2]==='number'){input.min=f[0]==='max_checks'?1:f[0]==='timeout_s'?5:f[0]==='interval_s'?30:0;input.max=f[0]==='max_checks'?60:f[0]==='timeout_s'?600:f[0]==='interval_s'?3600:65535;}label.appendChild(input);row.appendChild(label);fields[f[0]]=input;
+            var input=document.createElement('input');input.className='input';input.type=f[2];input.value=d[f[0]];input.maxLength=95;
+            if(f[2]==='number'){input.min=f[0]==='max_checks'?1:f[0]==='timeout_s'?5:f[0]==='interval_s'?30:0;input.max=f[0]==='max_checks'?60:f[0]==='timeout_s'?600:f[0]==='interval_s'?3600:65535;}field(f[1],input);fields[f[0]]=input;
           });
-          var monitor=document.createElement('label');monitor.className='feature-switch';var checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=d.monitor;var track=document.createElement('span');track.className='feature-switch-track';track.setAttribute('aria-hidden','true');monitor.append(checkbox,track,document.createTextNode('Monitor this device'));row.appendChild(monitor);
-          var notify=document.createElement('label');var notification=document.createElement('input');notification.type='checkbox';notification.checked=d.notify;notify.append(notification,document.createTextNode('Notify result through enabled ntfy'));row.appendChild(notify);
+          var switches=document.createElement('div');switches.className='switch-stack';body.appendChild(switches);
+          function toggle(text,checked){var label=document.createElement('label');label.className='feature-switch';var input=document.createElement('input');input.type='checkbox';input.checked=checked;var track=document.createElement('span');track.className='feature-switch-track';track.setAttribute('aria-hidden','true');var caption=document.createElement('span');caption.textContent=text;label.append(input,track,caption);switches.appendChild(label);return input;}
+          var checkbox=toggle('Monitor this device',d.monitor);
+          var notification=toggle('Notify result through enabled ntfy',d.notify);
+          var actions=document.createElement('div');actions.className='btn-row';actions.style.marginTop='var(--sp-3)';body.appendChild(actions);
           [['Save profile','device'],['Check now','check'],['Recover with WoL','recover']].forEach(function(pair){var button=document.createElement('button');button.className='btn '+(pair[1]==='recover'?'btn-primary':'btn-secondary');button.textContent=pair[0];button.type='button';button.onclick=function(){
             try {var payload={action:pair[1],index:d.index,mac:d.mac};if(pair[1]==='device'){
               payload.monitor=checkbox.checked;payload.notify=notification.checked;
               Object.keys(fields).forEach(function(k){if(!fields[k].checkValidity())throw new Error('Invalid '+k);payload[k]=k==='target'?fields[k].value:Number(fields[k].value);});
             }else if(pair[1]==='recover'&&!confirm('Send WoL if the saved host check fails, then verify this device?'))return;
             opsAction(payload);}catch(e){document.getElementById('ops-job').textContent=e.message;}
-          };row.appendChild(button);});list.appendChild(row);
+          };actions.appendChild(button);});list.appendChild(row);
         });
         document.getElementById('ops-events').textContent=data.events.slice().sort(function(a,b){return b.sequence-a.sequence;}).map(function(e){return '#'+e.sequence+' '+e.state+' ('+Math.round(e.uptime_ms/1000)+'s uptime)';}).join('\n');
         await Promise.all([loadHealth(),loadCapabilities(sequence)]);

@@ -72,7 +72,7 @@ const data = {
   '/api/service-watch': { enabled: false, notify: false, interval_s: 900 },
   '/api/service-leases': [],
   '/api/health': { enabled: false, notify: false, interval_s: 60, failure_threshold: 3, gateway_port: 0, dns_name: '', internet_ip: '', internet_port: 0, tailnet_target: '', tailnet_port: 0, checks: [] },
-  '/api/operations': { devices: [{ name: 'NAS', mac: '02:00:00:00:30:01', target: 'nas.lan', port: 5000 }], events: [], monitoring: false, guard: false, remote_commands: false,
+  '/api/operations': { devices: [{ index: 0, name: 'NAS', mac: '02:00:00:00:30:01', target: 'nas.lan', monitor: true, notify: false, host_port: 5000, service_port: 0, timeout_s: 120, interval_s: 300, max_checks: 10, kind: 0, scope: 0, state: 'idle' }], events: [], monitoring: false, guard: false, remote_commands: false,
     recovery_state: 'idle', sockets_used: 12, socket_limit: 31, internal_min: 14000, internal_largest: 12000, minimum_internal: 16384, minimum_largest: 8192, socket_reserve: 4, interval_s: 60, control_connected: true },
   '/api/capabilities': { schema: 2, features: [] },
   '/api/profiles': { schema: 1, active: 'none', rollback_available: false, rollback_to: 'none', rollback_restores: [],

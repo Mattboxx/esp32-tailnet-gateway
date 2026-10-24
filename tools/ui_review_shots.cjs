@@ -10,7 +10,7 @@ const folder = process.argv[2];
 if (!folder) { console.error('usage: node tools/ui_review_shots.cjs <folder> [overrides.json]'); process.exit(2); }
 const overrides = process.argv[3] ? JSON.parse(fs.readFileSync(process.argv[3], 'utf8')) : {};
 fs.mkdirSync(folder, { recursive: true });
-const tabs = ['status', 'network', 'tailscale', 'firewall', 'tools', 'operations', 'automation', 'system'];
+const tabs = ['status', 'network', 'tailscale', 'firewall', 'operations', 'automation', 'tools', 'system'];
 const runs = [['desktop-adv', 1440, 900, true], ['desktop-simple', 1440, 900, false], ['phone-simple', 390, 844, false]];
 
 (async () => {

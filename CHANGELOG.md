@@ -14,6 +14,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   no longer brings it back.
 - iPhone and iPad: the sign-in, password and setup screens no longer show the
   dashboard underneath when the on-screen keyboard opens.
+- Menu order follows the setup flow: Status, Network, Tailscale, Firewall,
+  Devices & Recovery, Automation, Diagnostics, System. Devices & Recovery has
+  its own icon.
+- Phones: the menu button opens and closes the menu; the menu opens below the
+  bar so the button stays visible.
+- Devices & Recovery: cards are spaced like the other pages, switches sit one
+  per line, fields use columns on wide screens and each device profile has a
+  header with its state. In simple mode the guard thresholds are an advanced
+  setting and the connectivity checks card keeps its title.
+- Field rows on Network, Automation and System use the same column layout.
 
 ## [2.0.3] — 2026-10-24 (beta)
 
