@@ -2623,7 +2623,7 @@
       <div class="card mt-4" id="eth-card" data-capability="ethernet">
         <div class="card-header"><div data-advanced class="card-header-left"><span class="card-title">Ethernet uplink (optional W5500 SPI module)</span></div><span class="badge badge-neutral" id="eth-badge">—</span></div>
         <div class="card-body">
-          <p class="form-hint">Only for boards with an explicitly wired W5500 module and the Ethernet firmware build. Most ESP32-S3 boards have no Ethernet. Changes apply after a restart. Not physically validated on this candidate; the LAN → Tailnet listener and health checks still use WiFi.</p>
+          <p class="form-hint">Only for boards with an explicitly wired W5500 module. Most ESP32-S3 boards have no Ethernet. Changes apply after a restart. Not physically validated on this candidate; the LAN → Tailnet listener and health checks still use WiFi.</p>
           <p id="eth-status" role="status">Not loaded</p>
           <label class="feature-switch"><input type="checkbox" id="eth-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable Ethernet at next boot</span></label>
           <div class="form-row">
@@ -2647,6 +2647,36 @@
             <div class="form-group"><label class="form-label" for="eth-dns">DNS (optional)</label><input class="input mono" id="eth-dns"></div>
           </div>
           <div class="page-header-actions"><button class="btn btn-secondary" id="eth-reload" type="button">Reload</button><button class="btn btn-primary" id="eth-save" type="button" disabled>Save (applies after restart)</button></div>
+        </div>
+      </div>
+
+      <!-- ===== Optional cellular (GSM/LTE) uplink ===== -->
+      <div class="card mt-4" id="cell-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Cellular uplink (GSM/LTE modem with SIM)</span></div><span class="badge badge-neutral" id="cell-badge">—</span></div>
+        <div class="card-body">
+          <p class="form-hint">For an external UART modem (for example SIM7600, A7670 or Quectel EC2x) with a data SIM. It carries the Internet traffic of the gateway and its clients as the main uplink or only when WiFi and Ethernet are down; LAN services stay on WiFi or Ethernet. Changes apply after a restart. Experimental: not yet validated with a real modem.</p>
+          <p id="cell-status" role="status">Not loaded</p>
+          <label class="feature-switch"><input type="checkbox" id="cell-ack"><span class="feature-switch-track" aria-hidden="true"></span><span>I understand that mobile data may cost money, and that Tailscale, updates and integrations will use it</span></label>
+          <label class="feature-switch"><input type="checkbox" id="cell-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable the cellular uplink at next boot</span></label>
+          <label class="feature-switch"><input type="checkbox" id="cell-roaming"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow roaming (foreign networks can be expensive)</span></label>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="cell-mode">Use</label><select class="input" id="cell-mode"><option value="failover">Only when WiFi and Ethernet are down</option><option value="primary">As the main Internet uplink</option></select></div>
+            <div class="form-group"><label class="form-label" for="cell-apn">APN</label><input class="input mono" id="cell-apn" maxlength="63" autocomplete="off" placeholder="e.g. internet"><span class="form-hint">From your mobile operator, e.g. "internet" or "web.omnitel.it".</span></div>
+            <div class="form-group"><label class="form-label" for="cell-user">APN user name (optional)</label><input class="input mono" id="cell-user" maxlength="31" autocomplete="off"></div>
+            <div class="form-group"><label class="form-label" for="cell-password">APN password (optional)</label><input class="input mono" id="cell-password" type="password" maxlength="63" autocomplete="new-password" placeholder="Optional"><label class="form-hint" style="display:flex; gap:0.35rem; align-items:center;"><input type="checkbox" id="cell-clear-password"> Clear saved password</label></div>
+            <div class="form-group"><label class="form-label" for="cell-pin">SIM PIN (optional)</label><input class="input mono" id="cell-pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Optional"><span class="form-hint">Sent once per start: a wrong PIN stops the modem instead of risking a PUK lock.</span><label class="form-hint" style="display:flex; gap:0.35rem; align-items:center;"><input type="checkbox" id="cell-clear-pin"> Clear saved PIN</label></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="cell-uart">UART</label><select class="input" id="cell-uart"><option value="1">UART1</option><option value="2">UART2</option></select></div>
+            <div class="form-group"><label class="form-label" for="cell-baud">Baud rate</label><select class="input" id="cell-baud"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option><option>230400</option><option>460800</option><option>921600</option></select></div>
+            <div class="form-group"><label class="form-label" for="cell-tx">TX GPIO (to modem RX)</label><input class="input mono cell-pin" id="cell-tx" type="number" min="0" max="48" placeholder="e.g. 17"></div>
+            <div class="form-group"><label class="form-label" for="cell-rx">RX GPIO (from modem TX)</label><input class="input mono cell-pin" id="cell-rx" type="number" min="0" max="48" placeholder="e.g. 18"></div>
+            <div class="form-group" data-advanced><label class="form-label" for="cell-rts">RTS GPIO (-1 = none)</label><input class="input mono cell-pin" id="cell-rts" type="number" min="-1" max="48"></div>
+            <div class="form-group" data-advanced><label class="form-label" for="cell-cts">CTS GPIO (-1 = none)</label><input class="input mono cell-pin" id="cell-cts" type="number" min="-1" max="48"></div>
+            <div class="form-group"><label class="form-label" for="cell-pwrkey">PWRKEY GPIO (-1 = none)</label><input class="input mono cell-pin" id="cell-pwrkey" type="number" min="-1" max="48"><span class="form-hint">Pulsed at start and when the modem stops answering.</span></div>
+          </div>
+          <label class="feature-switch" data-advanced><input type="checkbox" id="cell-pwrkey-high"><span class="feature-switch-track" aria-hidden="true"></span><span>PWRKEY is active high (boards with a transistor driver)</span></label>
+          <div class="page-header-actions"><button class="btn btn-secondary" id="cell-reload" type="button">Reload</button><button class="btn btn-primary" id="cell-save" type="button" disabled>Save (applies after restart)</button></div>
         </div>
       </div>
     </div>
@@ -5208,7 +5238,7 @@
 
     function loadPageState(page) {
       if (page === 'status') { fetchStatus(); loadServiceGatewaySummary(); }
-      if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); loadServiceWatch(); }
+      if (page === 'network') { loadNetwork(); loadServiceLeases(); loadEthernet(); loadCellular(); loadServiceWatch(); }
       if (page === 'tailscale') loadTailscale();
       if (page === 'firewall') loadFirewall();
       if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); }
@@ -6271,6 +6301,61 @@
         if(!r.ok||!d.ok)throw new Error(d.error||('HTTP '+r.status));
         showToast('success','Ethernet settings saved','Restart the device to apply them.',5000);await loadEthernet();}
       catch(e){document.getElementById('eth-status').textContent='Not saved: '+e.message;btn.disabled=false;}
+    });
+    /* Optional cellular uplink. The SIM PIN and APN password are write-only:
+     * an empty field keeps the saved value, "Clear" removes it. */
+    var CELL_FIELDS=['cell-ack','cell-enabled','cell-roaming','cell-mode','cell-apn','cell-user','cell-password','cell-clear-password','cell-pin','cell-clear-pin',
+      'cell-uart','cell-baud','cell-tx','cell-rx','cell-rts','cell-cts','cell-pwrkey','cell-pwrkey-high'];
+    var CELL_STATES={off:'Off',powering:'Starting the modem',sync:'Talking to the modem',sim:'Checking the SIM',registering:'Looking for the mobile network',
+      dialing:'Starting the data call',connected:'Connected',backoff:'Waiting before the next attempt',stopped:'Stopped'};
+    var s_cell_loaded=false;
+    function cellStatusText(st,c){
+      if(!st.enabled_at_boot)return c.enabled?'Enabled: starts after a restart.':'Off.';
+      var parts=[CELL_STATES[st.state]||st.state];
+      if(st.operator)parts.push(st.operator);
+      if(typeof st.rssi_dbm==='number')parts.push(st.rssi_dbm+' dBm');
+      if(st.ip)parts.push('IP '+st.ip);
+      if(st.selected_uplink)parts.push('carrying Internet traffic');
+      if(st.bytes_in||st.bytes_out)parts.push('data '+formatTraffic(st.bytes_in,st.bytes_out));
+      if(st.model)parts.push(st.model);
+      return parts.join(' · ')+(st.error?' — '+st.error:'')+(st.restart_required?' · restart to apply the saved settings':'');
+    }
+    function loadCellular(){
+      s_cell_loaded=false;document.getElementById('cell-save').disabled=true;
+      return apiFetch('/api/cellular',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
+        if(!d||!d.config||!d.status||typeof d.config.enabled!=='boolean')throw new Error('Invalid cellular response');
+        var c=d.config,st=d.status,set=function(id,v){var el=document.getElementById(id);if(el.type==='checkbox')el.checked=!!v;else el.value=v;};
+        set('cell-ack',c.data_ack);set('cell-enabled',c.enabled);set('cell-roaming',c.roaming);set('cell-mode',c.mode);set('cell-apn',c.apn);set('cell-user',c.user);
+        set('cell-password','');set('cell-clear-password',false);set('cell-pin','');set('cell-clear-pin',false);
+        document.getElementById('cell-password').placeholder=c.has_password?'Saved — leave empty to keep':'Optional';
+        document.getElementById('cell-pin').placeholder=c.has_pin?'Saved — leave empty to keep':'Optional';
+        set('cell-uart',String(c.uart));set('cell-baud',String(c.baud));set('cell-tx',c.tx);set('cell-rx',c.rx);set('cell-rts',c.rts);set('cell-cts',c.cts);
+        set('cell-pwrkey',c.pwrkey);set('cell-pwrkey-high',c.pwrkey_active_high);
+        document.getElementById('cell-status').textContent=cellStatusText(st,c);
+        var badge=document.getElementById('cell-badge');
+        badge.textContent=!st.enabled_at_boot?'Off':st.state==='connected'?'Connected':st.state==='stopped'?'Stopped':'Connecting…';
+        badge.className='badge '+(st.state==='connected'?'badge-success':st.state==='stopped'?'badge-danger':st.enabled_at_boot?'badge-warning':'badge-neutral');
+        s_cell_loaded=true;
+      }).catch(function(e){document.getElementById('cell-status').textContent='Cellular settings unavailable: '+e.message;});
+    }
+    CELL_FIELDS.forEach(function(id){var el=document.getElementById(id);el.addEventListener(el.type==='checkbox'||el.tagName==='SELECT'?'change':'input',function(){document.getElementById('cell-save').disabled=!s_cell_loaded;});});
+    document.getElementById('cell-reload').addEventListener('click',loadCellular);
+    document.getElementById('cell-save').addEventListener('click',async function(){
+      var num=function(id){return Number(document.getElementById(id).value);},val=function(id){return document.getElementById(id).value.trim();};
+      var on=function(id){return document.getElementById(id).checked;};
+      var body={enabled:on('cell-enabled'),data_ack:on('cell-ack'),roaming:on('cell-roaming'),mode:val('cell-mode'),apn:val('cell-apn'),user:val('cell-user'),
+        uart:num('cell-uart'),baud:num('cell-baud'),tx:num('cell-tx'),rx:num('cell-rx'),rts:num('cell-rts'),cts:num('cell-cts'),pwrkey:num('cell-pwrkey'),
+        pwrkey_active_high:on('cell-pwrkey-high')};
+      if(val('cell-password'))body.password=document.getElementById('cell-password').value;
+      if(val('cell-pin'))body.pin=val('cell-pin');
+      if(on('cell-clear-password'))body.clear_password=true;
+      if(on('cell-clear-pin'))body.clear_pin=true;
+      if(body.enabled&&!body.data_ack){document.getElementById('cell-status').textContent='Not saved: acknowledge the mobile data notice first.';return;}
+      var btn=this;btn.disabled=true;
+      try{var r=await apiFetch('/api/cellular',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});var d=await r.json();
+        if(!r.ok||!d.ok)throw new Error(d.error||('HTTP '+r.status));
+        showToast('success','Cellular settings saved','Restart the device to apply them.',5000);await loadCellular();}
+      catch(e){document.getElementById('cell-status').textContent='Not saved: '+e.message;btn.disabled=false;}
     });
     function loadServiceWatch(){
       document.getElementById('sw-save').disabled=true;

@@ -7,6 +7,7 @@
 #include "config_profiles.h"
 #include "service_check.h"
 #include "eth_uplink.h"
+#include "cell_uplink.h"
 #include "service_evidence.h"
 #include "ml_policy.h"
 #include "esp_timer.h"
@@ -265,5 +266,6 @@ esp_err_t homelab_ops_register_http(httpd_handle_t server) {
     for(unsigned i=0;i<sizeof routes/sizeof routes[0];i++){esp_err_t e=httpd_register_uri_handler(server,&routes[i]);if(e!=ESP_OK)return e;}
     esp_err_t err=service_transfer_register_http(server);
     if(err==ESP_OK)err=config_profiles_register_http(server);
-    return err==ESP_OK?eth_uplink_register_http(server):err;
+    if(err==ESP_OK)err=eth_uplink_register_http(server);
+    return err==ESP_OK?cell_uplink_register_http(server):err;
 }

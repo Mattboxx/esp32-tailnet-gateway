@@ -45,6 +45,10 @@ static netif_linkoutput_fn  original_ap_linkoutput   = NULL;
 static netif_input_fn       original_eth_input       = NULL;
 static netif_linkoutput_fn  original_eth_linkoutput  = NULL;
 static bool                 s_eth_protected          = false;
+static netif_output_fn      original_ppp_output      = NULL;
+static struct netif        *s_ppp                    = NULL;
+static volatile uint64_t    s_ppp_bytes_in           = 0;
+static volatile uint64_t    s_ppp_bytes_out          = 0;
 
 /* Wire-byte counters. Updated on the LWIP TCPIP task, read from the
  * HTTP server task. Display-only — torn reads at the 32-bit boundary
@@ -265,6 +269,35 @@ static err_t eth_linkoutput_hook(struct netif *netif, struct pbuf *p)
 }
 
 bool netif_hooks_eth_protected(void) { return s_eth_protected; }
+
+/* PPP: raw IPv4, so the explicit IP parser, never the Ethernet guess. */
+static err_t ppp_output_hook(struct netif *netif, struct pbuf *p, const ip4_addr_t *ipaddr)
+{
+    if (p) s_ppp_bytes_out += p->tot_len;
+    if (acl_drops(acl_check_ip_packet(ACL_FROM_ESP, p))) { return ERR_OK; }
+    return original_ppp_output ? original_ppp_output(netif, p, ipaddr) : ERR_VAL;
+}
+
+bool netif_hooks_install_ppp(struct netif *nif)
+{
+    if (s_ppp) return s_ppp == nif;
+    if (!nif || !nif->output) return false;
+    original_ppp_output = nif->output;
+    nif->output = ppp_output_hook;
+    s_ppp = nif;
+    ESP_LOGI(TAG, "PPP ACL hooks installed on %c%c%d", nif->name[0], nif->name[1], nif->num);
+    return true;
+}
+
+bool netif_hooks_ppp_input_allowed(struct pbuf *p, struct netif *input)
+{
+    if (!s_ppp || input != s_ppp || !p) return true;
+    s_ppp_bytes_in += p->tot_len;
+    return !acl_drops(acl_check_ip_packet(ACL_TO_ESP, p));
+}
+
+uint64_t netif_hooks_get_ppp_bytes_in (void) { return s_ppp_bytes_in;  }
+uint64_t netif_hooks_get_ppp_bytes_out(void) { return s_ppp_bytes_out; }
 
 static err_t ap_input_hook(struct pbuf *p, struct netif *netif)
 {

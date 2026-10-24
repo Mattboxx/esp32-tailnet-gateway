@@ -40,6 +40,7 @@
 #include "tailscale_config.h"
 #include "tailnet_forward.h"
 #include "eth_uplink.h"
+#include "cell_uplink.h"
 #include "ping/ping_sock.h"
 #include "task_reaper.h"
 
@@ -310,6 +311,9 @@ static void supervisor_netifs_cb(void *ctx)
     state->uplink = find_sta_netif();
     state->preferred = eth_uplink_lwip_select(state->uplink);
     if (state->preferred) state->uplink = state->preferred;
+    /* Optional cellular: primary, or failover while WiFi/Ethernet is down. */
+    struct netif *cell = cell_uplink_lwip_select(state->uplink);
+    if (cell) state->uplink = state->preferred = cell;
     state->wg_ready = state->wg && netif_is_up(state->wg);
     state->default_netif = netif_default;
 }

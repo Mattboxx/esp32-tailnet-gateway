@@ -117,6 +117,9 @@ async function fixture(browser, options = {}) {
       body = state.statusBody || {};
     } else if (url.pathname === '/api/network' && state.networkBody) {
       body = state.networkBody;
+    } else if (url.pathname === '/api/cellular') {
+      if (route.request().method() === 'POST') { state.savedCellular = route.request().postDataJSON(); body = {ok: true, restart_required: true}; }
+      else body = state.cellularBody || {};
     } else if (url.pathname === '/api/tailnet-forward/import') {
       const input=route.request().postDataJSON();
       if(state.importDelay)await new Promise(resolve=>setTimeout(resolve,state.importDelay));
@@ -275,6 +278,33 @@ async function main() {
     await f.page.waitForTimeout(300);
     assert.equal(statusReads(), reads + 1);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Cellular uplink card: secrets are write-only (placeholder only), an empty
+    // field keeps them, enabling requires the data notice, status is readable.
+    {
+      const cellConfig = {enabled: false, mode: 'failover', roaming: false, data_ack: false, uart: 1, baud: 115200, tx: 17, rx: 18, rts: -1, cts: -1,
+        pwrkey: -1, pwrkey_active_high: false, apn: 'internet.example', user: '', has_password: true, has_pin: true};
+      f = await fixture(browser, { page: 'network', cellularBody: {config: cellConfig, status: {enabled_at_boot: true, task_running: true, state: 'connected',
+        registration: 1, rssi_dbm: -77, model: 'FIXTURE-MODEM', operator: 'Example Mobile', ip: '10.64.1.2', has_ip: true, selected_uplink: false,
+        restart_required: false, connects: 1, bytes_in: 2048, bytes_out: 1024, error: '', qualification: 'experimental'}} });
+      await f.page.waitForFunction(() => document.getElementById('cell-badge').textContent === 'Connected');
+      assert.match(await f.page.locator('#cell-status').textContent(), /Connected · Example Mobile · -77 dBm · IP 10\.64\.1\.2/);
+      assert.equal(await f.page.locator('#cell-pin').inputValue(), '');
+      assert.equal(await f.page.locator('#cell-pin').getAttribute('placeholder'), 'Saved — leave empty to keep');
+      assert.equal(await f.page.locator('#cell-password').getAttribute('placeholder'), 'Saved — leave empty to keep');
+      await f.page.locator('label:has(#cell-enabled)').click();
+      await f.page.locator('#cell-save').click();
+      await f.page.waitForFunction(() => document.getElementById('cell-status').textContent.includes('acknowledge the mobile data notice'));
+      assert.equal(f.state.savedCellular, undefined);
+      await f.page.locator('label:has(#cell-ack)').click();
+      await f.page.locator('#cell-save').click();
+      await f.page.waitForFunction(() => document.getElementById('cell-status').textContent.startsWith('Connected'));
+      await f.page.waitForTimeout(300);
+      assert.equal(f.state.savedCellular.enabled, true); assert.equal(f.state.savedCellular.data_ack, true);
+      assert.equal('pin' in f.state.savedCellular, false); assert.equal('password' in f.state.savedCellular, false);
+      await f.page.locator('#cell-pin').fill('1234'); await f.page.locator('#cell-save').click(); await f.page.waitForTimeout(300);
+      assert.equal(f.state.savedCellular.pin, '1234');
+      assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    }
     // Tabs follow overview → connectivity → protection → services → tools → admin,
     // and every tab has an icon.
     f = await fixture(browser);

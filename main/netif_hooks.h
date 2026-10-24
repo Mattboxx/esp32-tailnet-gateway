@@ -26,6 +26,19 @@ void netif_hooks_refresh(void);
 #include <stdbool.h>
 bool netif_hooks_eth_protected(void);
 
+/* Optional cellular PPP uplink. PPP carries raw IPv4 (no Ethernet header):
+ * output is filtered here (ACL from_esp), input in the ip4_input wrapper
+ * through netif_hooks_ppp_input_allowed (ACL to_esp). Install once, before
+ * the PPP link starts; false means the uplink must not start. */
+struct netif;
+struct pbuf;
+bool netif_hooks_install_ppp(struct netif *nif);
+/* TCP/IP context: false when the ACL drops a packet received on the PPP
+ * netif; true for every other interface. Counts PPP input bytes. */
+bool netif_hooks_ppp_input_allowed(struct pbuf *p, struct netif *input);
+uint64_t netif_hooks_get_ppp_bytes_in (void);
+uint64_t netif_hooks_get_ppp_bytes_out(void);
+
 /* Wire-byte counters — accumulated in the four hook tap points before
  * the ACL check, so they represent everything that actually hit the
  * interface (denied frames included). Read-only from the application. */

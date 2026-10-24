@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: MIT */
 #include "tailnet_forward.h"
 #include "tailnet_reassembly.h"
+#include "netif_hooks.h"
 #include <string.h>
 #include "lwip/tcpip.h"
 #include "lwip/ip4.h"
@@ -71,6 +72,8 @@ drop:
 err_t __wrap_ip4_input(struct pbuf *packet, struct netif *input)
 {
     LWIP_ASSERT_CORE_LOCKED();
+    /* PPP delivers straight to ip4_input: its ESP-bound ACL is applied here. */
+    if(!netif_hooks_ppp_input_allowed(packet,input)){pbuf_free(packet);return ERR_OK;}
     packet=prepare_dnat_packet(packet,input);
     if(!packet)return ERR_OK;
     if (!tailnet_forward_allow_ipv4_packet(packet, input)) {

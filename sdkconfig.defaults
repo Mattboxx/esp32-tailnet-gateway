@@ -344,3 +344,9 @@ CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
 # configured (main/eth_uplink.c) and is experimental until qualified on a
 # real module.
 CONFIG_ETH_SPI_ETHERNET_W5500=y
+
+# 3.0 optional cellular uplink (main/cell_uplink.c): PPP over a UART modem,
+# PAP/CHAP for carriers that need a user name. Inactive until configured.
+CONFIG_LWIP_PPP_SUPPORT=y
+CONFIG_LWIP_PPP_PAP_SUPPORT=y
+CONFIG_LWIP_PPP_CHAP_SUPPORT=y
