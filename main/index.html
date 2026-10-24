@@ -6377,7 +6377,9 @@
     var s_mig_poll=null;
     function loadMigration(){
       clearTimeout(s_mig_poll);s_mig_poll=null;
-      return apiFetch('/api/system/migration',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
+      return apiFetch('/api/system/migration',{cache:'no-store'}).then(function(r){
+        if(r.status===404)return {needed:false};   /* firmware without the migration */
+        if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}).then(function(d){
         var card=document.getElementById('mig-card');
         card.hidden=!(d&&d.needed);
         if(!d||!d.needed)return;

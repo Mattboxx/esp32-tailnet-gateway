@@ -73,4 +73,32 @@ class V2PackagingTests(unittest.TestCase):
             with self.assertRaises(AssertionError): check_build(folder, '3.0.0')
 
 
+class BridgePackagingTests(unittest.TestCase):
+    def test_only_a_release_bridge_build_is_packaged(self):
+        from package_v2 import ROOT
+        from package_bridge import OTA1_2X, SLOT_2X, bridge_version, check_bridge
+        version = bridge_version()
+        with tempfile.TemporaryDirectory() as directory:
+            folder = Path(directory); (folder/'config').mkdir()
+            (folder/'project_description.json').write_text(json.dumps({
+                'project_name': 'esp32_tsr', 'project_version': version, 'project_path': str(ROOT)}))
+            good = ('#define CONFIG_LWIP_MAX_SOCKETS 31\n#define CONFIG_TSR_MIGRATION_BRIDGE 1\n'
+                    '#define CONFIG_TSR_MIGRATION_SOURCE_URL ""\n#define CONFIG_ESPTOOLPY_FLASHSIZE "4MB"\n')
+            table = bytearray(b'\xff' * 3072); table[128:140] = OTA1_2X
+
+            def build(config=good, image=None, part=bytes(table)):
+                (folder/'config/sdkconfig.h').write_text(config)
+                (folder/'firmware.bin').write_bytes(image if image is not None else f'synthetic {version}'.encode())
+                (folder/'partitions.bin').write_bytes(part)
+            build(); self.assertEqual(check_bridge(folder, version)['project_name'], 'esp32_tsr')
+            for broken in (dict(config=good.replace('""', '"http://192.0.2.1:8765"')),           # bench source
+                           dict(config=good.replace('BRIDGE 1', 'BRIDGE 0')),                     # not the bridge
+                           dict(config=good.replace('"4MB"', '"8MB"')),                           # 3.x header
+                           dict(config=good + '#define CONFIG_ETH_SPI_ETHERNET_W5500 1\n'),       # too big a build
+                           dict(image=b'x' * (SLOT_2X + 1)),                                     # does not fit a 2.x slot
+                           dict(part=b'\xff' * 3072)):                                           # not the 2.x table
+                build(**broken)
+                with self.assertRaises(AssertionError): check_bridge(folder, version)
+
+
 if __name__ == '__main__': unittest.main()
