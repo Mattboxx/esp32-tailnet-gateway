@@ -79,6 +79,9 @@ bool history_snapshots_before_update(void);   /* setting: settings copy before u
 void history_get_config(bool *events, bool *metrics, bool *snapshots);
 /* Persist, then apply (same path as POST /api/history/config). */
 esp_err_t history_set_config(bool events, bool metrics, bool snapshots);
+/* NVS record of the three switches (events bit 0, metrics 1, snapshots 2). */
+#include "nvs_flags.h"
+extern const nvs_flags_t history_flags;
 void history_event(history_kind_t kind, history_level_t level, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 /* Run fn(arg) on a short-lived internal-RAM-stack task and wait for it

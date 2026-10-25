@@ -89,6 +89,7 @@ idf_component_register(SRCS "main.c" ${_tsr_optional}
                             "layout_migration.c"
                             "storage_store.c"
                             "history.c"
+                            "nvs_flags.c"
                             "settings_snapshot.c"
                             "tailnet_names.c"
                             "notify_channels.c"
