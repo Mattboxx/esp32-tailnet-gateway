@@ -74,6 +74,28 @@ class V2PackagingTests(unittest.TestCase):
 
 
 class BridgePackagingTests(unittest.TestCase):
+    def test_browser_bundle_preserves_parts_and_licenses(self):
+        from package_v2 import LAYOUT, write_web_installer
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            source = base/'source'; source.mkdir()
+            for name in LAYOUT:
+                (source/name).write_bytes(('synthetic '+name).encode())
+            notices = source/'notices.txt'
+            notices.write_text('Synthetic original authors and license notices\n',encoding='utf-8')
+            web = base/'web'
+            write_web_installer(source,web,'3.0.1',notices)
+            self.assertEqual((web/'FIRMWARE-LICENSES.txt').read_bytes(),notices.read_bytes())
+            for name in LAYOUT:
+                self.assertEqual((web/name).read_bytes(),(source/name).read_bytes())
+            manifest = json.loads((web/'manifest.json').read_text())
+            self.assertTrue(manifest['new_install_prompt_erase'])
+            self.assertEqual(manifest['version'],'3.0.1')
+            for line in (web/'SHA256SUMS.txt').read_text().splitlines():
+                digest,name = line.split('  ',1)
+                self.assertEqual(hashlib.sha256((web/name).read_bytes()).hexdigest(),digest)
+            self.assertIn('FIRMWARE-LICENSES.txt',(web/'SHA256SUMS.txt').read_text())
+
     def test_only_a_release_bridge_build_is_packaged(self):
         from package_v2 import ROOT
         from package_bridge import OTA1_2X, SLOT_2X, bridge_version, check_bridge
