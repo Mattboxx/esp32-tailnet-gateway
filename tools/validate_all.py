@@ -101,6 +101,7 @@ def main():
         run('setup-crypto',['node','tools/test_setup_crypto.cjs'])
         run('first-boot-ui',['node','tools/test_first_boot_ui.cjs'],900)
         run('site-browser',['node','tools/test_site_browser.cjs'],600)
+        run('site-installer-mobile',['node','tools/test_site_installer_mobile.cjs'])
         run('ui-layout',['node','tools/test_ui_layout.cjs'],1200)
     summary=dict(results=results,build_requested=args.build,browser_requested=args.browser,
                  sanitizers_requested=args.sanitizers,targeted_only=bool(args.only),

@@ -16,6 +16,7 @@ without changing URLs.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import re
@@ -198,14 +199,28 @@ def flasher_html(page: Page) -> str:
     manifest = page.rel(found[0])
     module = page.rel(f'assets/esp-web-tools/{EWT_VERSION}/install-button.js')
     easy = page.rel('easy-install/')
+    setup = page.rel('first-boot/')
     return (f'<script type="module" src="{module}"></script>\n'
-            '<div class="flasher" id="flasher">'
+            '<section class="flasher card" id="flasher" aria-labelledby="flasher-title">'
+            f'<h2 id="flasher-title">Firmware v{NEXT_VERSION}</h2>'
+            '<p>ESP32-S3 N8R8 / N16R8 · 8 MB octal PSRAM</p>'
             f'<esp-web-install-button manifest="{manifest}">'
             '<button slot="activate" class="btn primary" type="button">Connect &amp; Install</button>'
-            '<span slot="unsupported" class="note">This browser cannot talk to USB serial devices. Use desktop Chrome or Edge, '
-            f'or the <a href="{easy}">Easy Install package</a>.</span>'
-            '<span slot="not-allowed" class="note">The installer needs a secure (https) page.</span>'
-            '</esp-web-install-button></div>')
+            '<div slot="unsupported" class="note flasher-message">'
+            '<strong>Install from a computer</strong>'
+            '<p>This browser does not support USB serial access. For the first install, '
+            'open this page in desktop Chrome or Edge with the board connected by USB, '
+            'or run Easy Install on Windows, macOS or Linux.</p>'
+            '<p>After installation, you can set up and manage the gateway from your phone.</p>'
+            '<div class="flasher-actions">'
+            f'<a class="btn" href="{easy}">Easy Install guide</a>'
+            f'<a class="btn" href="{setup}">Set up from your phone</a></div></div>'
+            '<div slot="not-allowed" class="note flasher-message">'
+            '<strong>Open the secure page</strong><p>The USB installer requires HTTPS. '
+            f'<a href="{SITE_URL}install-firmware/">Open the official installer</a>.</p></div>'
+            '</esp-web-install-button>'
+            '<p class="flasher-help">Already installed? Use <strong>System → Firmware</strong> '
+            'on your gateway to update without a USB cable.</p></section>')
 
 
 def release_note(page: Page) -> str:
@@ -275,6 +290,7 @@ def render(page: Page, pages: list[Page]) -> str:
             for q, a in qa]})
     layout = 'with-sidebar' if sidebar else 'plain'
     image = SITE_URL + 'assets/social-preview.png'
+    style_version = hashlib.sha256((SRC / 'assets/site.css').read_bytes()).hexdigest()[:12]
     return f'''<!doctype html>
 <html lang="{page.lang}">
 <head>
@@ -302,7 +318,7 @@ def render(page: Page, pages: list[Page]) -> str:
 <link rel="icon" href="{page.rel('assets/favicon-32.png')}" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="{page.rel('assets/apple-touch-icon.png')}">
 <link rel="manifest" href="{page.rel('site.webmanifest')}">
-<link rel="stylesheet" href="{page.rel('assets/site.css')}">
+<link rel="stylesheet" href="{page.rel('assets/site.css')}?v={style_version}">
 <script src="{page.rel('assets/theme.js')}"></script>
 {''.join(jsonld(s) for s in structured)}
 </head>
@@ -496,6 +512,7 @@ def check(out: Path, pages: list[Page]) -> list[str]:
             if not link or link.startswith(('http://', 'https://', 'mailto:', '#', 'data:')):
                 continue
             path, _, frag = link.partition('#')
+            path = path.split('?', 1)[0]
             target = (file.parent / path).resolve()
             if target.is_dir():
                 target = target / 'index.html'

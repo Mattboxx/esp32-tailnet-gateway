@@ -7,11 +7,12 @@ group: Start
 order: 0
 -->
 <h1>Install Firmware</h1>
-<p class="lead">Connect your ESP32-S3 and install ESP32 Tailnet Gateway directly from your browser.</p>
+<p class="lead">Install by USB from a computer. Then set up your gateway from your phone or PC.</p>
 
 {{flasher}}
 
-<div class="note" id="download-mode">
+<details id="download-mode">
+  <summary>Board not detected? USB connection help</summary>
   <p><strong>Board not found, or the install stops at "Connecting"?</strong> Put the ESP32-S3 in download mode, then press <strong>Connect &amp; Install</strong> again:</p>
   <ol>
     <li>Press and hold the <strong>BOOT</strong> button (sometimes labelled <code>IO0</code>).</li>
@@ -19,9 +20,9 @@ order: 0
     <li>Release <strong>BOOT</strong>. The board now waits for the installer and can be written from this page.</li>
   </ol>
   <p>When the installer reports success, press <strong>RST</strong> once (or unplug and reconnect the board) to start the new firmware.</p>
-</div>
+</details>
 
-<!-- if:v2 --><p>No Chrome or Edge, or prefer a download? <a class="btn" href="{{repo}}/releases/download/v{{next_version}}/ESP32-Tailnet-Gateway-v{{next_version}}-EASY-INSTALL-Windows-macOS-Linux.zip">Download Easy Install (.zip)</a> — guided scripts for Windows, macOS and Linux. <a href="{{root}}easy-install/">Instructions</a></p><!-- endif -->
+<!-- if:v2 --><section class="card install-alternative" aria-labelledby="easy-download"><h2 id="easy-download">Prefer a download?</h2><p>Guided USB installation on Windows, macOS or Linux. Run the package on a computer, not on your phone.</p><a class="btn" href="{{repo}}/releases/download/v{{next_version}}/ESP32-Tailnet-Gateway-v{{next_version}}-EASY-INSTALL-Windows-macOS-Linux.zip">Download Easy Install (.zip)</a><p><a href="{{root}}easy-install/">Read the instructions</a></p></section><!-- endif -->
 
 <h2 id="steps">How it works</h2>
 <ol>
@@ -43,7 +44,7 @@ order: 0
 <p class="note">Never tick <strong>Erase device</strong> to fix a connection problem: it deletes your configuration. Back up first (System → Backup).</p>
 
 <h2 id="browsers">Supported browsers</h2>
-<p>The installer uses the Web Serial API. It works in desktop <strong>Chrome</strong> and <strong>Edge</strong> (and other Chromium browsers) on Windows, macOS, Linux and ChromeOS. Safari, Firefox and phone browsers do not offer Web Serial; use the <a href="{{root}}easy-install/">Easy Install package</a> instead.</p>
+<p>The installer uses the Web Serial API. Use desktop <strong>Chrome</strong> or <strong>Edge</strong> on Windows, macOS, Linux or ChromeOS. Safari, Firefox and standard phone browsers cannot flash through this installer. Use a computer for USB installation (or the <a href="{{root}}easy-install/">Easy Install package</a> on Windows, macOS or Linux). The <a href="{{root}}first-boot/">first-boot setup</a> and everyday dashboard work from a phone after installation.</p>
 
 <h2 id="troubleshooting">If the board is not found</h2>
 <ul>

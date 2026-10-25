@@ -63,6 +63,12 @@ schema: home
 <p><strong>Tailscale on ESP32-S3, without an additional always-on Linux gateway.</strong> This open-source ESP32 Tailscale gateway connects compatible IoT and homelab devices to selected remote services. Use it as a Headscale-compatible gateway, a subnet router, or a separately powered Wake-on-LAN node for a NAS or PC.</p>
 <p><strong>Firmware v{{next_version}} is available</strong> for ESP32-S3 N8R8 and N16R8 boards, with the guided first start, the LAN address and the per-board <code>.local</code> name shown after setup. <a href="{{root}}changelog/">What's new</a> · <a href="{{root}}install-firmware/">Install the current firmware</a>.</p>
 
+<section class="note ok" aria-labelledby="latest-features">
+  <h2 id="latest-features">New in Firmware 3.0.1</h2>
+  <p><strong>Optional Dynamic DNS</strong> with DuckDNS, Cloudflare or a custom HTTPS URL; <strong>six languages</strong> including French and German; translated Wi-Fi / Ethernet / cellular setup; faster cached pages and clearer Telegram/email controls.</p>
+  <p><a href="{{root}}changelog/">See what's changed</a> · <a href="{{root}}features/">Explore all features</a>. Ethernet and cellular remain experimental and require additional hardware.</p>
+</section>
+
 <h2>The problem it solves</h2>
 <p>A home-automation controller, a printer dashboard or an old PC needs to reach <strong>one</strong> service at another site — an MQTT broker, a NAS web UI, an SSH host. It cannot run Tailscale, and you do not want to advertise whole subnets or replace the router. Put an ESP32-S3 on the same LAN and publish one rule: <em>this device may use this Tailnet service on this port</em>.</p>
 

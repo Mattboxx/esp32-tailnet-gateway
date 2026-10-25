@@ -46,7 +46,26 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
-### What's new in Firmware 3.0?
+### New in Firmware 3.0.1
+
+- **Dynamic DNS:** DuckDNS, Cloudflare or a custom HTTPS update URL. Optional;
+  it updates a public name, not router ports or Tailnet access permissions.
+- **Six languages:** English, Italiano, Español, 简体中文, Français and Deutsch,
+  including the first-boot setup. Small cached language scripts load on demand.
+- **Guided uplink setup:** choose Wi-Fi, W5500 Ethernet or a cellular modem,
+  with browser time-zone detection. Ethernet/cellular remain experimental and
+  require the appropriate hardware.
+- **Clearer administration:** Firmware and Backup & reset sections, separate
+  Telegram/email cards with their own Save, test and event selection, Status
+  shortcuts and more complete role profiles.
+- **Page fixes:** correct gzip headers, ETag caching and better mobile
+  navigation/scroll positioning.
+
+[Release notes](../../releases/tag/v3.0.1) ·
+[Install from a computer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/) ·
+[Set up from your phone](https://mattboxx.github.io/esp32-tailnet-gateway/first-boot/)
+
+### The Firmware 3.0 platform
 
 | Firmware 2.x | Firmware 3.0 |
 |---|---|
@@ -59,8 +78,9 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 | — | **Throughput test**, experimental **cellular uplink**, a *Monitor and get alerts* setup role |
 | About 17 KB of free internal RAM | About 44–47 KB, tables moved to PSRAM |
 
-Everything new is **off until you switch it on**, and uses no memory,
-processor time or flash writes while off. See the [changelog](CHANGELOG.md).
+New optional services are **off until you switch them on**. Disabled services
+do not run their background jobs; compiled code and static state still occupy
+space. See the [changelog](CHANGELOG.md).
 
 The advanced workflows described below require Firmware v2.0.0 or later unless listed in
 the legacy 1.13 release. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)

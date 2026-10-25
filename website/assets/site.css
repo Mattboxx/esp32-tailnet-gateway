@@ -107,6 +107,23 @@ main:focus { outline: none; }
 .badge.on { color: var(--accent-text); border-color: var(--accent); }
 .note { border-left: 4px solid var(--amber); background: var(--surface); padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 20px 0; }
 .note.ok { border-left-color: var(--accent); }
+.flasher { margin: 24px 0; min-width: 0; }
+.flasher h2 { margin: 0 0 8px; font-size: 24px; }
+.flasher esp-web-install-button { display: block; max-width: 100%; margin-top: 16px; }
+.flasher-message { display: block; margin: 0; overflow-wrap: anywhere; }
+.flasher-message strong { display: block; margin-bottom: 8px; }
+.flasher-message p { margin: 0 0 12px; color: var(--text); }
+.flasher-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.flasher .btn, .install-alternative .btn { max-width: 100%; white-space: normal; text-align: center; justify-content: center; font: inherit; font-weight: 600; }
+.flasher .flasher-help { margin: 16px 0 0; font-size: 14px; }
+.install-alternative { margin: 20px 0; }
+.install-alternative h2 { margin-top: 0; font-size: 22px; }
+@media (max-width: 480px) {
+  .flasher, .install-alternative { padding: 16px; }
+  .flasher-message { padding: 12px; }
+  .flasher-actions { flex-direction: column; }
+  .flasher-actions .btn, .install-alternative .btn { width: 100%; }
+}
 figure { margin: 24px 0; }
 figure img { border-radius: var(--radius); border: 1px solid var(--line); display: block; }
 figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }

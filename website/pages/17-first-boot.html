@@ -16,12 +16,13 @@ order: 1
   <li><strong>If nothing opens</strong>, open <code>http://192.168.4.1/</code> in a browser. This address always works while the setup network is active.</li>
   <li><strong>Confirm it is yours:</strong> press the <strong>BOOT</strong> button on the board once. No reachable button? Connect USB, open a serial console at 115200 baud and type the 8-digit setup code it prints.</li>
   <li><strong>Secure your gateway:</strong> create the admin password (at least 8 characters). There is no default password.</li>
-  <li><strong>Connect to Wi-Fi:</strong> pick your home network from the list, enter its password and press <em>Test connection</em>. Your phone may lose the setup network for a moment; it reconnects by itself.</li>
+  <li><strong>Choose the Internet uplink:</strong> Wi-Fi, a W5500 Ethernet cable or a cellular modem. For Wi-Fi, pick your home network, enter its password and press <em>Test connection</em>. Your phone may briefly lose the setup network. Ethernet and cellular are experimental and require external hardware; follow the wiring and APN prompts rather than choosing them on a Wi-Fi-only board.</li>
   <li><strong>Connect your Tailnet:</strong> paste a Tailscale or Headscale auth key, or skip and do it later from the dashboard.</li>
   <li><strong>Choose your gateway role:</strong> connect a device to your Tailnet, connect a network, IoT gateway, wake or recover a NAS/PC, Home Assistant &amp; automation, or advanced configuration. Also name the gateway's own Wi-Fi and set its password.</li>
   <li><strong>Finish:</strong> the summary shows where the gateway will be, then it saves everything and restarts. Rejoin your home Wi-Fi and open a link from the last page: the address received during the Wi-Fi test, or the displayed <code>.local</code> name. The default is <code>http://esp32-tailnet-xxxx.local/</code>, where <code>xxxx</code> is the code of its setup Wi-Fi; a configured hostname can replace it. The client and LAN must support mDNS. If name resolution is unavailable, use the tested IP address. Once enrolled, the gateway's tailnet name is another option. Sign in: the roles you chose are highlighted under <strong>What do you want to do?</strong> at the end of the Status page.</li>
 </ol>
 
+<p>The setup is available in English, Italiano, Español, 简体中文, Français and Deutsch. Select the language in the setup page; the browser also supplies the initial time zone.</p>
 <h2 id="security">Why the setup network is open, and how it is protected</h2>
 <p>The setup Wi-Fi has no password so that any phone can join it, but only a gateway that has <strong>never been configured</strong> opens it. An existing installation, including one updated from 1.13, never does.</p>
 <ul>
