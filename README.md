@@ -186,7 +186,7 @@ keeps its original files.
 ## 8. Supported hardware
 
 <p align="center">
-<img src="assets/diagrams/hardware.svg" alt="Reference ESP32-S3 N16R8 board, independent USB power, optional microSD and optional W5500 Ethernet in a separate build." width="100%">
+<img src="assets/diagrams/hardware.svg" alt="ESP32-S3 N16R8 or N8R8 board, independent USB power, optional microSD and optional W5500 Ethernet." width="100%">
 </p>
 
 Firmware 3.x runs on **ESP32-S3 with 8 MB octal PSRAM and at least 8 MB of

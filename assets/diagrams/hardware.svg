@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 360" width="960" height="360" role="img" aria-labelledby="t d">
   <title id="t">Supported hardware</title>
-  <desc id="d">Reference target: an ESP32-S3 board with 16 MB flash and 8 MB octal PSRAM, powered over USB-C independently from the machines it recovers. Optional microSD card for the log recorder. Optional W5500 SPI Ethernet module only with the separate Ethernet build, which is experimental and not hardware-validated.</desc>
+  <desc id="d">Supported target: an ESP32-S3 N8R8 or N16R8 board with at least 8 MB flash and 8 MB octal PSRAM, powered over USB-C independently from the machines it recovers. Optional microSD card for the log recorder. Optional W5500 SPI Ethernet module, driver in the standard image and off until configured; experimental and not hardware-validated.</desc>
   <style>
     text{font-family:Inter,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;fill:#E3ECE6}
     .h{font-size:15px;font-weight:650}.s{font-size:12.5px;fill:#8DA397}.z{font-size:11.5px;font-weight:600;letter-spacing:2px;fill:#8DA397}
@@ -21,8 +21,8 @@
     <text class="s" x="51" y="200" text-anchor="middle">USB-C</text>
     <path d="M78 84h284M78 246h284" stroke="#1C2A22" stroke-dasharray="2 6" stroke-width="3"/>
   </g>
-  <text class="h" x="60" y="292">Reference: ESP32-S3 N16R8</text>
-  <text class="s" x="60" y="314">16 MB flash · 8 MB octal PSRAM · 2.4 GHz WiFi</text>
+  <text class="h" x="60" y="292">ESP32-S3 N16R8 or N8R8</text>
+  <text class="s" x="60" y="314">8–16 MB flash · 8 MB octal PSRAM · 2.4 GHz WiFi</text>
 
   <rect class="box" x="420" y="60" width="500" height="72" rx="10"/>
   <text class="h" x="440" y="88">Power</text>
@@ -31,8 +31,8 @@
   <text class="h" x="440" y="172">microSD (optional)</text>
   <text class="s" x="440" y="196">Flight recorder for logs; the firmware runs without it</text>
   <rect class="opt" x="420" y="228" width="500" height="88" rx="10"/>
-  <text class="h" x="440" y="256">W5500 SPI Ethernet (optional, separate build)</text>
-  <text class="s" x="440" y="280">Explicitly wired module, esp32-s3-eth image only</text>
+  <text class="h" x="440" y="256">W5500 SPI Ethernet (optional)</text>
+  <text class="s" x="440" y="280">Explicitly wired module; driver off until configured</text>
   <text class="s am" x="440" y="302">Experimental: host-tested, not hardware-validated</text>
   <text class="z" x="60" y="44">HARDWARE</text>
 </svg>

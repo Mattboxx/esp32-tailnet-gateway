@@ -71,7 +71,7 @@ assert (OUT / f'firmware/{build_site.NEXT_VERSION}/firmware.bin').exists() and (
 assert f'Firmware v{build_site.NEXT_VERSION} is in preparation' not in page and 'aria-label="Firmware availability"' not in page
 downloads = (OUT / 'downloads/index.html').read_text(encoding='utf-8')
 assert 'EASY-INSTALL-Windows-macOS-Linux.zip' in downloads and 'Install from browser' in downloads
-assert 'Experimental, not hardware-qualified' in downloads
+assert 'W5500 Ethernet driver (experimental, off until configured)' in downloads and 'N8R8' in downloads
 for kw in ({'offsets': dict(LAYOUT, ota_0=0x10000)}, {'erase': False}, {'bad_sum': True}):
     expect_failure(**kw)
 with tempfile.TemporaryDirectory() as d:

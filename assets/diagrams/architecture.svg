@@ -48,5 +48,5 @@
   <text class="h" x="40" y="391">Connectivity Core</text>
   <text class="s" x="200" y="391">microlink: ts2021 control, DISCO, WireGuard, direct + DERP · Tailnet policy gate · Tailscale or Headscale</text>
   <rect class="box" x="24" y="416" width="912" height="32" rx="8"/>
-  <text class="s" x="40" y="437">ESP-IDF 5.5.3 · lwIP · FreeRTOS · ESP32-S3 N16R8 (WiFi build; optional W5500 Ethernet in a separate build)</text>
+  <text class="s" x="40" y="437">ESP-IDF 5.5.3 · lwIP · FreeRTOS · ESP32-S3 N8R8 / N16R8 (WiFi; optional W5500 Ethernet and cellular uplinks)</text>
 </svg>
