@@ -1,6 +1,11 @@
 # Maintainer continuation
 
 Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware v3.0.0 (stable; 2.1.0 migration bridge for 2.x).
+In progress: **3.0.1-beta.1** (pre-release). Candidate source and exact
+image, campaign results, board checks still to run, packaging and
+publication steps are listed one by one in the ignored
+`build/private-device/HANDOFF-3.0.1-beta.1.md`; follow its checkpoints in
+order and do not rebuild the candidate image.
 Preserve the full feature roadmap, upstream credits and existing configuration.
 
 The exact operational handover, artifact hashes, device qualification records,
