@@ -1493,5 +1493,7 @@
  "Largest block: {}": "Blocco più grande: {}",
  "Download: {}": "Download: {}",
  "Upload: {}": "Upload: {}",
- "{} min ago": "{} min fa"
+ "{} min ago": "{} min fa",
+ "Needs the web UI lock: turn on Require the admin password (System → Access → Web session), sign in, then try again.": "Serve il blocco della web UI: attiva Richiedi la password admin (Sistema → Accesso → Sessione web), accedi e riprova.",
+ "Factory reset not started": "Ripristino di fabbrica non avviato"
 }

@@ -355,16 +355,19 @@ done:
 
 /* Release list from GitHub (fallback to the previous repository name only on
  * 404), or migration.json of the bench source. */
-static bool find_target(mig_target_t *target, unsigned *answered)
+/* The release list carries every release's notes and asset details: ten
+ * releases measured 186 KB, twenty 285 KB (2026-10-25). Ask for ten and keep
+ * room to grow; the buffer is PSRAM, freed right after. */
+static bool find_target(mig_target_t *target, unsigned *answered, const char **why)
 {
-    enum {LIMIT = 256 * 1024};
+    enum {LIMIT = 512 * 1024};
     char *body = heap_caps_malloc(LIMIT + 1, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!body) return false;
     bool found = false;
     for (unsigned repo = 0; repo < (test_source() ? 1u : OTA_REPO_COUNT) && !found; repo++) {
         char url[160];
         if (test_source()) snprintf(url, sizeof url, "%s/migration.json", CONFIG_TSR_MIGRATION_SOURCE_URL);
-        else snprintf(url, sizeof url, "https://api.github.com/repos/%s/releases?per_page=20", ota_repo(repo));
+        else snprintf(url, sizeof url, "https://api.github.com/repos/%s/releases?per_page=10", ota_repo(repo));
         esp_http_client_config_t config = {.url = url, .timeout_ms = 10000, .buffer_size = 2048,
             .crt_bundle_attach = test_source() ? NULL : esp_crt_bundle_attach};
         esp_http_client_handle_t client = esp_http_client_init(&config);
@@ -379,7 +382,9 @@ static bool find_target(mig_target_t *target, unsigned *answered)
         }
         esp_http_client_cleanup(client);
         if (code == 404 && !test_source()) continue;
-        if (code != 200 || used >= LIMIT) break;
+        if (code != 200) {*why = code == 403 || code == 429 ? "GitHub rate limit; retry later; nothing was changed"
+                                                            : "GitHub releases could not be read; nothing was changed"; break;}
+        if (used >= LIMIT) {*why = "GitHub release list too large to read; nothing was changed"; break;}
         body[used] = 0;
         cJSON *json = cJSON_ParseWithLength(body, (size_t)used);
         ota_remote_state_t updates; ota_remote_get_state(&updates);
@@ -460,7 +465,8 @@ static void migration_task(void *arg)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
     unsigned repo = 0;
-    if (!find_target(&target, &repo)) {failure = "no 3.x release with bootloader, partition table and image found; nothing was changed"; goto fail;}
+    const char *why = NULL;
+    if (!find_target(&target, &repo, &why)) {failure = why ? why : "no 3.x release with bootloader, partition table and image found on this update channel; nothing was changed"; goto fail;}
     xSemaphoreTake(s_lock, portMAX_DELAY);
     snprintf(s_status.target, sizeof s_status.target, "%s", target.tag);
     xSemaphoreGive(s_lock);

@@ -1505,5 +1505,7 @@
  "Largest block: {}": "最大块：{}",
  "Download: {}": "下载：{}",
  "Upload: {}": "上传：{}",
- "{} min ago": "{} 分钟前"
+ "{} min ago": "{} 分钟前",
+ "Needs the web UI lock: turn on Require the admin password (System → Access → Web session), sign in, then try again.": "需要启用 Web UI 锁：打开“要求管理员密码”（系统 → 访问 → Web 会话），登录后重试。",
+ "Factory reset not started": "未开始恢复出厂设置"
 }

@@ -34,7 +34,7 @@ async function fixture(browser, options = {}) {
     let body = {};
     let status = 200;
     if (url.pathname === '/api/auth/status') {
-      body = { password_set: true, auth_enabled: true, auth_required: true,
+      body = { password_set: true, auth_enabled: !state.lockOff, auth_required: !state.lockOff,
         authenticated: state.authenticated, session_timeout_s: 0 };
     } else if (url.pathname === '/api/operations') {
       if(route.request().method()==='POST') {
@@ -1243,6 +1243,18 @@ async function main() {
     await f.page.setViewportSize({ width: 390, height: 844 });
     await f.page.locator('#trend-tiles .trend-tile', { hasText: 'Internal RAM free' }).click();
     assert.equal(await f.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'no sideways scroll on a phone');
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // With the web UI lock off, actions that need a password session say so and stay disabled.
+    f = await fixture(browser, { page: 'system/maintenance', lockOff: true, migrationBody: {layout: '2.x', bridge: true, needed: true, supported: true, busy: false,
+      physical_flash: 16777216, state: 'idle', progress: 0, target: '', error: ''} });
+    await f.page.waitForFunction(() => !document.getElementById('mig-card').hidden && !document.getElementById('mig-lock').hidden);
+    assert.match(await f.page.locator('#mig-lock').textContent(), /Needs the web UI lock: turn on Require the admin password/);
+    await f.page.locator('label:has(#mig-confirm)').click();
+    assert.equal(await f.page.locator('#mig-start').isDisabled(), true, 'Migrate stays off without the lock');
+    await f.page.waitForFunction(() => !document.getElementById('snap-lock').hidden);
+    assert.equal(await f.page.locator('#snap-tbody button[data-snap-restore="1"]').isDisabled(), true);
+    assert.equal(await f.page.locator('#snap-tbody button[data-snap-delete="1"]').isDisabled(), true);
+    assert.equal(await f.page.locator('#snap-take').isDisabled(), false, 'saving a copy needs no lock');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Settings copies: list, escaped firmware text, restore and delete need a confirmation.
     f = await fixture(browser, { page: 'system/maintenance' });
