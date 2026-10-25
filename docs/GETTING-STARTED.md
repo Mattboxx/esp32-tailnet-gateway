@@ -1,6 +1,7 @@
-# Getting started — Firmware v2.0.2
+# Getting started — Firmware v3.0.0
 
-You need an **ESP32-S3 N16R8** (16 MB flash, 8 MB octal PSRAM), a USB data
+You need an **ESP32-S3 N8R8 or N16R8** (8 MB octal PSRAM, at least 8 MB of
+flash; see [Hardware](HARDWARE.md) for which boards work), a USB data
 cable, and a 2.4 GHz WiFi network. Tailscale or Headscale is needed for Tailnet
 roles, not for local administration or local Wake-on-LAN.
 
@@ -9,7 +10,7 @@ roles, not for local administration or local Wake-on-LAN.
 - **Browser:** [Install firmware](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
   in desktop Chrome/Edge, connect USB and choose the ESP32-S3 port.
 - **Easy Install:** download the Windows/macOS/Linux ZIP from the
-  [v2.0.2 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v2.0.2).
+  [v3.0.0 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v3.0.0).
   Read `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3
   and esptool 5. Choose `windows/INSTALL-NEW-DEVICE.bat` for a fresh setup or
   `windows/UPDATE-KEEP-SETTINGS.bat` for an existing gateway.
@@ -19,8 +20,9 @@ roles, not for local administration or local Wake-on-LAN.
 Back up an existing configuration first. Factory/new-device erase modes delete
 settings. Never upload a factory image through the Web UI. USB keep-settings
 mode is not inactive-slot OTA and must not overwrite a protected recovery slot.
-The optional **experimental W5500** image requires its documented hardware;
-the standard WiFi package is for WiFi boards.
+A 2.x gateway moves to 3.0 keeping its settings: see
+[Moving to 3.0](MIGRATION-3.0.md). The W5500 Ethernet driver is in the same
+image and stays off until configured (experimental).
 
 ## 2. Set up a new gateway
 

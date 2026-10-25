@@ -1,7 +1,12 @@
 # Firmware updates — ESP32 Tailnet Gateway
 
-> **Firmware v2.0.2.** Application updates preserve the existing app identity,
+> **Firmware v3.0.0.** Application updates preserve the existing app identity,
 > NVS namespace and partition layout. Keep a configuration backup before updating.
+>
+> **From 2.x to 3.0:** 3.0 uses a new 8 MB flash layout, so the 2.x updater
+> skips it (its image does not fit a 2.x slot). Install the **2.1.0 bridge**
+> from the 2.x updater and migrate over the network, or install 3.0 once over
+> USB without erasing; settings are kept. See [Moving to 3.0](MIGRATION-3.0.md).
 >
 > **From v2.0.0 or v2.0.1, update once by hand** (upload `firmware.bin`, or
 > USB keeping settings): the GitHub updater of those versions restarts the
@@ -46,28 +51,16 @@ the bridge release cannot follow the rename automatically; see the
 
 ## Web UI languages
 
-To keep flash and memory free each firmware image carries English plus at
-most one other language:
-
-| Image | Web UI |
-|---|---|
-| `firmware.bin` (standard, browser installer) | English |
-| `firmware-it.bin` | English and Italiano |
-| `firmware-es.bin` | English and Español |
-| `firmware-zh.bin` | English and 简体中文 |
-| `firmware-eth.bin` (experimental Ethernet) | English |
-
-The GitHub updater installs the image of the language chosen in **System →
-Firmware update → Firmware language** (by default the running one). Choosing
-another language offers the installed version again in that language; a
-device never moves to an older version. The Easy Install package contains
-every image and its scripts ask which language to install. A manual upload
-accepts any of them.
+From 3.0 a single `firmware.bin` carries every Web UI language (English,
+Italiano, Español, 简体中文) and the W5500 Ethernet driver. The 2.x line
+shipped one image per language (`firmware-it.bin`, `firmware-es.bin`,
+`firmware-zh.bin`) and a separate `firmware-eth.bin`; those names are not
+used by 3.x releases.
 
 ## Release channels
 
 Each version is tested as numbered betas before it becomes stable:
-`2.0.4-beta.1`, `2.0.4-beta.2`, … then `2.0.4`. Betas are published as GitHub
+`3.0.0-beta.1`, `3.0.0-beta.2`, … then `3.0.0`. Betas are published as GitHub
 pre-releases; the stable is a normal release.
 
 | Device setting | Receives |
@@ -94,7 +87,8 @@ compatible version, not the first JSON entry. A release must:
 - Be numerically newer than the running version, comparing upstream triple,
   Mattboxx major/minor, then dev < alpha < beta < rc < stable. No downgrade.
 - Include uploaded **firmware.bin**, not a factory image or flashing ZIP.
-  Its size must fit the inactive OTA slot, and GitHub must supply its
+  Its size must fit the inactive OTA slot (1920 KiB on 2.x, 3584 KiB on 3.x;
+  this is why 2.x gateways skip 3.x releases), and GitHub must supply its
   `sha256:` asset digest. Missing/unsupported metadata is not silently trusted.
 - Contain an ESP32-S3 app image whose project name matches the running build
   and whose embedded version exactly matches the release tag without `v`.

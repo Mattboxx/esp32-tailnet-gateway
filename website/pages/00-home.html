@@ -43,6 +43,10 @@ schema: home
     <text x="44" y="196" text-anchor="middle">LAN device</text>
   </svg>
 </section>
+<section class="note ok" aria-labelledby="new-3">
+  <h2 id="new-3">New in Firmware {{next_version}}</h2>
+  <p>One image for ESP32-S3 <strong>N8R8</strong> and <strong>N16R8</strong> with every language, a reorganised Web UI, event history and trends kept on the gateway, settings copies before updates, tailnet names for local devices, Telegram and email notifications and a throughput test. Every new feature is off until you switch it on. 2.x gateways move over keeping their settings: <a href="{{root}}updating/#from-v2">how to update</a> · <a href="{{root}}hardware/">supported boards</a> · <a href="{{root}}changelog/">changelog</a>.</p>
+</section>
 
 <p><strong>Tailscale on ESP32-S3, without an additional always-on Linux gateway.</strong> This open-source ESP32 Tailscale gateway connects compatible IoT and homelab devices to selected remote services. Use it as a Headscale-compatible gateway, a subnet router, or a separately powered Wake-on-LAN node for a NAS or PC.</p>
 <p><strong>Firmware v{{next_version}} is available.</strong> It fixes first-boot pairing and shows both the LAN address and the per-board <code>.local</code> name after setup. <a href="{{root}}changelog/">What's new</a> · <a href="{{root}}install-firmware/">Install the current firmware</a>.</p>
@@ -66,7 +70,7 @@ schema: home
 </div>
 
 <h2>See the actual firmware interface</h2>
-<p>No companion app is required. Use the built-in Web UI to choose a role, create service rules or start a recovery workflow. These are <a href="{{root}}screenshots/">real screenshots from Firmware v2.0.0 running on an ESP32-S3</a>, cropped to keep network details private.</p>
+<p>No companion app is required. Use the built-in Web UI to choose a role, create service rules or start a recovery workflow. See <a href="{{root}}screenshots/">screenshots of the Firmware 3.0 interface</a>, rendered with example data.</p>
 <div class="ui-preview">
   <a href="{{root}}screenshots/"><img src="{{root}}assets/screenshots/esp32-tailnet-gateway-live-goals.jpg" alt="Actual ESP32 firmware dashboard offering Service Gateway, subnet routing, IoT WiFi, NAS recovery and Home Assistant setup guides" width="604" height="1051" loading="lazy" decoding="async"></a>
   <div><h3>Start with what you want to do</h3><p>Connect a device without Tailscale, reach your home network, or wake a sleeping server. Enable only the roles you need.</p><p><a class="btn" href="{{root}}screenshots/">Explore the real Web UI</a></p><h3>Connect two homes without a VPN client on every device</h3><p>A supported low-bandwidth TCP/UDP service can be reached through the ESP32's LAN address. For example, point a remote-site MQTT device at the gateway to reach your home broker.</p><p><a href="{{root}}mqtt-across-networks/">Example: MQTT between two homes</a></p></div>

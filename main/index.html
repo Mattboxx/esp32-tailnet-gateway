@@ -3821,12 +3821,7 @@
         </div>
         <div class="card-body">
           <p class="form-hint" style="margin:0 0 0.75rem 0;">Only Mattboxx releases from <a id="sys-updates-repo" href="https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases" target="_blank" rel="noopener">the ESP32 Tailnet Gateway repository</a> are eligible. GitHub downloads use HTTPS, a SHA-256 checksum and board/version checks. Settings are preserved; the device restarts after installation.</p>
-          <div class="grid grid-cols-2">
-            <div class="stat-row" style="border-top:none;">
-              <span class="stat-label">Running</span>
-              <span class="stat-value mono" id="sys-ota-running">—</span>
-            </div>
-          </div>
+          <div class="stat-row" style="border-top:none;"><span class="stat-label">Running</span><span class="stat-value mono" id="sys-ota-running">—</span></div>
           <div class="stat-row"><span class="stat-label">Latest compatible update</span><span class="stat-value mono" id="sys-updates-latest">Not checked</span></div>
           <div class="form-hint" id="sys-updates-status" role="status">Loading update settings…</div>
           <div class="form-hint" id="sys-updates-last-check">—</div>
@@ -3835,7 +3830,7 @@
             <label class="feature-switch"><input type="checkbox" id="sys-updates-enabled" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>Check GitHub for updates automatically</span></label>
             <span class="form-hint">OFF by default. When enabled: check after startup, then once per day. No device settings, keys or logs are sent.</span>
           </div>
-          <div id="sys-updates-policy" class="feature-card" data-feature-state="unknown">
+          <div id="sys-updates-policy" class="feature-card" data-feature-state="unknown" style="padding-left:0.875rem;">
             <div class="card-body" style="padding:0;">
               <div class="form-group">
                 <label class="feature-switch"><input type="checkbox" id="sys-updates-auto" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>Install updates automatically</span></label>

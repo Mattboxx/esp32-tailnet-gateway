@@ -1,7 +1,7 @@
 <!--
 slug: compatibility/
 title: Compatibility
-description: Supported hardware for ESP32 Tailnet Gateway: ESP32-S3 with 16 MB flash and 8 MB PSRAM, 2.4 GHz Wi-Fi, optional W5500 Ethernet, plus browsers and known limits.
+description: Supported hardware for ESP32 Tailnet Gateway 3.0: ESP32-S3 N8R8 and N16R8 with 8 MB octal PSRAM, 2.4 GHz Wi-Fi, optional W5500 Ethernet, plus browsers and known limits.
 group: Start
 order: 4
 -->
@@ -12,10 +12,10 @@ order: 4
   <thead><tr><th>Item</th><th>Requirement</th></tr></thead>
   <tbody>
     <tr><td>Chip</td><td>ESP32-S3 (other ESP32 families are not supported)</td></tr>
-    <tr><td>Memory</td><td>16 MB flash and 8 MB octal PSRAM (N16R8 modules)</td></tr>
+    <tr><td>Memory</td><td>At least 8 MB quad flash and 8 MB octal PSRAM: <strong>N8R8</strong> and <strong>N16R8</strong> modules (N16R8 tested). Not 4 MB flash, R2 or no PSRAM, or octal-flash modules — see <a href="{{root}}hardware/#unsupported">Hardware</a></td></tr>
     <tr><td>Wi-Fi</td><td>2.4 GHz network, WPA2/WPA3 Personal or WPA2-Enterprise (PEAP/TTLS)</td></tr>
     <tr><td>USB</td><td>Native USB or a USB-to-UART chip, with a data cable</td></tr>
-    <tr><td>Ethernet</td><td>Optional W5500 SPI module, separate image; <strong>experimental, not hardware-qualified</strong></td></tr>
+    <tr><td>Ethernet</td><td>Optional W5500 SPI module, driver in the standard image, off until configured; <strong>experimental, not hardware-qualified</strong></td></tr>
   </tbody>
 </table>
 

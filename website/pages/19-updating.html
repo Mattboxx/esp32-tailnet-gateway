@@ -1,7 +1,7 @@
 <!--
 slug: updating/
 title: Updating
-description: Update ESP32 Tailnet Gateway to Firmware v2.0.2 over the air or by USB, keeping settings. Learn how earlier versions migrate and how to preserve recovery options.
+description: Update ESP32 Tailnet Gateway to Firmware 3.0 over the air or by USB, keeping settings: move a 2.x gateway with the 2.1.0 bridge or one USB install.
 group: Start
 order: 3
 -->
@@ -14,16 +14,24 @@ order: 3
   <li>Upload <code>firmware.bin</code> in <strong>System → Firmware</strong>, or enable the opt-in GitHub update check there.</li>
   <li>The gateway writes the free slot, restarts into it and keeps the previous image. If the new image does not start correctly, it returns to the previous one.</li>
 </ol>
-<p>The Ethernet variant updates only from <code>firmware-eth.bin</code>; the two images are never mixed.</p>
+<p>This works between 3.x versions. A 2.x gateway first moves to the 3.0 flash layout: see below.</p>
+
+<h2 id="from-v2">From 2.x to 3.0</h2>
+<p>Firmware 3.0 uses a new 8 MB flash layout, so the 2.x updater does not offer it. Settings, the tailnet identity and saved Wi-Fi are kept on every path:</p>
+<ol>
+  <li><strong>Over the network:</strong> in <strong>System → Firmware update</strong> install <strong>2.1.0</strong>, the migration bridge (a normal 2.x update). Turn on the <strong>web UI lock</strong> (System → Access → <em>Require the admin password</em>) and sign in — the migration needs it. Then <strong>System → Maintenance → Move to the 3.0 flash layout</strong>: tick the confirmation and press <strong>Migrate to 3.0</strong>. Keep the power on; it takes a few minutes and returns to 2.1.0 if 3.0 does not start.</li>
+  <li><strong>Over USB:</strong> the <a href="{{root}}install-firmware/">browser installer</a> with <strong>Erase device</strong> unticked, or <code>UPDATE-KEEP-SETTINGS</code> / <code>install.sh update</code> from the <a href="{{root}}easy-install/">Easy Install package</a>.</li>
+</ol>
+<p>Boards with 4 MB of flash cannot run 3.0 and stay on 2.x. Full guide: <a href="{{repo}}/blob/Main/docs/MIGRATION-3.0.md">Moving a 2.x gateway to 3.0</a>.</p>
 
 <h2 id="from-v2-0">From v2.0.0 or v2.0.1</h2>
-<p>Update <strong>once by hand</strong>: upload <code>firmware.bin</code> in <strong>System → Firmware</strong>, or use USB keeping settings. The built-in GitHub updater of those two versions restarts the gateway without installing anything; with automatic installation enabled it may do so at its install hour until you update. From v2.0.2 the GitHub update works again.</p>
+<p>Update <strong>once by hand</strong>: upload <code>firmware.bin</code> in <strong>System → Firmware</strong>, or use USB keeping settings. The built-in GitHub updater of those two versions restarts the gateway without installing anything; with automatic installation enabled it may do so at its install hour until you update. From v2.0.2 the GitHub update works again; from 2.0.0 or 2.0.1 you can upload the 2.1.0 bridge directly.</p>
 
 <h2 id="usb">By USB, keeping settings</h2>
 <p>Use the <a href="{{root}}install-firmware/">browser installer</a> with <strong>Erase device</strong> unticked, or <code>UPDATE-KEEP-SETTINGS</code> / <code>install.sh update</code> from the <a href="{{root}}easy-install/">Easy Install package</a>.</p>
 
 <h2 id="from-older">From 1.13 and earlier to v{{next_version}}</h2>
-<p>The v2 series uses product-own version numbers (see <a href="{{root}}versioning/">Versioning</a>). Updaters in 1.10–1.13 only understand the older numbering and only the repository's previous name. The published migration used two steps:</p>
+<p>Since v2 the firmware uses product-own version numbers (see <a href="{{root}}versioning/">Versioning</a>). Updaters in 1.10–1.13 only understand the older numbering and only the repository's previous name. The published migration used two steps:</p>
 <ol>
   <li>The <strong>1.100 bridge release</strong> was published under the old repository name before the rename. Devices that installed it received the new updater.</li>
   <li>From the bridge, the device can find v{{next_version}} like a later update.</li>
