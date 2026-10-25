@@ -1,14 +1,14 @@
 <!--
 slug: downloads/
 title: Downloads
-description: Download ESP32 Tailnet Gateway firmware: factory image, OTA update image, guided Windows package and SHA-256 checksums for ESP32-S3.
+description: Download ESP32 Tailnet Gateway 3.0 for ESP32-S3 N8R8 and N16R8: browser installer, Easy Install package, factory and update images with SHA-256 checksums.
 nav: Downloads
 group: Start
 order: 8
 -->
 <h1>Downloads</h1>
 <!-- if:v2 -->
-<p class="lead">Three ways to install Firmware v{{next_version}}. Beginners: start with A.</p>
+<p class="lead">Three ways to install Firmware v{{next_version}} on an ESP32-S3 <strong>N8R8</strong> or <strong>N16R8</strong>. Beginners: start with A. Coming from 2.x? Read <a href="{{root}}updating/#from-v2">Updating</a> first: settings are kept.</p>
 <h2 id="availability">Choose an installation method</h2>
 <div class="grid">
   <div class="card"><h3>A. Install from browser <span class="badge on">recommended</span></h3>
@@ -19,23 +19,23 @@ order: 8
     <a class="btn" href="{{repo}}/releases/download/v{{next_version}}/ESP32-Tailnet-Gateway-v{{next_version}}-EASY-INSTALL-Windows-macOS-Linux.zip">Download Easy Install</a>
     <p><a href="{{root}}easy-install/">Instructions</a></p></div>
   <div class="card"><h3>C. Advanced downloads</h3>
-    <p>Factory and OTA images, the experimental Ethernet image, checksums and manifest.</p>
+    <p>Factory and update images, boot loader and partition table, checksums and manifest.</p>
     <a class="btn" href="#advanced">Advanced downloads</a></div>
 </div>
 <h2 id="advanced">C. Advanced downloads</h2>
 <table>
   <thead><tr><th>File</th><th>Use</th></tr></thead>
   <tbody>
-    <tr><td><code>ESP32-Tailnet-Gateway-v{{next_version}}-WiFi-factory.bin</code></td><td>New device: esptool at <code>0x0</code>. Erases all settings.</td></tr>
-    <tr><td><code>firmware.bin</code></td><td>Wi-Fi OTA image, English Web UI (standard): Web UI upload, GitHub updater, keep-settings USB update. Name kept for older updaters.</td></tr>
-    <tr><td><code>firmware-it.bin</code>, <code>firmware-es.bin</code>, <code>firmware-zh.bin</code></td><td>Same Wi-Fi image with the Web UI in English plus Italiano, Español or 简体中文 (one language per image keeps memory free). Upload in System → Firmware, or choose the Firmware language for GitHub updates; the Easy Install scripts ask which one to install.</td></tr>
-    <tr><td><code>firmware-eth.bin</code>, <code>ESP32-Tailnet-Gateway-v{{next_version}}-Ethernet-EXPERIMENTAL-factory.bin</code></td><td>W5500 Ethernet build. <strong>Experimental, not hardware-qualified.</strong> Only for boards with the module wired as documented.</td></tr>
+    <tr><td><code>ESP32-Tailnet-Gateway-v{{next_version}}-factory.bin</code></td><td>New device: esptool at <code>0x0</code>. Erases all settings.</td></tr>
+    <tr><td><code>firmware.bin</code></td><td>Application image with every Web UI language (English, Italiano, Español, 简体中文) and the W5500 driver: Web UI upload and GitHub updater on 3.x.</td></tr>
+    <tr><td><code>bootloader.bin</code>, <code>partitions.bin</code></td><td>3.0 boot loader (<code>0x0</code>) and partition table (<code>0x8000</code>): with <code>firmware.bin</code> at <code>0x20000</code> they update a 2.x or 3.x board over USB keeping settings.</td></tr>
+    <tr><td>Release <a href="{{repo}}/releases/tag/v2.1.0">2.1.0</a> <code>firmware.bin</code></td><td>Migration bridge for 2.x gateways: moves them to 3.0 over the network.</td></tr>
     <tr><td><code>SHA256SUMS.txt</code>, <code>release-manifest.json</code></td><td>Checksums and machine-readable build metadata.</td></tr>
     <tr><td><a href="{{root}}firmware/{{next_version}}/FIRMWARE-LICENSES.txt">FIRMWARE-LICENSES.txt</a></td><td>Firmware and bundled dependency copyright and license notices.</td></tr>
     <tr><td>Source code and <a href="{{repo}}/releases/tag/v{{next_version}}">release notes</a></td><td>Exact sources of this release.</td></tr>
   </tbody>
 </table>
-<p>Advanced flashing (new device): <code>esptool --chip esp32s3 write-flash 0x0 ESP32-Tailnet-Gateway-v{{next_version}}-WiFi-factory.bin</code>.</p>
+<p>Advanced flashing (new device): <code>esptool --chip esp32s3 write-flash 0x0 ESP32-Tailnet-Gateway-v{{next_version}}-factory.bin</code>.</p>
 <!-- endif -->
 <!-- if:stable -->
 <p class="note">Firmware v{{next_version}} — with the <a href="{{root}}install-firmware/">browser installer</a>, the <a href="{{root}}easy-install/">Easy Install package</a> and the <a href="{{root}}first-boot/">guided first start</a> — is in preparation. Until it is released, the download below is the stable 1.13.</p>
@@ -78,8 +78,8 @@ shasum -a 256 -c RELEASE-SHA256SUMS.txt    # macOS
 Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
 <!-- endif -->
 
-<h2>WiFi and Ethernet variants</h2>
-<p>The default images are the WiFi build. An Ethernet (W5500) variant, when published, has <code>eth</code> in its name and is only for boards with that module wired as documented. It is experimental.</p>
+<h2>One image</h2>
+<p>Firmware 3.x ships a single image for N8R8 and N16R8 boards with every language and the W5500 Ethernet driver (experimental, off until configured). There are no separate language or Ethernet downloads.</p>
 
 <h2>Updating an existing device</h2>
-<p>Back up the configuration first (System → Backup). Upload <code>firmware.bin</code> in System → Firmware or use the opt-in updater; settings are kept and a failed boot returns to the previous image. Devices on 1.13 or older that cannot find updates after the repository rename: see the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">migration note</a>.</p>
+<p>Back up the configuration first (System → Backup). Upload <code>firmware.bin</code> in System → Firmware or use the opt-in updater; settings are kept and a failed boot returns to the previous image. 2.x gateways move to 3.0 as described in <a href="{{root}}updating/#from-v2">Updating</a>. Devices on 1.13 or older that cannot find updates after the repository rename: see the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">migration note</a>.</p>

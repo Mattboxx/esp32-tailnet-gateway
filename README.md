@@ -9,12 +9,13 @@
 All-in-one ESP32-S3 Tailscale/Headscale gateway with selective LAN-to-Tailnet
 access, subnet routing, remote recovery and optional automation.
 
-> **Firmware v2.0.2 is available.** [Download the release](../../releases/tag/v2.0.2),
-> use the browser installer, or choose the Easy Install package below.
-> Existing gateways keep their settings. **From v2.0.0 or v2.0.1, update once
-> by hand** (upload `firmware.bin` in System → Firmware, or Easy Install keep
-> settings): their built-in GitHub updater restarts without installing. Later
-> updates work from the Web UI again.
+> **Firmware v3.0.0 is available** for ESP32-S3 **N8R8** and **N16R8**.
+> [Download the release](../../releases/tag/v3.0.0), use the
+> [browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/),
+> or choose the Easy Install package below. **2.x gateways** move to 3.0
+> keeping every setting: over the network with the **2.1.0 bridge** (a normal
+> 2.x update), or once over USB without erasing —
+> see [Moving to 3.0](docs/MIGRATION-3.0.md).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-0B7A4B.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
@@ -41,25 +42,24 @@ access, subnet routing, remote recovery and optional automation.
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
-### What's new in Firmware v2?
+### What's new in Firmware 3.0?
 
-| Legacy 1.13 | Firmware v2.0.2 |
+| Firmware 2.x | Firmware 3.0 |
 |---|---|
-| LAN → Tailnet TCP/UDP forwarding with source restrictions and MagicDNS | Destination tests, timed access, Service Watch and guided rule setup |
-| Subnet routing, AP gateway, exit-node roles and 4via6 | Refreshed goal-oriented UI, Simple/Advanced modes and profiles |
-| Saved Wake-on-LAN devices; MQTT/Home Assistant, ntfy and read-only SNMP | Smart Recovery workflows, layered Health Monitor and diagnostic export |
-| WiFi build for ESP32-S3 N16R8 | Optional W5500 build: experimental |
-| Existing setup and Windows flash package | Physically paired first-boot wizard, browser installation and Easy Install for Windows/macOS/Linux |
-| Find the gateway's address in the router | Per-board `esp32-tailnet-xxxx.local` name and the address shown at the end of setup |
+| 4 MB layout, one Web UI language per image, separate Ethernet build | **One image** for N8R8 and N16R8 with every language (English, Italiano, Español, 简体中文) and the W5500 driver; 3.5 MB update slots |
+| Long settings pages | **Reorganised Web UI:** each page shows one group at a time (Network, Tailscale, Diagnostics, Automation, System) |
+| Logs lost at restart | **Event history** and **trends** with a chart on Status, kept in flash |
+| Encrypted backup download | Plus up to three **settings copies** on the gateway, taken by hand or before each update |
+| Tailnet names only on the gateway | **Tailnet names for local devices:** clients reach `nas` or `nas.<tailnet>.ts.net` without Tailscale |
+| ntfy alerts | Plus **Telegram** and **email** notifications |
+| — | **Throughput test**, experimental **cellular uplink**, a *Monitor and get alerts* setup role |
+| About 17 KB of free internal RAM | About 44–47 KB, tables moved to PSRAM |
 
-**2.0.2** fixes the built-in GitHub firmware update (it restarted with a
-panic while beginning the update, or could hang under low memory) and returns
-internal memory to the VPN. **2.0.1** fixed first-boot pairing on real
-hardware, a BOOT-button watcher crash and a restart during setup that could
-leave a gateway without an admin password. See the [changelog](CHANGELOG.md).
+Everything new is **off until you switch it on**, and uses no memory,
+processor time or flash writes while off. See the [changelog](CHANGELOG.md).
 
 The advanced workflows described below require Firmware v2.0.0 or later unless listed in
-the legacy column. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
+the legacy 1.13 release. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
 remain available; [release notes](docs/releases/RELEASE-1.13.md) explain what is shipped.
 
 ## 1. What it is
@@ -130,7 +130,7 @@ their changes and can be rolled back.
 
 ## 6. Quick start
 
-These steps apply to Firmware v2.0.2. For legacy installations use
+These steps apply to Firmware 3.0 (and 2.x). For legacy installations use
 the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
 
 1. **Install** by desktop browser, Easy Install or advanced download below.
@@ -169,19 +169,19 @@ Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailnet-gateway
 | **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/) |
 | **Advanced downloads** | Web UI OTA, manual flashing or experimental W5500 | [Downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/) with exact checksums, variant labels and recovery notes |
 
-Use the releases page for available Firmware v2.0.2 builds. The
-[legacy 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13) retains its original files:
+Firmware v3.0.0 release assets:
 
 | Asset | Use |
 |---|---|
-| `firmware-factory.bin` | Full image for a first install at offset `0x0` (erases settings) |
-| `firmware.bin` | Application image for the Web UI updater or keep-settings updates |
-| `ESP32-S3-router-0.1.38-Mattboxx-1.13-windows.zip` | Guided Windows package with esptool and batch files |
-| `RELEASE-SHA256SUMS.txt`, `FIRMWARE-LICENSES.txt` | Published checksums and third-party notices; no Firmware v2 asset is implied |
+| `ESP32-Tailnet-Gateway-v3.0.0-EASY-INSTALL-Windows-macOS-Linux.zip` | Guided USB install (new device) or update keeping settings |
+| `firmware.bin` | Application image for the Web UI updater on 3.x |
+| `bootloader.bin`, `partitions.bin` | 3.0 boot loader and partition table (manual USB update keeping settings) |
+| `ESP32-Tailnet-Gateway-v3.0.0-factory.bin` | Full image for a new device at offset `0x0` (erases settings) |
+| `SHA256SUMS.txt`, `release-manifest.json`, `FIRMWARE-LICENSES.txt` | Checksums, build metadata and third-party notices |
 
-The WiFi build is the default. An **Ethernet (W5500) variant**, when
-published, is labelled separately and is only for boards with that module
-wired as documented in [Ethernet](docs/ETHERNET.md). Never flash it by mistake.
+The **2.1.0 bridge** release carries only a 2.x `firmware.bin` for the
+network migration. The [legacy 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13)
+keeps its original files.
 
 ## 8. Supported hardware
 
@@ -189,21 +189,36 @@ wired as documented in [Ethernet](docs/ETHERNET.md). Never flash it by mistake.
 <img src="assets/diagrams/hardware.svg" alt="Reference ESP32-S3 N16R8 board, independent USB power, optional microSD and optional W5500 Ethernet in a separate build." width="100%">
 </p>
 
-The published images target **ESP32-S3 with 16 MB flash and 8 MB octal PSRAM
-(N16R8)**, e.g. ESP32-S3-DevKitC-1 N16R8. Community reports for other boards
-are listed in [Hardware](docs/HARDWARE.md). Other ESP32 families are not
-drop-in targets.
+Firmware 3.x runs on **ESP32-S3 with 8 MB octal PSRAM and at least 8 MB of
+quad flash**:
+
+| Supported | Not supported |
+|---|---|
+| **N16R8** — e.g. ESP32-S3-DevKitC-1 N16R8, WROOM-1/1U-N16R8 (**tested**) | 4 MB flash (N4…): stay on 2.x |
+| **N8R8** — e.g. ESP32-S3-DevKitC-1 N8R8, WROOM-1/1U-N8R8, Freenove N8R8, Seeed XIAO ESP32S3 (same layout, not yet tested on 3.x) | R2 or no PSRAM, octal-flash modules (WROOM-2, N16R16V, N32R8V), other ESP32 chips |
+
+Details and community reports: [Hardware](docs/HARDWARE.md).
 
 ## 9. Screenshots
 
-Firmware v2.0.4 Web UI, rendered from the page embedded in the firmware with
+Firmware v3.0.0 Web UI, rendered from the page embedded in the firmware with
 invented documentation data (no real network, device or credential).
 [Captures from a real gateway](https://mattboxx.github.io/esp32-tailnet-gateway/screenshots/)
 are on the website.
 
 <p align="center">
-<img src="docs/images/v2-status.png" alt="Status dashboard: uplink, Tailnet, peers and internal RAM at a glance, the Service Gateway rules summary, uplink with the board's .local name and the access point in standby" width="88%">
-<br><em>Status: live summary first; the Service Gateway card appears while a rule is enabled</em>
+<img src="docs/images/v3-status.png" alt="Status dashboard: uplink, Tailnet, peers and internal RAM at a glance, uplink with the board's .local name and the access point in standby" width="88%">
+<br><em>Status: live summary first</em>
+</p>
+
+<p align="center">
+<img src="docs/images/v3-trends.png" alt="Trends card on Status: tiles for internal RAM, PSRAM, uplink traffic, Wi-Fi signal, CPU load and tailnet peers, and a chart of free internal RAM over six hours" width="88%">
+<br><em>Trends: pick a measure for a chart with time and value axes</em>
+</p>
+
+<p align="center">
+<img src="docs/images/v3-network-services.png" alt="Network page, Services group: LAN to Tailnet Service Gateway rules with destination tests and evidence" width="88%">
+<br><em>Network → Services: one group of cards at a time</em>
 </p>
 
 <p align="center">
@@ -212,8 +227,14 @@ are on the website.
 </p>
 
 <p align="center">
-<img src="docs/images/v2-firewall.png" alt="Firewall with four ACL chains, counters and an example rule" width="88%">
+<img src="docs/images/v3-firewall.png" alt="Firewall with four ACL chains, counters and an example rule" width="88%">
 <br><em>Firewall: four ACL chains with per-chain counters</em>
+</p>
+
+<p align="center">
+<img src="docs/images/v3-history.png" alt="Diagnostics, History group: switches for events, trends and settings copies before updates, and a list of recent events" width="60%">
+<img src="docs/images/v3-status-phone.png" alt="Status page on a phone" width="22%">
+<br><em>Event history, and the Status page on a phone</em>
 </p>
 
 ## 10. Features
@@ -230,8 +251,13 @@ are on the website.
   access point that returns 60 s after the saved WiFi disappears.
 - **Diagnostics:** evidence per layer, route explain, ping, traceroute, WiFi
   scan, logs, optional microSD recorder, diagnostic export.
+- **History (3.0):** event history, trends with a chart, settings copies
+  before updates, kept in the flash storage area.
 - **Automation:** MQTT with Home Assistant Discovery, ntfy alerts and commands,
-  read-only SNMP — all optional and supervised.
+  Telegram and email notifications, read-only SNMP — all optional and
+  supervised.
+- **Tailnet names (3.0):** gateway Wi-Fi and LAN clients resolve tailnet
+  peers by name.
 - **Management:** responsive Web UI and API, profiles with rollback, encrypted
   backup/restore, opt-in OTA updates with application rollback.
 - **Privacy:** no telemetry, no crash or log uploads, no forced update polling.
@@ -308,7 +334,8 @@ the [documentation index](docs/README.md) covers each feature.
 
 - **Throughput:** a microcontroller doing userspace WireGuard on one shared
   2.4 GHz radio. Upstream measurements were roughly 0.3–1.4 Mbit/s through the
-  tunnel; the current candidate has not been benchmarked. Use it for control,
+  tunnel; the 3.0 throughput test measured 0.2–2.6 Mbit/s for internet
+  downloads on an N16R8, varying with the radio and the path. Use it for control,
   telemetry, dashboards and SSH, not video or bulk transfers.
 - **Service Gateway scope:** IPv4 TCP/UDP, up to 8 rules, one Tailnet IPv4
   destination per rule; a port forwarder, not transparent routing. UDP cannot
@@ -340,11 +367,11 @@ the [documentation index](docs/README.md) covers each feature.
 
 ## 18. Installation and OTA updates
 
-For **Firmware v2.0.2**, the browser route is the easiest first install. Safari,
+For **Firmware v3.0.0**, the browser route is the easiest first install. Safari,
 Firefox and phone browsers should use a desktop computer and Easy Install.
 
 **Easy Install:** unzip
-`ESP32-Tailnet-Gateway-v2.0.2-EASY-INSTALL-Windows-macOS-Linux.zip` and read
+`ESP32-Tailnet-Gateway-v3.0.0-EASY-INSTALL-Windows-macOS-Linux.zip` and read
 `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3 and
 esptool 5. The scripts verify checksums and the ESP32-S3 target first.
 
@@ -352,6 +379,10 @@ esptool 5. The scripts verify checksums and the ESP32-S3 target first.
 |---|---|---|
 | Windows | `windows\INSTALL-NEW-DEVICE.bat` | `windows\UPDATE-KEEP-SETTINGS.bat` |
 | macOS / Linux | `sh macos-linux/install.sh new` | `sh macos-linux/install.sh update` |
+
+**From 2.x:** follow [Moving to 3.0](docs/MIGRATION-3.0.md) — the 2.1.0
+bridge over the network, or `UPDATE-KEEP-SETTINGS` / `install.sh update`
+over USB. Settings are kept either way.
 
 **Updates:** upload `firmware.bin` in System → Firmware, or enable the opt-in
 GitHub updater (stable or beta channel). This inactive-slot Web UI method is
@@ -372,8 +403,8 @@ update if they missed the bridge; settings can be kept.
 ```bash
 git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailnet-gateway
 cd esp32-tailnet-gateway
-pio run -e esp32-s3            # WiFi build
-pio run -e esp32-s3-eth        # optional W5500 Ethernet build
+pio run -e esp32-s3            # 3.x image (every language, Ethernet driver)
+pio run -e esp32-s3-bridge     # 2.1 migration bridge (build esp32-s3 first)
 ```
 
 ## 19. Contributing

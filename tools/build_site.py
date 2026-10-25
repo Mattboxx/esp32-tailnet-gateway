@@ -42,8 +42,8 @@ STABLE_TAG = 'v' + STABLE_VERSION
 # Current firmware: keep NEXT_PUBLISHED False until the qualified release
 # exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
 # released files (see website/firmware/README.md); the build verifies them.
-NEXT_VERSION = '2.0.2'
-NEXT_PUBLISHED = True
+NEXT_VERSION = '3.0.0'
+NEXT_PUBLISHED = False
 FIRMWARE_DIR = SRC / 'firmware'
 EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/
 
@@ -387,7 +387,7 @@ def build(out: Path) -> list[Page]:
     shutil.copy2(ROOT / 'docs/images/login-1.14-dev6.png', out / 'assets/login-1.14-dev6.png')
     shutil.copy2(ROOT / 'docs/images/status_v3.png', out / 'assets/status-stable.png')
     (out / 'assets/firmware-ui').mkdir()
-    for name in ('v2-status.png', 'v2-firewall.png', 'v2-first-boot-finish.png'):
+    for name in ('v3-status.png', 'v3-trends.png', 'v3-network-services.png', 'v3-history.png', 'v3-firewall.png', 'v2-first-boot-finish.png'):
         shutil.copy2(ROOT / 'docs/images' / name, out / 'assets/firmware-ui' / name)
     for page in pages:
         target = out / page.slug / 'index.html'

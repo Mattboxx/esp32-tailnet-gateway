@@ -4,13 +4,23 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.0] — in development (3.0.0-beta.1 published 2026-10-25 as a pre-release)
+## [3.0.0] — 2026-10-25
 
-In development: 8 MB partition table for ESP32-S3 N8R8 and N16R8, one
-firmware image with every language and Ethernet, optional cellular uplink.
-2.x gateways move over with the 2.1 bridge (over the network) or with one
-USB install; settings are kept ([guide](docs/MIGRATION-3.0.md)). Work so far
-(2.0.4-beta.3 was cancelled before publication and continues here):
+Stable platform release: 8 MB partition table for ESP32-S3 N8R8 and N16R8,
+one firmware image with every language and Ethernet, optional cellular
+uplink, and new local features that are all off until switched on.
+2.x gateways move over with the 2.1.0 bridge (over the network) or with one
+USB install; settings are kept ([guide](docs/MIGRATION-3.0.md)). Same
+source as 3.0.0-beta.2 apart from the version number and one layout fix in
+the Firmware update card. Pre-releases: 3.0.0-beta.1 and 3.0.0-beta.2
+(2.0.4-beta.3 was cancelled before publication and continued here).
+
+**Supported boards:** ESP32-S3 with 8 MB octal PSRAM and at least 8 MB of
+quad flash — N8R8 and N16R8 modules and boards (for example
+ESP32-S3-DevKitC-1 N8R8/N16R8, ESP32-S3-WROOM-1/1U N8R8/N16R8). Tested on
+N16R8. Not supported: 4 MB flash (stay on 2.x), 2 MB quad PSRAM (R2), no
+PSRAM, octal-flash modules (WROOM-2, N16R16V, N32R8V) and other ESP32 chips
+([hardware](docs/HARDWARE.md)).
 
 ### Added
 
@@ -39,8 +49,15 @@ USB install; settings are kept ([guide](docs/MIGRATION-3.0.md)). Work so far
 - **Setup wizard:** a *Monitor and get alerts* role and optional extras
   (event history, trends, settings copy before updates, tailnet names).
 - All of these are **off by default** and use no memory, processor time or
-  flash writes while off. Offline tests only so far; hardware qualification
-  pending.
+  flash writes while off.
+- **Trends chart** on Status: a tile per measure (current value and a small
+  line) opens a full chart with time and value axes, legend, hover readout
+  and lowest/average/highest; while trends are off the card offers a
+  one-click switch.
+- Actions that need a password session (migration, restoring or deleting a
+  settings copy, factory reset, new tailnet identity) say up front that the
+  **web UI lock** must be on — *Require the admin password* in System →
+  Access — instead of failing with a bare error.
 
 ### Changed
 
@@ -59,8 +76,34 @@ USB install; settings are kept ([guide](docs/MIGRATION-3.0.md)). Work so far
   largest block (were 16 KB / 8 KB). Estimates, not measured limits; saved
   settings are unchanged.
 
+### Not included
+
+- Dynamic DNS (DuckDNS, Cloudflare) is not in the build; it may return in a
+  later release. SNMP stays available (off by default).
+
+### Tested
+
+- Automated offline campaign (unit, integration and browser tests, firmware
+  build) on the release source.
+- On an N16R8 test board: USB update keeping settings; real network
+  migration 2.x → 2.1.0 bridge → 3.0 from the GitHub releases, keeping
+  settings and the tailnet identity; event history, trends, settings copies,
+  tailnet names with real peers and the LAN DNS listener, SNMP v2c, the
+  throughput test; a 20-minute run with every option on at once (history,
+  trends, tailnet names, SNMP, notifications, HTTP, DNS and SNMP load):
+  no errors or restarts, about 44–47 KB of free internal RAM.
+- Not yet tried: Telegram and email delivery with real accounts, an N8R8
+  board, a real cellular modem, W5500 Ethernet hardware.
+
 ### Fixed
 
+- The 2.1 bridge reported *no 3.x release found*: the GitHub release list
+  had grown beyond its read buffer. Updaters now read 10 releases into a
+  512 KB buffer, and `tools/check_release_list.py` warns before the list
+  outgrows the 2.x updaters already in the field.
+- Factory reset said *triggered* even when the gateway refused it.
+- System → Maintenance: the *Running* version sat mid-row and the
+  automatic-install settings were clipped by their left border.
 - MQTT and ntfy stopped connecting with no explanation when the resource
   admission guard was on: at the normal ~17 KB of free internal RAM the old
   default threshold paused all optional work. The Health & resources card now
@@ -73,6 +116,18 @@ USB install; settings are kept ([guide](docs/MIGRATION-3.0.md)). Work so far
 - The configuration profile selector showed *Gateway* whatever was active; it
   now shows the active profile, or *No profile applied*.
 - Network: the *Device-wide network* card touched the *Uplink networks* card.
+
+## [2.1.0] — 2026-10-25 (migration bridge for 2.x)
+
+A 2.x update whose only job is to move a gateway to the 3.0 flash layout
+over the network. Installed by the 2.x GitHub updater like any update; then
+System → Maintenance → *Move to the 3.0 flash layout* (needs the web UI
+lock and a signed-in session) downloads 3.0 from GitHub, verifies it,
+writes it next to the running firmware, rewrites the boot loader and
+partition table and restarts into 3.0. Settings and the tailnet identity are
+kept; a 3.0 that does not start returns to 2.1.0. English only, no Ethernet
+or cellular driver. Tested end to end on an N16R8 from the real GitHub
+release ([guide](docs/MIGRATION-3.0.md)).
 
 ## [2.0.4] — beta 2, 2026-10-24
 

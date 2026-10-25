@@ -14,7 +14,7 @@ order: 2
 
 <h2 id="before">Before you start</h2>
 <ul>
-  <li>An ESP32-S3 board with 16 MB flash and 8 MB PSRAM (N16R8) and a USB <strong>data</strong> cable.</li>
+  <li>An ESP32-S3 board with 8 MB octal PSRAM and at least 8 MB of flash (<strong>N8R8</strong> or <strong>N16R8</strong>, see <a href="{{root}}hardware/">Hardware</a>) and a USB <strong>data</strong> cable.</li>
   <li>Unzip the whole package into a folder and open <code>START-HERE.txt</code>.</li>
   <li>Close serial monitors and other flashing tools.</li>
 </ul>
@@ -43,7 +43,7 @@ sh macos-linux/install.sh update     # configured device, keeps settings</code><
     <tr><td>Update</td><td>Bootloader <code>0x0</code>, partition table <code>0x8000</code>, OTA data <code>0x19000</code>, application <code>0x20000</code></td><td>Kept</td></tr>
   </tbody>
 </table>
-<p>For a configured gateway the Web UI update (System → Firmware) is still preferable: it keeps the previous image as a fallback.</p>
+<p>The update mode also moves a 2.x gateway to the 3.0 flash layout, keeping its settings. Between 3.x versions the Web UI update (System → Firmware) is preferable: it keeps the previous image as a fallback.</p>
 
 <h2 id="trouble">Troubleshooting</h2>
 <ul>

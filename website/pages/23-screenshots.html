@@ -2,23 +2,32 @@
 slug: screenshots/
 title: Firmware screenshots
 search_title: ESP32 Tailscale Gateway Web UI — Real Firmware Screenshots
-description: Explore the ESP32 Tailscale gateway Web UI: Firmware v2.0.1 dashboard and setup examples, plus real-device screenshots of role selection and profiles.
+description: Explore the ESP32 Tailscale gateway Web UI: Firmware 3.0 status, trends, history and service pages, plus real-device screenshots of role selection and profiles.
 group: Project
 order: 23
 image: assets/screenshots/esp32-tailnet-gateway-live-goals.jpg
 -->
 <h1>The real firmware Web UI</h1>
-<p>These images show the actual embedded Web UI, not design mockups or AI-generated images. The <strong>v2.0.1 examples</strong> below render the shipped interface with invented documentation data; the <a href="#roles">v2.0.0 panel captures</a> were taken from a real ESP32-S3. Neither exposes the owner's network details.</p>
-<p>The same built-in interface works in a desktop or mobile browser. English is shown here; the WiFi image also includes Italian, Spanish and Simplified Chinese. The experimental W5500 image is English-only. No separate administration app is required.</p>
+<p>These images show the actual embedded Web UI, not design mockups or AI-generated images. The <strong>Firmware 3.0 examples</strong> below render the shipped interface with invented documentation data; the <a href="#roles">v2.0.0 panel captures</a> were taken from a real ESP32-S3. Neither exposes the owner's network details.</p>
+<p>The same built-in interface works in a desktop or mobile browser. English is shown here; the image also includes Italian, Spanish and Simplified Chinese. No separate administration app is required.</p>
 
-<h2 id="current-dashboard">Firmware v2.0.1 dashboard</h2>
-<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v2-status.png"><img src="{{root}}assets/firmware-ui/v2-status.png" alt="ESP32 Tailscale gateway v2.0.1 Web UI dashboard with connection summaries, service rules and goal-based setup guides; example data" width="1440" height="900" decoding="async"></a><figcaption>The actual embedded interface rendered with invented data. Counters and states shown here are examples, not a device benchmark.</figcaption></figure>
+<h2 id="current-dashboard">Status at a glance</h2>
+<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-status.png"><img src="{{root}}assets/firmware-ui/v3-status.png" alt="ESP32 Tailscale gateway Firmware 3.0 Status page with uplink, tailnet, peers and free internal RAM, the uplink Wi-Fi and gateway Wi-Fi cards; example data" width="1440" height="900" decoding="async"></a><figcaption>The actual embedded interface rendered with invented data. Counters and states shown here are examples, not a device benchmark.</figcaption></figure>
+
+<h2 id="trends">Trends recorded by the gateway</h2>
+<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-trends.png"><img src="{{root}}assets/firmware-ui/v3-trends.png" alt="Trends card with tiles for internal RAM, PSRAM, uplink traffic, Wi-Fi signal, CPU load and tailnet peers, and a six-hour chart of free internal RAM" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Trends are off by default. When on, the gateway keeps a sample a minute for 6 hours and a summary for about 45 days in its own flash; nothing is sent anywhere.</figcaption></figure>
+
+<h2 id="groups">One group at a time</h2>
+<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-network-services.png"><img src="{{root}}assets/firmware-ui/v3-network-services.png" alt="Network page with the Internet, Gateway Wi-Fi, Clients and Services groups; Services shows LAN to Tailnet rules with destination tests" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Long pages show one group of cards at a time, with links straight to a group.</figcaption></figure>
+
+<h2 id="history">Event history</h2>
+<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-history.png"><img src="{{root}}assets/firmware-ui/v3-history.png" alt="Diagnostics, History: switches for recording events, trends and a settings copy before each update, and recent events" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Starts, crashes, updates, uplink and tailnet changes and failed logins, kept across restarts. Off by default.</figcaption></figure>
 
 <h2 id="first-boot">Find the gateway after first boot</h2>
-<div class="ui-preview"><figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v2-first-boot-finish.png"><img src="{{root}}assets/firmware-ui/v2-first-boot-finish.png" alt="Firmware v2.0.1 first-boot completion page showing an example LAN address and per-board esp32-tailnet hostname" width="600" height="398" loading="lazy" decoding="async"></a><figcaption>First-boot interface with synthetic addresses, captured by the browser test fixture.</figcaption></figure><div><h3>Reconnect, then open your gateway</h3><p>The setup summary links to the tested LAN address and the board's unique <code>esp32-tailnet-xxxx.local</code> name. First boot requires physical pairing with your own board.</p><p><a href="{{root}}first-boot/">Follow the setup guide</a></p></div></div>
+<div class="ui-preview"><figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v2-first-boot-finish.png"><img src="{{root}}assets/firmware-ui/v2-first-boot-finish.png" alt="First-boot completion page showing an example LAN address and per-board esp32-tailnet hostname" width="600" height="398" loading="lazy" decoding="async"></a><figcaption>First-boot interface with synthetic addresses, captured by the browser test fixture.</figcaption></figure><div><h3>Reconnect, then open your gateway</h3><p>The setup summary links to the tested LAN address and the board's unique <code>esp32-tailnet-xxxx.local</code> name. First boot requires physical pairing with your own board.</p><p><a href="{{root}}first-boot/">Follow the setup guide</a></p></div></div>
 
 <h2 id="firewall">Local network controls</h2>
-<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v2-firewall.png"><img src="{{root}}assets/firmware-ui/v2-firewall.png" alt="ESP32 gateway firewall Web UI showing the TO ESP, FROM ESP, TO AP and FROM AP chains with example rules and counters" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Firewall interface with invented example rules. Local firewall rules and Tailnet authorization are separate controls.</figcaption></figure>
+<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-firewall.png"><img src="{{root}}assets/firmware-ui/v3-firewall.png" alt="ESP32 gateway firewall Web UI showing the TO ESP, FROM ESP, TO AP and FROM AP chains with example rules and counters" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Firewall interface with invented example rules. Local firewall rules and Tailnet authorization are separate controls.</figcaption></figure>
 
 <h2 id="roles">Choose the job, not a wall of settings</h2>
 <div class="ui-preview">
