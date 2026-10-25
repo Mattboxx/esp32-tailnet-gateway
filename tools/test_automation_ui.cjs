@@ -1204,23 +1204,45 @@ async function main() {
     await f.page.selectOption('#hist-filter', 'problems');
     await f.page.waitForFunction(() => document.querySelectorAll('#hist-tbody tr').length === 2);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
-    // Trends: hidden while off; lines and rates once on.
+    // Trends: offered while off (one click turns them on); tiles pick a chart with axes, legend, stats and a readout.
     f = await fixture(browser, { page: 'status' });
-    await f.page.waitForFunction(() => document.getElementById('status-updated'));
-    await f.page.waitForTimeout(300);
-    assert.equal(await f.page.locator('#trend-card').isHidden(), true, 'no trends card while off');
-    await f.context.close();
+    await f.page.waitForFunction(() => !document.getElementById('trend-card').hidden && !document.getElementById('trend-off').hidden);
+    assert.equal(await f.page.locator('#trend-on').isHidden(), true);
+    assert.equal(await f.page.locator('#trend-range').isDisabled(), true);
+    await f.page.locator('#trend-enable').click();
+    await f.page.waitForFunction(() => document.getElementById('trend-off').hidden && !document.getElementById('trend-on').hidden);
+    assert.deepEqual(f.state.savedHistory, { metrics: true });
+    assert.match(await f.page.locator('#trend-status').textContent(), /first sample arrives a minute/);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
     f = await fixture(browser, { page: 'status', histConfig: { events: false, metrics: true, snapshots: false },
-      histPoints: [[0, 3, 600, 45000, 30000, 7000000, 750000, 75000, -60, 20, 4, 3], [0, 3, 540, 46000, 31000, 7100000, 0, 0, 0, -1, 4, 1]] });
-    await f.page.waitForFunction(() => document.querySelectorAll('#trend-grid .trend').length === 8);
-    assert.equal(await f.page.locator('#trend-grid svg path').count(), 6, 'series with fewer than two values draw no line');
-    const trendText = await f.page.locator('#trend-grid').textContent();
-    assert.match(trendText, /Uplink download100\.0 kbit\/s/);   // 750000 B in 60 s
-    assert.match(trendText, /Internal RAM free43\.9 KB/);        // newest point last
-    assert.match(trendText, /Wi-Fi signal-60 dBm/);
+      histPoints: [[0, 3, 600, 45000, 30000, 7000000, 750000, 75000, -60, 20, 4, 3], [0, 3, 540, 46000, 31000, 7100000, 0, 0, 0, -1, 4, 1],
+                   [0, 2, 9000, 47000, 31000, 7200000, 300000, 30000, -55, 10, 2, 3]] });
+    await f.page.waitForFunction(() => document.querySelectorAll('#trend-tiles .trend-tile').length === 6);
+    const tileText = await f.page.locator('#trend-tiles').textContent();
+    assert.match(tileText, /Internal RAM free43\.9 KB/);                 // newest point last
+    assert.match(tileText, /Uplink traffic100 kbit\/s/);                 // 750000 B in 60 s
+    assert.match(tileText, /Wi-Fi signal-60 dBm/);
+    assert.equal(await f.page.locator('#trend-tiles .trend-tile[aria-pressed="true"]').textContent().then(t => t.startsWith('Internal RAM free')), true);
+    assert.equal(await f.page.locator('#trend-main').isVisible(), true);
+    assert.equal(await f.page.locator('#trend-plot svg path').count(), 2, 'free and largest block');
+    assert.equal(await f.page.locator('#trend-legend span').count(), 2);
+    assert.match(await f.page.locator('#trend-plot').textContent(), /KB/, 'value axis with units');
+    await f.page.locator('#trend-tiles .trend-tile', { hasText: 'Uplink traffic' }).click();
+    assert.equal(await f.page.locator('#trend-title').textContent(), 'Uplink traffic');
+    assert.match(await f.page.locator('#trend-stats').textContent(), /Lowest 0\.0 kbit\/s.*Highest 100 kbit\/s/);
+    const plot = await f.page.locator('#trend-plot svg').boundingBox();
+    await f.page.mouse.move(plot.x + plot.width - 20, plot.y + plot.height / 2);
+    await f.page.waitForFunction(() => !document.querySelector('#trend-plot .trend-tip').hidden);
+    assert.match(await f.page.locator('#trend-plot .trend-tip').textContent(), /Download: 100 kbit\/s.*Upload: 10\.0 kbit\/s/);
+    assert.equal(await f.page.evaluate(() => localStorage.getItem('ui-trend-measure')), 'traffic', 'the chosen measure is remembered');
+    await f.page.locator('#trend-tiles .trend-tile', { hasText: 'CPU load' }).click();
+    assert.equal(await f.page.locator('#trend-main').isVisible(), false, 'a single CPU value draws no chart');
     await f.page.selectOption('#trend-range', 'week');
     await f.page.waitForFunction(() => document.getElementById('trend-status').textContent.includes('One point every 1 minutes'));
     assert.ok(f.calls.includes('/api/history'));
+    await f.page.setViewportSize({ width: 390, height: 844 });
+    await f.page.locator('#trend-tiles .trend-tile', { hasText: 'Internal RAM free' }).click();
+    assert.equal(await f.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'no sideways scroll on a phone');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Settings copies: list, escaped firmware text, restore and delete need a confirmation.
     f = await fixture(browser, { page: 'system/maintenance' });
