@@ -32,15 +32,22 @@ const only = process.env.UI_TABS ? process.env.UI_TABS.split(',') : tabs;
       await page.waitForTimeout(600);
       const lang = await page.evaluate(() => document.documentElement.lang);
       if (lang !== (locale === 'zh-CN' ? 'zh-Hans' : locale.slice(0, 2))) failures.push(`${locale}: page language ${lang}`);
+      /* Every sub-section of the long pages, not only the one shown first. */
+      const routes = [];
       for (const tab of only) {
-        await page.evaluate(t => { location.hash = t; }, tab);
+        const subs = await page.evaluate(t => [...document.querySelectorAll('#page-' + t + ' .subnav-tab')].filter(b => !b.hidden).map(b => b.dataset.sub), tab);
+        if (subs.length) subs.forEach(sub => routes.push(tab + '/' + sub)); else routes.push(tab);
+      }
+      for (const route of routes) {
+        const tab = route.replace('/', '-');
+        await page.evaluate(t => { location.hash = t; }, route);
         await page.waitForTimeout(450);
-        const where = `${width}x${height} ${mode} ${locale} #${tab}`;
+        const where = `${width}x${height} ${mode} ${locale} #${route}`;
         const r = await page.evaluate(({ touch }) => {
           const vw = window.innerWidth, out = { overflow: document.documentElement.scrollWidth - vw, clipped: [], small: [], tiny: [] };
           const visible = el => { const s = getComputedStyle(el); const b = el.getBoundingClientRect();
             return b.width > 0 && b.height > 0 && s.visibility !== 'hidden' && s.display !== 'none' && !el.closest('[hidden]'); };
-          const page = document.querySelector('.page.active') || document.body;
+          const page = document.querySelector('.page-section.active') || document.body;
           const scroller = el => { for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
             const s = getComputedStyle(p); if (/(auto|scroll)/.test(s.overflowX)) return true; } return false; };
           page.querySelectorAll('button, a.btn, input, select, textarea, .switch, label.toggle').forEach(el => {
@@ -67,5 +74,5 @@ const only = process.env.UI_TABS ? process.env.UI_TABS.split(',') : tabs;
     }
   } finally { await browser.close(); }
   if (failures.length) { console.log(failures.join('\n')); console.log('FAIL ' + failures.length); process.exit(1); }
-  console.log(`PASS: Web UI ${only.length} sections x ${runs.length} viewport/mode runs: no page overflow or clipped controls, touch targets, readable text, no script errors`);
+  console.log(`PASS: Web UI ${only.length} pages (every sub-section) x ${runs.length} viewport/mode runs: no page overflow or clipped controls, touch targets, readable text, no script errors`);
 })();

@@ -1695,6 +1695,35 @@
       .card-header { flex-wrap: wrap; row-gap: var(--sp-2); }
       .card-header-actions { flex-wrap: wrap; gap: var(--sp-2); }
     }
+    /* Titles that split a long form into groups. */
+    .form-section-title {
+      margin: var(--sp-6) 0 var(--sp-3); padding-top: var(--sp-4); border-top: 1px solid var(--border);
+      font-size: var(--text-xs); font-weight: var(--weight-semibold); letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent);
+    }
+    /* Sub-sections of the long pages: one group of cards at a time. */
+    .subnav {
+      position: sticky; top: 56px; z-index: 20;
+      display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
+      margin: 0 0 var(--sp-5); padding: 4px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl);
+      box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.6);
+    }
+    .subnav::-webkit-scrollbar { display: none; }
+    .subnav-tab {
+      flex: 0 0 auto; min-height: 36px; padding: 0 var(--sp-4);
+      border: 0; border-radius: var(--radius-lg); background: transparent;
+      color: var(--fg-secondary); font: inherit; font-size: var(--text-sm); font-weight: var(--weight-medium);
+      white-space: nowrap; cursor: pointer; transition: background 120ms ease, color 120ms ease;
+    }
+    .subnav-tab:hover { color: var(--fg-primary); background: var(--bg-elevated); }
+    .subnav-tab[aria-selected="true"] { color: var(--accent); background: var(--accent-muted); box-shadow: inset 0 0 0 1px var(--accent-border); font-weight: var(--weight-semibold); }
+    .subnav-tab:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+    .subpage { display: flex; flex-direction: column; gap: var(--sp-4); }
+    .subpage > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+    @media (max-width: 640px) {
+      .subnav { top: 52px; margin-left: calc(-1 * var(--sp-1)); margin-right: calc(-1 * var(--sp-1)); }
+      .subnav-tab { padding: 0 var(--sp-3); }
+    }
     /* Trends (history of resources and traffic) */
     .trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3); }
     .trend { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); min-width: 0; }
@@ -2328,7 +2357,7 @@
         </div>
       </div><!-- /grid row 2 -->
 
-      <!-- Trends: shown when the metrics history is on (Tools → History) -->
+      <!-- Trends: shown when the metrics history is on (Diagnostics → History) -->
       <div class="card mt-4" id="trend-card" hidden>
         <div class="card-header">
           <div class="card-header-left"><span class="card-title">Trends</span></div>
@@ -2348,7 +2377,7 @@
           <p>Let existing LAN devices use specific Tailnet services through this gateway — no Tailscale client on them, no access-point change, no new default gateway. Each rule admits one TCP/UDP service to an allowed source address.</p>
           <p class="form-hint" id="sg-home-summary" role="status">Loading service rules…</p>
           <div class="page-header-actions"><button class="btn btn-primary" id="sg-home-guide" type="button">Publish a Tailnet service</button>
-            <a class="btn btn-secondary" href="#network" id="sg-home-open">Open service rules</a></div>
+            <a class="btn btn-secondary" href="#network/services" id="sg-home-open">Open service rules</a></div>
         </div>
       </div>
 
@@ -2371,7 +2400,107 @@
       <div class="page-header">
         <div class="page-header-left">
           <h1 class="page-title">Network</h1>
-          <p class="page-subtitle">Uplink WiFi and a client network for simple Internet and tailnet access</p>
+          <p class="page-subtitle">Internet uplinks, the gateway's own Wi-Fi, its clients and services</p>
+        </div>
+      </div>
+
+
+      <nav class="subnav" role="tablist" aria-label="Network sections" data-page="network">
+        <button type="button" role="tab" class="subnav-tab" data-sub="internet" aria-selected="false">Internet</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="wifi" aria-selected="false">Gateway Wi-Fi</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="clients" aria-selected="false">Clients</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="services" aria-selected="false">Services</button>
+      </nav>
+      <div class="subpage" data-sub="internet" role="tabpanel" aria-label="Internet">
+      <!-- ===== Uplink networks (priority list, up to 5) ===== -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header-left">
+            <span class="card-title">Uplink networks</span>
+          </div>
+          <span class="badge badge-neutral" id="net-sta-badge">—</span>
+        </div>
+        <div class="card-body">
+          <div class="stat-row">
+            <span class="stat-label">Currently connected</span>
+            <span class="stat-value mono" id="net-sta-summary">—</span>
+          </div>
+          <p class="form-hint" style="margin:0.5rem 0 0.75rem 0;">
+            The router tries networks in priority order. If the top one can't be reached after a few retries,
+            it rolls down to the next. Each network keeps its own IP configuration (DHCP or static).
+          </p>
+          <div id="net-list"></div>
+          <div style="margin-top:0.75rem;">
+            <button class="btn btn-secondary btn-md" id="net-add-btn" type="button">+ Add network</button>
+          </div>
+        </div>
+        <div class="form-footer">
+          <span class="form-footer-hint">Save writes to NVS. A reboot is required to apply WiFi changes.</span>
+          <div class="form-footer-actions">
+            <button class="btn btn-secondary btn-md" id="net-sta-reload">Reload</button>
+            <button class="btn btn-primary btn-md" id="net-sta-save" disabled>Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Optional SPI Ethernet uplink (W5500) ===== -->
+      <div class="card mt-4" id="eth-card" data-capability="ethernet">
+        <div class="card-header"><div data-advanced class="card-header-left"><span class="card-title">Ethernet uplink (optional W5500 SPI module)</span></div><span class="badge badge-neutral" id="eth-badge">—</span></div>
+        <div class="card-body">
+          <p class="form-hint">Only for boards with an explicitly wired W5500 module. Most ESP32-S3 boards have no Ethernet. Changes apply after a restart. Not physically validated on this candidate; the LAN → Tailnet listener and health checks still use WiFi.</p>
+          <p id="eth-status" role="status">Not loaded</p>
+          <label class="feature-switch"><input type="checkbox" id="eth-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable Ethernet at next boot</span></label>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="eth-pref">Uplink preference</label><select class="input" id="eth-pref"><option value="wifi_first">WiFi first, Ethernet as fallback</option><option value="ethernet_first">Ethernet first, WiFi as fallback</option></select></div>
+            <div class="form-group"><label class="form-label" for="eth-host">SPI host</label><select class="input" id="eth-host"><option value="2">SPI2</option><option value="3">SPI3</option></select></div>
+            <div class="form-group"><label class="form-label" for="eth-mhz">SPI clock (MHz)</label><input class="input mono" id="eth-mhz" type="number" min="1" max="40"></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="eth-sclk">SCLK GPIO</label><input class="input mono eth-pin" id="eth-sclk" type="number" min="0" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-mosi">MOSI GPIO</label><input class="input mono eth-pin" id="eth-mosi" type="number" min="0" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-miso">MISO GPIO</label><input class="input mono eth-pin" id="eth-miso" type="number" min="0" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-cs">CS GPIO</label><input class="input mono eth-pin" id="eth-cs" type="number" min="0" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-int">INT GPIO (-1 = poll)</label><input class="input mono eth-pin" id="eth-int" type="number" min="-1" max="48"></div>
+            <div class="form-group"><label class="form-label" for="eth-rst">RST GPIO (-1 = none)</label><input class="input mono eth-pin" id="eth-rst" type="number" min="-1" max="48"></div>
+          </div>
+          <label class="feature-switch"><input type="checkbox" id="eth-static"><span class="feature-switch-track" aria-hidden="true"></span><span>Static IPv4 instead of DHCP</span></label>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="eth-ip">Address</label><input class="input mono" id="eth-ip" placeholder="192.168.1.60"></div>
+            <div class="form-group"><label class="form-label" for="eth-mask">Netmask</label><input class="input mono" id="eth-mask" placeholder="255.255.255.0"></div>
+            <div class="form-group"><label class="form-label" for="eth-gw">Gateway</label><input class="input mono" id="eth-gw" placeholder="192.168.1.1"></div>
+            <div class="form-group"><label class="form-label" for="eth-dns">DNS (optional)</label><input class="input mono" id="eth-dns"></div>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-secondary" id="eth-reload" type="button">Reload</button><button class="btn btn-primary" id="eth-save" type="button" disabled>Save (applies after restart)</button></div>
+        </div>
+      </div>
+
+      <!-- ===== Optional cellular (GSM/LTE) uplink ===== -->
+      <div class="card mt-4" id="cell-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Cellular uplink (GSM/LTE modem with SIM)</span></div><span class="badge badge-neutral" id="cell-badge">—</span></div>
+        <div class="card-body">
+          <p class="form-hint">For an external UART modem (for example SIM7600, A7670 or Quectel EC2x) with a data SIM. It carries the Internet traffic of the gateway and its clients as the main uplink or only when WiFi and Ethernet are down; LAN services stay on WiFi or Ethernet. Changes apply after a restart. Experimental: not yet validated with a real modem.</p>
+          <p id="cell-status" role="status">Not loaded</p>
+          <label class="feature-switch"><input type="checkbox" id="cell-ack"><span class="feature-switch-track" aria-hidden="true"></span><span>I understand that mobile data may cost money, and that Tailscale, updates and integrations will use it</span></label>
+          <label class="feature-switch"><input type="checkbox" id="cell-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable the cellular uplink at next boot</span></label>
+          <label class="feature-switch"><input type="checkbox" id="cell-roaming"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow roaming (foreign networks can be expensive)</span></label>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="cell-mode">Use</label><select class="input" id="cell-mode"><option value="failover">Only when WiFi and Ethernet are down</option><option value="primary">As the main Internet uplink</option></select></div>
+            <div class="form-group"><label class="form-label" for="cell-apn">APN</label><input class="input mono" id="cell-apn" maxlength="63" autocomplete="off" placeholder="e.g. internet"><span class="form-hint">From your mobile operator, e.g. "internet" or "web.omnitel.it".</span></div>
+            <div class="form-group"><label class="form-label" for="cell-user">APN user name (optional)</label><input class="input mono" id="cell-user" maxlength="31" autocomplete="off"></div>
+            <div class="form-group"><label class="form-label" for="cell-password">APN password (optional)</label><input class="input mono" id="cell-password" type="password" maxlength="63" autocomplete="new-password" placeholder="Optional"><label class="form-hint" style="display:flex; gap:0.35rem; align-items:center;"><input type="checkbox" id="cell-clear-password"> Clear saved password</label></div>
+            <div class="form-group"><label class="form-label" for="cell-pin">SIM PIN (optional)</label><input class="input mono" id="cell-pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Optional"><span class="form-hint">Sent once per start: a wrong PIN stops the modem instead of risking a PUK lock.</span><label class="form-hint" style="display:flex; gap:0.35rem; align-items:center;"><input type="checkbox" id="cell-clear-pin"> Clear saved PIN</label></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label class="form-label" for="cell-uart">UART</label><select class="input" id="cell-uart"><option value="1">UART1</option><option value="2">UART2</option></select></div>
+            <div class="form-group"><label class="form-label" for="cell-baud">Baud rate</label><select class="input" id="cell-baud"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option><option>230400</option><option>460800</option><option>921600</option></select></div>
+            <div class="form-group"><label class="form-label" for="cell-tx">TX GPIO (to modem RX)</label><input class="input mono cell-pin" id="cell-tx" type="number" min="0" max="48" placeholder="e.g. 17"></div>
+            <div class="form-group"><label class="form-label" for="cell-rx">RX GPIO (from modem TX)</label><input class="input mono cell-pin" id="cell-rx" type="number" min="0" max="48" placeholder="e.g. 18"></div>
+            <div class="form-group" data-advanced><label class="form-label" for="cell-rts">RTS GPIO (-1 = none)</label><input class="input mono cell-pin" id="cell-rts" type="number" min="-1" max="48"></div>
+            <div class="form-group" data-advanced><label class="form-label" for="cell-cts">CTS GPIO (-1 = none)</label><input class="input mono cell-pin" id="cell-cts" type="number" min="-1" max="48"></div>
+            <div class="form-group"><label class="form-label" for="cell-pwrkey">PWRKEY GPIO (-1 = none)</label><input class="input mono cell-pin" id="cell-pwrkey" type="number" min="-1" max="48"><span class="form-hint">Pulsed at start and when the modem stops answering.</span></div>
+          </div>
+          <label class="feature-switch" data-advanced><input type="checkbox" id="cell-pwrkey-high"><span class="feature-switch-track" aria-hidden="true"></span><span>PWRKEY is active high (boards with a transistor driver)</span></label>
+          <div class="page-header-actions"><button class="btn btn-secondary" id="cell-reload" type="button">Reload</button><button class="btn btn-primary" id="cell-save" type="button" disabled>Save (applies after restart)</button></div>
         </div>
       </div>
 
@@ -2404,38 +2533,9 @@
           </div>
         </div>
       </div>
-
-      <!-- ===== Uplink networks (priority list, up to 5) ===== -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-header-left">
-            <span class="card-title">Uplink networks</span>
-          </div>
-          <span class="badge badge-neutral" id="net-sta-badge">—</span>
-        </div>
-        <div class="card-body">
-          <div class="stat-row">
-            <span class="stat-label">Currently connected</span>
-            <span class="stat-value mono" id="net-sta-summary">—</span>
-          </div>
-          <p class="form-hint" style="margin:0.5rem 0 0.75rem 0;">
-            The router tries networks in priority order. If the top one can't be reached after a few retries,
-            it rolls down to the next. Each network keeps its own IP configuration (DHCP or static).
-          </p>
-          <div id="net-list"></div>
-          <div style="margin-top:0.75rem;">
-            <button class="btn btn-secondary btn-md" id="net-add-btn" type="button">+ Add network</button>
-          </div>
-        </div>
-        <div class="form-footer">
-          <span class="form-footer-hint">Save writes to NVS. A reboot is required to apply WiFi changes.</span>
-          <div class="form-footer-actions">
-            <button class="btn btn-secondary btn-md" id="net-sta-reload">Reload</button>
-            <button class="btn btn-primary btn-md" id="net-sta-save" disabled>Save</button>
-          </div>
-        </div>
       </div>
 
+      <div class="subpage" data-sub="wifi" role="tabpanel" aria-label="Gateway Wi-Fi">
       <!-- ===== Client WiFi / Access Point (AP) ===== -->
       <div class="card mt-4">
         <div class="card-header">
@@ -2545,6 +2645,28 @@
         </div>
       </div>
 
+      <!-- ===== Denied MAC addresses ===== -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <div data-advanced class="card-header-left">
+            <span class="card-title">Denied MAC addresses</span>
+          </div>
+          <span class="badge badge-neutral" id="deny-badge">—</span>
+        </div>
+        <div class="card-body">
+          <p class="form-hint" style="margin:0 0 0.75rem 0;">
+            Stations on this list are deauthed on association — they can't reach the AP at all.
+            Use the <strong>Deny</strong> button in the Connected clients table to add a row in one click,
+            or remove an entry with × below.
+          </p>
+          <div id="deny-body">
+            <div style="padding:1rem; color:var(--text-muted); border:1px dashed var(--border); border-radius:var(--radius-md);">— no MACs denied —</div>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="subpage" data-sub="clients" role="tabpanel" aria-label="Clients">
       <!-- ===== Connected clients ===== -->
       <div class="card mt-4">
         <div class="card-header">
@@ -2570,54 +2692,9 @@
           <div style="padding:1rem; color:var(--text-muted);">— loading —</div>
         </div>
       </div>
-
-      <!-- ===== Denied MAC addresses ===== -->
-      <div class="card mt-4">
-        <div class="card-header">
-          <div data-advanced class="card-header-left">
-            <span class="card-title">Denied MAC addresses</span>
-          </div>
-          <span class="badge badge-neutral" id="deny-badge">—</span>
-        </div>
-        <div class="card-body">
-          <p class="form-hint" style="margin:0 0 0.75rem 0;">
-            Stations on this list are deauthed on association — they can't reach the AP at all.
-            Use the <strong>Deny</strong> button in the Connected clients table to add a row in one click,
-            or remove an entry with × below.
-          </p>
-          <div id="deny-body">
-            <div style="padding:1rem; color:var(--text-muted); border:1px dashed var(--border); border-radius:var(--radius-md);">— no MACs denied —</div>
-          </div>
-        </div>
       </div>
 
-      <!-- ===== Port forwarding (uplink-side NAPT) ===== -->
-      <div class="card mt-4">
-        <div class="card-header">
-          <div data-advanced class="card-header-left">
-            <span class="card-title">Port forwarding</span>
-          </div>
-          <span class="badge badge-neutral" id="portmap-badge">—</span>
-        </div>
-        <div class="card-body">
-          <p class="form-hint" style="margin:0 0 0.75rem 0;">
-            Forward an external port on the uplink to an AP-side <code class="mono">IP:port</code>.
-            Mappings re-bind to the new uplink IP on every reconnect.
-          </p>
-          <div id="portmap-list"></div>
-          <div style="margin-top:0.75rem;">
-            <button class="btn btn-secondary btn-md" id="portmap-add-btn" type="button">+ Add mapping</button>
-          </div>
-        </div>
-        <div class="form-footer">
-          <span class="form-footer-hint">Save replaces the whole table. Up to 16 entries.</span>
-          <div class="form-footer-actions">
-            <button class="btn btn-secondary btn-md" id="portmap-reload">Reload</button>
-            <button class="btn btn-primary btn-md" id="portmap-save" disabled>Save</button>
-          </div>
-        </div>
-      </div>
-
+      <div class="subpage" data-sub="services" role="tabpanel" aria-label="Services">
       <!-- ===== LAN -> Tailnet forwarding (independent of AP-side NAPT) ===== -->
       <div class="card mt-4" data-capability="lan-tailnet-forwarding">
         <div class="card-header"><div class="card-header-left"><span class="card-title">LAN → Tailnet service gateway</span></div><span class="badge badge-neutral" id="tf-badge">—</span></div>
@@ -2648,68 +2725,34 @@
         <div class="form-footer"><span class="form-footer-hint">A source CIDR is mandatory. Up to 8 TCP/UDP rules; listen ports must be unique per protocol.</span><div class="form-footer-actions"><button class="btn btn-secondary btn-md" id="tf-reload">Reload</button><button class="btn btn-primary btn-md" id="tf-save" disabled>Save</button></div></div>
       </div>
 
-      <!-- ===== Optional SPI Ethernet uplink (W5500) ===== -->
-      <div class="card mt-4" id="eth-card" data-capability="ethernet">
-        <div class="card-header"><div data-advanced class="card-header-left"><span class="card-title">Ethernet uplink (optional W5500 SPI module)</span></div><span class="badge badge-neutral" id="eth-badge">—</span></div>
+      <!-- ===== Port forwarding (uplink-side NAPT) ===== -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <div data-advanced class="card-header-left">
+            <span class="card-title">Port forwarding</span>
+          </div>
+          <span class="badge badge-neutral" id="portmap-badge">—</span>
+        </div>
         <div class="card-body">
-          <p class="form-hint">Only for boards with an explicitly wired W5500 module. Most ESP32-S3 boards have no Ethernet. Changes apply after a restart. Not physically validated on this candidate; the LAN → Tailnet listener and health checks still use WiFi.</p>
-          <p id="eth-status" role="status">Not loaded</p>
-          <label class="feature-switch"><input type="checkbox" id="eth-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable Ethernet at next boot</span></label>
-          <div class="form-row">
-            <div class="form-group"><label class="form-label" for="eth-pref">Uplink preference</label><select class="input" id="eth-pref"><option value="wifi_first">WiFi first, Ethernet as fallback</option><option value="ethernet_first">Ethernet first, WiFi as fallback</option></select></div>
-            <div class="form-group"><label class="form-label" for="eth-host">SPI host</label><select class="input" id="eth-host"><option value="2">SPI2</option><option value="3">SPI3</option></select></div>
-            <div class="form-group"><label class="form-label" for="eth-mhz">SPI clock (MHz)</label><input class="input mono" id="eth-mhz" type="number" min="1" max="40"></div>
+          <p class="form-hint" style="margin:0 0 0.75rem 0;">
+            Forward an external port on the uplink to an AP-side <code class="mono">IP:port</code>.
+            Mappings re-bind to the new uplink IP on every reconnect.
+          </p>
+          <div id="portmap-list"></div>
+          <div style="margin-top:0.75rem;">
+            <button class="btn btn-secondary btn-md" id="portmap-add-btn" type="button">+ Add mapping</button>
           </div>
-          <div class="form-row">
-            <div class="form-group"><label class="form-label" for="eth-sclk">SCLK GPIO</label><input class="input mono eth-pin" id="eth-sclk" type="number" min="0" max="48"></div>
-            <div class="form-group"><label class="form-label" for="eth-mosi">MOSI GPIO</label><input class="input mono eth-pin" id="eth-mosi" type="number" min="0" max="48"></div>
-            <div class="form-group"><label class="form-label" for="eth-miso">MISO GPIO</label><input class="input mono eth-pin" id="eth-miso" type="number" min="0" max="48"></div>
-            <div class="form-group"><label class="form-label" for="eth-cs">CS GPIO</label><input class="input mono eth-pin" id="eth-cs" type="number" min="0" max="48"></div>
-            <div class="form-group"><label class="form-label" for="eth-int">INT GPIO (-1 = poll)</label><input class="input mono eth-pin" id="eth-int" type="number" min="-1" max="48"></div>
-            <div class="form-group"><label class="form-label" for="eth-rst">RST GPIO (-1 = none)</label><input class="input mono eth-pin" id="eth-rst" type="number" min="-1" max="48"></div>
+        </div>
+        <div class="form-footer">
+          <span class="form-footer-hint">Save replaces the whole table. Up to 16 entries.</span>
+          <div class="form-footer-actions">
+            <button class="btn btn-secondary btn-md" id="portmap-reload">Reload</button>
+            <button class="btn btn-primary btn-md" id="portmap-save" disabled>Save</button>
           </div>
-          <label class="feature-switch"><input type="checkbox" id="eth-static"><span class="feature-switch-track" aria-hidden="true"></span><span>Static IPv4 instead of DHCP</span></label>
-          <div class="form-row">
-            <div class="form-group"><label class="form-label" for="eth-ip">Address</label><input class="input mono" id="eth-ip" placeholder="192.168.1.60"></div>
-            <div class="form-group"><label class="form-label" for="eth-mask">Netmask</label><input class="input mono" id="eth-mask" placeholder="255.255.255.0"></div>
-            <div class="form-group"><label class="form-label" for="eth-gw">Gateway</label><input class="input mono" id="eth-gw" placeholder="192.168.1.1"></div>
-            <div class="form-group"><label class="form-label" for="eth-dns">DNS (optional)</label><input class="input mono" id="eth-dns"></div>
-          </div>
-          <div class="page-header-actions"><button class="btn btn-secondary" id="eth-reload" type="button">Reload</button><button class="btn btn-primary" id="eth-save" type="button" disabled>Save (applies after restart)</button></div>
         </div>
       </div>
-
-      <!-- ===== Optional cellular (GSM/LTE) uplink ===== -->
-      <div class="card mt-4" id="cell-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Cellular uplink (GSM/LTE modem with SIM)</span></div><span class="badge badge-neutral" id="cell-badge">—</span></div>
-        <div class="card-body">
-          <p class="form-hint">For an external UART modem (for example SIM7600, A7670 or Quectel EC2x) with a data SIM. It carries the Internet traffic of the gateway and its clients as the main uplink or only when WiFi and Ethernet are down; LAN services stay on WiFi or Ethernet. Changes apply after a restart. Experimental: not yet validated with a real modem.</p>
-          <p id="cell-status" role="status">Not loaded</p>
-          <label class="feature-switch"><input type="checkbox" id="cell-ack"><span class="feature-switch-track" aria-hidden="true"></span><span>I understand that mobile data may cost money, and that Tailscale, updates and integrations will use it</span></label>
-          <label class="feature-switch"><input type="checkbox" id="cell-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Enable the cellular uplink at next boot</span></label>
-          <label class="feature-switch"><input type="checkbox" id="cell-roaming"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow roaming (foreign networks can be expensive)</span></label>
-          <div class="form-row">
-            <div class="form-group"><label class="form-label" for="cell-mode">Use</label><select class="input" id="cell-mode"><option value="failover">Only when WiFi and Ethernet are down</option><option value="primary">As the main Internet uplink</option></select></div>
-            <div class="form-group"><label class="form-label" for="cell-apn">APN</label><input class="input mono" id="cell-apn" maxlength="63" autocomplete="off" placeholder="e.g. internet"><span class="form-hint">From your mobile operator, e.g. "internet" or "web.omnitel.it".</span></div>
-            <div class="form-group"><label class="form-label" for="cell-user">APN user name (optional)</label><input class="input mono" id="cell-user" maxlength="31" autocomplete="off"></div>
-            <div class="form-group"><label class="form-label" for="cell-password">APN password (optional)</label><input class="input mono" id="cell-password" type="password" maxlength="63" autocomplete="new-password" placeholder="Optional"><label class="form-hint" style="display:flex; gap:0.35rem; align-items:center;"><input type="checkbox" id="cell-clear-password"> Clear saved password</label></div>
-            <div class="form-group"><label class="form-label" for="cell-pin">SIM PIN (optional)</label><input class="input mono" id="cell-pin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="Optional"><span class="form-hint">Sent once per start: a wrong PIN stops the modem instead of risking a PUK lock.</span><label class="form-hint" style="display:flex; gap:0.35rem; align-items:center;"><input type="checkbox" id="cell-clear-pin"> Clear saved PIN</label></div>
-          </div>
-          <div class="form-row">
-            <div class="form-group"><label class="form-label" for="cell-uart">UART</label><select class="input" id="cell-uart"><option value="1">UART1</option><option value="2">UART2</option></select></div>
-            <div class="form-group"><label class="form-label" for="cell-baud">Baud rate</label><select class="input" id="cell-baud"><option>9600</option><option>19200</option><option>38400</option><option>57600</option><option>115200</option><option>230400</option><option>460800</option><option>921600</option></select></div>
-            <div class="form-group"><label class="form-label" for="cell-tx">TX GPIO (to modem RX)</label><input class="input mono cell-pin" id="cell-tx" type="number" min="0" max="48" placeholder="e.g. 17"></div>
-            <div class="form-group"><label class="form-label" for="cell-rx">RX GPIO (from modem TX)</label><input class="input mono cell-pin" id="cell-rx" type="number" min="0" max="48" placeholder="e.g. 18"></div>
-            <div class="form-group" data-advanced><label class="form-label" for="cell-rts">RTS GPIO (-1 = none)</label><input class="input mono cell-pin" id="cell-rts" type="number" min="-1" max="48"></div>
-            <div class="form-group" data-advanced><label class="form-label" for="cell-cts">CTS GPIO (-1 = none)</label><input class="input mono cell-pin" id="cell-cts" type="number" min="-1" max="48"></div>
-            <div class="form-group"><label class="form-label" for="cell-pwrkey">PWRKEY GPIO (-1 = none)</label><input class="input mono cell-pin" id="cell-pwrkey" type="number" min="-1" max="48"><span class="form-hint">Pulsed at start and when the modem stops answering.</span></div>
-          </div>
-          <label class="feature-switch" data-advanced><input type="checkbox" id="cell-pwrkey-high"><span class="feature-switch-track" aria-hidden="true"></span><span>PWRKEY is active high (boards with a transistor driver)</span></label>
-          <div class="page-header-actions"><button class="btn btn-secondary" id="cell-reload" type="button">Reload</button><button class="btn btn-primary" id="cell-save" type="button" disabled>Save (applies after restart)</button></div>
-        </div>
       </div>
 
-      </div>
     </div>
 
     <!-- =================================================================
@@ -2719,13 +2762,20 @@
       <div class="page-header">
         <div class="page-header-left">
           <h1 class="page-title">Tailscale</h1>
-          <p class="page-subtitle">VPN configuration, peers, exit node, advertised routes</p>
+          <p class="page-subtitle">Connection, shared networks, exit node and peers</p>
         </div>
         <div class="page-header-actions">
           <span class="badge badge-neutral" id="ts-page-badge">—</span>
         </div>
       </div>
 
+
+      <nav class="subnav" role="tablist" aria-label="Tailscale sections" data-page="tailscale">
+        <button type="button" role="tab" class="subnav-tab" data-sub="connection" aria-selected="false">Connection</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="peers" aria-selected="false">Peers</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="options" aria-selected="false">Options</button>
+      </nav>
+      <div class="subpage" data-sub="connection" role="tabpanel" aria-label="Connection">
       <!-- ===== Configuration ===== -->
       <div class="card feature-card feature-disabled" id="ts-config-card">
         <div class="card-header">
@@ -2794,6 +2844,7 @@
             <input class="input" type="text" id="ts-ipn-version" maxlength="32" placeholder="Empty = not reported">
             <span class="form-hint">Compatibility override for the Tailscale admin console. Does not upgrade this firmware or add capabilities.</span>
           </div>
+          <h4 class="form-section-title">Shared networks</h4>
           <div class="form-group">
             <label class="feature-switch">
               <input type="checkbox" id="ts-adv-ap"><span class="feature-switch-track" aria-hidden="true"></span><span>Advertise the AP subnet</span>
@@ -2806,7 +2857,8 @@
             <span class="form-hint">One CIDR per line.</span>
           </div>
 
-          <div class="form-group" style="padding-top:0.75rem; border-top:1px solid var(--border);">
+          <h4 class="form-section-title">Exit node and routing</h4>
+          <div class="form-group">
             <label class="feature-switch">
               <input type="checkbox" id="ts-advertise-exit"><span class="feature-switch-track" aria-hidden="true"></span><span>Advertise this ESP32 as an exit node</span>
             </label>
@@ -2878,6 +2930,39 @@
           </div>
         </div>
       </div>
+      </div>
+
+      <div class="subpage" data-sub="peers" role="tabpanel" aria-label="Peers">
+      <!-- ===== Peers ===== -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <div class="card-header-left">
+            <span class="card-title">Peers</span>
+          </div>
+          <span class="badge badge-neutral" id="ts-peers-badge">—</span>
+        </div>
+        <div class="card-body-flush" id="ts-peers-body" style="min-height:3rem;"></div>
+      </div>
+      </div>
+
+      <div class="subpage" data-sub="options" role="tabpanel" aria-label="Options">
+      <!-- Tailnet (MagicDNS) names for devices behind the gateway -->
+      <div class="card mt-4" id="tsn-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Tailnet names for local devices</span></div><span class="badge badge-neutral" id="tsn-badge">Off</span></div>
+        <div class="card-body">
+          <p class="form-hint">Devices on this gateway's access point can reach tailnet peers by name: <code>nas</code> or <code>nas.tail1234.ts.net</code> resolves to the peer's 100.x address, without a Tailscale client on the device. Unknown names inside the tailnet domain are answered "not found" and never sent to the public resolver. A name is not access: reaching the peer still depends on this gateway's routes, firewall and the tailnet policy. Off by default.</p>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="tsn-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Answer tailnet names</span></label>
+            <span class="form-hint">Needs the access-point DNS relay (Network). Names of all peers in the tailnet become visible to the devices that ask.</span>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="tsn-lan"><span class="feature-switch-track" aria-hidden="true"></span><span>Also answer devices on the home network</span></label>
+            <span class="form-hint">Listens for DNS on the WiFi uplink address too. Useful only for LAN devices that use this gateway as their DNS server and reach 100.64.0.0/10 through it (a route on your router); all their other lookups are forwarded as well.</span>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-primary" id="tsn-save" type="button" disabled>Save</button></div>
+          <p class="form-hint" id="tsn-status" role="status">Loading…</p>
+        </div>
+      </div>
 
       <!-- ===== MTU / MSS / PMTU manager ===== -->
       <div class="card mt-4">
@@ -2918,34 +3003,6 @@
           </div>
         </div>
       </div>
-
-      <!-- ===== Peers ===== -->
-      <div class="card mt-4">
-        <div class="card-header">
-          <div class="card-header-left">
-            <span class="card-title">Peers</span>
-          </div>
-          <span class="badge badge-neutral" id="ts-peers-badge">—</span>
-        </div>
-        <div class="card-body-flush" id="ts-peers-body" style="min-height:3rem;"></div>
-      </div>
-
-      <!-- Tailnet (MagicDNS) names for devices behind the gateway -->
-      <div class="card mt-4" id="tsn-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Tailnet names for local devices</span></div><span class="badge badge-neutral" id="tsn-badge">Off</span></div>
-        <div class="card-body">
-          <p class="form-hint">Devices on this gateway's access point can reach tailnet peers by name: <code>nas</code> or <code>nas.tail1234.ts.net</code> resolves to the peer's 100.x address, without a Tailscale client on the device. Unknown names inside the tailnet domain are answered "not found" and never sent to the public resolver. A name is not access: reaching the peer still depends on this gateway's routes, firewall and the tailnet policy. Off by default.</p>
-          <div class="form-group">
-            <label class="feature-switch"><input type="checkbox" id="tsn-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Answer tailnet names</span></label>
-            <span class="form-hint">Needs the access-point DNS relay (Network). Names of all peers in the tailnet become visible to the devices that ask.</span>
-          </div>
-          <div class="form-group">
-            <label class="feature-switch"><input type="checkbox" id="tsn-lan"><span class="feature-switch-track" aria-hidden="true"></span><span>Also answer devices on the home network</span></label>
-            <span class="form-hint">Listens for DNS on the WiFi uplink address too. Useful only for LAN devices that use this gateway as their DNS server and reach 100.64.0.0/10 through it (a route on your router); all their other lookups are forwarded as well.</span>
-          </div>
-          <div class="page-header-actions"><button class="btn btn-primary" id="tsn-save" type="button" disabled>Save</button></div>
-          <p class="form-hint" id="tsn-status" role="status">Loading…</p>
-        </div>
       </div>
     </div>
 
@@ -2981,36 +3038,18 @@
       <div class="page-header">
         <div class="page-header-left">
           <h1 class="page-title">Diagnostics</h1>
-          <p class="page-subtitle">Route explain, scan, ping / traceroute, live log, pre-crash log, reset history</p>
+          <p class="page-subtitle">Tests, logs, history and hardware</p>
         </div>
       </div>
 
-      <!-- ===== Route Explain ===== -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-header-left">
-            <span class="card-title">Route explain</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <p class="form-hint" style="margin:0 0 0.75rem 0;">Ask the router which interface (and rule) a packet for a given destination would take. Same code path real packets exercise. <strong>Source</strong> picks between the ESP's own outbound socket (self-origin: chicken-and-egg STA bypass applies) and an AP client (forwarded path: exit-node WG steering applies).</p>
-          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
-            <select class="input" id="tool-route-src-mode" style="width:11rem;" aria-label="Route lookup source">
-              <option value="self" selected>From: Self (ESP)</option>
-              <option value="ap">From: AP client</option>
-            </select>
-            <input class="input mono" type="text" id="tool-route-dst" aria-label="Route lookup destination" placeholder="8.8.8.8 or 100.64.0.1" style="flex:1; min-width:0;">
-            <button class="btn btn-primary btn-md" id="tool-route-run">Trace</button>
-          </div>
-          <div id="tool-route-result" style="margin-top:0.75rem; display:none;">
-            <div class="stat-row"><span class="stat-label">Source</span><span class="stat-value mono" id="tool-route-out-src">—</span></div>
-            <div class="stat-row"><span class="stat-label">Destination</span><span class="stat-value mono" id="tool-route-out-dst">—</span></div>
-            <div class="stat-row"><span class="stat-label">Egress netif</span><span class="stat-value mono" id="tool-route-out-netif">—</span></div>
-            <div class="stat-row"><span class="stat-label">Reason</span><span class="stat-value" id="tool-route-out-reason">—</span></div>
-          </div>
-        </div>
-      </div>
 
+      <nav class="subnav" role="tablist" aria-label="Diagnostics sections" data-page="tools">
+        <button type="button" role="tab" class="subnav-tab" data-sub="tests" aria-selected="false">Tests</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="logs" aria-selected="false">Logs</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="history" aria-selected="false">History</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="hardware" aria-selected="false">Hardware</button>
+      </nav>
+      <div class="subpage" data-sub="tests" role="tabpanel" aria-label="Tests">
       <!-- ===== Ping ===== -->
       <div class="card mt-4">
         <div class="card-header">
@@ -3051,6 +3090,46 @@
         </div>
       </div>
 
+      <!-- ===== Route Explain ===== -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header-left">
+            <span class="card-title">Route explain</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <p class="form-hint" style="margin:0 0 0.75rem 0;">Ask the router which interface (and rule) a packet for a given destination would take. Same code path real packets exercise. <strong>Source</strong> picks between the ESP's own outbound socket (self-origin: chicken-and-egg STA bypass applies) and an AP client (forwarded path: exit-node WG steering applies).</p>
+          <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+            <select class="input" id="tool-route-src-mode" style="width:11rem;" aria-label="Route lookup source">
+              <option value="self" selected>From: Self (ESP)</option>
+              <option value="ap">From: AP client</option>
+            </select>
+            <input class="input mono" type="text" id="tool-route-dst" aria-label="Route lookup destination" placeholder="8.8.8.8 or 100.64.0.1" style="flex:1; min-width:0;">
+            <button class="btn btn-primary btn-md" id="tool-route-run">Trace</button>
+          </div>
+          <div id="tool-route-result" style="margin-top:0.75rem; display:none;">
+            <div class="stat-row"><span class="stat-label">Source</span><span class="stat-value mono" id="tool-route-out-src">—</span></div>
+            <div class="stat-row"><span class="stat-label">Destination</span><span class="stat-value mono" id="tool-route-out-dst">—</span></div>
+            <div class="stat-row"><span class="stat-label">Egress netif</span><span class="stat-value mono" id="tool-route-out-netif">—</span></div>
+            <div class="stat-row"><span class="stat-label">Reason</span><span class="stat-value" id="tool-route-out-reason">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Throughput test (on request) ===== -->
+      <div class="card mt-4" id="thr-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Throughput test</span></div><span class="badge badge-neutral" id="thr-badge">Idle</span></div>
+        <div class="card-body">
+          <p class="form-hint">Runs only when you start it. <strong>Gateway download</strong> measures what the gateway itself gets from a URL: a large file on a NAS through the tailnet (for example <code>http://100.x.y.z/file.iso</code>) tests the tunnel, a public speed-test file tests the internet uplink. <strong>Browser download</strong> measures the link between this device and the gateway. Data is discarded; results stay here.</p>
+          <div class="form-row" style="align-items:flex-end;">
+            <div class="form-group" style="flex:1 1 18rem;"><label class="form-label" for="thr-url">Download URL</label><input class="input mono" id="thr-url" placeholder="https://speed.cloudflare.com/__down?bytes=50000000"></div>
+            <div class="form-group"><label class="form-label" for="thr-seconds">Seconds</label><input class="input mono" type="number" id="thr-seconds" min="3" max="30" value="10" style="width:6rem;"></div>
+          </div>
+          <div class="page-header-actions"><button class="btn btn-primary" id="thr-start" type="button">Gateway download</button><button class="btn btn-secondary" id="thr-browser" type="button">Browser download (8 MB)</button></div>
+          <p class="form-hint mono" id="thr-status" role="status">—</p>
+        </div>
+      </div>
+
       <!-- ===== WiFi Scan ===== -->
       <div class="card mt-4">
         <div class="card-header">
@@ -3063,7 +3142,9 @@
           <div style="padding:1rem; color:var(--text-muted);">No scan yet — click <strong>Run scan</strong>.</div>
         </div>
       </div>
+      </div>
 
+      <div class="subpage" data-sub="logs" role="tabpanel" aria-label="Logs">
       <!-- ===== Log Viewer (live tail, level-coloured) ===== -->
       <div class="card mt-4">
         <div class="card-header">
@@ -3131,21 +3212,9 @@
           </div>
         </div>
       </div>
-
-      <!-- ===== Throughput test (on request) ===== -->
-      <div class="card mt-4" id="thr-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Throughput test</span></div><span class="badge badge-neutral" id="thr-badge">Idle</span></div>
-        <div class="card-body">
-          <p class="form-hint">Runs only when you start it. <strong>Gateway download</strong> measures what the gateway itself gets from a URL: a large file on a NAS through the tailnet (for example <code>http://100.x.y.z/file.iso</code>) tests the tunnel, a public speed-test file tests the internet uplink. <strong>Browser download</strong> measures the link between this device and the gateway. Data is discarded; results stay here.</p>
-          <div class="form-row" style="align-items:flex-end;">
-            <div class="form-group" style="flex:1 1 18rem;"><label class="form-label" for="thr-url">Download URL</label><input class="input mono" id="thr-url" placeholder="https://speed.cloudflare.com/__down?bytes=50000000"></div>
-            <div class="form-group"><label class="form-label" for="thr-seconds">Seconds</label><input class="input mono" type="number" id="thr-seconds" min="3" max="30" value="10" style="width:6rem;"></div>
-          </div>
-          <div class="page-header-actions"><button class="btn btn-primary" id="thr-start" type="button">Gateway download</button><button class="btn btn-secondary" id="thr-browser" type="button">Browser download (8 MB)</button></div>
-          <p class="form-hint mono" id="thr-status" role="status">—</p>
-        </div>
       </div>
 
+      <div class="subpage" data-sub="history" role="tabpanel" aria-label="History">
       <!-- ===== Event and trend history (3.x storage area) ===== -->
       <div class="card mt-4" id="hist-card">
         <div class="card-header">
@@ -3204,7 +3273,9 @@
           </div>
         </div>
       </div>
+      </div>
 
+      <div class="subpage" data-sub="hardware" role="tabpanel" aria-label="Hardware">
       <!-- ===== Hardware diagnostics ===== -->
       <div class="card mt-4">
         <div class="card-header">
@@ -3248,14 +3319,42 @@
           </div>
         </div>
       </div>
+      </div>
     </div>
 
     <!-- =================================================================
          AUTOMATION PAGE
          =============================================================== -->
     <div class="page-section" id="page-operations">
-      <div class="page-header"><div class="page-header-left"><h1 class="page-title">Devices &amp; Recovery</h1><p class="page-subtitle">Verify a host and its service, not just a sent magic packet.</p></div>
+      <div class="page-header"><div class="page-header-left"><h1 class="page-title">Devices &amp; Recovery</h1><p class="page-subtitle">Wake devices and verify that a host and its service answer, not just that a magic packet was sent.</p></div>
         <div class="page-header-actions"><button class="btn btn-secondary" id="ops-refresh">Refresh</button><a class="btn btn-secondary" href="/api/diagnostics/export" download>Sanitized export</a></div></div>
+      <!-- ===== Wake-on-LAN ===== -->
+      <div class="card mb-4">
+        <div class="card-header">
+          <div class="card-header-left">
+            <span class="card-title">Wake-on-LAN</span>
+          </div>
+          <span class="badge badge-neutral" id="wol-badge">—</span>
+        </div>
+        <div class="card-body">
+          <p class="form-hint" style="margin:0 0 0.75rem 0;">
+            Save computers and appliances that support Wake-on-LAN, then send a magic packet from this ESP32.
+            Leave broadcast empty to derive it from the current uplink (for example <code class="mono">192.168.1.255</code>).
+          </p>
+          <div id="wol-list"></div>
+          <div style="margin-top:0.75rem;">
+            <button class="btn btn-secondary btn-md" id="wol-add-btn" type="button">+ Add device</button>
+          </div>
+        </div>
+        <div class="form-footer">
+          <span class="form-footer-hint">Magic packets use UDP port 9 by default. Saved devices are also exposed as Home Assistant buttons when MQTT discovery is enabled.</span>
+          <div class="form-footer-actions">
+            <button class="btn btn-secondary btn-md" id="wol-reload">Reload</button>
+            <button class="btn btn-primary btn-md" id="wol-save" disabled>Save</button>
+          </div>
+        </div>
+      </div>
+
       <div class="card mb-4"><div class="card-header"><span class="card-title">Health &amp; resources</span></div><div class="card-body">
         <p id="ops-summary" role="status">Not loaded</p>
         <p class="form-hint ops-guard-warning" id="ops-guard-warning" role="status" hidden>The resource admission guard is pausing optional work now: MQTT, ntfy, device checks and recovery wait until free internal RAM, its largest block and free sockets are above the thresholds. Lower the thresholds (advanced settings) or turn the guard off.</p><p class="form-hint">Control connected does not prove the tunnel or a remote service works. No public Internet probe runs automatically.</p>
@@ -3298,40 +3397,19 @@
       <div class="page-header">
         <div class="page-header-left">
           <h1 class="page-title">Automation</h1>
-          <p class="page-subtitle">Wake-on-LAN, MQTT monitoring and Home Assistant controls</p>
+          <p class="page-subtitle">Home Assistant over MQTT and notifications</p>
         </div>
         <div class="page-header-actions">
           <button class="btn btn-secondary btn-md" id="automation-reload">Refresh</button>
         </div>
       </div>
 
-      <!-- ===== Wake-on-LAN ===== -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-header-left">
-            <span class="card-title">Wake-on-LAN</span>
-          </div>
-          <span class="badge badge-neutral" id="wol-badge">—</span>
-        </div>
-        <div class="card-body">
-          <p class="form-hint" style="margin:0 0 0.75rem 0;">
-            Save computers and appliances that support Wake-on-LAN, then send a magic packet from this ESP32.
-            Leave broadcast empty to derive it from the current uplink (for example <code class="mono">192.168.1.255</code>).
-          </p>
-          <div id="wol-list"></div>
-          <div style="margin-top:0.75rem;">
-            <button class="btn btn-secondary btn-md" id="wol-add-btn" type="button">+ Add device</button>
-          </div>
-        </div>
-        <div class="form-footer">
-          <span class="form-footer-hint">Magic packets use UDP port 9 by default. Saved devices are also exposed as Home Assistant buttons when MQTT discovery is enabled.</span>
-          <div class="form-footer-actions">
-            <button class="btn btn-secondary btn-md" id="wol-reload">Reload</button>
-            <button class="btn btn-primary btn-md" id="wol-save" disabled>Save</button>
-          </div>
-        </div>
-      </div>
 
+      <nav class="subnav" role="tablist" aria-label="Automation sections" data-page="automation">
+        <button type="button" role="tab" class="subnav-tab" data-sub="mqtt" aria-selected="false">Home Assistant</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="notifications" aria-selected="false">Notifications</button>
+      </nav>
+      <div class="subpage" data-sub="mqtt" role="tabpanel" aria-label="Home Assistant">
       <!-- ===== MQTT + Home Assistant ===== -->
       <div class="card feature-card mt-4" id="mqtt-card" data-feature-state="unknown" data-capability="mqtt">
         <div class="card-header">
@@ -3387,7 +3465,9 @@
           </div>
         </div>
       </div>
+      </div>
 
+      <div class="subpage" data-sub="notifications" role="tabpanel" aria-label="Notifications">
       <!-- ===== ntfy alerts and commands ===== -->
       <div class="card feature-card mt-4" id="ntfy-card" data-feature-state="unknown" data-capability="ntfy">
         <div class="card-header">
@@ -3461,6 +3541,7 @@
           <div class="form-footer-actions"><button class="btn btn-ghost btn-md" id="nt-test-tg" type="button">Test Telegram</button><button class="btn btn-ghost btn-md" id="nt-test-mail" type="button">Test email</button><button class="btn btn-primary btn-md" id="nt-save" type="button" disabled>Save</button></div>
         </div>
       </div>
+      </div>
     </div>
 
     <!-- =================================================================
@@ -3470,41 +3551,22 @@
       <div class="page-header">
         <div class="page-header-left">
           <h1 class="page-title">System</h1>
-          <p class="page-subtitle">Firmware info, local logs, password, updates, backup</p>
+          <p class="page-subtitle">Device settings, access, updates and backups, logging</p>
         </div>
         <div class="page-header-actions">
           <button class="btn btn-secondary btn-md" id="sys-reload">Refresh</button>
         </div>
       </div>
 
-      <!-- ===== Interface mode ===== -->
-      <div class="card mb-4" id="ui-mode-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Interface mode</span></div></div>
-        <div class="card-body">
-          <label class="feature-switch"><input type="checkbox" id="ui-advanced-toggle"><span class="feature-switch-track" aria-hidden="true"></span><span>Show advanced settings</span></label>
-          <div class="form-group" style="margin-top:var(--sp-3)"><label class="form-label" for="ui-lang">Language</label><select class="select" id="ui-lang" data-no-i18n></select>
-            <span class="form-hint">Detected from your browser; stored in this browser only. Technical values, addresses and keys are never translated.</span></div>
-          <p class="form-hint">Simple mode hides expert sections (firewall chains, DHCP tables, MTU, SNMP, logging, hardware diagnostics). Nothing is disabled; hidden settings keep working. This choice is stored in this browser only.</p>
-        </div>
-      </div>
 
-      <!-- ===== Configuration profile ===== -->
-      <div class="card" id="profile-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Configuration profile</span></div></div>
-        <div class="card-body">
-          <p id="profile-status" role="status">Not loaded</p>
-          <p class="form-hint">Profiles are presets of this same firmware. They only switch on low-risk optional settings after a preview, never disable or delete anything, and never open network access. Every setting stays available in every profile.</p>
-          <div class="form-row"><div class="form-group"><label class="form-label" for="profile-select">Profile</label><select class="input" id="profile-select"></select></div></div>
-          <p id="profile-summary" class="form-hint"></p>
-          <ul id="profile-changes"></ul>
-          <p class="form-hint" id="profile-steps-title" hidden>Manual steps (not applied automatically):</p>
-          <ul id="profile-steps"></ul>
-          <div class="page-header-actions"><button class="btn btn-secondary" id="profile-preview">Preview changes</button>
-            <button class="btn btn-primary" id="profile-apply" disabled>Apply previewed changes</button>
-            <button class="btn btn-secondary" id="profile-rollback" disabled>Roll back last profile change</button></div>
-        </div>
-      </div>
-
+      <nav class="subnav" role="tablist" aria-label="System sections" data-page="system">
+        <button type="button" role="tab" class="subnav-tab" data-sub="general" aria-selected="false">General</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="security" aria-selected="false">Access</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="maintenance" aria-selected="false">Maintenance</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="logging" aria-selected="false">Logging & SNMP</button>
+        <button type="button" role="tab" class="subnav-tab" data-sub="about" aria-selected="false">About</button>
+      </nav>
+      <div class="subpage" data-sub="general" role="tabpanel" aria-label="General">
       <!-- ===== Device info ===== -->
       <div class="card">
         <div class="card-header">
@@ -3599,71 +3661,114 @@
         </div>
       </div>
 
-      <!-- ===== SNMP agent (upstream v0.1.28) ===== -->
-      <div class="card feature-card mt-4" id="sys-snmp-card" data-capability="snmp" data-hide-if-absent data-feature-state="unknown">
-        <div class="card-header"><div data-advanced class="card-header-left"><span class="card-title">SNMP agent</span></div><span class="badge badge-neutral" id="sys-snmp-badge">Loading…</span></div>
+      <!-- ===== Interface mode ===== -->
+      <div class="card mb-4" id="ui-mode-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Interface mode</span></div></div>
         <div class="card-body">
-          <p class="form-hint" id="sys-snmp-load-status" role="status">Settings have not loaded yet.</p>
-          <label class="feature-switch"><input type="checkbox" id="sys-snmp-en" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>Enable read-only SNMP agent</span></label>
-          <div class="grid grid-cols-2 mt-4">
-            <div class="form-group"><label class="form-label" for="sys-snmp-community">Community</label><input class="input" type="password" id="sys-snmp-community" maxlength="255" autocomplete="off" spellcheck="false" disabled></div>
-            <div class="form-group"><label class="form-label" for="sys-snmp-sysname">System name</label><input class="input" id="sys-snmp-sysname" maxlength="255" disabled></div>
-            <div class="form-group"><label class="form-label" for="sys-snmp-contact">Contact</label><input class="input" id="sys-snmp-contact" maxlength="255" disabled></div>
-            <div class="form-group"><label class="form-label" for="sys-snmp-location">Location</label><input class="input" id="sys-snmp-location" maxlength="255" disabled></div>
-          </div>
-          <p class="form-hint">Off by default. UDP port 161 on all interfaces · SNMPv1/v2c · GET/GETNEXT only, no SET. Standard interface, CPU, memory and temperature MIBs work with LibreNMS, Zabbix and Observium. Missing Ethernet hardware is reported as down.</p>
-          <div class="alert alert-warning mt-4">SNMPv1/v2c is not encrypted. Choose a private community and restrict access with the firewall; never expose UDP 161 to the Internet. Responses can include interface addresses and the contact/location you enter.</div>
+          <label class="feature-switch"><input type="checkbox" id="ui-advanced-toggle"><span class="feature-switch-track" aria-hidden="true"></span><span>Show advanced settings</span></label>
+          <div class="form-group" style="margin-top:var(--sp-3)"><label class="form-label" for="ui-lang">Language</label><select class="select" id="ui-lang" data-no-i18n></select>
+            <span class="form-hint">Detected from your browser; stored in this browser only. Technical values, addresses and keys are never translated.</span></div>
+          <p class="form-hint">Simple mode hides expert sections (firewall chains, DHCP tables, MTU, SNMP, logging, hardware diagnostics). Nothing is disabled; hidden settings keep working. This choice is stored in this browser only.</p>
         </div>
-        <div class="form-footer"><div class="form-footer-actions"><button class="btn btn-secondary btn-md" id="sys-snmp-reload">Reload</button><button class="btn btn-primary btn-md" id="sys-snmp-save" disabled>Save</button></div></div>
       </div>
 
-      <!-- ===== SD flight-recorder ===== -->
+      <!-- ===== Configuration profile ===== -->
+      <div class="card" id="profile-card">
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Configuration profile</span></div></div>
+        <div class="card-body">
+          <p id="profile-status" role="status">Not loaded</p>
+          <p class="form-hint">Profiles are presets of this same firmware. They only switch on low-risk optional settings after a preview, never disable or delete anything, and never open network access. Every setting stays available in every profile.</p>
+          <div class="form-row"><div class="form-group"><label class="form-label" for="profile-select">Profile</label><select class="input" id="profile-select"></select></div></div>
+          <p id="profile-summary" class="form-hint"></p>
+          <ul id="profile-changes"></ul>
+          <p class="form-hint" id="profile-steps-title" hidden>Manual steps (not applied automatically):</p>
+          <ul id="profile-steps"></ul>
+          <div class="page-header-actions"><button class="btn btn-secondary" id="profile-preview">Preview changes</button>
+            <button class="btn btn-primary" id="profile-apply" disabled>Apply previewed changes</button>
+            <button class="btn btn-secondary" id="profile-rollback" disabled>Roll back last profile change</button></div>
+        </div>
+      </div>
+      </div>
+
+      <div class="subpage" data-sub="security" role="tabpanel" aria-label="Access">
+      <!-- ===== Change password ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div data-advanced class="card-header-left">
-            <span class="card-title">SD card logging</span>
+          <div class="card-header-left">
+            <span class="card-title">Change admin password</span>
           </div>
-          <span class="badge badge-neutral" id="sys-sdlog-badge">—</span>
         </div>
         <div class="card-body">
-          <p class="form-hint" style="margin:0 0 0.75rem 0;">Persists every ESP_LOG line to the onboard microSD card. Survives reboots — the place to look after a silent control-plane wedge. A fresh boot-marker file is written on every boot.</p>
-          <p class="form-hint mono" id="sys-sdlog-cardinfo" style="margin:0 0 0.75rem 0;">No usable SD card. Insert a FAT32-formatted card and reboot to enable the recorder.</p>
-          <div class="form-group">
-            <label class="form-label" for="sys-sdlog-verb">SD recorder</label>
-            <select class="input" id="sys-sdlog-verb">
-              <option value="3">All (info + warnings + errors)</option>
-              <option value="2">Warnings + errors</option>
-              <option value="1">Errors only</option>
-              <option value="0">Off — not recording</option>
-            </select>
-            <span class="form-hint">Writes the chosen level to the microSD black-box, applied live. <strong>Off</strong> stops the recorder (writer task halts). Independent of the console (UART) log level — that selector lives on the <strong>Diagnostics</strong> page next to the live log.</span>
-          </div>
-          <div class="form-group">
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
-              <span class="form-label" style="margin:0;">Log files (<span id="sys-sdlog-count">0</span>)</span>
-              <span style="display:flex; gap:0.4rem;">
-                <button class="btn btn-secondary btn-sm" id="sys-sdlog-refresh" type="button">Refresh</button>
-                <button class="btn btn-danger btn-sm" id="sys-sdlog-erase" type="button">Erase all</button>
-              </span>
+          <form id="sys-pw-form" autocomplete="on">
+            <input type="text" name="username" autocomplete="username" value="admin" hidden>
+            <div class="grid grid-cols-2">
+              <div class="form-group">
+                <label class="form-label" for="sys-pw-old">Current password</label>
+                <input class="input" type="password" id="sys-pw-old" name="current-password" autocomplete="current-password">
+              </div>
             </div>
-            <div id="sys-sdlog-files" class="mono" style="margin-top:0.5rem; font-size:0.85em; max-height:14rem; overflow:auto;"></div>
-          </div>
-          <div style="display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:0.5rem; flex-wrap:wrap; margin:0.5rem 0;">
-            <span class="form-label" style="margin:0;">Tail latest</span>
-            <label style="display:flex; align-items:center; gap:0.35rem; font-size:var(--text-xs); color:var(--fg-muted); margin:0;">
-              lines
-              <select class="input" id="sys-sdlog-tail-n" style="height:1.9rem; padding:0.1rem 0.4rem; font-size:var(--text-xs); width:auto;">
-                <option value="200">200</option>
-                <option value="500">500</option>
-                <option value="1000">1000</option>
-              </select>
-            </label>
-            <button class="btn btn-secondary btn-sm" id="sys-sdlog-tail-refresh" type="button">Refresh</button>
-          </div>
-          <pre id="sys-sdlog-tailout" class="mono" style="display:none; max-height:280px; overflow:auto; padding:0.6rem; border:1px solid var(--border,#333); border-radius:6px; white-space:pre-wrap;"></pre>
+            <div class="grid grid-cols-2">
+              <div class="form-group">
+                <label class="form-label" for="sys-pw-new">New password</label>
+                <input class="input" type="password" id="sys-pw-new" name="new-password" autocomplete="new-password" minlength="4">
+                <span class="form-hint">Minimum 4 characters; no composition rules. Prefer a stronger password if the UI is reachable from your tailnet.</span>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="sys-pw-new2">Confirm new password</label>
+                <input class="input" type="password" id="sys-pw-new2" name="confirm-password" autocomplete="new-password" minlength="4">
+              </div>
+            </div>
+            <div class="auth-error" id="sys-pw-error" style="display:none;"></div>
+            <div style="text-align:right;">
+              <button class="btn btn-primary btn-md" type="submit">Change password</button>
+            </div>
+          </form>
         </div>
       </div>
 
+      <!-- ===== Web session ===== -->
+      <div class="card mt-4" id="web-session-card">
+        <div class="card-header">
+          <div class="card-header-left">
+            <span class="card-title">Web session</span>
+          </div>
+          <span class="badge badge-neutral" id="sys-auth-to-badge">—</span>
+        </div>
+        <div class="card-body">
+          <div class="form-group feature-master-control">
+            <label class="feature-switch">
+              <input type="checkbox" id="sys-web-auth-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Require the admin password for the web UI</span>
+            </label>
+            <span class="form-hint"><strong>Warning:</strong> turning this off lets anyone who can reach the ESP32 change its normal settings. Secret export/import, identity reset, factory reset, firmware upload and the TCP remote console still require a real password-backed session; re-enable the gate to use them later.</span>
+          </div>
+          <div style="text-align:right; margin-bottom:1rem;">
+            <button class="btn btn-primary btn-md" id="sys-web-auth-save" disabled>Save password gate</button>
+          </div>
+          <p class="form-hint" style="margin:0 0 0.75rem 0;">After this much idle time the web UI logs you out and asks for the password again. Every click or tab refresh resets the countdown.</p>
+          <div class="form-group">
+            <label class="form-label" for="sys-auth-to">Idle timeout</label>
+            <select class="input" id="sys-auth-to" style="max-width:18rem;">
+              <option value="0">Disabled — until logout, browser close, or reboot</option>
+              <option value="300">5 minutes</option>
+              <option value="900">15 minutes</option>
+              <option value="1800">30 minutes</option>
+              <option value="3600">1 hour</option>
+              <option value="7200">2 hours</option>
+              <option value="14400">4 hours</option>
+              <option value="28800">8 hours</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-footer">
+          <span class="form-footer-hint">Applies immediately. A disabled timeout uses a browser-session cookie; manual logout and reboot still invalidate it.</span>
+          <div class="form-footer-actions">
+            <button class="btn btn-primary btn-md" id="sys-auth-to-save" disabled>Save</button>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="subpage" data-sub="maintenance" role="tabpanel" aria-label="Maintenance">
       <!-- ===== 2.x -> 3.x flash layout migration (2.1 bridge only) ===== -->
       <div class="card mb-4" id="mig-card" hidden>
         <div class="card-header"><div class="card-header-left"><span class="card-title">Move to the 3.0 flash layout</span></div><span class="badge badge-warning" id="mig-badge">Needed for 3.0</span></div>
@@ -3674,25 +3779,6 @@
           <div id="mig-progress-wrap" hidden style="background:var(--bg-subtle); border-radius:var(--radius-sm); height:0.5rem; overflow:hidden; margin-bottom:var(--sp-3);"><div id="mig-progress" style="background:var(--accent); height:100%; width:0%; transition:width 0.2s;"></div></div>
           <label class="feature-switch"><input type="checkbox" id="mig-confirm"><span class="feature-switch-track" aria-hidden="true"></span><span>The power supply is stable and I want to move this gateway to 3.0 now</span></label>
           <div class="page-header-actions"><button class="btn btn-primary" id="mig-start" type="button" disabled>Migrate to 3.0</button></div>
-        </div>
-      </div>
-
-      <!-- ===== Settings copies (3.x storage area) ===== -->
-      <div class="card mt-4" id="snap-card">
-        <div class="card-header">
-          <div class="card-header-left"><span class="card-title">Settings copies</span></div>
-          <span class="badge badge-neutral" id="snap-badge">—</span>
-        </div>
-        <div class="card-body">
-          <p class="form-hint">Up to three copies of all settings (WiFi, Tailscale identity, passwords, rules), kept on this gateway to go back after a bad change or update. Copies never leave the device and cannot be downloaded; a factory reset erases them. Restoring restarts the gateway and also brings back the <strong>admin password in use when the copy was saved</strong>. The current settings are saved as a copy first, so a restore can be undone.</p>
-          <div style="overflow-x:auto;">
-            <table class="table" style="width:100%;">
-              <thead><tr><th>Copy</th><th>Saved</th><th>Reason</th><th>Firmware</th><th></th></tr></thead>
-              <tbody id="snap-tbody"><tr><td colspan="5" class="form-hint">—</td></tr></tbody>
-            </table>
-          </div>
-          <div class="page-header-actions"><button class="btn btn-secondary" id="snap-cancel" type="button" hidden>Cancel the pending restore</button><button class="btn btn-primary" id="snap-take" type="button" disabled>Save a copy now</button></div>
-          <p class="form-hint" id="snap-status" role="status">Loading…</p>
         </div>
       </div>
 
@@ -3762,82 +3848,126 @@
         </div>
       </div>
 
-      <!-- ===== Web session ===== -->
-      <div class="card mt-4" id="web-session-card">
+      <!-- ===== Settings copies (3.x storage area) ===== -->
+      <div class="card mt-4" id="snap-card">
         <div class="card-header">
-          <div class="card-header-left">
-            <span class="card-title">Web session</span>
-          </div>
-          <span class="badge badge-neutral" id="sys-auth-to-badge">—</span>
+          <div class="card-header-left"><span class="card-title">Settings copies</span></div>
+          <span class="badge badge-neutral" id="snap-badge">—</span>
         </div>
         <div class="card-body">
-          <div class="form-group feature-master-control">
-            <label class="feature-switch">
-              <input type="checkbox" id="sys-web-auth-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Require the admin password for the web UI</span>
-            </label>
-            <span class="form-hint"><strong>Warning:</strong> turning this off lets anyone who can reach the ESP32 change its normal settings. Secret export/import, identity reset, factory reset, firmware upload and the TCP remote console still require a real password-backed session; re-enable the gate to use them later.</span>
+          <p class="form-hint">Up to three copies of all settings (WiFi, Tailscale identity, passwords, rules), kept on this gateway to go back after a bad change or update. Copies never leave the device and cannot be downloaded; a factory reset erases them. Restoring restarts the gateway and also brings back the <strong>admin password in use when the copy was saved</strong>. The current settings are saved as a copy first, so a restore can be undone.</p>
+          <div style="overflow-x:auto;">
+            <table class="table" style="width:100%;">
+              <thead><tr><th>Copy</th><th>Saved</th><th>Reason</th><th>Firmware</th><th></th></tr></thead>
+              <tbody id="snap-tbody"><tr><td colspan="5" class="form-hint">—</td></tr></tbody>
+            </table>
           </div>
-          <div style="text-align:right; margin-bottom:1rem;">
-            <button class="btn btn-primary btn-md" id="sys-web-auth-save" disabled>Save password gate</button>
-          </div>
-          <p class="form-hint" style="margin:0 0 0.75rem 0;">After this much idle time the web UI logs you out and asks for the password again. Every click or tab refresh resets the countdown.</p>
-          <div class="form-group">
-            <label class="form-label" for="sys-auth-to">Idle timeout</label>
-            <select class="input" id="sys-auth-to" style="max-width:18rem;">
-              <option value="0">Disabled — until logout, browser close, or reboot</option>
-              <option value="300">5 minutes</option>
-              <option value="900">15 minutes</option>
-              <option value="1800">30 minutes</option>
-              <option value="3600">1 hour</option>
-              <option value="7200">2 hours</option>
-              <option value="14400">4 hours</option>
-              <option value="28800">8 hours</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-footer">
-          <span class="form-footer-hint">Applies immediately. A disabled timeout uses a browser-session cookie; manual logout and reboot still invalidate it.</span>
-          <div class="form-footer-actions">
-            <button class="btn btn-primary btn-md" id="sys-auth-to-save" disabled>Save</button>
-          </div>
+          <div class="page-header-actions"><button class="btn btn-secondary" id="snap-cancel" type="button" hidden>Cancel the pending restore</button><button class="btn btn-primary" id="snap-take" type="button" disabled>Save a copy now</button></div>
+          <p class="form-hint" id="snap-status" role="status">Loading…</p>
         </div>
       </div>
 
-      <!-- ===== Change password ===== -->
+      <!-- ===== Danger Zone ===== -->
+      <div class="card card-stripe-danger mt-4">
+        <div class="card-header">
+          <div class="card-header-left">
+            <span class="card-title text-danger">⚠ Danger Zone</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:0.6rem 0; border-bottom:1px solid var(--border);">
+            <div>
+              <div style="font-weight:500;">Reboot device</div>
+              <div class="text-muted" style="font-size:0.85rem;">Clean restart — applies pending NVS changes and re-establishes Tailscale.</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="sys-restart-btn">Reboot</button>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:0.6rem 0; border-bottom:1px solid var(--border);">
+            <div>
+              <div style="font-weight:500;">Clear admin password</div>
+              <div class="text-muted" style="font-size:0.85rem;">Removes the web password and logs you out. The first-boot wizard will appear on next visit. Anyone on the network can reach the device until a new password is set.</div>
+            </div>
+            <button class="btn btn-danger btn-sm" id="sys-clear-pw-btn">Clear</button>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:0.6rem 0;">
+            <div>
+              <div style="font-weight:500;">Factory reset</div>
+              <div class="text-muted" style="font-size:0.85rem;">Erases ALL NVS settings — WiFi, Tailscale, ACL rules, MQTT/WOL, password. Reboots into the first-boot wizard. This cannot be undone.</div>
+            </div>
+            <button class="btn btn-danger btn-sm" id="sys-factory-btn">Factory reset</button>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="subpage" data-sub="logging" role="tabpanel" aria-label="Logging & SNMP">
+      <!-- ===== SD flight-recorder ===== -->
       <div class="card mt-4">
         <div class="card-header">
-          <div class="card-header-left">
-            <span class="card-title">Change admin password</span>
+          <div data-advanced class="card-header-left">
+            <span class="card-title">SD card logging</span>
           </div>
+          <span class="badge badge-neutral" id="sys-sdlog-badge">—</span>
         </div>
         <div class="card-body">
-          <form id="sys-pw-form" autocomplete="on">
-            <input type="text" name="username" autocomplete="username" value="admin" hidden>
-            <div class="grid grid-cols-2">
-              <div class="form-group">
-                <label class="form-label" for="sys-pw-old">Current password</label>
-                <input class="input" type="password" id="sys-pw-old" name="current-password" autocomplete="current-password">
-              </div>
+          <p class="form-hint" style="margin:0 0 0.75rem 0;">Persists every ESP_LOG line to the onboard microSD card. Survives reboots — the place to look after a silent control-plane wedge. A fresh boot-marker file is written on every boot.</p>
+          <p class="form-hint mono" id="sys-sdlog-cardinfo" style="margin:0 0 0.75rem 0;">No usable SD card. Insert a FAT32-formatted card and reboot to enable the recorder.</p>
+          <div class="form-group">
+            <label class="form-label" for="sys-sdlog-verb">SD recorder</label>
+            <select class="input" id="sys-sdlog-verb">
+              <option value="3">All (info + warnings + errors)</option>
+              <option value="2">Warnings + errors</option>
+              <option value="1">Errors only</option>
+              <option value="0">Off — not recording</option>
+            </select>
+            <span class="form-hint">Writes the chosen level to the microSD black-box, applied live. <strong>Off</strong> stops the recorder (writer task halts). Independent of the console (UART) log level — that selector lives on the <strong>Diagnostics</strong> page next to the live log.</span>
+          </div>
+          <div class="form-group">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:0.5rem; flex-wrap:wrap;">
+              <span class="form-label" style="margin:0;">Log files (<span id="sys-sdlog-count">0</span>)</span>
+              <span style="display:flex; gap:0.4rem;">
+                <button class="btn btn-secondary btn-sm" id="sys-sdlog-refresh" type="button">Refresh</button>
+                <button class="btn btn-danger btn-sm" id="sys-sdlog-erase" type="button">Erase all</button>
+              </span>
             </div>
-            <div class="grid grid-cols-2">
-              <div class="form-group">
-                <label class="form-label" for="sys-pw-new">New password</label>
-                <input class="input" type="password" id="sys-pw-new" name="new-password" autocomplete="new-password" minlength="4">
-                <span class="form-hint">Minimum 4 characters; no composition rules. Prefer a stronger password if the UI is reachable from your tailnet.</span>
-              </div>
-              <div class="form-group">
-                <label class="form-label" for="sys-pw-new2">Confirm new password</label>
-                <input class="input" type="password" id="sys-pw-new2" name="confirm-password" autocomplete="new-password" minlength="4">
-              </div>
-            </div>
-            <div class="auth-error" id="sys-pw-error" style="display:none;"></div>
-            <div style="text-align:right;">
-              <button class="btn btn-primary btn-md" type="submit">Change password</button>
-            </div>
-          </form>
+            <div id="sys-sdlog-files" class="mono" style="margin-top:0.5rem; font-size:0.85em; max-height:14rem; overflow:auto;"></div>
+          </div>
+          <div style="display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:0.5rem; flex-wrap:wrap; margin:0.5rem 0;">
+            <span class="form-label" style="margin:0;">Tail latest</span>
+            <label style="display:flex; align-items:center; gap:0.35rem; font-size:var(--text-xs); color:var(--fg-muted); margin:0;">
+              lines
+              <select class="input" id="sys-sdlog-tail-n" style="height:1.9rem; padding:0.1rem 0.4rem; font-size:var(--text-xs); width:auto;">
+                <option value="200">200</option>
+                <option value="500">500</option>
+                <option value="1000">1000</option>
+              </select>
+            </label>
+            <button class="btn btn-secondary btn-sm" id="sys-sdlog-tail-refresh" type="button">Refresh</button>
+          </div>
+          <pre id="sys-sdlog-tailout" class="mono" style="display:none; max-height:280px; overflow:auto; padding:0.6rem; border:1px solid var(--border,#333); border-radius:6px; white-space:pre-wrap;"></pre>
         </div>
       </div>
 
+      <!-- ===== SNMP agent (upstream v0.1.28) ===== -->
+      <div class="card feature-card mt-4" id="sys-snmp-card" data-capability="snmp" data-hide-if-absent data-feature-state="unknown">
+        <div class="card-header"><div data-advanced class="card-header-left"><span class="card-title">SNMP agent</span></div><span class="badge badge-neutral" id="sys-snmp-badge">Loading…</span></div>
+        <div class="card-body">
+          <p class="form-hint" id="sys-snmp-load-status" role="status">Settings have not loaded yet.</p>
+          <label class="feature-switch"><input type="checkbox" id="sys-snmp-en" disabled><span class="feature-switch-track" aria-hidden="true"></span><span>Enable read-only SNMP agent</span></label>
+          <div class="grid grid-cols-2 mt-4">
+            <div class="form-group"><label class="form-label" for="sys-snmp-community">Community</label><input class="input" type="password" id="sys-snmp-community" maxlength="255" autocomplete="off" spellcheck="false" disabled></div>
+            <div class="form-group"><label class="form-label" for="sys-snmp-sysname">System name</label><input class="input" id="sys-snmp-sysname" maxlength="255" disabled></div>
+            <div class="form-group"><label class="form-label" for="sys-snmp-contact">Contact</label><input class="input" id="sys-snmp-contact" maxlength="255" disabled></div>
+            <div class="form-group"><label class="form-label" for="sys-snmp-location">Location</label><input class="input" id="sys-snmp-location" maxlength="255" disabled></div>
+          </div>
+          <p class="form-hint">Off by default. UDP port 161 on all interfaces · SNMPv1/v2c · GET/GETNEXT only, no SET. Standard interface, CPU, memory and temperature MIBs work with LibreNMS, Zabbix and Observium. Missing Ethernet hardware is reported as down.</p>
+          <div class="alert alert-warning mt-4">SNMPv1/v2c is not encrypted. Choose a private community and restrict access with the firewall; never expose UDP 161 to the Internet. Responses can include interface addresses and the contact/location you enter.</div>
+        </div>
+        <div class="form-footer"><div class="form-footer-actions"><button class="btn btn-secondary btn-md" id="sys-snmp-reload">Reload</button><button class="btn btn-primary btn-md" id="sys-snmp-save" disabled>Save</button></div></div>
+      </div>
+      </div>
+
+      <div class="subpage" data-sub="about" role="tabpanel" aria-label="About">
       <!-- ===== About + License ===== -->
       <div class="card mt-4">
         <div class="card-header">
@@ -3879,37 +4009,6 @@
           </div>
         </div>
       </div>
-
-      <!-- ===== Danger Zone ===== -->
-      <div class="card card-stripe-danger mt-4">
-        <div class="card-header">
-          <div class="card-header-left">
-            <span class="card-title text-danger">⚠ Danger Zone</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:0.6rem 0; border-bottom:1px solid var(--border);">
-            <div>
-              <div style="font-weight:500;">Reboot device</div>
-              <div class="text-muted" style="font-size:0.85rem;">Clean restart — applies pending NVS changes and re-establishes Tailscale.</div>
-            </div>
-            <button class="btn btn-secondary btn-sm" id="sys-restart-btn">Reboot</button>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:0.6rem 0; border-bottom:1px solid var(--border);">
-            <div>
-              <div style="font-weight:500;">Clear admin password</div>
-              <div class="text-muted" style="font-size:0.85rem;">Removes the web password and logs you out. The first-boot wizard will appear on next visit. Anyone on the network can reach the device until a new password is set.</div>
-            </div>
-            <button class="btn btn-danger btn-sm" id="sys-clear-pw-btn">Clear</button>
-          </div>
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:1rem; padding:0.6rem 0;">
-            <div>
-              <div style="font-weight:500;">Factory reset</div>
-              <div class="text-muted" style="font-size:0.85rem;">Erases ALL NVS settings — WiFi, Tailscale, ACL rules, MQTT/WOL, password. Reboots into the first-boot wizard. This cannot be undone.</div>
-            </div>
-            <button class="btn btn-danger btn-sm" id="sys-factory-btn">Factory reset</button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -4089,6 +4188,71 @@
     var s_ui_authenticated = false;
     var s_automation_loads = {};
     // =====================================================================
+    // SUB-SECTIONS — the long pages show one group of cards at a time
+    // =====================================================================
+    var subnav = (function () {
+      function store(page, sub) { try { sessionStorage.setItem('ui-sub-' + page, sub); } catch (e) {} }
+      function stored(page) { try { return sessionStorage.getItem('ui-sub-' + page); } catch (e) { return null; } }
+      function navOf(page) { return document.querySelector('.subnav[data-page="' + page + '"]'); }
+      function tabsOf(nav) { return Array.prototype.slice.call(nav.querySelectorAll('.subnav-tab')); }
+      function show(page, key, opts) {
+        var nav = navOf(page), section = document.getElementById('page-' + page);
+        if (!nav || !section) return false;
+        var usable = tabsOf(nav).filter(function (b) { return !b.hidden; });
+        if (!usable.some(function (b) { return b.dataset.sub === key; })) key = usable.length ? usable[0].dataset.sub : null;
+        tabsOf(nav).forEach(function (b) {
+          var on = b.dataset.sub === key;
+          b.setAttribute('aria-selected', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1;
+        });
+        section.querySelectorAll('.subpage').forEach(function (g) { g.hidden = g.dataset.sub !== key; });
+        if (key) store(page, key);
+        if (opts && opts.hash && key) { try { history.replaceState(null, '', '#' + page + '/' + key); } catch (e) {} }
+        if (opts && opts.top) { var top = section.getBoundingClientRect().top + window.scrollY - 56; if (window.scrollY > top) window.scrollTo(0, top); }
+        return true;
+      }
+      /* Opens the group holding `el` (guides, links and "Change" buttons). */
+      function reveal(el) {
+        var group = el && el.closest ? el.closest('.subpage') : null;
+        if (!group || !group.hidden) return;
+        show(group.closest('.page-section').id.slice(5), group.dataset.sub);
+      }
+      /* Hide groups with nothing to show (modules left out, simple mode). */
+      function refresh() {
+        var simple = document.body.classList.contains('ui-simple');
+        document.querySelectorAll('.subnav').forEach(function (nav) {
+          var page = nav.dataset.page, section = document.getElementById('page-' + page);
+          tabsOf(nav).forEach(function (b) {
+            var group = section.querySelector('.subpage[data-sub="' + b.dataset.sub + '"]');
+            b.hidden = !group || !Array.prototype.some.call(group.children, function (c) {
+              return !c.hidden && !(simple && c.hasAttribute('data-advanced'));
+            });
+          });
+          var current = nav.querySelector('.subnav-tab[aria-selected="true"]');
+          if (!current || current.hidden) show(page, current ? null : stored(page));
+        });
+      }
+      document.querySelectorAll('.subnav').forEach(function (nav) {
+        nav.addEventListener('click', function (e) {
+          var b = e.target.closest('.subnav-tab');
+          if (b) show(nav.dataset.page, b.dataset.sub, { hash: true, top: true });
+        });
+        nav.addEventListener('keydown', function (e) {
+          if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' && e.key !== 'Home' && e.key !== 'End') return;
+          var list = tabsOf(nav).filter(function (b) { return !b.hidden; }), i = list.indexOf(document.activeElement);
+          if (i < 0) return;
+          e.preventDefault();
+          var next = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : (i + (e.key === 'ArrowRight' ? 1 : -1) + list.length) % list.length;
+          show(nav.dataset.page, list[next].dataset.sub, { hash: true }); list[next].focus();
+        });
+        show(nav.dataset.page, stored(nav.dataset.page));
+      });
+      return { show: show, reveal: reveal, refresh: refresh };
+    })();
+    /* "#page/sub" deep links: the page part for the main tabs. */
+    function onPage(name) { return splitRoute((location.hash || '#status').slice(1)).page === name; }
+    function splitRoute(route) { var parts = String(route || '').split('/'); return { page: parts[0], sub: parts[1] || null }; }
+
+    // =====================================================================
     // NAVIGATION — tab switching
     // =====================================================================
     (function () {
@@ -4103,7 +4267,7 @@
        * visible as "Status flashes then jumps to Network". Doing the
        * class swap up front collapses the visible flash to zero frames. */
       (function () {
-        var h = (location.hash || '').replace(/^#/, '');
+        var h = splitRoute((location.hash || '').replace(/^#/, '')).page;
         if (!h || h === 'status') return;
         var targetTab = document.querySelector('.nav-tab[data-page="' + h + '"]');
         var targetSec = document.getElementById('page-' + h);
@@ -4120,9 +4284,11 @@
         targetSec.classList.add('active');
       })();
 
-      function switchToPage(page) {
+      function switchToPage(route) {
+        var r = splitRoute(route), page = r.page;
         var tab = document.querySelector('.nav-tab[data-page="' + page + '"]');
         if (!tab) return false;
+        if (r.sub) subnav.show(page, r.sub);
 
         tabs.forEach(function (t) {
           t.classList.remove('active');
@@ -5417,7 +5583,7 @@
       if (page === 'tailscale') { loadTailscale(); loadTailnetNames(); }
       if (page === 'firewall') loadFirewall();
       if (page === 'automation') { loadWol(); loadMqtt(); loadNtfy(); ntUi.load(); }
-      if (page === 'operations') loadOperations();
+      if (page === 'operations') { loadWol(); loadOperations(); }
       if (page === 'system') { loadSystem(); loadProfiles(); loadMigration(); histUi.loadSnapshots(); }
       if (page === 'tools') { loadDiag(); loadPrecrashLog(); histUi.loadEvents(); }
     }
@@ -5908,7 +6074,7 @@
     }
     document.getElementById('net-hostname').addEventListener('input', updateHostnamePreview);
     document.getElementById('uplink-lan-name-edit').addEventListener('click', function () {
-      setTimeout(function () { var h = document.getElementById('net-hostname'); h.scrollIntoView({ block: 'center' }); h.focus(); }, 300);
+      setTimeout(function () { var h = document.getElementById('net-hostname'); subnav.reveal(h); h.scrollIntoView({ block: 'center' }); h.focus(); }, 300);
     });
     ['net-hostname', 'net-sta-ttl'].forEach(function (id) {
       document.getElementById(id).addEventListener('input', function () {
@@ -6131,7 +6297,7 @@
     }
     async function opsPoll(){
       s_ops_poll=null;
-      if(location.hash!=='#operations'){s_ops_polls=0;return;}
+      if(!onPage('operations')){s_ops_polls=0;return;}
       if(s_ops_busy||s_ops_loading)return opsSchedulePoll(s_ops_state);
       var sequence=s_ops_sequence;
       try{
@@ -6271,7 +6437,7 @@
        risks:['Advertised routes expose those networks to every tailnet identity your policy allows.','Routes still need approval in the admin console; the device cannot verify approval.'],sections:['tailscale']},
       {id:'exit-node',capability:'exit-node',title:'Exit node',goal:'Offer this device as an Internet exit for tailnet clients, or use one.',page:'tailscale',focus:['ts-advertise-exit','ts-exit-node'],checks:[WZ_TS],exposure:true,
        risks:['Clients using this exit node send all their Internet traffic through your uplink.','Advertising requires approval in the admin console.'],sections:['tailscale']},
-      {id:'wol',capability:'wol',title:'Wake-on-LAN',goal:'Save a device by MAC address so it can be woken locally or remotely.',page:'automation',focus:['wol-add-btn'],checks:[WZ_UPLINK],
+      {id:'wol',capability:'wol',title:'Wake-on-LAN',goal:'Save a device by MAC address so it can be woken locally or remotely.',page:'operations',focus:['wol-add-btn'],checks:[WZ_UPLINK],
        risks:['A sent magic packet never proves the device powered on.'],sections:['wol'],
        verify:function(){return wzGet('/api/wol').then(function(d){return (d.devices||[]).length+' saved device(s).';});}},
       {id:'smart-recovery',capability:'smart-recovery',title:'Smart Recovery',goal:'Wake a device and verify its host and service with bounded checks.',page:'operations',focus:['ops-devices','ops-monitoring'],checks:[WZ_WOL,WZ_PSRAM],
@@ -6337,7 +6503,7 @@
       var tab=document.querySelector('.nav-tab[data-page="'+w.page+'"]');if(tab)tab.click();
       wzClearFocus();
       setTimeout(function(){var first=null;w.focus.forEach(function(id){var el=document.getElementById(id);if(!el)return;var box=el.closest('.form-group,.feature-switch,.card')||el;box.classList.add('wizard-focus');if(!first)first=box;});
-        if(first)first.scrollIntoView({behavior:'smooth',block:'center'});},300);
+        if(first){subnav.reveal(first);first.scrollIntoView({behavior:'smooth',block:'center'});}},300);
       document.getElementById('wizard-result').textContent='Fill in the highlighted settings and press that card’s Save. Then check the result here.';
       document.getElementById('wizard-verify').hidden=false;
     }
@@ -6383,7 +6549,7 @@
       {wizard:'iot-ap',title:'Set up a WiFi gateway for IoT devices',text:'Give sensors and switches their own access point.'},
       {wizard:'wol',title:'Wake or recover a NAS or PC',text:'Save a device for Wake-on-LAN, then use bounded recovery checks.'},
       {wizard:'home-assistant',title:'Connect Home Assistant',text:'MQTT state, switches and buttons through Discovery.'},
-      {role:'monitoring',href:'#tools',title:'Monitor the gateway and get alerts',text:'History, trends, settings copies and Telegram, email or ntfy notifications.'},
+      {role:'monitoring',href:'#tools/history',title:'Monitor the gateway and get alerts',text:'History, trends, settings copies and Telegram, email or ntfy notifications.'},
       {wizard:null,title:'Configure everything manually',text:'Show advanced settings on every page.'}];
     function renderGoals(){
       var grid=document.getElementById('goal-grid');if(!grid)return;grid.replaceChildren();
@@ -6411,6 +6577,7 @@
         note.firstChild.textContent=n+(n===1?' advanced section is':' advanced sections are')+' hidden in simple mode. Settings keep working.';
         note.hidden=adv;
       });
+      if(typeof subnav!=='undefined')subnav.refresh();
     }
     document.getElementById('ui-advanced-toggle').addEventListener('change',function(){setUiAdvanced(this.checked);});
     renderGoals();applyUiMode();
@@ -6560,10 +6727,10 @@
         badge.className='badge '+(d.state==='failed'?'badge-danger':d.busy?'badge-info':'badge-warning');
         document.getElementById('mig-start').disabled=!d.supported||d.busy||!document.getElementById('mig-confirm').checked;
         document.getElementById('mig-confirm').disabled=!d.supported||d.busy;
-        if(d.busy&&location.hash==='#system')s_mig_poll=setTimeout(loadMigration,2000);
+        if(d.busy&&onPage('system'))s_mig_poll=setTimeout(loadMigration,2000);
       }).catch(function(){
         /* A restart during the migration drops the connection: keep asking. */
-        if(location.hash==='#system'&&!document.getElementById('mig-card').hidden)s_mig_poll=setTimeout(loadMigration,4000);
+        if(onPage('system')&&!document.getElementById('mig-card').hidden)s_mig_poll=setTimeout(loadMigration,4000);
       });
     }
     document.getElementById('mig-confirm').addEventListener('change',function(){document.getElementById('mig-start').disabled=!this.checked;});
@@ -6640,7 +6807,7 @@
           b.textContent = on ? 'On' : 'Off'; b.className = 'badge ' + (on ? 'badge-success' : 'badge-neutral');
           el('nt-status').textContent = d.waiting ? d.waiting + ' message(s) waiting to be sent.' : on ? 'Ready.' : 'Off.';
           el('nt-save').disabled = true;
-          if (d.waiting && location.hash === '#automation') poll = setTimeout(load, 5000);
+          if (d.waiting && onPage('automation')) poll = setTimeout(load, 5000);
         }).catch(function (e) { el('nt-status').textContent = 'Unavailable: ' + e.message; });
       }
       document.querySelectorAll('#nt-card input, #nt-card select').forEach(function (i) {
@@ -6820,7 +6987,7 @@
           el('snap-take').disabled = !d.available;
           el('snap-cancel').hidden = !d.restore_pending;
           el('snap-status').textContent = !d.available ? 'Not available on the 2.x flash layout: move to the 3.0 layout first.' :
-            d.restore_pending ? 'A restore is waiting for the next start.' : d.before_update ? 'A copy is also saved before each firmware update.' : 'Copies are saved only by hand (see Tools → History to save one before each update).';
+            d.restore_pending ? 'A restore is waiting for the next start.' : d.before_update ? 'A copy is also saved before each firmware update.' : 'Copies are saved only by hand (Diagnostics → History can save one before each update).';
           el('snap-tbody').innerHTML = d.slots.map(function (x) {
             if (!x.valid) return '<tr><td>' + x.slot + '</td><td colspan="4" class="form-hint">Empty</td></tr>';
             return '<tr><td>' + x.slot + '</td><td>' + html(x.t ? new Date(x.t * 1000).toLocaleString() : 'Clock not set') + '</td><td>' + html(REASON[x.reason] || x.reason) +
@@ -6903,6 +7070,7 @@
       });
       if(typeof wzRenderList==='function')wzRenderList();
       if(typeof renderGoals==='function')renderGoals();
+      subnav.refresh();
       if(typeof renderTf==='function'&&s_tf_loaded&&!s_tf_dirty)renderTf(); /* re-gate Test destination */
     }
     function setCapabilities(features){var map=Object.create(null);features.forEach(function(f){map[f.id]=f;});s_capabilities=map;applyCapabilityGates();}
@@ -9411,7 +9579,7 @@
       if (!confirm('Download and install the latest newer compatible release from the selected channel? The gateway will restart.')) return;
       updatesPost('/install').then(loadRemoteUpdates).catch(function () {});
     });
-    setInterval(function () { if (location.hash === '#system' && !s_updatesDirty && s_updatesLoaded) loadRemoteUpdates(); }, 5000);
+    setInterval(function () { if (onPage('system') && !s_updatesDirty && s_updatesLoaded) loadRemoteUpdates(); }, 5000);
     /* Local OTA still accepts a trusted file independently of update policy. */
     document.getElementById('sys-ota-file').addEventListener('change', function () {
       document.getElementById('sys-ota-upload').disabled = !(this.files && this.files[0]);
