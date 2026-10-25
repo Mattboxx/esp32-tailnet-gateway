@@ -317,7 +317,6 @@ done:
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 #include "nvs.h"
-#include "nvs_params.h"
 #include <stdlib.h>
 #include <time.h>
 
@@ -329,7 +328,6 @@ static const char *TAG = "notify";
 #define CH_TG 1
 #define CH_MAIL 2
 
-typedef struct {uint32_t magic, version; notify_config_t config; uint32_t checksum;} cfg_record_t;
 typedef struct {uint8_t kind, level, channels, attempts; uint32_t wall; char text[NOTIFY_TEXT_MAX];} note_t;
 typedef struct {uint32_t sent, failed; bool last_ok; char last_error[192];} channel_status_t;   /* PSRAM */
 
@@ -342,35 +340,67 @@ static bool s_worker;
 EXT_RAM_BSS_ATTR static channel_status_t s_tg, s_mail;
 static uint32_t s_tokens = 6, s_refill;
 
+/* --- notify store (begin) --- */
+/* One NVS record holds everything, so a save is all or nothing. The email
+ * event choice (3.0.1) lives in the two bytes that were padding before the
+ * checksum: size and version stay those of 3.0.0, and a 3.0.0/3.0.1 image
+ * that comes back after a rollback still accepts the record. 0 there means
+ * "written by 3.0.0/3.0.1": the separate key ntf_mlv of 3.0.1 is used if
+ * present, else the shared choice of 3.0.0. ntf_mlv is still written after
+ * the record, only for such a rollback; it never decides anything here. */
+typedef struct {
+    uint32_t magic, version;
+    notify_config_t config;
+    uint8_t mail_level_plus1;      /* 0: not stored in the record */
+    uint8_t reserved;
+    uint32_t checksum;
+} cfg_record_t;
+
 static uint32_t record_checksum(const cfg_record_t *r) {return esp_rom_crc32_le(0, (const uint8_t *)r, offsetof(cfg_record_t, checksum));}
 
-static void load(notify_config_t *c)
+/* Defaults (everything off) when the record is missing or damaged. */
+static void store_load(notify_config_t *c, uint8_t *mail_level)
 {
     memset(c, 0, sizeof *c);
     c->mail_port = 465;
+    *mail_level = NOTIFY_PROBLEMS;
     nvs_handle_t h;
     if (nvs_open("tsr", NVS_READONLY, &h) != ESP_OK) return;
     cfg_record_t *r = calloc(1, sizeof *r);
     size_t n = sizeof *r;
     /* Fail closed: a damaged record means off, never half-applied. */
     if (r && nvs_get_blob(h, "notify_cfg", r, &n) == ESP_OK && n == sizeof *r && r->magic == CFG_MAGIC && r->version == 1 &&
-        r->checksum == record_checksum(r) && notify_config_valid(&r->config, NULL, 0)) *c = r->config;
+        r->checksum == record_checksum(r) && notify_config_valid(&r->config, NULL, 0) && r->mail_level_plus1 <= NOTIFY_ALL + 1) {
+        *c = r->config;
+        uint8_t legacy = 0;
+        *mail_level = r->mail_level_plus1 ? (uint8_t)(r->mail_level_plus1 - 1)
+                    : nvs_get_u8(h, "ntf_mlv", &legacy) == ESP_OK && legacy <= NOTIFY_ALL ? legacy : c->level;
+    }
     if (r) {memset(r, 0, sizeof *r); free(r);}
     nvs_close(h);
 }
 
-static esp_err_t save(const notify_config_t *c)
+static esp_err_t store_save(const notify_config_t *c, uint8_t mail_level)
 {
+    if (mail_level > NOTIFY_ALL) return ESP_ERR_INVALID_ARG;
     cfg_record_t *r = calloc(1, sizeof *r);
     if (!r) return ESP_ERR_NO_MEM;
-    r->magic = CFG_MAGIC; r->version = 1; r->config = *c; r->checksum = record_checksum(r);
+    r->magic = CFG_MAGIC; r->version = 1; r->config = *c; r->mail_level_plus1 = (uint8_t)(mail_level + 1);
+    r->checksum = record_checksum(r);
     nvs_handle_t h;
     esp_err_t err = nvs_open("tsr", NVS_READWRITE, &h);
-    if (!err) {err = nvs_set_blob(h, "notify_cfg", r, sizeof *r); if (!err) err = nvs_commit(h); nvs_close(h);}
+    if (!err) {
+        err = nvs_set_blob(h, "notify_cfg", r, sizeof *r);
+        if (!err) err = nvs_commit(h);
+        /* For a rollback to 3.0.1 only; failing here changes nothing. */
+        if (!err && nvs_set_u8(h, "ntf_mlv", mail_level) == ESP_OK) nvs_commit(h);
+        nvs_close(h);
+    }
     memset(r, 0, sizeof *r);
     free(r);
     return err;
 }
+/* --- notify store (end) --- */
 
 static void when_text(uint32_t wall, char *out, size_t cap)
 {
@@ -567,8 +597,8 @@ static void enqueue_locked(uint8_t kind, uint8_t level, uint8_t channels, uint32
     }
 }
 
-/* Email has its own event selection since 3.0.1 (key "ntf_mlv"; absent =
- * the Telegram selection, which is what 3.0.0 used for both). */
+/* Email has its own event selection since 3.0.1 (stored in the record; see
+ * the notify store). */
 static uint8_t s_mail_level = NOTIFY_PROBLEMS;
 
 static uint8_t channels_locked(void) {return (s_cfg.tg_enabled ? CH_TG : 0) | (s_cfg.mail_enabled ? CH_MAIL : 0);}
@@ -611,9 +641,7 @@ void notify_channels_enabled(bool *telegram, bool *email)
 void notify_channels_init(void)
 {
     if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
-    load(&s_cfg);
-    uint8_t v = 0;
-    s_mail_level = nvs_param_get_u8("ntf_mlv", &v) == ESP_OK && v <= NOTIFY_ALL ? v : s_cfg.level;
+    store_load(&s_cfg, &s_mail_level);
     if (s_cfg.tg_enabled || s_cfg.mail_enabled) {xSemaphoreTake(s_lock, portMAX_DELAY); apply_locked(); xSemaphoreGive(s_lock);}
 }
 
@@ -741,8 +769,7 @@ static esp_err_t post_notify(httpd_req_t *req)
     }
     esp_err_t err = ESP_OK;
     if (ok && !notify_config_valid(next, why, sizeof why)) ok = false;
-    if (ok) err = save(next);                             /* persist before publishing */
-    if (ok && !err) err = nvs_param_set_u8("ntf_mlv", mail_level);
+    if (ok) err = store_save(next, mail_level);           /* one record, before publishing */
     if (ok && !err) {
         xSemaphoreTake(s_lock, portMAX_DELAY);
         s_cfg = *next;
