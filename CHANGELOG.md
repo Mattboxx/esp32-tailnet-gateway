@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.2] — beta 1, 2026-10-25
+
+Pre-release for testing: a reliability fix, no new features. Settings and the
+partition layout are preserved; going back to 3.0.1 keeps them too.
+
+### Fixed
+
+- **Settings could be left half saved.** Notification (Telegram and email),
+  event history/trends/settings-copy switches and tailnet names were saved
+  one NVS key at a time: if a later write failed, the page showed an error
+  but some switches had already changed and applied at the next start. Each
+  group is now saved as one record, all or nothing; a damaged record means
+  "off". Settings from 3.0.0/3.0.1 are migrated, and the old keys are still
+  written so that a return to 3.0.1 keeps the settings.
+
+### Tested
+
+- Automated offline campaign on the release source, including new
+  fault-injection tests of the actual storage code on a simulated NVS (a
+  failure at every write). No physical NVS fault or power cut was injected.
+
 ## [3.0.1] — 2026-10-25
 
 Previously available as 3.0.1-beta.1. New optional services stay off until
