@@ -20,8 +20,20 @@ source = (ROOT / 'main/layout_migration.c').read_text(encoding='utf-8')
 header = (ROOT / 'main/layout_migration.h').read_text(encoding='utf-8')
 core = source.split('/* --- migration core (begin) --- */', 1)[1].split('/* --- migration core (end) --- */', 1)[0]
 types = 'typedef struct {char name[17];' + header.split('typedef struct {char name[17];', 1)[1].split('/* Core (pure, host-tested). */', 1)[0]
-idf = Path(os.environ.get('IDF_PATH', Path.home() / '.platformio/packages/framework-espidf'))
-gen = idf / 'components/partition_table/gen_esp32part.py'
+explicit = os.environ.get('PARTITION_TABLE_SOURCE')
+if explicit:
+    gen = Path(explicit)
+elif os.environ.get('IDF_PATH'):
+    gen = Path(os.environ['IDF_PATH']) / 'components/partition_table/gen_esp32part.py'
+else:
+    relative = Path('components/partition_table/gen_esp32part.py')
+    candidates = [ROOT / '.test-deps/esp-idf' / relative,
+                  Path.home() / '.platformio/packages/framework-espidf@3.50503.0' / relative,
+                  Path.home() / '.platformio/packages/framework-espidf' / relative]
+    gen = next((p for p in candidates if p.is_file()), candidates[0])
+if not gen.is_file():
+    raise RuntimeError('ESP-IDF partition generator unavailable: set PARTITION_TABLE_SOURCE '
+                       'to pinned ESP-IDF 5.5.3 gen_esp32part.py or provide IDF_PATH')
 
 
 def table(csv, size):
