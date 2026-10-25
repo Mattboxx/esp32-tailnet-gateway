@@ -4,10 +4,11 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.2] — beta 1, 2026-10-25
+## [3.0.2] — 2026-10-25
 
-Pre-release for testing: a reliability fix, no new features. Settings and the
-partition layout are preserved; going back to 3.0.1 keeps them too.
+A reliability fix, no new features. Settings and the partition layout are
+preserved; going back to 3.0.1 keeps them too. Same source as the tested
+3.0.2-beta.1 (not published) apart from the version number.
 
 ### Fixed
 
@@ -23,7 +24,11 @@ partition layout are preserved; going back to 3.0.1 keeps them too.
 
 - Automated offline campaign on the release source, including new
   fault-injection tests of the actual storage code on a simulated NVS (a
-  failure at every write). No physical NVS fault or power cut was injected.
+  failure at every write).
+- On an N16R8 test board: settings saved by 3.0.1 were read correctly after
+  the update, new settings survived a restart, and the previous firmware
+  still read them after switching back to it; feature and page checks
+  passed. No physical NVS fault or power cut was injected.
 
 ## [3.0.1] — 2026-10-25
 
