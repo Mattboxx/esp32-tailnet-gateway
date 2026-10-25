@@ -107,18 +107,29 @@ esp_err_t tailscale_mtu_set(ts_mtu_mode_t mode, uint16_t fixed_mtu)
             return ESP_ERR_INVALID_ARG;
         }
     }
+    /* Persist first (through nvs_params, so a settings transaction covers
+     * both keys); the running state changes only once both are stored. */
+    esp_err_t err = nvs_param_set_u8("ts_mtu_mode", (uint8_t)mode);
+    if (err == ESP_OK) err = nvs_param_set_u16("ts_mtu", fixed_mtu);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "MTU settings not saved: %s", esp_err_to_name(err));
+        return err;
+    }
     s_state.mode      = mode;
     s_state.fixed_mtu = fixed_mtu;
-
-    nvs_handle_t h;
-    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) == ESP_OK) {
-        nvs_set_u8 (h, "ts_mtu_mode", (uint8_t)mode);
-        nvs_set_u16(h, "ts_mtu",      fixed_mtu);
-        nvs_commit(h);
-        nvs_close(h);
-    }
     tailscale_mtu_update();
     return ESP_OK;
+}
+
+void tailscale_mtu_reload(void)
+{
+    uint8_t  m  = 0;
+    uint16_t fm = 0;
+    s_state.mode = (nvs_param_get_u8("ts_mtu_mode", &m) == ESP_OK && m == TS_MTU_FIXED)
+                   ? TS_MTU_FIXED : TS_MTU_AUTO;
+    s_state.fixed_mtu = (nvs_param_get_u16("ts_mtu", &fm) == ESP_OK
+                         && fm >= TS_MTU_MIN && fm <= TS_MTU_MAX) ? fm : TS_MTU_DERP_DEFAULT;
+    tailscale_mtu_update();
 }
 
 ts_mtu_state_t tailscale_mtu_get(void)

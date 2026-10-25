@@ -20,6 +20,7 @@ static const char *TAG = "wifi_nets";
  * in PSRAM .bss (CONFIG_SPIRAM_ALLOW_BSS_SEG_EXTERNAL_MEMORY). Only task
  * context uses them, never an ISR or IRAM code. */
 EXT_RAM_BSS_ATTR static wifi_network_t s_nets[WIFI_NETWORKS_MAX];
+EXT_RAM_BSS_ATTR static wifi_network_t s_next[WIFI_NETWORKS_MAX];   /* staging for set_all */
 static int            s_count = 0;
 static bool           s_loaded = false;
 
@@ -195,28 +196,27 @@ esp_err_t wifi_networks_set_all(const wifi_network_t *arr, int count)
     if (count < 0) count = 0;
     if (count > WIFI_NETWORKS_MAX) count = WIFI_NETWORKS_MAX;
 
-    /* Rebuild the cache: copy in valid entries (non-empty SSID), pad the
-     * tail with zeros. */
-    clear_cache();
+    /* Build the new table (valid entries with a non-empty SSID, zero
+     * padded) and publish it to the cache only once NVS holds it, so a
+     * failed save leaves the running list unchanged. */
+    memset(s_next, 0, sizeof s_next);
+    int next_count = 0;
     for (int i = 0; i < count; i++) {
         if (!arr[i].ssid[0]) continue;
-        memcpy(&s_nets[s_count], &arr[i], sizeof s_nets[0]);
-        s_nets[s_count].valid = 1;
-        s_count++;
+        memcpy(&s_next[next_count], &arr[i], sizeof s_next[0]);
+        s_next[next_count].valid = 1;
+        next_count++;
     }
 
-    nvs_handle_t nvs;
-    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
-    if (err != ESP_OK) return err;
-    err = nvs_set_blob(nvs, NVS_KEY, s_nets, sizeof s_nets);
-    if (err == ESP_OK) err = nvs_commit(nvs);
-    nvs_close(nvs);
-
+    /* Through nvs_params so a settings transaction covers the table. */
+    esp_err_t err = nvs_param_set_blob(NVS_KEY, s_next, sizeof s_next);
     if (err == ESP_OK) {
+        memcpy(s_nets, s_next, sizeof s_nets);
+        s_count = next_count;
+        s_loaded = true;
         ESP_LOGI(TAG, "saved %d network(s) to NVS", s_count);
     } else {
         ESP_LOGE(TAG, "save failed: %s", esp_err_to_name(err));
     }
-    s_loaded = true;
     return err;
 }

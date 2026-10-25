@@ -7,6 +7,7 @@
  */
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include "esp_err.h"
@@ -46,6 +47,32 @@ esp_err_t   nvs_param_erase(const char *key);
 
 /* Erase every key in the namespace (factory-reset style). */
 esp_err_t   nvs_param_erase_all(void);
+
+/* Binary params. get: out_len is in/out like nvs_get_blob; out may be NULL
+ * to query the stored size. */
+esp_err_t   nvs_param_get_blob(const char *key, void *out, size_t *out_len);
+esp_err_t   nvs_param_set_blob(const char *key, const void *data, size_t len);
+
+/* Settings transactions: make a save that touches several keys all or
+ * nothing. Between begin and end, every nvs_param_set_* / nvs_param_erase
+ * made by the calling task first records the key's previous value (or its
+ * absence) in an undo journal stored in NVS, then writes. end(true) drops
+ * the journal; end(false), or any failed write inside the transaction,
+ * restores every recorded key. A journal left by a power loss is undone by
+ * nvs_param_txn_recover() at the next boot.
+ *
+ * Nesting by the owning task is allowed (only the outermost end decides).
+ * Writes from other tasks are not journaled and do not wait. Bounded: at
+ * most NVS_PARAM_TXN_MAX_BYTES of previous values; a write that would not
+ * fit fails (ESP_ERR_NO_MEM) and so rolls the transaction back. Only keys
+ * of this namespace written through this API are covered. */
+#define NVS_PARAM_TXN_MAX_BYTES 6144
+esp_err_t   nvs_param_txn_begin(void);
+esp_err_t   nvs_param_txn_end(bool keep);
+/* Mark the current transaction failed (e.g. a non-NVS step failed). */
+void        nvs_param_txn_fail(void);
+/* Call once at boot after nvs_flash_init(), before settings are read. */
+esp_err_t   nvs_param_txn_recover(void);
 
 #ifdef __cplusplus
 }

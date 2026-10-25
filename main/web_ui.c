@@ -827,6 +827,27 @@ static void nvs_save_u32(const char *key, uint32_t value) {
     }
 }
 
+/* A save handler's NVS writes form one settings transaction (undo
+ * journal, see nvs_params.h): either every key of the request is stored or
+ * none is, also across a power cut. Live state is applied only after
+ * save_txn_end() reports the writes kept. */
+static bool save_txn_begin(void)
+{
+    esp_err_t err = nvs_param_txn_begin();
+    if (err != ESP_OK) {
+        ESP_LOGE("web_ui", "settings transaction unavailable: %s", esp_err_to_name(err));
+        nvs_save_record_err("txn_undo", err);
+    }
+    return err == ESP_OK;
+}
+
+static bool save_txn_end(void)
+{
+    esp_err_t err = nvs_param_txn_end(s_save_err.count == 0);
+    if (err != ESP_OK && s_save_err.count == 0) nvs_save_record_err("txn_undo", err);
+    return err == ESP_OK;
+}
+
 static void save_str_if_present(const cJSON *obj, const char *json_key, const char *nvs_key)
 {
     const cJSON *v = cJSON_GetObjectItem(obj, json_key);
@@ -1036,6 +1057,15 @@ static esp_err_t network_save_handler(httpd_req_t *req)
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid JSON");
         return ESP_FAIL;
     }
+    if (!save_txn_begin()) {
+        cJSON_Delete(root);
+        return send_save_response(req);
+    }
+    /* Live changes wait until every write of the request is kept. */
+    int apply_ttl = -1, apply_auto_off = -1, apply_relay_en = -1;
+    bool apply_relay_up = false, ap_seen = false;
+    uint32_t relay_up_nbo = 0;
+    char old_cidr[32] = "";
 
     /* networks[] — preferred shape. Replaces the WHOLE list. Each entry
      * may omit `password` (or leave it empty) to keep the stored
@@ -1150,7 +1180,7 @@ static esp_err_t network_save_handler(httpd_req_t *req)
         if (v < 0)   v = 0;
         if (v > 255) v = 255;
         nvs_save_u8("sta_ttl", (uint8_t)v);
-        netif_hooks_set_sta_ttl((uint8_t)v);
+        apply_ttl = v;
     }
 
     cJSON *ap = cJSON_GetObjectItem(root, "ap");
@@ -1158,7 +1188,7 @@ static esp_err_t network_save_handler(httpd_req_t *req)
         /* Snapshot the AP CIDR BEFORE the save so we can swap it out of
          * ts_advertise_routes after — keeps operator-added manual
          * routes intact and just maintains the auto-AP entry. */
-        char old_cidr[32];
+        ap_seen = true;
         compute_ap_cidr_from_nvs(old_cidr, sizeof old_cidr);
 
         save_str_if_present(ap, "ssid",     "ap_ssid");
@@ -1175,57 +1205,56 @@ static esp_err_t network_save_handler(httpd_req_t *req)
         const cJSON *auto_off_j = cJSON_GetObjectItem(ap, "auto_off_when_connected");
         if (cJSON_IsBool(auto_off_j)) {
             bool auto_off = cJSON_IsTrue(auto_off_j);
-            esp_err_t policy_err = nvs_param_set_u8("ap_auto_off", auto_off ? 1 : 0);
-            nvs_save_record_err("ap_auto_off", policy_err);
-            if (policy_err == ESP_OK) wifi_ap_policy_set_auto_off(auto_off);
+            nvs_save_u8("ap_auto_off", auto_off ? 1 : 0);
+            apply_auto_off = auto_off;
         }
 
-        /* DNS relay — live apply (no restart needed; the forwarder
-         * picks up enable/upstream right away, and we re-run
-         * softap_set_dns_addr so the DHCP-advertised resolver flips
-         * for new lease requests). */
+        /* DNS relay (its own namespace, outside the transaction): applied
+         * and stored only once the rest of the request is kept. The relay
+         * task re-runs softap on health transitions, so no direct
+         * softap_set_dns_addr() here (a second DHCP-server restart would
+         * knock newly-leased clients off their DNS-server entry). */
         const cJSON *dr = cJSON_GetObjectItem(ap, "dns_relay");
-        bool dns_relay_touched = false;
         if (cJSON_IsObject(dr)) {
             const cJSON *en = cJSON_GetObjectItem(dr, "enabled");
-            if (cJSON_IsBool(en)) {
-                dns_relay_set_enabled(cJSON_IsTrue(en));
-                dns_relay_touched = true;
-            }
+            if (cJSON_IsBool(en)) apply_relay_en = cJSON_IsTrue(en);
             const cJSON *up = cJSON_GetObjectItem(dr, "upstream");
             if (cJSON_IsString(up)) {
-                uint32_t nbo = 0;
+                relay_up_nbo = 0;
                 if (up->valuestring[0]) {
                     ip4_addr_t a;
-                    if (ip4addr_aton(up->valuestring, &a)) nbo = a.addr;
+                    if (ip4addr_aton(up->valuestring, &a)) relay_up_nbo = a.addr;
                 }
-                dns_relay_set_upstream(nbo);
-                dns_relay_touched = true;
+                apply_relay_up = true;
             }
         }
-        /* No direct softap_set_dns_addr() here — the dns_relay task
-         * fires dns_relay_on_healthy / dns_relay_on_unhealthy on every
-         * health transition, and main.c's overrides re-run softap from
-         * there. Calling it both places would cause a second DHCP-server
-         * restart 12 s after the first and knock newly-leased clients
-         * off their fresh DNS-server entry. */
-        (void)dns_relay_touched;
+    }
 
-        char new_cidr[32];
-        char proposed[512];
-        proposed[0] = '\0';
-        compute_ap_cidr_from_nvs(new_cidr, sizeof new_cidr);
-        bool offer = false;
-        if (!tailscale_advertise_ap)
-            maintain_ap_cidr_in_routes(old_cidr, new_cidr, &offer,
-                                       proposed, sizeof proposed);
-        if (offer) {
-            /* Stash proposal for the response — the SPA confirms with
-             * the operator and POSTs proposed_routes back to
-             * /api/tailscale. */
-            cJSON_AddStringToObject(root, "_ap_cidr_offer", new_cidr);
-            cJSON_AddStringToObject(root, "_proposed_routes", proposed);
+    if (save_txn_end()) {
+        if (apply_ttl >= 0) netif_hooks_set_sta_ttl((uint8_t)apply_ttl);
+        if (apply_auto_off >= 0) wifi_ap_policy_set_auto_off(apply_auto_off != 0);
+        if (apply_relay_en >= 0) dns_relay_set_enabled(apply_relay_en != 0);
+        if (apply_relay_up) dns_relay_set_upstream(relay_up_nbo);
+        if (ap_seen) {
+            char new_cidr[32];
+            char proposed[512];
+            proposed[0] = '\0';
+            compute_ap_cidr_from_nvs(new_cidr, sizeof new_cidr);
+            bool offer = false;
+            if (!tailscale_advertise_ap)
+                maintain_ap_cidr_in_routes(old_cidr, new_cidr, &offer,
+                                           proposed, sizeof proposed);
+            if (offer) {
+                /* Stash proposal for the response — the SPA confirms with
+                 * the operator and POSTs proposed_routes back to
+                 * /api/tailscale. */
+                cJSON_AddStringToObject(root, "_ap_cidr_offer", new_cidr);
+                cJSON_AddStringToObject(root, "_proposed_routes", proposed);
+            }
         }
+    } else {
+        /* Nothing was kept: the Wi-Fi list cache follows NVS again. */
+        wifi_networks_init();
     }
 
     cJSON *resp_json = cJSON_CreateObject();
@@ -3438,6 +3467,11 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
      * returned by the GET, and POSTing it with an empty string clears
      * the credential. */
     const cJSON *s = cJSON_GetObjectItem(root, "settings");
+    /* 4via6 is validated with the rest before anything is stored. */
+    bool have_v6 = false, v6_enabled = false;
+    const char *v6_lan = "";
+    uint16_t v6_site = 0;
+    fourvia6_status_t v6_current;
     if (cJSON_IsObject(s)) {
         /* Acting as an exit node and consuming another exit node at the same
          * time would route received Internet traffic straight back into the
@@ -3496,6 +3530,34 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
             return ESP_FAIL;
         }
 
+        const cJSON *v6j = cJSON_GetObjectItem(s, "fourvia6");
+        if (cJSON_IsObject(v6j)) {
+            fourvia6_get_status(&v6_current);
+            const cJSON *en = cJSON_GetObjectItem(v6j, "enabled");
+            const cJSON *lan = cJSON_GetObjectItem(v6j, "lan_cidr");
+            const cJSON *site = cJSON_GetObjectItem(v6j, "site_id");
+            v6_enabled = cJSON_IsBool(en) ? cJSON_IsTrue(en) : v6_current.enabled;
+            v6_lan = cJSON_IsString(lan) ? lan->valuestring : v6_current.lan_cidr;
+            int site4 = cJSON_IsNumber(site) ? site->valueint : v6_current.site_id;
+            char error[96] = "invalid 4via6 settings";
+            if (site4 < 0 || site4 > 65535
+                || fourvia6_check_config(v6_enabled, v6_lan, error, sizeof error) != ESP_OK) {
+                cJSON_Delete(root);
+                httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, error);
+                return ESP_FAIL;
+            }
+            v6_site = (uint16_t)site4;
+            have_v6 = true;
+        }
+    }
+
+    if (!save_txn_begin()) {
+        cJSON_Delete(root);
+        return send_save_response(req);
+    }
+    bool v6_written = false, mtu_written = false;
+    if (cJSON_IsObject(s)) {
+
         const cJSON *enabled = cJSON_GetObjectItem(s, "enabled");
         if (cJSON_IsBool(enabled)) {
             nvs_save_int("ts_enabled", cJSON_IsTrue(enabled) ? 1 : 0);
@@ -3506,49 +3568,6 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
         save_str_if_present(s, "ipn_version",      "ts_ipn_ver");
         save_str_if_present(s, "advertise_routes", "ts_routes");
 
-        /* tailscale_init only reads these globals at boot, so the
-         * /api/tailscale GET that immediately follows this POST would
-         * still serialise the stale value. Mirror the just-saved
-         * strings back into the heap-allocated globals so the next
-         * read-back sees the new state without waiting for a reboot. */
-        #define _TS_REFRESH_STR(json_key, global_var)                       \
-            do {                                                            \
-                const cJSON *_v = cJSON_GetObjectItem(s, json_key);         \
-                if (cJSON_IsString(_v)) {                                   \
-                    free(global_var);                                       \
-                    global_var = strdup(_v->valuestring);                   \
-                }                                                           \
-            } while (0)
-        #define _TS_REFRESH_BOOL(json_key, global_var)                      \
-            do {                                                            \
-                const cJSON *_v = cJSON_GetObjectItem(s, json_key);         \
-                if (cJSON_IsBool(_v)) global_var = cJSON_IsTrue(_v) ? 1 : 0;\
-            } while (0)
-        #define _TS_REFRESH_NUM(json_key, global_var)                       \
-            do {                                                            \
-                const cJSON *_v = cJSON_GetObjectItem(s, json_key);         \
-                if (cJSON_IsNumber(_v)) global_var = (int32_t)_v->valuedouble; \
-            } while (0)
-
-        _TS_REFRESH_STR ("auth_key",                tailscale_auth_key);
-        _TS_REFRESH_STR ("hostname",                tailscale_hostname);
-        _TS_REFRESH_STR ("login_server",            tailscale_login_server);
-        _TS_REFRESH_STR ("ipn_version",             tailscale_ipn_version);
-        _TS_REFRESH_BOOL("advertise_ap",            tailscale_advertise_ap);
-        _TS_REFRESH_STR ("advertise_routes",        tailscale_advertise_routes);
-        _TS_REFRESH_BOOL("enabled",                 tailscale_enabled);
-        _TS_REFRESH_NUM ("max_peers",               tailscale_max_peers);
-        _TS_REFRESH_NUM ("default_derp_region",     tailscale_default_derp_region);
-        _TS_REFRESH_NUM ("netcheck_threshold_ms",   tailscale_netcheck_threshold_ms);
-        _TS_REFRESH_BOOL("netcheck_override",       tailscale_netcheck_override);
-        _TS_REFRESH_BOOL("lan_bypass",              tailscale_lan_bypass);
-        _TS_REFRESH_BOOL("accept_routes",           tailscale_accept_routes);
-        _TS_REFRESH_BOOL("snat_subnet_routes",      tailscale_snat_subnet_routes);
-        _TS_REFRESH_BOOL("advertise_exit_node",     tailscale_advertise_exit_node);
-
-        #undef _TS_REFRESH_STR
-        #undef _TS_REFRESH_BOOL
-        #undef _TS_REFRESH_NUM
         save_int_if_present(s, "max_peers",        "ts_maxpeers");
         save_int_if_present(s, "default_derp_region",   "ts_def_derp");
         save_int_if_present(s, "netcheck_threshold_ms", "ts_nc_thr");
@@ -3586,24 +3605,13 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
             }
         }
 
-        const cJSON *v6j = cJSON_GetObjectItem(s, "fourvia6");
-        if (cJSON_IsObject(v6j)) {
-            fourvia6_status_t current;
-            fourvia6_get_status(&current);
-            const cJSON *en = cJSON_GetObjectItem(v6j, "enabled");
-            const cJSON *lan = cJSON_GetObjectItem(v6j, "lan_cidr");
-            const cJSON *site = cJSON_GetObjectItem(v6j, "site_id");
-            bool enabled4 = cJSON_IsBool(en) ? cJSON_IsTrue(en) : current.enabled;
-            const char *lan4 = cJSON_IsString(lan) ? lan->valuestring : current.lan_cidr;
-            int site4 = cJSON_IsNumber(site) ? site->valueint : current.site_id;
-            char error[96] = "invalid 4via6 settings";
-            if (site4 < 0 || site4 > 65535
-                || fourvia6_set_config(enabled4, lan4, (uint16_t)site4,
-                                       error, sizeof error) != ESP_OK) {
-                cJSON_Delete(root);
-                httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, error);
-                return ESP_FAIL;
-            }
+        /* Modules that apply live are stored last, only while every
+         * earlier write succeeded, and reloaded if the save is undone. */
+        if (have_v6 && s_save_err.count == 0) {
+            char error[96];
+            esp_err_t v6_err = fourvia6_set_config(v6_enabled, v6_lan, v6_site, error, sizeof error);
+            nvs_save_record_err("ts_4v6_en", v6_err);
+            v6_written = v6_err == ESP_OK;
         }
     }
 
@@ -3627,7 +3635,62 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
             int v = (int)fm->valuedouble;
             if (v >= TS_MTU_MIN && v <= TS_MTU_MAX) fixed_mtu = (uint16_t)v;
         }
-        tailscale_mtu_set(mode, fixed_mtu);
+        if (s_save_err.count == 0) {
+            esp_err_t mtu_err = tailscale_mtu_set(mode, fixed_mtu);
+            nvs_save_record_err("ts_mtu", mtu_err);
+            mtu_written = mtu_err == ESP_OK;
+        }
+    }
+
+    if (save_txn_end()) {
+        if (cJSON_IsObject(s)) {
+            /* tailscale_init only reads these globals at boot, so the
+             * /api/tailscale GET that immediately follows this POST would
+             * still serialise the stale value. Mirror the just-saved
+             * strings back into the heap-allocated globals so the next
+             * read-back sees the new state without waiting for a reboot. */
+            #define _TS_REFRESH_STR(json_key, global_var)                       \
+                do {                                                            \
+                    const cJSON *_v = cJSON_GetObjectItem(s, json_key);         \
+                    if (cJSON_IsString(_v)) {                                   \
+                        free(global_var);                                       \
+                        global_var = strdup(_v->valuestring);                   \
+                    }                                                           \
+                } while (0)
+            #define _TS_REFRESH_BOOL(json_key, global_var)                      \
+                do {                                                            \
+                    const cJSON *_v = cJSON_GetObjectItem(s, json_key);         \
+                    if (cJSON_IsBool(_v)) global_var = cJSON_IsTrue(_v) ? 1 : 0;\
+                } while (0)
+            #define _TS_REFRESH_NUM(json_key, global_var)                       \
+                do {                                                            \
+                    const cJSON *_v = cJSON_GetObjectItem(s, json_key);         \
+                    if (cJSON_IsNumber(_v)) global_var = (int32_t)_v->valuedouble; \
+                } while (0)
+
+            _TS_REFRESH_STR ("auth_key",                tailscale_auth_key);
+            _TS_REFRESH_STR ("hostname",                tailscale_hostname);
+            _TS_REFRESH_STR ("login_server",            tailscale_login_server);
+            _TS_REFRESH_STR ("ipn_version",             tailscale_ipn_version);
+            _TS_REFRESH_BOOL("advertise_ap",            tailscale_advertise_ap);
+            _TS_REFRESH_STR ("advertise_routes",        tailscale_advertise_routes);
+            _TS_REFRESH_BOOL("enabled",                 tailscale_enabled);
+            _TS_REFRESH_NUM ("max_peers",               tailscale_max_peers);
+            _TS_REFRESH_NUM ("default_derp_region",     tailscale_default_derp_region);
+            _TS_REFRESH_NUM ("netcheck_threshold_ms",   tailscale_netcheck_threshold_ms);
+            _TS_REFRESH_BOOL("netcheck_override",       tailscale_netcheck_override);
+            _TS_REFRESH_BOOL("lan_bypass",              tailscale_lan_bypass);
+            _TS_REFRESH_BOOL("accept_routes",           tailscale_accept_routes);
+            _TS_REFRESH_BOOL("snat_subnet_routes",      tailscale_snat_subnet_routes);
+            _TS_REFRESH_BOOL("advertise_exit_node",     tailscale_advertise_exit_node);
+
+            #undef _TS_REFRESH_STR
+            #undef _TS_REFRESH_BOOL
+            #undef _TS_REFRESH_NUM
+        }
+    } else {
+        if (v6_written) fourvia6_init();
+        if (mtu_written) tailscale_mtu_reload();
     }
 
     cJSON_Delete(root);
@@ -3863,18 +3926,23 @@ static esp_err_t system_save_handler(httpd_req_t *req)
     }
     bool web_port_changed = false;
     const cJSON *wp = cJSON_GetObjectItem(root, "web_port");
+    /* Validate range before converting: large JSON numbers must never
+     * enter an out-of-range floating-point-to-integer conversion. */
+    if (wp && (!cJSON_IsNumber(wp) || !(wp->valuedouble >= 1 && wp->valuedouble <= 65535) ||
+               wp->valuedouble != (double)(uint16_t)wp->valuedouble)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                            "web_port must be a whole number from 1 to 65535");
+        return ESP_FAIL;
+    }
+    if (!save_txn_begin()) {
+        cJSON_Delete(root);
+        return send_save_response(req);
+    }
     if (wp) {
-        /* Validate range before converting: large JSON numbers must never
-         * enter an out-of-range floating-point-to-integer conversion. */
-        if (!cJSON_IsNumber(wp) || !(wp->valuedouble >= 1 && wp->valuedouble <= 65535) ||
-            wp->valuedouble != (double)(uint16_t)wp->valuedouble) {
-            cJSON_Delete(root);
-            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
-                                "web_port must be a whole number from 1 to 65535");
-            return ESP_FAIL;
-        }
         esp_err_t port_err = web_ui_save_port((uint16_t)wp->valuedouble, &web_port_changed);
         if (port_err == ESP_ERR_INVALID_STATE) {
+            (void)nvs_param_txn_end(false);     /* nothing written yet */
             cJSON_Delete(root);
             httpd_resp_set_status(req, "409 Conflict");
             return httpd_resp_sendstr(req, "Web UI port conflicts with a TCP forwarding rule or PeerAPI listener");
@@ -3906,8 +3974,6 @@ static esp_err_t system_save_handler(httpd_req_t *req)
         }
         free(cur_tz);
         nvs_save_str("tz", tz_j->valuestring);
-        setenv("TZ", tz_j->valuestring[0] ? tz_j->valuestring : "UTC0", 1);
-        tzset();
     }
 
     /* Web-session idle timeout (seconds). Persisted under NVS "auth_to_s".
@@ -3920,8 +3986,6 @@ static esp_err_t system_save_handler(httpd_req_t *req)
         uint32_t v = (uint32_t)st->valuedouble;
         v = session_timeout_clamp(v);
         nvs_save_u32("auth_to_s", v);
-        s_session_timeout_s = v;
-        session_extend_all_alive();
     }
 
     /* Web password gate. This switch does not delete the stored password:
@@ -3929,25 +3993,47 @@ static esp_err_t system_save_handler(httpd_req_t *req)
      * is ready if the operator enables the web gate again. */
     const cJSON *wa = cJSON_GetObjectItem(root, "web_auth_enabled");
     if (cJSON_IsBool(wa)) {
-        bool enabled = cJSON_IsTrue(wa);
-        nvs_save_u8("web_auth_en", enabled ? 1 : 0);
-        s_web_auth_enabled = enabled;
+        nvs_save_u8("web_auth_en", cJSON_IsTrue(wa) ? 1 : 0);
     }
 
     /* TX-power override — clamp + persist + apply live. 0 disables the
      * override (next boot will skip the call and let the IDF default
      * stand). */
     const cJSON *tx_j = cJSON_GetObjectItem(root, "tx_power");
+    int tx_power = -1;
     if (cJSON_IsNumber(tx_j)) {
         int v = (int)tx_j->valuedouble;
         if (v < 0)  v = 0;
         if (v > 84) v = 84;
         if (v != 0 && v < 8) v = 8;        /* IDF rejects values below 8 */
         nvs_save_u8("tx_pwr", (uint8_t)v);
-        if (v >= 8) esp_wifi_set_max_tx_power((int8_t)v);
+        tx_power = v;
     }
 
-    if (ps_j) nvs_save_record_err("wifi_ps", wifi_power_save_set(cJSON_IsTrue(ps_j)));
+    /* Modem sleep applies live while it saves (and reverts itself if its
+     * write fails), so it runs last and only while every write succeeded. */
+    bool ps_applied = false;
+    if (ps_j && s_save_err.count == 0) {
+        esp_err_t ps_err = wifi_power_save_set(cJSON_IsTrue(ps_j));
+        nvs_save_record_err("wifi_ps", ps_err);
+        ps_applied = ps_err == ESP_OK;
+    }
+
+    if (save_txn_end()) {
+        if (cJSON_IsString(tz_j)) {
+            setenv("TZ", tz_j->valuestring[0] ? tz_j->valuestring : "UTC0", 1);
+            tzset();
+        }
+        if (cJSON_IsNumber(st)) {
+            s_session_timeout_s = session_timeout_clamp((uint32_t)st->valuedouble);
+            session_extend_all_alive();
+        }
+        if (cJSON_IsBool(wa)) s_web_auth_enabled = cJSON_IsTrue(wa);
+        if (tx_power >= 8) esp_wifi_set_max_tx_power((int8_t)tx_power);
+    } else {
+        tz_changed = web_port_changed = false;
+        if (ps_applied) (void)wifi_power_save_init();   /* back to the stored mode */
+    }
     cJSON_Delete(root);
     /* Surface any NVS write failures from the save path — see the
      * twin block in tailscale_save_handler. */
@@ -4253,22 +4339,18 @@ static esp_err_t system_secrets_post_handler(httpd_req_t *req)
     }
 
     const cJSON *ntfy_token = cJSON_GetObjectItemCaseSensitive(root, "ntfy_token");
-    if (ntfy_token) {
-        ntfy_integration_config_t ntfy;
-        ntfy_integration_get_config(&ntfy);
-        if (!cJSON_IsString(ntfy_token) || strlen(ntfy_token->valuestring) >= sizeof ntfy.token) {
-            cJSON_Delete(root);
-            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid ntfy token");
-            return ESP_FAIL;
-        }
-        strlcpy(ntfy.token, ntfy_token->valuestring, sizeof ntfy.token);
-        esp_err_t err = ntfy_integration_set_config(&ntfy);
-        if (err != ESP_OK) {
-            cJSON_Delete(root);
-            httpd_resp_send_err(req, err == ESP_ERR_INVALID_ARG ? HTTPD_400_BAD_REQUEST :
-                               HTTPD_500_INTERNAL_SERVER_ERROR, "ntfy token could not be restored");
-            return ESP_FAIL;
-        }
+    ntfy_integration_config_t ntfy_prev;
+    ntfy_integration_get_config(&ntfy_prev);
+    if (ntfy_token && (!cJSON_IsString(ntfy_token)
+                       || strlen(ntfy_token->valuestring) >= sizeof ntfy_prev.token)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid ntfy token");
+        return ESP_FAIL;
+    }
+    /* One settings transaction for the whole restore. */
+    if (!save_txn_begin()) {
+        cJSON_Delete(root);
+        return send_save_response(req);
     }
     save_str_if_present(root, "auth_key",    "ts_authkey");
     save_str_if_present(root, "ap_password", "ap_passwd");
@@ -4309,6 +4391,29 @@ static esp_err_t system_secrets_post_handler(httpd_req_t *req)
         }
         esp_err_t serr = wifi_networks_set_all(arr, n_out);
         if (serr != ESP_OK) nvs_save_record_err("wifi_nets", serr);
+    }
+
+    /* The ntfy token lives in the ntfy module's own record and applies at
+     * once: stored last, only while everything else succeeded, and put
+     * back if the rest is undone. */
+    bool ntfy_applied = false;
+    if (ntfy_token && s_save_err.count == 0) {
+        ntfy_integration_config_t ntfy = ntfy_prev;
+        strlcpy(ntfy.token, ntfy_token->valuestring, sizeof ntfy.token);
+        esp_err_t err = ntfy_integration_set_config(&ntfy);
+        if (err != ESP_OK) {
+            (void)nvs_param_txn_end(false);
+            wifi_networks_init();
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, err == ESP_ERR_INVALID_ARG ? HTTPD_400_BAD_REQUEST :
+                               HTTPD_500_INTERNAL_SERVER_ERROR, "ntfy token could not be restored");
+            return ESP_FAIL;
+        }
+        ntfy_applied = true;
+    }
+    if (!save_txn_end()) {
+        wifi_networks_init();
+        if (ntfy_applied) (void)ntfy_integration_set_config(&ntfy_prev);
     }
     cJSON_Delete(root);
 

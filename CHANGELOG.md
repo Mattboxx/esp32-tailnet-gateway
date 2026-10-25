@@ -7,8 +7,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 ## [3.0.2] — 2026-10-25
 
 A reliability fix, no new features. Settings and the partition layout are
-preserved; going back to 3.0.1 keeps them too. Same source as the tested
-3.0.2-beta.1 (not published) apart from the version number.
+preserved; going back to 3.0.1 keeps them too. Includes the fixes of the
+unpublished 3.0.2-beta.1 plus all-or-nothing saves for the remaining
+settings pages.
 
 ### Fixed
 
@@ -19,12 +20,26 @@ preserved; going back to 3.0.1 keeps them too. Same source as the tested
   group is now saved as one record, all or nothing; a damaged record means
   "off". Settings from 3.0.0/3.0.1 are migrated, and the old keys are still
   written so that a return to 3.0.1 keeps the settings.
+- **The same could happen on the Network, Tailscale, System and MQTT pages,
+  in 4via6 settings and in a secrets restore.** These saves now form one
+  transaction: before each key is changed its previous value is recorded in
+  an undo journal in NVS; if any write fails nothing of the request is kept,
+  and a save cut short by a power loss is undone at the next start. Live
+  changes (time zone, session timeout, web password switch, transmit power,
+  modem sleep, AP auto-off, TTL, DNS relay, MTU, 4via6) are applied only
+  after the whole save succeeded. Previously a Tailscale save with an
+  invalid 4via6 subnet was refused only after the other Tailscale settings
+  had been written; it is now refused before anything is stored. A failed
+  Wi-Fi list save no longer changes the running list.
 
 ### Tested
 
 - Automated offline campaign on the release source, including new
   fault-injection tests of the actual storage code on a simulated NVS (a
-  failure at every write).
+  failure at every write) and of the undo journal (a simulated power cut
+  before every NVS operation of a save and again during the recovery).
+  Handler wiring is covered by build and code review, not by end-to-end
+  fault injection on each page.
 - On an N16R8 test board: settings saved by 3.0.1 were read correctly after
   the update, new settings survived a restart, and the previous firmware
   still read them after switching back to it; feature and page checks

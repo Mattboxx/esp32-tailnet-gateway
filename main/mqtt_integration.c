@@ -1054,7 +1054,11 @@ esp_err_t mqtt_integration_set_config(const mqtt_integration_config_t *config)
             && (!config->enabled
                 || !wol_parse_mac(config->broker_watchdog_wol_mac, watchdog_mac))))
         return ESP_ERR_INVALID_ARG;
-    esp_err_t err = nvs_param_set_u8("mqtt_en", config->enabled ? 1 : 0);
+    /* One settings transaction (nested in the caller's, if any): either
+     * every key below is stored or none is. */
+    esp_err_t err = nvs_param_txn_begin();
+    if (err != ESP_OK) return err;
+    err = nvs_param_set_u8("mqtt_en", config->enabled ? 1 : 0);
 #define SAVE_STR(key, field) do { if (err == ESP_OK) err = nvs_param_set_str((key), (field)); } while (0)
     SAVE_STR("mqtt_uri", config->uri);
     SAVE_STR("mqtt_user", config->username);
@@ -1067,6 +1071,8 @@ esp_err_t mqtt_integration_set_config(const mqtt_integration_config_t *config)
     if (err == ESP_OK) err = nvs_param_set_u16("mqtt_int", config->interval_seconds);
     if (err == ESP_OK) err = nvs_param_set_u8("mqtt_wdog", config->broker_watchdog_enabled ? 1 : 0);
     if (err == ESP_OK) err = nvs_param_set_u32("mqtt_wdto", config->broker_watchdog_timeout_seconds);
+    esp_err_t end = nvs_param_txn_end(err == ESP_OK);
+    if (err == ESP_OK) err = end;
     if (err != ESP_OK) return err;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     memcpy(&s_config, config, sizeof s_config);
