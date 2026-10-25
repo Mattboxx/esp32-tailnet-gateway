@@ -29,6 +29,9 @@ quad flash (N8R8, N16R8). Boards with 4 MB of flash stay on 2.x. See
    firmware, rewrites the boot loader and the partition table, and restarts
    into 3.x. It takes a few minutes.
 
+2.1.0 is the only bridge release: it always installs the newest stable 3.x,
+so there is no newer bridge to wait for.
+
 If anything fails before the last step, nothing changes and the bridge keeps
 running as a normal gateway; the card shows the reason. If 3.x does not
 start, the gateway returns to the bridge. **Do not cut the power during the

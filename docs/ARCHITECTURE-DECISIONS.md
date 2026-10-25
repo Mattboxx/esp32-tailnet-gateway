@@ -2,6 +2,58 @@
 
 Decisions are explicit, revisable with evidence and never remove approved scope.
 
+## ADR-033 — The 2.1.0 migration bridge is frozen (2026-10-25)
+
+Owner decision. The published 2.1.0 bridge stays the bridge release for 2.x
+gateways and is not rebuilt. It reads the GitHub release list when the owner
+starts the migration and installs the newest stable 3.x
+(`mig_pick_release`, main/layout_migration.c), so later 3.x releases need no
+new bridge while the 3.x partition table, asset names and boot loader
+contract stay compatible (3.0.0 to 3.0.2 share partitions.bin `8fbbff31…`).
+This follows from the code; the 2.1.0 → 3.0.2 path itself has not been run
+on a board (2.1.0 → 3.0.0-beta.1 was).
+
+Contract every stable 3.x release keeps for the frozen bridge: a plain
+`vX.Y.Z` tag (X ≥ 3), not draft or prerelease, among the 10 newest releases;
+uploaded `firmware.bin` ≤ 0x380000, `bootloader.bin` ≤ 0x8000 and
+`partitions.bin` ≤ 0xC00 bytes with GitHub sha256 digests; the release list
+under the bridge's 512 KiB buffer; the application image keeping the project
+name and reporting the tag's version; the 3.x partition table at the same
+place and size. `tools/check_release_list.py` (run before and after each
+publication) checks the list size and the assets of the release the bridge
+would pick (`tools/test_release_list.py`).
+
+With the 3.0.1+ sources the `esp32-s3-bridge` environment no longer fits a
+2.x OTA slot: 1,967,836 B > 1,966,080 B (+1,756 B, measured 2026-10-25). It
+is kept in platformio.ini for reference but is not part of the release
+process or the consolidated campaign.
+
+If a new bridge is ever required (a change of the 3.x layout, of the
+migration logic or of the release asset contract): build it from the bridge
+environment with the optional modules a migration does not use left out
+(for example SNMP, Dynamic DNS, Telegram/email), measure the image against
+the 2.x slot with margin, and qualify 2.x → bridge → newest 3.x on a board
+before publishing it as 2.1.x. Gateways still on 2.x can always move over USB
+keeping settings (Easy Install `UPDATE-KEEP-SETTINGS` or the browser
+installer with erase unticked), which does not use the bridge.
+
+## ADR-032 — Multi-key settings saves are one NVS transaction (2026-10-25)
+
+ESP-IDF NVS commits per key and has no multi-key transaction, so a save that
+touched several keys could be left partly stored after a write failure or a
+power cut. nvs_params keeps an undo journal (`txn_undo`: previous value or
+absence of each key, CRC-32, bounded to 6 KiB) written before each key's
+first write; a failed write or end(false) restores every key, and
+`nvs_param_txn_recover()` undoes a journal left by a power cut at boot before
+settings are read. A damaged journal is discarded, never applied. Save
+handlers validate everything before the first write and apply live state
+only after the save is kept; modules that apply while saving run last and
+are reloaded when the save is undone. Records already designed as one key
+(notifications, history and tailnet-name switches) stay single records.
+First boot is not wrapped (it also writes outside nvs_params) and keeps its
+ordered writes with `setup_done` last. Simulated power cuts and fault
+injection only; no physical power cut has been tested.
+
 ## ADR-031 — Diagnostic memory must not prevent VPN startup (2026-10-23)
 
 The full IRAM panic-reporting option moves reporting code and constants into
