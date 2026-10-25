@@ -1,10 +1,11 @@
 /* First-boot setup wizard in the real embedded Web UI against a mock gateway
  * that implements the setup API with Node's own X25519/AES-256-GCM: full
  * flow (BOOT-button pairing, password, scan, Wi-Fi test, tailnet, features,
- * finish), setup-code pairing with a wrong code, "another device is pairing",
- * no secret in any request body, and layout at phone/tablet/desktop widths in
- * every shipped browser language, wizard English-only (no page overflow, clipped controls, tiny targets or script
- * errors). Synthetic data only; no device.
+ * finish), Ethernet-only and SIM-only setups, setup-code pairing with a wrong
+ * code, "another device is pairing", no secret in any request body, the
+ * browser's language and time zone, and layout at phone/tablet/desktop widths
+ * in every shipped language (no page overflow, clipped controls, tiny targets
+ * or script errors). Synthetic data only; no device.
  * Run: NODE_PATH=<playwright> node tools/test_first_boot_ui.cjs [shots] */
 const { chromium } = require('playwright');
 const crypto = require('node:crypto');
@@ -18,6 +19,8 @@ const SPKI = Buffer.from('302a300506032b656e032100', 'hex');
 const LABEL = Buffer.from('mattboxx-tailnet-gateway-setup-v1');
 const SECRETS = { admin: 'Blue-Lantern-42-river', wifi: 'home-wifi-passphrase-9', key: 'synthetic-headscale-preauth-0123456789' };
 const shots = process.argv[2];
+/* Every shipped language (main/i18n/languages.json) plus English. */
+const LOCALES = ['en-US'].concat(Object.keys(require('../main/i18n/languages.json')).map(c => ({ it: 'it-IT', es: 'es-ES', zh: 'zh-CN', fr: 'fr-FR', de: 'de-DE' })[c] || c));
 
 function mockGateway(opts = {}) {
   const g = { sid: '', key: null, state: 'none', seq: 0, wifi: 'idle', polls: 0, bodies: [], finish: null, busy: !!opts.busy, codeFails: 0 };
@@ -34,7 +37,7 @@ function mockGateway(opts = {}) {
       case '/api/setup/state': {
         const mine = sidHeader && sidHeader === g.sid;
         const out = { setup: true, setup_ssid: 'ESP32-Tailnet-Setup-1A2B', default_ap_ssid: 'ESP32-Tailnet-1A2B', version: 'synthetic', lan_name: 'esp32-tailnet-1a2b',
-          session: mine ? g.state : 'none', other_pairing: false, code_locked: false, finished: !!g.finish };
+          session: mine ? g.state : 'none', other_pairing: false, code_locked: false, finished: !!g.finish, uplinks: ['wifi', 'ethernet', 'cellular'] };
         if (mine && g.state === 'claimed') {
           if (g.wifi === 'testing' && ++g.polls >= 2) g.wifi = 'ok';
           out.wifi = { state: g.wifi };
@@ -74,7 +77,7 @@ function mockGateway(opts = {}) {
         catch (e) { return send(403, { error: 'seal' }); }
         g.seq = m.seq;
         if (cmd.action === 'wifi_test') { g.wifi = 'testing'; g.polls = 0; g.tested = cmd.wifi; return send(200, { wifi: 'testing' }); }
-        if (cmd.action === 'finish') { g.finish = cmd; return send(200, { ok: true, restart_in_s: 3, tailnet: !!cmd.tailnet.auth_key, lan_name: 'esp32-tailnet-1a2b' }); }
+        if (cmd.action === 'finish') { g.finish = cmd; return send(200, { ok: true, restart_in_s: 3, tailnet: !!cmd.tailnet.auth_key, lan_name: 'esp32-tailnet-1a2b', uplink: cmd.uplink.type }); }
         return send(400, { error: 'action' });
       }
       case '/api/network/scan': return send(200, { status: 'scanning' });
@@ -107,9 +110,68 @@ async function layout(page, touch) {
   }, touch);
 }
 
+/* Pairs a fresh page and sets the admin password: the wizard is on step 2. */
+async function paired(context) {
+  const page = await context.newPage(); const g = mockGateway(); await page.route('http://esp32.test/**', g.handle);
+  await page.goto('http://esp32.test/'); await page.waitForFunction(() => document.getElementById('fb-pair-status').textContent.includes('BOOT'));
+  g.press(); await page.waitForSelector('#fb-pw', { state: 'visible' });
+  await page.fill('#fb-pw', SECRETS.admin); await page.fill('#fb-pw2', SECRETS.admin); await page.click('#fb-next');
+  await page.waitForSelector('input[name="fb-up"][value="ethernet"]', { state: 'visible' });
+  return { page, g };
+}
+
+/* Ethernet without Wi-Fi, and a SIM as the only uplink: the right fields,
+ * safe defaults and what is sent. */
+async function uplinkFlows(context) {
+  let { page, g } = await paired(context);
+  await page.check('input[name="fb-up"][value="ethernet"]');
+  assert.equal(await page.isVisible('#fb-ssid'), false, 'Ethernet: Wi-Fi fields hidden');
+  assert.equal(await page.isVisible('#fb-wifi-backup-row'), true);
+  await page.click('#fb-eth-box summary');
+  await page.fill('#fb-eth-cs', '11');
+  assert.equal(await page.isEnabled('#fb-next'), false, 'a pin used twice is refused');
+  await page.fill('#fb-eth-cs', '10');
+  await page.click('#fb-next');                          /* no Wi-Fi test question without Wi-Fi */
+  await page.waitForSelector('#fb-key', { state: 'visible' });
+  await page.click('#fb-next');                          /* tailnet later is fine on Ethernet */
+  await page.waitForSelector('#fb-apname', { state: 'visible' });
+  assert.equal(await page.isVisible('#fb-share-lan-row'), false, 'home-network route needs a Wi-Fi test: offered later on Ethernet');
+  await page.check('#fb-roles input[value="subnet-router"]');
+  assert.equal(await page.isChecked('#fb-share-lan'), false);
+  await page.click('#fb-next'); await page.waitForSelector('#fb-summary dt');
+  assert.ok((await page.textContent('#fb-summary')).includes('Ethernet cable'));
+  await page.click('#fb-next'); await page.waitForSelector('#fb-done', { state: 'visible' });
+  assert.deepEqual(g.finish.uplink, { type: 'ethernet', ethernet: { sclk: 12, mosi: 11, miso: 13, cs: 10, intr: 14, rst: 9 } });
+  assert.deepEqual(g.finish.wifi, { ssid: '', password: '' }); assert.equal(g.finish.share_lan, false);
+  await page.close();
+
+  ({ page, g } = await paired(context));
+  await page.check('input[name="fb-up"][value="cellular"]');
+  assert.equal(await page.isVisible('#fb-apn'), true);
+  await page.fill('#fb-apn', 'internet'); await page.fill('#fb-simpin', '12');
+  assert.equal(await page.isEnabled('#fb-next'), false, 'short SIM PIN refused');
+  await page.fill('#fb-simpin', '1234');
+  assert.equal(await page.isEnabled('#fb-next'), false, 'mobile data needs consent');
+  await page.check('#fb-data-ack');
+  await page.click('#fb-next'); await page.waitForSelector('#fb-key', { state: 'visible' });
+  assert.equal(await page.isEnabled('#fb-next'), false, 'SIM only: an auth key is required');
+  await page.fill('#fb-key', SECRETS.key);
+  await page.click('#fb-next'); await page.waitForSelector('#fb-apname', { state: 'visible' });
+  assert.equal(await page.isVisible('#fb-exit-row'), false, 'no exit node over mobile data');
+  await page.click('#fb-next'); await page.waitForSelector('#fb-summary dt');
+  const sum = await page.textContent('#fb-summary');
+  assert.ok(sum.includes('http://tailnet-gateway/') && !sum.includes('1234'), 'reached through the tailnet; PIN never shown');
+  await page.click('#fb-next'); await page.waitForSelector('#fb-done', { state: 'visible' });
+  assert.deepEqual(g.finish.uplink, { type: 'cellular', cellular: { tx: 17, rx: 18, pwrkey: -1, apn: 'internet', pin: '1234', roaming: false, data_ack: true } });
+  assert.equal(g.finish.exit_node, false);
+  assert.ok((await page.textContent('#fb-done-open')).includes('http://tailnet-gateway/'));
+  for (const b of g.bodies) assert.ok(!b.includes('"1234"') && !b.includes(SECRETS.key), 'SIM PIN and key only sealed');
+  await page.close();
+}
+
 async function flow(browser, [width, height, locale], failures, full) {
   const touch = width < 768;
-  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale });
+  const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale, timezoneId: 'Europe/Rome' });
   const page = await context.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message));
   const g = mockGateway(); await page.route('http://esp32.test/**', g.handle);
@@ -127,9 +189,14 @@ async function flow(browser, [width, height, locale], failures, full) {
     await page.waitForSelector('#firstBoot', { state: 'visible' });
     await page.waitForFunction(() => document.getElementById('fb-pair-status').textContent.includes('BOOT'));
     assert.equal(await page.isVisible('#authSetup'), false);
-    /* English-only by owner decision (flash budget), in every browser language. */
-    assert.equal((await page.textContent('#fb-title')).trim(), 'Welcome to ESP32 Tailnet Gateway');
-    assert.equal(await page.getAttribute('#firstBoot', 'lang'), 'en');
+    /* The wizard follows the browser language like the dashboard. */
+    const want = locale.split('-')[0];
+    await page.waitForFunction(w => document.documentElement.lang.split('-')[0] === w && !document.documentElement.classList.contains('i18n-wait'), want);
+    const title = (await page.textContent('#fb-title')).trim();
+    if (want === 'en') assert.equal(title, 'Welcome to ESP32 Tailnet Gateway');
+    else assert.notEqual(title, 'Welcome to ESP32 Tailnet Gateway', 'wizard title translated');
+    assert.equal(await page.getAttribute('#firstBoot', 'lang'), null);
+    assert.equal(await page.inputValue('#fb-lang'), want, 'language picker shows the language in use');
     assert.equal(await page.isEnabled('#fb-next'), false);
     await check(0);
     g.press();
@@ -187,7 +254,7 @@ async function flow(browser, [width, height, locale], failures, full) {
     await page.click('#fb-next');
     await page.waitForSelector('#fb-summary dt');
     const summaryText = await page.textContent('#fb-summary');
-    assert.ok(summaryText.includes('HomeNetwork'));
+    assert.ok(summaryText.includes('HomeNetwork') && summaryText.includes('Europe/Rome'), 'Wi-Fi and the browser time zone in the summary');
     assert.ok(summaryText.includes('http://192.168.1.77/') && summaryText.includes('http://esp32-tailnet-1a2b.local/'), 'address after the restart in the summary');
     for (const s of [...Object.values(SECRETS), await page.inputValue('#fb-appw')]) assert.ok(!summaryText.includes(s), 'secret in summary');
     await check(5);
@@ -196,6 +263,7 @@ async function flow(browser, [width, height, locale], failures, full) {
     assert.ok(g.finish, 'finish sent');
     assert.equal(g.finish.admin_password, SECRETS.admin);
     assert.deepEqual(g.finish.wifi, { ssid: 'HomeNetwork', password: SECRETS.wifi });
+    assert.deepEqual(g.finish.uplink, { type: 'wifi' }); assert.equal(g.finish.tz, 'CET-1CEST,M3.5.0,M10.5.0/3');
     assert.deepEqual(g.finish.tailnet, { auth_key: SECRETS.key, login_server: 'https://headscale.example.com', hostname: 'home-gateway' });
     assert.equal(g.finish.share_lan, true); assert.equal(g.finish.exit_node, false); assert.equal(g.finish.ap_recovery_only, true);
     assert.equal(g.finish.ap_ssid, 'ESP32-Tailnet-1A2B');
@@ -212,6 +280,7 @@ async function flow(browser, [width, height, locale], failures, full) {
     await check(5);
     if (errors.length) failures.push(`${where}: script errors ${[...new Set(errors)].slice(0, 3).join(' | ')}`);
     if (!full) return;
+    await uplinkFlows(context);
     // Setup-code pairing with one wrong code, on a fresh page.
     const p2 = await context.newPage(); const g2 = mockGateway(); await p2.route('http://esp32.test/**', g2.handle);
     await p2.goto('http://esp32.test/'); await p2.waitForSelector('#firstBoot', { state: 'visible' });
@@ -244,7 +313,7 @@ async function flow(browser, [width, height, locale], failures, full) {
   const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || 'chrome' });
   const failures = [];
   const runs = [[390, 844, 'en-US', true], [1440, 900, 'en-US', true]].concat(
-    ['en-US', 'it-IT', 'es-ES', 'zh-CN'].flatMap(l => [[320, 640, l], [768, 1024, l], [1920, 1080, l]]))
+    LOCALES.flatMap(l => [[320, 640, l], [768, 1024, l], [1920, 1080, l]]))
     .filter(r => !process.env.FB_LOCALE || r[2] === process.env.FB_LOCALE);
   try {
     for (const r of runs) await flow(browser, r, failures, r[3]);

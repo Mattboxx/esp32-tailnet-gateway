@@ -126,6 +126,19 @@ int main(void) {
     assert(!fb_check_auth_key("") && fb_check_auth_key("tskey") && fb_check_auth_key("tskey-auth with space") && !fb_check_auth_key("synthetic-preauth-0123456789"));
     assert(!fb_check_login_server("") && !fb_check_login_server("https://hs.example.com") && fb_check_login_server("ftp://x") && fb_check_login_server("https://a b"));
     assert(!fb_check_hostname("") && !fb_check_hostname("tailnet-gateway") && fb_check_hostname("-x") && fb_check_hostname("Upper") && fb_check_hostname("a_b"));
+    /* Internet connection chosen in setup. */
+    assert(!fb_check_uplink(NULL, true, false, false) && fb_check_uplink(NULL, false, false, false));      /* 3.0 pages: Wi-Fi */
+    assert(!fb_check_uplink("wifi", true, false, true) && fb_check_uplink("wifi", false, true, false));
+    assert(!fb_check_uplink("ethernet", false, false, true) && !fb_check_uplink("ethernet", true, true, false));   /* Wi-Fi optional */
+    assert(fb_check_uplink("cellular", false, false, false));                                            /* SIM alone needs a key */
+    assert(!fb_check_uplink("cellular", false, true, false) && !fb_check_uplink("cellular", true, false, false));
+    assert(fb_check_uplink("cellular", true, true, true));                                               /* no exit node on mobile data */
+    assert(fb_check_uplink("satellite", true, true, false) && fb_check_uplink("", true, true, false));
+    /* Time zone rules as the System page writes them. */
+    assert(!fb_check_tz(NULL) && !fb_check_tz("") && !fb_check_tz("CET-1CEST,M3.5.0,M10.5.0/3") && !fb_check_tz("<+0545>-5:45"));
+    assert(!fb_check_tz("ACST-9:30ACDT,M10.1.0,M4.1.0/3") && !fb_check_tz("UTC0"));
+    assert(fb_check_tz("1CET") && fb_check_tz("CET -1") && fb_check_tz("CET;rm") && fb_check_tz("CET\"x"));
+    char long_tz[80]; memset(long_tz, 'A', 79); long_tz[79] = 0; assert(fb_check_tz(long_tz));
     /* Hex helpers. */
     uint8_t h[2]; assert(!fb_hex_decode("0aFf", h, 2) && h[0] == 10 && h[1] == 255 && fb_hex_decode("0g00", h, 2) && fb_hex_decode("00", h, 2));
     char out[5]; fb_hex_encode(h, 2, out); assert(!strcmp(out, "0aff"));
