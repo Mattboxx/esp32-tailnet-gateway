@@ -14,6 +14,13 @@ guessed configuration. Stable 1.13 does not read any of these keys.
 | `eth_cfg` | eth_uplink.c | Ethernet pins/IP/preference | Ethernet off |
 | `svc_watch` | service_check.c | Service watch enable/notify/interval | watch off |
 | `ntfy_sysev` | ntfy_integration.c | system-events switch (separate so the ntfy v1 record keeps its flag mask) | events off |
+| `cell_cfg` | cell_uplink.c | cellular modem pins, APN, PIN, mode (3.0) | cellular off |
+| `hist_ev`, `hist_mx`, `hist_snap` | history.c | event history, trends, settings copy before updates (3.0) | each off |
+| `tsn_en`, `tsn_lan` | tailnet_names.c | tailnet names, LAN listener (3.0) | off |
+| `notify_cfg` | notify_channels.c | Telegram and email settings, write-only secrets (3.0) | both off |
+| `ntf_mlv` | notify_channels.c | email event choice (3.0.1; absent = the Telegram/shared choice of 3.0.0) | same as Telegram |
+| `ddns_cfg` | ddns.c | dynamic DNS provider, name, zone, write-only token/URL (3.0.1) | off |
+| `tz` | first_boot.c, web_ui.c | POSIX time zone, set by the setup from the browser (3.0.1) or in System | UTC |
 
 ## Downgrade to stable 1.13: read this first
 

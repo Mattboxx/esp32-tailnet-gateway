@@ -17,21 +17,39 @@ removed. A factory reset erases everything, so the setup returns.
 1. Power the gateway. Join the open Wi-Fi **ESP32-Tailnet-Setup-XXXX**
    (XXXX: last characters of the gateway's MAC address).
 2. The setup page opens by itself on most phones and PCs. If not, open
-   **http://192.168.4.1/**.
+   **http://192.168.4.1/**. It appears in the browser's language (English,
+   Italiano, Español, 简体中文, Français, Deutsch); the picker at the top
+   changes it.
 3. **Pair:** press the **BOOT** button on the board once. Without a reachable
    button, connect USB, open a serial console at 115200 baud and type the
    8-digit setup code printed there every 30 seconds.
 4. **Password:** choose the admin password (at least 8 characters).
-5. **Wi-Fi:** pick the home network from the scan, enter its password and
-   press *Test connection*. The setup Wi-Fi may drop for a moment while the
-   radio moves to the home channel; the phone rejoins and the page continues.
+5. **Internet:** choose how the gateway reaches the Internet; the choice
+   sets up the rest:
+   - **Wi-Fi:** pick the home network from the scan, enter its password and
+     press *Test connection*. The setup Wi-Fi may drop for a moment while the
+     radio moves to the home channel; the phone rejoins and the page continues.
+   - **Ethernet cable** (a wired W5500 module): the default wiring is filled
+     in and can be changed; the cable is used first, the address comes from
+     the router (DHCP). Wi-Fi can be added as a backup. Ethernet starts after
+     the restart at the end of setup.
+   - **Mobile network (SIM)** (a UART 4G/LTE modem, experimental): APN, SIM
+     PIN, wiring, roaming and a consent that mobile data is used. Alone, the
+     SIM is the uplink and the gateway is reached through the tailnet, so the
+     next step requires an auth key and no exit node is offered; with Wi-Fi
+     added, the SIM is the backup when Wi-Fi is out of range.
+   Only the connections included in the firmware are offered.
 6. **Tailnet:** paste an auth key (Tailscale, or Headscale with its URL), or
-   leave it empty and join later from the dashboard.
-7. **Features:** share the home network as a subnet route, share the
+   leave it empty and join later from the dashboard (not with a SIM alone).
+7. **Features:** share the home network as a subnet route (after a
+   successful Wi-Fi test; on Ethernet add it later on the Tailscale page),
+   share the
    gateway's own Wi-Fi, offer an exit node, keep the gateway Wi-Fi always on
    or only as a recovery network, its name and password, Simple or Advanced
    interface.
-8. **Finish:** the summary shows where the gateway will be after the restart.
+8. **Finish:** the summary shows the connection, where the gateway will be
+   after the restart and the time zone taken from the browser (saved for
+   event times and scheduled updates; change it later in System → General).
    It saves everything and restarts (about 30 seconds). Reconnect to the home
    Wi-Fi and open one of the links shown:
    - **http://192.168.x.y/**: the address the Wi-Fi test received. Routers
@@ -80,7 +98,8 @@ the BOOT button prove presence; they are not printed anywhere else.
   key ‖ browser public key). AAD: session id ‖ big-endian sequence.
 - Tests: `tools/test_first_boot.py` (actual C code with Python cryptography),
   `tools/test_setup_crypto.cjs` (page crypto against Node),
-  `tools/test_first_boot_ui.cjs` (wizard end to end, 4 languages, layouts).
+  `tools/test_first_boot_ui.cjs` (wizard end to end in every language,
+  Ethernet-only and SIM-only setups, layouts).
 - Hardware: the board used for development is configured and must not be
   erased, so the open-AP flow itself is not yet qualified on hardware; a spare
   or factory-reset board is needed (see QUALITY-GATE).

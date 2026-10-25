@@ -13,7 +13,7 @@
 > gateway while beginning the update and installs nothing. Fixed in v2.0.2.
 
 
-System → Firmware update now supports three independent workflows:
+System → Firmware → Firmware update supports three independent workflows:
 
 1. Upload a trusted local `firmware.bin`, as before.
 2. **Install latest update**: explicitly check GitHub, download the latest

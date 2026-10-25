@@ -1,6 +1,6 @@
 # Backup and restore
 
-System → **Configuration backup** downloads a JSON file generated in your
+System → Backup & reset → **Backup file** (*Download backup*) downloads a JSON file generated in your
 browser from the device's own settings APIs. Nothing is uploaded anywhere.
 
 ## What is included
@@ -20,7 +20,7 @@ settings, logs.
 
 ## Restore
 
-System → **Restore** applies the sections in order through the same validated
+System → Backup & reset → **Restore…** applies the sections in order through the same validated
 endpoints as the forms. Firewall lists are cleared and re-added in their
 original order. Encrypted secrets are decrypted first, so a wrong passphrase
 stops the restore before anything changes. A failing section stops with its
@@ -37,5 +37,7 @@ because a rule's exposure depends on today's network.
   [SERVICE-GATEWAY.md](SERVICE-GATEWAY.md).
 - Guided setups snapshot the settings they touch and offer *Restore previous
   settings* without reading secrets.
-- Profiles keep one rollback level (System → Configuration profile).
+- Profiles keep one rollback level (System → General → Configuration profile).
+- Settings copies (System → Backup & reset) keep up to three full copies on
+  the gateway itself, by hand or before each update; see [CHANGELOG](../CHANGELOG.md).
 - Physical NVS power-loss behavior during restore is not qualified.

@@ -4,6 +4,47 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.1] — beta 1, 2026-10-25
+
+Pre-release for testing. Everything new is off until you switch it on.
+
+### Added
+
+- **Dynamic DNS** back in the image (Network → Internet): DuckDNS, Cloudflare
+  or any HTTPS update URL. Cloudflare learns the public address from its own
+  trace endpoint when Tailscale has not seen it. Off until a provider is
+  chosen ([guide](docs/DDNS.md)).
+- **First boot asks how the gateway reaches the Internet:** Wi-Fi, an
+  Ethernet cable (W5500, default wiring filled in, cable first, Wi-Fi as an
+  optional backup) or a mobile network (SIM: APN, PIN, wiring, roaming, data
+  consent; alone it needs a Tailscale auth key and offers no exit node, with
+  Wi-Fi it is the backup). The time zone is taken from the browser.
+- **French and German**, and the first-boot setup in every language with a
+  language picker. All six languages cover every string of the UI.
+- **Status:** recent events and the optional features at a glance, each
+  linking to its settings.
+- **Profiles** also switch on the new features: Gateway adds a settings copy
+  before updates, Recovery the event history, IoT tailnet names for Wi-Fi
+  clients, Monitoring the event history and trends.
+
+### Changed
+
+- **System:** *Firmware* (installed firmware, updates, migration) and
+  *Backup & reset* (backup file, settings copies, reset) replace
+  Maintenance; old links still open Firmware.
+- **Telegram and email** have separate cards, each with its own Save, test
+  and event choice.
+- **Faster pages:** each language is a small cached script loaded only when
+  used (page about 156 KB instead of about 230 KB gzip), and an unchanged
+  page is answered with an empty 304.
+- Email errors say what to do first (sign-in required, app password, From
+  address refused), then the server's words.
+
+### Fixed
+
+- Phones: the bar with the page groups no longer covers the top of the page
+  while scrolling; focused fields and opened links stop below the header.
+
 ## [3.0.0] — 2026-10-25
 
 Stable platform release: 8 MB partition table for ESP32-S3 N8R8 and N16R8,

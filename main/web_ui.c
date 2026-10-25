@@ -113,6 +113,7 @@ static const char *TAG = "web_ui";
  * Python-helper route was chosen over ESP-IDF EMBED_TXTFILES. */
 extern const char   index_html_gz_start[];
 extern const size_t index_html_gz_len;
+extern const char   index_html_etag[];
 
 /* Browser-facing hardening.  The UI is intentionally a single embedded page,
  * so it needs no third-party frames, objects, forms, scripts or network
@@ -144,13 +145,19 @@ static esp_err_t index_handler(httpd_req_t *req)
         return first_boot_not_found(req, HTTPD_404_NOT_FOUND);
     }
     set_browser_security_headers(req);
+    /* The page is static per firmware and holds no secret: the browser may
+     * keep it but must ask every time (no-cache); the content hash answers
+     * "unchanged" with an empty 304, so a new firmware is never missed and an
+     * unchanged one is not sent again (about 150 KB, slow over a relay). */
+    httpd_resp_set_hdr(req, "Cache-Control", "no-cache");
+    httpd_resp_set_hdr(req, "ETag", index_html_etag);
+    char seen[40];
+    if (httpd_req_get_hdr_value_str(req, "If-None-Match", seen, sizeof seen) == ESP_OK && !strcmp(seen, index_html_etag)) {
+        httpd_resp_set_status(req, "304 Not Modified");
+        return httpd_resp_send(req, NULL, 0);
+    }
     httpd_resp_set_type(req, "text/html; charset=utf-8");
     httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
-    /* Without this the browser happily reuses last session's SPA HTML
-     * out of HTTP cache, so any client-side fix we ship requires the
-     * operator to force-refresh before it takes effect. The SPA is
-     * tiny and served from RAM — no reason to cache. */
-    httpd_resp_set_hdr(req, "Cache-Control", "no-cache, no-store, must-revalidate");
     return httpd_resp_send(req, index_html_gz_start, index_html_gz_len);
 }
 
