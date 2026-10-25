@@ -50,7 +50,7 @@ p, li { max-width: 72ch; }
 .top { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 92%, transparent); border-bottom: 1px solid var(--line); backdrop-filter: blur(8px); }
 .top-inner { max-width: var(--max); margin: 0 auto; padding: 10px 16px; display: flex; align-items: center; gap: 16px; }
 .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 650; white-space: nowrap; min-height: 44px; }
-.site-nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: 2px 14px; margin: 0; padding: 0; }
+.site-nav ul { list-style: none; display: flex; flex-wrap: wrap; gap: 2px 12px; margin: 0; padding: 0; }
 .site-nav a { color: var(--muted); text-decoration: none; font-size: 15px; padding: 6px 2px; display: inline-block; }
 .site-nav a:hover, .site-nav a[aria-current="page"] { color: var(--text); }
 .site-nav a[aria-current="page"] { box-shadow: inset 0 -2px 0 var(--accent); }
@@ -58,6 +58,11 @@ p, li { max-width: 72ch; }
 .tools button, .tools .gh { font: 14px var(--font); color: var(--text); background: var(--card); border: 1px solid var(--line);
   border-radius: 8px; padding: 6px 12px; cursor: pointer; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; }
 .tools .menu { display: none; }
+/* Ko-fi support: always in the sticky header (dark text on the Ko-fi colour, about 7:1). */
+.tools .kofi { font: 600 14px var(--font); color: #0A0F0C; background: #FF5E5B; border: 1px solid #FF5E5B; border-radius: 8px;
+  padding: 6px 12px; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tools .kofi:hover, .tools .kofi:focus-visible { background: #FF7D7A; border-color: #FF7D7A; }
+.tools .kofi svg { width: 18px; height: 18px; fill: currentColor; }
 .tools .icon { width: 44px; justify-content: center; padding: 0; }
 .icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .icon svg .fill { fill: currentColor; stroke: none; }
@@ -157,12 +162,20 @@ summary { cursor: pointer; font-weight: 600; }
   .tools .gh { display: none; }
   .brand span { font-size: 15px; }
 }
+/* The header row is tight: Ko-fi is a heart-only button below 1280 px and a
+ * text-only "Ko-fi" button above; GitHub stays in the footer below 900 px. */
+@media (max-width: 1279px) {
+  .tools .kofi { width: 44px; padding: 0; justify-content: center; }
+  .tools .kofi span { display: none; }
+}
+@media (min-width: 1280px) { .tools .kofi svg { display: none; } }
+@media (max-width: 899px) { .tools .gh { display: none; } }
 @media (max-width: 700px) {
   figure.diagram { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   figure.diagram img { min-width: 820px; max-width: none; }
   figure.diagram figcaption::after { content: " Swipe sideways to see the whole diagram."; }
 }
-@media (max-width: 359px) { .brand span { display: none; } }
+@media (max-width: 389px) { .brand span { display: none; } }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
 .release-note { margin: 0 0 2rem; padding: 1rem 1.2rem; border: 1px solid var(--line); border-left: 3px solid #1FC97A; border-radius: 12px; font-size: .94rem; line-height: 1.65; }
 .release-note strong { display: block; margin-bottom: .3rem; }
