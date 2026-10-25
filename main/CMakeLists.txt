@@ -155,9 +155,16 @@ list(GET _mtg_revs 0 _mtg_build_commit)
 list(GET _mtg_revs 1 _mtg_microlink_commit)
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     MTG_BUILD_COMMIT="${_mtg_build_commit}" MTG_MICROLINK_COMMIT="${_mtg_microlink_commit}")
-if(EXISTS "${_mtg_root}/.git/logs/HEAD")
-    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_mtg_root}/.git/logs/HEAD")
-endif()
+# Re-run on every commit. In a linked worktree .git is a file, so ask git for
+# the real directory: otherwise a commit that touches no configure input
+# would keep the previous commit id in the image.
+execute_process(COMMAND git -C "${_mtg_root}" rev-parse --absolute-git-dir
+                OUTPUT_VARIABLE _mtg_git_dir OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+foreach(_mtg_dep IN ITEMS "${_mtg_git_dir}/logs/HEAD" "${_mtg_git_dir}/HEAD" "${_mtg_root}/.git/logs/HEAD")
+    if(EXISTS "${_mtg_dep}")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_mtg_dep}")
+    endif()
+endforeach()
 
 # Address changes are announced from the GOT_IP handler (lan_name_uplink_up).
 target_compile_definitions(${COMPONENT_LIB} PRIVATE LWIP_MDNS_RESPONDER=1 MDNS_RESP_USENETIF_EXTCALLBACK=0)
