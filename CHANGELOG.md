@@ -4,9 +4,10 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.1] — beta 1, 2026-10-25
+## [3.0.1] — 2026-10-25
 
-Pre-release for testing. Everything new is off until you switch it on.
+Previously available as 3.0.1-beta.1. New optional services stay off until
+configured. Existing 3.x settings and the partition layout are preserved.
 
 ### Added
 
@@ -42,6 +43,8 @@ Pre-release for testing. Everything new is off until you switch it on.
 
 ### Fixed
 
+- Gzip response headers are retained on the main and first-boot pages instead
+  of displaying compressed bytes as text.
 - Phones: the bar with the page groups no longer covers the top of the page
   while scrolling; focused fields and opened links stop below the header.
 

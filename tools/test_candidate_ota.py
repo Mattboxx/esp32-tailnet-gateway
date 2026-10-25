@@ -14,12 +14,14 @@ from test_snmp_device import login
 
 
 def ota_target(diag, expected_running, protected, image_size):
-    """Reference two-slot layout guard; never guess on an unknown layout."""
+    """Explicit 2.x/3.x layouts; never infer an inactive slot's geometry."""
     rows = [p for p in diag.get('partitions', []) if p.get('name', '').startswith('ota_')]
     assert len(rows) == 2 and {p['name'] for p in rows} == {'ota_0','ota_1'}, 'Unknown OTA layout'
-    for row in rows:
-        assert row['offset'] == {'ota_0':0x20000,'ota_1':0x200000}[row['name']]
-        assert row['size'] == 0x1e0000 and 0 < image_size <= row['size']
+    actual = {row['name']: (row['offset'], row['size']) for row in rows}
+    known = ({'ota_0': (0x20000, 0x1e0000), 'ota_1': (0x200000, 0x1e0000)},
+             {'ota_0': (0x20000, 0x380000), 'ota_1': (0x3a0000, 0x380000)})
+    assert actual in known, 'Unknown or mixed OTA layout'
+    assert 0 < image_size <= min(row['size'] for row in rows), 'Image does not fit'
     running = [p for p in rows if p.get('running')]
     boot = [p for p in rows if p.get('bootnext')]
     assert len(running) == len(boot) == 1 and running[0] == boot[0], 'Pending/unknown boot selection'

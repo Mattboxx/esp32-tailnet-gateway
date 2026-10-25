@@ -1,5 +1,12 @@
 # Maintainer continuation
 
+Release preparation: **3.0.1**. Do not confuse the new stable-version build
+with published beta ec2596f. Owner-requested board-A qualification, memory
+comparison, backup, exact-image installation and publication gates are tracked
+in ignored `build/private-device/STABLE-301-IN-PROGRESS.md`. Stable publication
+is conditional on actual results; do not publish prepared files prematurely.
+The previous publication state below is history until that gate is completed.
+
 Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware v3.0.0 (stable; 2.1.0 migration bridge for 2.x).
 Published: **3.0.1-beta.1** (pre-release), tag at
 `ec2596fdf2a7e9ad039f65d8a4fe4140c80ed8e6`. Stable Latest, Main and Pages
