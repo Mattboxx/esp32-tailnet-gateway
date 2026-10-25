@@ -1,21 +1,18 @@
 # Maintainer continuation
 
-Release preparation: **3.0.1**. Do not confuse the new stable-version build
-with published beta ec2596f. Owner-requested board-A qualification, memory
-comparison, backup, exact-image installation and publication gates are tracked
-in ignored `build/private-device/STABLE-301-IN-PROGRESS.md`. Stable publication
-is conditional on actual results; do not publish prepared files prematurely.
-The previous publication state below is history until that gate is completed.
+Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v3.0.1**;
+the 2.1.0 migration bridge remains available for 2.x installations.
+Follow [Release availability](PRESENTATION-STATUS.md) for public downloads.
+Exact stable image source/tag: `9e03f20d5dd23cd8d42e4e5eea91bf9f9daca8f8` /
+`v3.0.1`. Do not rebuild or substitute its qualified image with the earlier
+3.0.1-beta.1 image or a new build from a later documentation commit.
 
-Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware v3.0.0 (stable; 2.1.0 migration bridge for 2.x).
-Published: **3.0.1-beta.1** (pre-release), tag at
-`ec2596fdf2a7e9ad039f65d8a4fe4140c80ed8e6`. Stable Latest, Main and Pages
-remain on 3.0.0. Do not rebuild or republish the qualified beta image.
-Read the current completion section of ignored
-`build/private-device/HANDOFF-3.0.1-beta.1.md` and
-`build/private-device/CODEX-PUBLISH-301.md` before following historical tasks.
-Those records identify the exact artifacts, completed checks, remaining scope
-and next authorized work. Later documentation commits are not the image source.
+Read ignored `build/private-device/STABLE-301-IN-PROGRESS.md` for the exact
+operational checkpoint, device state, acceptance scope, remaining independent
+test cases and next authorized action. That record takes precedence over older
+beta handovers. Later site/documentation commits are not the image source.
+The browser packaging helper now includes original firmware license notices
+and their checksum; this change does not alter the qualified application.
 Preserve the full feature roadmap, upstream credits and existing configuration.
 
 The exact operational handover, artifact hashes, device qualification records,
