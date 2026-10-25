@@ -1,5 +1,12 @@
 # Feature implementation and validation matrix
 
+Current product: **Firmware v3.0.1**, preserving the original 42 requirements
+and the subsequently approved 3.x additions below. Historical milestone labels
+record their original evidence, not the current release's blanket acceptance.
+See [Release availability](PRESENTATION-STATUS.md); exact-image qualification,
+resource comparisons and remaining-case records stay in ignored local logs.
+The 3.0.1 browser package also carries original firmware license notices.
+
 F14 source increment for Firmware v2.0.2: `main/ota_flash.c` separates the
 PSRAM HTTPS downloader from internal-stack OTA operations (ADR-030). All 42
 requirements remain. Exact-image execution and acceptance records stay local.
@@ -122,8 +129,8 @@ is explicitly marked *planned*, not an assertion the file exists.
 | F49 | On-request throughput test | P3 / 3.0 | — | main/throughput.c, index.html; T/test_throughput.py, test_automation_ui.cjs | Testata su hardware | Owner request 2026-10-24 (feature 8) | N16R8 board: gateway download over verified HTTPS (0.2–2.6 Mbit/s internet), browser download from the gateway, invalid URL refused; tailnet NAS target pending | Runs only on request; one at a time; stops on low internal memory | roadmap 3.0 | — |
 
 Each row inherits all detailed subrequirements from its referenced Master
-section, not only the compact feature label. No feature is currently marked
-release-ready. Retained dev.1/dev.2 labels identify an earlier implementation,
+section, not only the compact feature label. Individual historical labels are
+not a complete current release verdict. Retained dev.1/dev.2 labels identify an earlier implementation,
 not an independent hardware qualification; current reruns are in V. Historical
 results alone are not fresh proof for changed code. Update affected rows and
 evidence at every technical checkpoint without deleting unresolved work.

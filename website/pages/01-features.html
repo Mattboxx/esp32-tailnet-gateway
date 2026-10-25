@@ -15,6 +15,7 @@ order: 1
 </figure>
 
 <h2 id="new-3">New in Firmware 3.0</h2>
+<p>Firmware 3.0.1 adds optional <strong>Dynamic DNS</strong> (DuckDNS, Cloudflare or a custom HTTPS update URL), French and German, translated first-boot uplink setup and smaller, cached language scripts.</p>
 <table>
   <thead><tr><th>Capability</th><th>Useful when</th><th>Default</th></tr></thead>
   <tbody>
@@ -25,10 +26,10 @@ order: 1
     <tr><td>Telegram and email notifications</td><td>You want problems or every event on your phone or in your inbox. Email over TLS (465) or STARTTLS (587) with verified certificates; passwords are never sent without TLS.</td><td>Off</td></tr>
     <tr><td>Throughput test</td><td>You need to know whether the link is fast enough: the gateway downloads from a URL (a NAS through the tailnet, or the internet), or the browser downloads from the gateway.</td><td>On request</td></tr>
     <tr><td>Cellular uplink (experimental)</td><td>A site has no usable Wi-Fi: a UART modem with a SIM as primary or failover uplink. Not yet tested with a real modem.</td><td>Off</td></tr>
-    <tr><td>One image, every language</td><td>English, Italiano, Español and 简体中文 in the same firmware, plus the W5500 Ethernet driver (experimental, off until configured).</td><td>—</td></tr>
+    <tr><td>One image, every language</td><td>English, Italiano, Español, 简体中文, Français and Deutsch in the same firmware, plus the W5500 Ethernet driver (experimental, off until configured).</td><td>—</td></tr>
   </tbody>
 </table>
-<p>Switched off, these features use no memory, processor time or flash writes. Runs on ESP32-S3 <strong>N8R8</strong> and <strong>N16R8</strong>: see <a href="{{root}}hardware/">supported boards</a>.</p>
+<p>Disabled optional features do not run their background jobs; their compiled code and static state still occupy space. Runs on ESP32-S3 <strong>N8R8</strong> and <strong>N16R8</strong>: see <a href="{{root}}hardware/">supported boards</a>.</p>
 
 <h2>Network gateway</h2>
 <table>
