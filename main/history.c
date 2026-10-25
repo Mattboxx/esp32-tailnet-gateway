@@ -413,6 +413,30 @@ void history_init(void)
 
 bool history_snapshots_before_update(void) {return s_cfg.snapshots;}
 
+void history_get_config(bool *events, bool *metrics, bool *snapshots)
+{
+    *events = s_cfg.events; *metrics = s_cfg.metrics; *snapshots = s_cfg.snapshots;
+}
+
+esp_err_t history_set_config(bool events, bool metrics, bool snapshots)
+{
+    if (!s_lock) return ESP_ERR_INVALID_STATE;
+    /* Persist before publishing the new state. */
+    esp_err_t err = nvs_param_set_u8("hist_ev", events);
+    if (!err) err = nvs_param_set_u8("hist_mx", metrics);
+    if (!err) err = nvs_param_set_u8("hist_snap", snapshots);
+    if (err) return err;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    bool events_were = s_cfg.events;
+    s_cfg.events = events; s_cfg.metrics = metrics; s_cfg.snapshots = snapshots;
+    open_rings();
+    if (events) number_boot();
+    err = apply_config();
+    xSemaphoreGive(s_lock);
+    if (events && !events_were) history_event(HIST_EV_SETTINGS, HIST_INFO, "Event history switched on");
+    return err;
+}
+
 void history_set_sink(history_sink_t sink)
 {
     if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
@@ -605,19 +629,8 @@ static esp_err_t post_config(httpd_req_t *req)
     }
     cJSON_Delete(root);
     if (!valid || !any) {httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "expected boolean events, metrics or snapshots"); return ESP_FAIL;}
-    /* Persist before publishing the new state. */
-    esp_err_t err = nvs_param_set_u8("hist_ev", next.events);
-    if (!err) err = nvs_param_set_u8("hist_mx", next.metrics);
-    if (!err) err = nvs_param_set_u8("hist_snap", next.snapshots);
-    if (err) {httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, esp_err_to_name(err)); return ESP_FAIL;}
-    xSemaphoreTake(s_lock, portMAX_DELAY);
-    bool events_were = s_cfg.events;
-    s_cfg = next;
-    open_rings();
-    if (next.events) number_boot();
-    err = apply_config();
-    xSemaphoreGive(s_lock);
-    if (next.events && !events_were) history_event(HIST_EV_SETTINGS, HIST_INFO, "Event history switched on");
+    esp_err_t err = history_set_config(next.events, next.metrics, next.snapshots);
+    if (err && err != ESP_ERR_NO_MEM) {httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, esp_err_to_name(err)); return ESP_FAIL;}
     httpd_resp_set_type(req, "application/json");
     char response[96];
     snprintf(response, sizeof response, "{\"ok\":%s,\"persist\":%s%s}", err ? "false" : "true",

@@ -17,7 +17,10 @@ typedef enum {
 /* Settings a profile may switch ON (never OFF). */
 /* Resource Guard is deliberately absent: its uncalibrated thresholds can
  * defer optional services, which a preset must not do silently. */
-typedef enum {PK_OPS_MONITORING, PK_LEASE_NOTIFY, PK_HEALTH, PK_COUNT} profile_key_t;
+/* At most 8 keys: the saved record keeps a value per key in a fixed 8-byte
+ * area, so older records (fewer keys, zeros after them) stay valid. */
+typedef enum {PK_OPS_MONITORING, PK_LEASE_NOTIFY, PK_HEALTH, PK_HIST_EVENTS, PK_HIST_TRENDS,
+              PK_SNAPSHOTS, PK_TAILNET_NAMES, PK_COUNT} profile_key_t;
 
 typedef struct {uint8_t value[PK_COUNT];} profile_values_t;
 

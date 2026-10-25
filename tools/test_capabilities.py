@@ -64,6 +64,13 @@ static int wol_count(void){return 2;}
 static bool health_monitor_enabled(void){return true;}
 static bool mqtt_integration_connected(void){return broker;}
 #define CONFIG_TSR_SNMP 1   /* as in the 3.0 images */
+#define CONFIG_TSR_DDNS 1   /* as in the 3.0.1 images */
+static bool hist_on,names_fixture,tg_fixture;static uint8_t ddns_fixture;
+static void history_get_config(bool *e,bool *m,bool *s){*e=*m=hist_on;*s=false;}
+static void tailnet_names_get(bool *e,bool *l){*e=names_fixture;*l=false;}
+static void notify_channels_enabled(bool *t,bool *m){*t=tg_fixture;*m=false;}
+static uint8_t ddns_provider(void){return ddns_fixture;}
+static bool ddns_last_update_ok(void){return true;}
 static bool snmp_agent_is_enabled(void){return false;}
 static bool snmp_agent_is_running(void){return false;}
 static unsigned allocations,fail_at,live;
@@ -75,7 +82,15 @@ static cJSON *feature(cJSON *root,const char *id){cJSON *a=cJSON_GetObjectItem(r
 int main(void){
     cJSON_Hooks hooks={allocate,release};cJSON_InitHooks(&hooks);
     cJSON *r=homelab_ops_capabilities();assert(r);unsigned total=allocations;
-    assert(cJSON_GetArraySize(cJSON_GetObjectItem(r,"features"))==30);
+    assert(cJSON_GetArraySize(cJSON_GetObjectItem(r,"features"))==38);
+    assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"event-history"),"configured"))&&cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"ddns"),"configured")));
+    assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(r,"ddns"),"compiled"))&&cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"telegram"),"configured")));
+    { /* 3.0 features follow their own settings. */
+      hist_on=names_fixture=tg_fixture=true;ddns_fixture=1;cJSON *e=homelab_ops_capabilities();
+      assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(e,"trends"),"active"))&&cJSON_IsTrue(cJSON_GetObjectItem(feature(e,"tailnet-names"),"active")));
+      assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(e,"telegram"),"configured"))&&cJSON_IsFalse(cJSON_GetObjectItem(feature(e,"email"),"configured")));
+      assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(e,"ddns"),"active")));
+      cJSON_Delete(e);hist_on=names_fixture=tg_fixture=false;ddns_fixture=0; }
     assert(cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"service-watch"),"configured"))&&cJSON_IsFalse(cJSON_GetObjectItem(feature(r,"profiles"),"configured")));
     assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(r,"destination-test"),"experimental")));
     assert(cJSON_IsTrue(cJSON_GetObjectItem(feature(r,"tailscale"),"active")));

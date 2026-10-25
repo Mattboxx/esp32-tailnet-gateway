@@ -8,8 +8,11 @@ Steps (all deterministic, standard library only):
    comment-only lines in <script>. Code, strings and <pre>/<textarea>
    content are never rewritten. The browser suite runs against this output
    (`--html`) so a minifier mistake fails the tests, not the device.
-2. UI translations from main/i18n/*.json are injected as one compact
-   bundle (English text is the key and the fallback).
+2. UI translations from main/i18n/*.json become one small script per
+   language (i18n/<code>-<hash>.js, gzip, served from flash and cached by
+   the browser); the page carries only the list of languages, so it loads
+   the one language the visitor uses and stays small (English text is the
+   key and the fallback).
 3. The vendored SJCL library is injected for encrypted backups over HTTP.
 4. gzip -9 with mtime 0, emitted as a C array.
 
@@ -18,9 +21,11 @@ stream, and Python ships with the PlatformIO/ESP-IDF toolchain.
 
 Usage:
     gen_index_html_gz.py <input.html> <output.c>
-    gen_index_html_gz.py --html <input.html> <output.html>   # for tests
+    gen_index_html_gz.py --html <input.html> <output.html>   # for tests; the
+        language scripts are written next to it in i18n/
 """
 import gzip
+import hashlib
 import io
 import json
 import re
@@ -88,51 +93,51 @@ def fnv1a(text):
     return h
 
 
-def i18n_bundle(folder, only=None):
-    """{"langs":{code:{"name":..}}, "h":[hash...], "tr":{code:[...]}}.
+def i18n_packs(folder):
+    """({code: {"name": ..}}, {code: {"h": [hash...], "tr": [...], "p": [...]}}).
 
-    Keys are FNV-1a hashes of the English text instead of the text itself:
-    the English already ships in the page, so repeating it would only cost
-    flash. A colliding hash is rejected at build time."""
+    One pack per language with only the strings it translates. Keys are
+    FNV-1a hashes of the English text instead of the text itself: the
+    English already ships in the page. A colliding hash is rejected."""
     folder = Path(folder)
     meta_path = folder / 'languages.json'
     if not meta_path.exists():
-        return None
+        return None, {}
     meta = json.loads(meta_path.read_text(encoding='utf-8'))
-    if only is not None:
-        if only not in meta:
-            raise SystemExit(f'i18n: unknown language {only!r}')
-        meta = {only: meta[only]}
-    tables = {}
+    packs = {}
     for code in meta:
         path = folder / (code + '.json')
-        if path.exists():
-            tables[code] = json.loads(path.read_text(encoding='utf-8'))
-    patterns = {code: sorted([k, v] for k, v in table.items() if '{}' in k and v) for code, table in tables.items()}
-    tables = {code: {k: v for k, v in table.items() if '{}' not in k} for code, table in tables.items()}
-    source = sorted({k for t in tables.values() for k, v in t.items() if v and v != k})
-    hashes = [fnv1a(s) for s in source]
-    if len(set(hashes)) != len(hashes):
-        raise SystemExit('i18n: hash collision between two English strings; rephrase one')
-    index = {s: i for i, s in enumerate(source)}
-    tr = {}
-    for code, table in tables.items():
-        row = [''] * len(source)
-        for k, v in table.items():
-            if k in index and v and v != k:
-                row[index[k]] = v
-        tr[code] = row
-    return {'langs': meta, 'h': hashes, 'tr': tr, 'p': patterns}
+        if not path.exists():
+            continue
+        table = json.loads(path.read_text(encoding='utf-8'))
+        patterns = sorted([k, v] for k, v in table.items() if '{}' in k and v)
+        plain = sorted((k, v) for k, v in table.items() if '{}' not in k and v and v != k)
+        hashes = [fnv1a(k) for k, _ in plain]
+        if len(set(hashes)) != len(hashes):
+            raise SystemExit(f'i18n: hash collision between two English strings ({code}); rephrase one')
+        packs[code] = {'h': hashes, 'tr': [v for _, v in plain], 'p': patterns}
+    return meta, packs
 
 
-def build_html(src, english_only=False, language=None):
+def build(src, english_only=False):
+    """(page bytes, {asset name: bytes}) exactly as the firmware serves them."""
     src = Path(src)
     text = minify(src.read_text(encoding='utf-8'))
-    head_close = '</head>'
-    bundle = None if english_only else i18n_bundle(src.parent / 'i18n', language)
-    if bundle:
-        data = json.dumps(bundle, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
-        text = text.replace(head_close, '<script id="i18n-data">window.I18N_DATA=' + data + ';</script>\n' + head_close, 1)
+    meta, packs = (None, {}) if english_only else i18n_packs(src.parent / 'i18n')
+    assets = {}
+    if meta:
+        langs = {}
+        for code, info in meta.items():
+            if code not in packs:
+                continue
+            body = ('I18N_LOADED(' + json.dumps(code) + ',' +
+                    json.dumps(packs[code], ensure_ascii=False, separators=(',', ':')) + ');\n').encode('utf-8')
+            name = f'{code}-{hashlib.sha256(body).hexdigest()[:10]}.js'   # new text, new name: no stale cache
+            assets[name] = body
+            langs[code] = {'name': info['name'], 'src': 'i18n/' + name}
+        data = json.dumps(langs, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+        # First thing in <head>: the language loader there needs the list.
+        text = text.replace('<head>', '<head>\n<script id="i18n-data">window.I18N_LANGS=' + data + ';</script>', 1)
     raw = text.encode('utf-8')
     # Inject vendor SJCL so encrypted backups work over plain HTTP (WebCrypto
     # needs a secure context); the JS prefers crypto.subtle when present.
@@ -147,37 +152,57 @@ def build_html(src, english_only=False, language=None):
     else:
         print('gen_index_html_gz: WARNING - vendor/sjcl.min.js missing, '
               'encrypted-backup will only work over HTTPS', file=sys.stderr)
-    return raw
+    return raw, assets
+
+
+def build_html(src, english_only=False):
+    return build(src, english_only)[0]
+
+
+def _gz(data):
+    buf = io.BytesIO()
+    with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=9, mtime=0) as gz:
+        gz.write(data)
+    return buf.getvalue()
+
+
+def _c_bytes(out, name, data):
+    out.write('static const unsigned char %s[] = {' % name)
+    for i, b in enumerate(data):
+        if i % 16 == 0:
+            out.write('\n    ')
+        out.write('0x%02x,' % b)
+    out.write('\n};\n')
 
 
 def main() -> int:
     args = sys.argv[1:]
-    # --english-only: no translation bundle (the UI then offers English only).
-    # --lang <code>: English plus that one translation (a language variant).
+    # --english-only: no translations (the UI then offers English only).
     english_only = bool(args) and args[0] == '--english-only'
     if english_only:
         args = args[1:]
-    language = None
-    if len(args) >= 2 and args[0] == '--lang':
-        language, args = args[1], args[2:]
     if len(args) == 3 and args[0] == '--html':
-        Path(args[2]).write_bytes(build_html(args[1], english_only, language))
+        page, assets = build(args[1], english_only)
+        out = Path(args[2])
+        out.write_bytes(page)
+        if assets:
+            folder = out.parent / 'i18n'
+            folder.mkdir(exist_ok=True)
+            for name, body in assets.items():
+                (folder / name).write_bytes(body)
         return 0
     if len(args) != 2:
-        print('usage: gen_index_html_gz.py [--html] <input.html> <output>', file=sys.stderr)
+        print('usage: gen_index_html_gz.py [--english-only] [--html] <input.html> <output>', file=sys.stderr)
         return 2
     src, dst = Path(args[0]), Path(args[1])
     original = src.stat().st_size
-    raw = build_html(src, english_only, language)
-
-    buf = io.BytesIO()
-    with gzip.GzipFile(fileobj=buf, mode='wb', compresslevel=9, mtime=0) as gz:
-        gz.write(raw)
-    gz_bytes = buf.getvalue()
+    raw, assets = build(src, english_only)
+    gz_bytes = _gz(raw)
 
     out = io.StringIO()
     out.write('/* GENERATED — see main/gen_index_html_gz.py. Do not edit by hand. */\n')
     out.write('#include <stddef.h>\n')
+    out.write('typedef struct {const char *name; const unsigned char *data; size_t len;} i18n_asset_t;\n')
     out.write('const char index_html_gz_start[] = {')
     for i, b in enumerate(gz_bytes):
         if i % 16 == 0:
@@ -185,8 +210,16 @@ def main() -> int:
         out.write('0x%02x,' % b)
     out.write('\n};\n')
     out.write('const size_t index_html_gz_len = sizeof(index_html_gz_start);\n')
+    entries, lang_gz = [], 0
+    for n, (name, body) in enumerate(sorted(assets.items())):
+        data = _gz(body)
+        lang_gz += len(data)
+        _c_bytes(out, 'i18n_%d' % n, data)
+        entries.append('{"%s", i18n_%d, sizeof i18n_%d}' % (name, n, n))
+    out.write('const i18n_asset_t i18n_assets[%d] = {%s};\n' % (max(1, len(entries)), ', '.join(entries) or '{0}'))
+    out.write('const size_t i18n_asset_count = %d;\n' % len(entries))
     dst.write_text(out.getvalue(), encoding='utf-8')
-    print('gen_index_html_gz: source=%d  built=%d  gz=%d' % (original, len(raw), len(gz_bytes)))
+    print('gen_index_html_gz: source=%d  built=%d  gz=%d  languages=%d (%d gz bytes)' % (original, len(raw), len(gz_bytes), len(assets), lang_gz))
     return 0
 
 

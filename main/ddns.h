@@ -2,9 +2,10 @@
  *
  * Providers: DuckDNS, Cloudflare (an existing A record, via an API token
  * limited to DNS edit) and a custom HTTPS URL with an {ip} placeholder. The
- * public address comes from Tailscale's STUN result (no extra lookup
- * service); DuckDNS and custom URLs can also let the provider see the
- * address the request comes from when Tailscale is not connected.
+ * public address comes from Tailscale's STUN result. Without it, DuckDNS and
+ * custom URLs without {ip} let the provider use the address the request
+ * comes from, and Cloudflare asks its own trace endpoint
+ * (www.cloudflare.com/cdn-cgi/trace): no third lookup service is involved.
  *
  * Updates when the address changes, otherwise once a day; failures back off
  * up to an hour. HTTPS with certificate verification only; the token is
@@ -46,8 +47,12 @@ bool ddns_due(const ddns_state_t *st, uint8_t provider, uint32_t ip_nbo, uint32_
 void ddns_result(ddns_state_t *st, bool ok, uint32_t ip_nbo, uint32_t now_s);
 /* Request for DuckDNS / custom (empty ip = provider uses the source address). */
 bool ddns_build_url(const ddns_config_t *c, uint32_t ip_nbo, char *out, size_t cap);
+/* "ip=203.0.113.7" line of a Cloudflare trace answer; false if absent or not IPv4. */
+bool ddns_parse_trace(const char *text, uint32_t *ip_nbo);
 
 /* Firmware. */
 void ddns_init(void);
+uint8_t ddns_provider(void);          /* DDNS_OFF when off */
+bool ddns_last_update_ok(void);       /* the newest attempt succeeded */
 #include "esp_http_server.h"
 esp_err_t ddns_register_http(httpd_handle_t server);

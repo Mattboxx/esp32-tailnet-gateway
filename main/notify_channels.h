@@ -59,5 +59,6 @@ bool notify_wanted(uint8_t level_setting, unsigned kind, unsigned level);
 
 /* Firmware. */
 void notify_channels_init(void);       /* before history_init */
+void notify_channels_enabled(bool *telegram, bool *email);
 #include "esp_http_server.h"
 esp_err_t notify_channels_register_http(httpd_handle_t server);

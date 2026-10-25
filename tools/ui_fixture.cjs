@@ -5,7 +5,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { builtHtml } = require('./ui_build.cjs');
+const { builtHtml, serveAsset } = require('./ui_build.cjs');
 let cached = null;
 const html = () => cached || (cached = builtHtml());
 
@@ -74,7 +74,7 @@ const data = {
   '/api/health': { enabled: false, notify: false, interval_s: 60, failure_threshold: 3, gateway_port: 0, dns_name: '', internet_ip: '', internet_port: 0, tailnet_target: '', tailnet_port: 0, checks: [] },
   '/api/operations': { devices: [{ index: 0, name: 'NAS', mac: '02:00:00:00:30:01', target: 'nas.lan', monitor: true, notify: false, host_port: 5000, service_port: 0, timeout_s: 120, interval_s: 300, max_checks: 10, kind: 0, scope: 0, state: 'idle' }], events: [], monitoring: false, guard: false, remote_commands: false,
     recovery_state: 'idle', sockets_used: 12, socket_limit: 31, internal_min: 14000, internal_largest: 12000, minimum_internal: 16384, minimum_largest: 8192, socket_reserve: 4, interval_s: 60, control_connected: true },
-  '/api/capabilities': { schema: 2, features: [] },
+  '/api/capabilities': { schema: 2, features: [{ id: 'lan-tailnet-forwarding', compiled: true, configured: true, active: true }, { id: 'subnet-routing', compiled: true, configured: false, active: false }, { id: 'exit-node', compiled: true, configured: false, active: false }, { id: 'tailnet-names', compiled: true, configured: true, active: true }, { id: 'ddns', compiled: true, configured: true, active: true }, { id: 'event-history', compiled: true, configured: true, active: true }, { id: 'trends', compiled: true, configured: true, active: true }, { id: 'settings-copies', compiled: true, configured: true, active: true }, { id: 'health', compiled: true, configured: false, active: false }, { id: 'ntfy', compiled: true, configured: false, active: false }, { id: 'telegram', compiled: true, configured: true, active: true }, { id: 'email', compiled: true, configured: false, active: false }, { id: 'mqtt', compiled: true, configured: true, active: false }, { id: 'snmp', compiled: true, configured: false, active: false }] },
   '/api/events': { config: { events: true, metrics: true, snapshots: true }, persist: true, storage: true, boot: 12, now: 1792000600, uptime: 93784, events: [
     { k: 'tailnet', l: 'info', b: 12, t: 1792000500, u: 93600, m: 'Tailnet connected' },
     { k: 'uplink', l: 'warn', b: 12, t: 1792000400, u: 93500, m: 'Wi-Fi uplink lost (reason 8)' },
@@ -84,6 +84,8 @@ const data = {
   '/api/system/snapshots': { available: true, before_update: true, restore_pending: false, slots: [
     { slot: 1, valid: true, seq: 3, t: 1791906700, reason: 'update', firmware: '3.0.0-dev.2' }, { slot: 2, valid: true, seq: 4, t: 1792000000, reason: 'manual', firmware: '3.0.0-beta.1' },
     { slot: 3, valid: false, seq: 0, t: 0, reason: '', firmware: '' }] },
+  '/api/ddns': { provider: 'duckdns', name: 'myhome-example', zone: '', has_token: true, has_url: false, status: 'Updated to 203.0.113.7', public_ip: '203.0.113.7',
+    updated_ip: '203.0.113.7', updated_ago_s: 5400, running: false },
   '/api/tailnet-names': { enabled: false, lan: false, relay: true, lan_listening: false, peers: 6 },
   '/api/notify': { events: 'problems', waiting: 0, dropped: 0,
     telegram: { enabled: false, has_token: false, chat: '', sent: 0, failed: 0, last_error: '' },
@@ -106,6 +108,7 @@ async function install(page, overrides = {}) {
   await page.route('http://esp32.test/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/') return route.fulfill({ contentType: 'text/html', body: overrides.html || html() });
+    if (url.pathname.startsWith('/i18n/') && await serveAsset(route, url.pathname)) return;
     if (route.request().method() !== 'GET') {
       posts.push({ path: url.pathname, body: route.request().postData() });
       return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });

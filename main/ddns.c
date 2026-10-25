@@ -82,7 +82,6 @@ bool ddns_config_valid(const ddns_config_t *c, char *why, size_t cap)
 bool ddns_due(const ddns_state_t *st, uint8_t provider, uint32_t ip, uint32_t now)
 {
     if (provider == DDNS_OFF || now < st->next_try_s) return false;
-    if (provider == DDNS_CLOUDFLARE && !ip) return false;          /* needs the address itself */
     if (!st->ever) return true;
     if (ip && ip != st->last_ip) return true;                      /* the address changed */
     /* Daily refresh; every 30 minutes while the address cannot be seen. */
@@ -121,6 +120,21 @@ bool ddns_build_url(const ddns_config_t *c, uint32_t ip, char *out, size_t cap)
         if (n > 0 && strstr(out, "{ip}")) return false;            /* one placeholder only */
     }
     return n > 0 && (size_t)n < cap;
+}
+bool ddns_parse_trace(const char *text, uint32_t *ip)
+{
+    for (const char *p = text; p && *p; p = strchr(p, '\n') ? strchr(p, '\n') + 1 : NULL) {
+        if (strncmp(p, "ip=", 3)) continue;
+        unsigned part[4];
+        int used = 0;
+        if (sscanf(p + 3, "%3u.%3u.%3u.%3u%n", &part[0], &part[1], &part[2], &part[3], &used) != 4) return false;
+        char end = p[3 + used];
+        if ((end && end != '\n' && end != '\r') || part[0] > 255 || part[1] > 255 || part[2] > 255 || part[3] > 255) return false;
+        uint8_t b[4] = {(uint8_t)part[0], (uint8_t)part[1], (uint8_t)part[2], (uint8_t)part[3]};
+        memcpy(ip, b, 4);
+        return *ip != 0;
+    }
+    return false;
 }
 /* --- ddns core (end) --- */
 
@@ -223,10 +237,16 @@ static int request(const char *url, esp_http_client_method_t method, const char 
     return status;
 }
 
-static bool cloudflare(const ddns_config_t *c, uint32_t ip, char *why, size_t cap)
+static bool cloudflare(const ddns_config_t *c, uint32_t *ip_io, char *why, size_t cap)
 {
     char url[256], addr[16], *answer = heap_caps_malloc(4096, MALLOC_CAP_SPIRAM);
     if (!answer) return fail(why, cap, "out of memory");
+    if (!*ip_io) {
+        /* Tailscale has not seen the public address: ask Cloudflare itself. */
+        int st = request("https://www.cloudflare.com/cdn-cgi/trace", HTTP_METHOD_GET, NULL, NULL, answer, 1024);
+        if (st != 200 || !ddns_parse_trace(answer, ip_io)) {free(answer); return fail(why, cap, "public address unknown (no Tailscale address, Cloudflare trace failed)");}
+    }
+    uint32_t ip = *ip_io;
     ip_text(ip, addr);
     snprintf(url, sizeof url, "https://api.cloudflare.com/client/v4/zones/%s/dns_records?type=A&name=%s", c->zone, c->name);
     int status = request(url, HTTP_METHOD_GET, c->token, NULL, answer, 4096);
@@ -276,7 +296,7 @@ static void worker(void *arg)
     xSemaphoreGive(s_lock);
     uint32_t ip = public_ip();
     char why[96] = "";
-    bool ok = c && (c->provider == DDNS_CLOUDFLARE ? cloudflare(c, ip, why, sizeof why) : simple_get(c, ip, why, sizeof why));
+    bool ok = c && (c->provider == DDNS_CLOUDFLARE ? cloudflare(c, &ip, why, sizeof why) : simple_get(c, ip, why, sizeof why));
     if (c) {memset(c, 0, sizeof *c); free(c);}
     char addr[16];
     ip_text(ip, addr);
@@ -327,6 +347,9 @@ void ddns_init(void)
     load(&s_cfg);
     if (s_cfg.provider != DDNS_OFF) {xSemaphoreTake(s_lock, portMAX_DELAY); apply_locked(); xSemaphoreGive(s_lock);}
 }
+
+uint8_t ddns_provider(void) {return s_cfg.provider;}
+bool ddns_last_update_ok(void) {return s_state.ever && !s_state.backoff_s;}
 
 static const char *provider_name(uint8_t p) {return p == DDNS_DUCKDNS ? "duckdns" : p == DDNS_CLOUDFLARE ? "cloudflare" : p == DDNS_CUSTOM ? "custom" : "off";}
 
