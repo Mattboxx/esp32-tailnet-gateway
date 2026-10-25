@@ -221,8 +221,9 @@ PSRAM placement, cache tuning) is the base of this branch (`v3`).
 4. **Migration path.** Implemented: the 2.1 bridge (env esp32-s3-bridge,
    main/layout_migration.c) moves 2.x gateways over the network, tested end
    to end on board B from a bench source (self-copy restart, resume, 3.x
-   confirmed, settings kept); USB paths keep settings too. Pending: first
-   publication with real GitHub assets.
+   confirmed, settings kept); USB paths keep settings too. Published as
+   2.1.0 and frozen (ADR-033): it installs the newest stable 3.x, so no new
+   bridge is built; a future one would first leave optional modules out.
 5. **Performance and memory** carried over: PSRAM `.bss` placement and
    64-byte data-cache lines (the 32 KB instruction cache was reverted: it
    cost about 26 KB of internal RAM); measure free heap, stack margins and
