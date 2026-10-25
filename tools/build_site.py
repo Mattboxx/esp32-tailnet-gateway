@@ -43,7 +43,7 @@ STABLE_TAG = 'v' + STABLE_VERSION
 # exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
 # released files (see website/firmware/README.md); the build verifies them.
 NEXT_VERSION = '3.0.0'
-NEXT_PUBLISHED = False
+NEXT_PUBLISHED = True
 FIRMWARE_DIR = SRC / 'firmware'
 EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/
 

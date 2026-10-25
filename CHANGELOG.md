@@ -86,14 +86,18 @@ PSRAM, octal-flash modules (WROOM-2, N16R16V, N32R8V) and other ESP32 chips
 - Automated offline campaign (unit, integration and browser tests, firmware
   build) on the release source.
 - On an N16R8 test board: USB update keeping settings; real network
-  migration 2.x → 2.1.0 bridge → 3.0 from the GitHub releases, keeping
+  migration 2.x → 2.1.0 bridge → 3.0.0-beta.1 from the GitHub releases, keeping
   settings and the tailnet identity; event history, trends, settings copies,
   tailnet names with real peers and the LAN DNS listener, SNMP v2c, the
   throughput test; a 20-minute run with every option on at once (history,
   trends, tailnet names, SNMP, notifications, HTTP, DNS and SNMP load):
   no errors or restarts, about 44–47 KB of free internal RAM.
-- Not yet tried: Telegram and email delivery with real accounts, an N8R8
-  board, a real cellular modem, W5500 Ethernet hardware.
+- Email on the board: TLS (port 465) and STARTTLS (587) to a real provider
+  with certificate checks, up to the sign-in step; servers with a wrong or
+  self-signed certificate are refused. SNMP v2c answered with the configured
+  community and ignored a wrong one.
+- Not yet tried: delivery with a real email account or Telegram bot, an
+  N8R8 board, a real cellular modem, W5500 Ethernet hardware.
 
 ### Fixed
 

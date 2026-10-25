@@ -55,7 +55,7 @@ Telegram and email notifications — are off until you switch them on.
 ## Tested
 
 On an N16R8: the network migration from a 2.x gateway through the 2.1.0
-bridge to 3.0 downloaded from the real GitHub releases (including the
+bridge to 3.0.0-beta.1 downloaded from the real GitHub releases (including the
 preparation restart), and the USB migration with Easy Install. Settings, the
 tailnet identity and Tailscale connectivity were kept. N8R8 boards use the
 same layout but have not been tested yet.
