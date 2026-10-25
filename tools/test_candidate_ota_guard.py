@@ -11,6 +11,17 @@ def layout(running='ota_1'):
 
 
 class Guard(unittest.TestCase):
+    def test_explicit_three_x_geometry_preserves_other_slot(self):
+        data = layout()
+        data['partitions'][0].update(offset=0x20000, size=0x380000)
+        data['partitions'][1].update(offset=0x3a0000, size=0x380000)
+        self.assertEqual(ota_target(data, 'ota_1', 'ota_1', 0x300000), 'ota_0')
+        with self.assertRaises(AssertionError):
+            ota_target(data, 'ota_1', 'ota_1', 0x380001)
+        data['partitions'][0]['size'] = 0x1e0000
+        with self.assertRaises(AssertionError):
+            ota_target(data, 'ota_1', 'ota_1', 1800000)
+
     def test_stable_boot_allows_only_other_slot(self):
         self.assertEqual(ota_target(layout(), 'ota_1','ota_1',1800000),'ota_0')
 

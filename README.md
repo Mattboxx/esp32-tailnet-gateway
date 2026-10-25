@@ -13,8 +13,8 @@ access, subnet routing, remote recovery and optional automation.
 ESP32-S3-DevKitC-1, ESP32-S3-WROOM-1/1U, Freenove ESP32-S3-WROOM, Seeed XIAO
 ESP32S3. [Supported boards](#8-supported-hardware)
 
-> **Firmware v3.0.0 is available** for ESP32-S3 **N8R8** and **N16R8**.
-> [Download the release](../../releases/tag/v3.0.0), use the
+> **Firmware v3.0.1 is available** for ESP32-S3 **N8R8** and **N16R8**.
+> [Download the release](../../releases/tag/v3.0.1), use the
 > [browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/),
 > or choose the Easy Install package below. **2.x gateways** move to 3.0
 > keeping every setting: over the network with the **2.1.0 bridge** (a normal
@@ -78,8 +78,8 @@ remain available; [release notes](docs/releases/RELEASE-1.13.md) explain what is
 | want **alerts** on your phone or inbox | sends **Telegram** and **email** (TLS/STARTTLS) next to ntfy, MQTT/Home Assistant and SNMP *(3.0)* |
 | wonder whether the link is fast enough | runs a **throughput test** on request *(3.0)* |
 | need to wake a NAS or PC remotely | sends Wake-on-LAN and checks that the service answers ([recovery](docs/NAS-RECOVERY.md)) |
-| need a public name for your home connection | keeps a **dynamic DNS** name up to date: DuckDNS, Cloudflare or any update URL *(3.0.1 beta, [guide](docs/DDNS.md))* |
-| have Ethernet or only a mobile SIM at the site | is set up for **Wi-Fi, an Ethernet cable or a SIM** right in the first-boot wizard *(3.0.1 beta)* |
+| need a public name for your home connection | keeps a **dynamic DNS** name up to date: DuckDNS, Cloudflare or any update URL *([guide](docs/DDNS.md))* |
+| have Ethernet or only a mobile SIM at the site | is set up for **Wi-Fi, an Ethernet cable or a SIM** right in the first-boot wizard |
 | run a 2.x gateway | moves to 3.0 **keeping every setting** ([guide](docs/MIGRATION-3.0.md)) |
 
 Every feature is a switch, off until you need it.
@@ -191,14 +191,14 @@ Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailnet-gateway
 | **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/) |
 | **Advanced downloads** | Web UI OTA, manual flashing or experimental W5500 | [Downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/) with exact checksums, variant labels and recovery notes |
 
-Firmware v3.0.0 release assets:
+Firmware v3.0.1 release assets:
 
 | Asset | Use |
 |---|---|
-| `ESP32-Tailnet-Gateway-v3.0.0-EASY-INSTALL-Windows-macOS-Linux.zip` | Guided USB install (new device) or update keeping settings |
+| `ESP32-Tailnet-Gateway-v3.0.1-EASY-INSTALL-Windows-macOS-Linux.zip` | Guided USB install (new device) or update keeping settings |
 | `firmware.bin` | Application image for the Web UI updater on 3.x |
 | `bootloader.bin`, `partitions.bin` | 3.0 boot loader and partition table (manual USB update keeping settings) |
-| `ESP32-Tailnet-Gateway-v3.0.0-factory.bin` | Full image for a new device at offset `0x0` (erases settings) |
+| `ESP32-Tailnet-Gateway-v3.0.1-factory.bin` | Full image for a new device at offset `0x0` (erases settings) |
 | `SHA256SUMS.txt`, `release-manifest.json`, `FIRMWARE-LICENSES.txt` | Checksums, build metadata and third-party notices |
 
 The **2.1.0 bridge** release carries only a 2.x `firmware.bin` for the
@@ -279,7 +279,7 @@ are on the website.
   Telegram and email notifications ([guide](docs/NOTIFICATIONS.md)), read-only
   SNMP — all optional and supervised.
 - **Languages:** English, Italiano, Español, 简体中文; Français and Deutsch and
-  the translated first-boot setup from 3.0.1 beta ([details](docs/I18N.md)).
+  the translated first-boot setup from 3.0.1 ([details](docs/I18N.md)).
 - **Tailnet names (3.0):** gateway Wi-Fi and LAN clients resolve tailnet
   peers by name.
 - **Management:** responsive Web UI and API, profiles with rollback, encrypted
@@ -391,11 +391,11 @@ the [documentation index](docs/README.md) covers each feature.
 
 ## 18. Installation and OTA updates
 
-For **Firmware v3.0.0**, the browser route is the easiest first install. Safari,
+For **Firmware v3.0.1**, the browser route is the easiest first install. Safari,
 Firefox and phone browsers should use a desktop computer and Easy Install.
 
 **Easy Install:** unzip
-`ESP32-Tailnet-Gateway-v3.0.0-EASY-INSTALL-Windows-macOS-Linux.zip` and read
+`ESP32-Tailnet-Gateway-v3.0.1-EASY-INSTALL-Windows-macOS-Linux.zip` and read
 `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3 and
 esptool 5. The scripts verify checksums and the ESP32-S3 target first.
 
