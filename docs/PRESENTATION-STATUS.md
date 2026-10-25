@@ -1,11 +1,11 @@
 # Firmware and installation availability
 
-**ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v3.0.1**.
+**ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v3.0.2**.
 One ESP32. Multiple Tailnet roles. Enable only what you need.
 
 ## Current downloads
 
-- [Firmware v3.0.1](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v3.0.1)
+- [Firmware v3.0.2](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v3.0.2)
   for ESP32-S3 **N8R8** and **N16R8** (8 MB octal PSRAM, at least 8 MB of
   flash; [supported boards](HARDWARE.md)).
 - [Browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)

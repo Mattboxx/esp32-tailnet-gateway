@@ -43,7 +43,7 @@ STABLE_TAG = 'v' + STABLE_VERSION
 # Current firmware: keep NEXT_PUBLISHED False until the qualified release
 # exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
 # released files (see website/firmware/README.md); the build verifies them.
-NEXT_VERSION = '3.0.1'
+NEXT_VERSION = '3.0.2'
 NEXT_PUBLISHED = True
 FIRMWARE_DIR = SRC / 'firmware'
 EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/
@@ -355,6 +355,7 @@ def render(page: Page, pages: list[Page]) -> str:
     <p><strong>{NAME} — Mattboxx Edition.</strong> {TAGLINE}</p>
     <p>Community firmware based on Csontikka's esp32-tailscale-subnet-router and microlink. Not an official Tailscale client; not affiliated with Tailscale Inc., the Headscale project or Espressif. Tailscale, Headscale, WireGuard and ESP32 are trademarks of their respective owners.</p>
     <p><a href="{REPO_URL}">Source</a> · <a href="{page.rel('security/')}">Security</a> · <a href="{page.rel('about/')}">About and credits</a> · MIT licence · No analytics or tracking.</p>
+    <p>Support the project (optional): the Mattboxx edition on <a href="https://ko-fi.com/mattboxx">Ko-fi</a>, the original author on <a href="https://github.com/sponsors/Csontikka">GitHub Sponsors</a>.</p>
   </div>
 </footer>
 <script src="{page.rel('search-index.js')}" defer></script>
