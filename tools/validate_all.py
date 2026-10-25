@@ -77,6 +77,7 @@ def main():
         pio=shutil.which('platformio') or str(Path.home()/'.platformio/penv/Scripts/platformio.exe')
         env.setdefault('PLATFORMIO_BUILD_DIR',str(Path(os.environ.get('TEMP','/tmp'))/'mattboxx-esp32-build-0114'))
         run('firmware-build',[pio,'run','-e','esp32-s3'],900)
+        if results[-1]['status']=='PASS':run('image-provenance',[sys.executable,'tools/check_image_provenance.py',str(Path(env['PLATFORMIO_BUILD_DIR'])/'esp32-s3')])
     selected=args.only.split(',') if args.only else DRIVERS
     if any(name not in DRIVERS for name in selected):parser.error('Unknown offline driver')
     for name in selected:run(name,[sys.executable,str(ROOT/'tools'/('test_'+name+'.py'))])
