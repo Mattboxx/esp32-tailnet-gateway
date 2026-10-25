@@ -29,6 +29,9 @@ by task.
 | Wired uplink (experimental W5500) | [Ethernet](ETHERNET.md) |
 | Mobile uplink with a SIM (experimental, 3.0) | [Cellular](CELLULAR.md) |
 | From 2.x to 3.0 (settings kept) | [Migration](MIGRATION-3.0.md) |
+| Dynamic DNS (DuckDNS, Cloudflare, update URL) | [Dynamic DNS](DDNS.md) |
+| Telegram and email notifications | [Notifications](NOTIFICATIONS.md) |
+| Web UI languages | [Languages](I18N.md) |
 | Settings | [Configuration](CONFIGURATION.md), [Backup and restore](BACKUP-RESTORE.md) |
 
 The [guide coverage table](GUIDES.md) maps every guide subject to its document.

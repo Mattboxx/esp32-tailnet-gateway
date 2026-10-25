@@ -210,6 +210,9 @@ def main() -> int:
         out.write('0x%02x,' % b)
     out.write('\n};\n')
     out.write('const size_t index_html_gz_len = sizeof(index_html_gz_start);\n')
+    # Validator for conditional requests: the browser keeps the page and asks
+    # "changed?"; an unchanged firmware answers 304 without sending it again.
+    out.write('const char index_html_etag[] = "\\"%s\\"";\n' % hashlib.sha256(gz_bytes).hexdigest()[:16])
     entries, lang_gz = [], 0
     for n, (name, body) in enumerate(sorted(assets.items())):
         data = _gz(body)

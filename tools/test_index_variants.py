@@ -37,6 +37,8 @@ def c_arrays(path):
     for name, var in re.findall(r'\{"([^"]+)", (i18n_\d+), sizeof i18n_\d+\}', table.group(2)):
         out[name] = gzip.decompress(arrays[var])
     assert int(table.group(3)) == len(out) - 1
+    etag = re.search(r'const char index_html_etag\[\] = "\\"([0-9a-f]{16})\\"";', text)
+    assert etag, 'page validator (ETag) missing'
     return out
 
 

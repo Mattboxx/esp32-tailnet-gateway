@@ -38,7 +38,7 @@ static int p_recv(void *c, char *o, size_t cap){peer_t *p=c;const char *r=p->rep
 static int p_starttls(void *c){peer_t *p=c;p->tls=1;return p->starttls_result;}
 static esp_err_t run(peer_t *p, notify_mail_t *m, char *why){
     p->fail_send_after=p->fail_send_after?p->fail_send_after:-1;
-    notify_smtp_io_t io={p,p_send,p_recv,p_starttls};return notify_smtp_send(&io,m,why,120);}
+    notify_smtp_io_t io={p,p_send,p_recv,p_starttls};return notify_smtp_send(&io,m,why,192);}
 static notify_mail_t mail(void){notify_mail_t m={.helo="gw",.user="me@example.com",.pass="s3cret pass",.from="me@example.com",.to="you@example.org",
     .subject="gw: Tailnet connection lost",.body="Tailnet connection lost at 14:05.\nSecond line.",.date="Sat, 24 Oct 2026 12:00:00 +0000",.starttls=false};return m;}
 
@@ -95,7 +95,7 @@ static void encoding_tests(void){
 static const char *const EHLO_TLS = "250-smtp.example.com at your service\r\n250-SIZE 35882577\r\n250-8BITMIME\r\n250-AUTH LOGIN PLAIN XOAUTH2\r\n250 SMTPUTF8\r\n";
 
 static void smtp_tests(void){
-    char why[120];
+    char why[192];   /* as the channel status buffer */
     /* Implicit TLS, AUTH PLAIN, reply split across reads. */
     {const char *r[]={"220 smtp.example.com ESMTP\r\n","250-smtp.example.com at your service\r\n250-SIZE 1\r\n","250 AUTH PLAIN LOGIN\r\n","235 2.7.0 Accepted\r\n","250 OK\r\n","250 OK\r\n","354 Go ahead\r\n","250 2.0.0 OK queued\r\n","221 bye\r\n",NULL};
      peer_t p={.replies=r};notify_mail_t m=mail();
@@ -142,7 +142,11 @@ static void smtp_tests(void){
         {"220 a\r\n","250 AUTH PLAIN\r\n","235 ok\r\n","250 ok\r\n","250 ok\r\n","354 go\r\n","552 too big\r\n",NULL}};
     for(unsigned i=0;i<sizeof steps/sizeof *steps;i++){peer_t p={.replies=steps[i]};notify_mail_t m=mail();why[0]=0;
         assert(run(&p,&m,why)!=ESP_OK&&why[0]);}
-    {peer_t p={.replies=steps[2]};notify_mail_t m=mail();run(&p,&m,why);assert(strstr(why,"535 5.7.8 Username and Password not accepted"));}
+    {peer_t p={.replies=steps[2]};notify_mail_t m=mail();run(&p,&m,why);assert(strstr(why,"535 5.7.8 Username and Password not accepted"));assert(strstr(why,"app password"));}
+    /* Sign-in required without a user: what to do comes first, the server text stays. */
+    {const char *r[]={"220 a\r\n","250 OK\r\n","530 5.7.0 Authentication Required\r\n",NULL};
+     peer_t p={.replies=r};notify_mail_t m=mail();m.user=m.pass="";run(&p,&m,why);
+     assert(!strncmp(why,"sign-in required",16)&&strstr(why,"sender: 530 5.7.0 Authentication Required"));}
     /* No login when no user is set. */
     {const char *r[]={"220 a\r\n","250 OK\r\n","250 ok\r\n","250 ok\r\n","354 go\r\n","250 ok\r\n","221 bye\r\n",NULL};
      peer_t p={.replies=r};notify_mail_t m=mail();m.user="";assert(run(&p,&m,why)==ESP_OK&&!strstr(p.sent,"AUTH"));}

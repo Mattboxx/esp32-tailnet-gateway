@@ -1,5 +1,17 @@
 {
-  "it": {"name": "Italiano"},
-  "es": {"name": "Español"},
-  "zh": {"name": "简体中文"}
+  "it": {
+    "name": "Italiano"
+  },
+  "es": {
+    "name": "Español"
+  },
+  "zh": {
+    "name": "简体中文"
+  },
+  "fr": {
+    "name": "Français"
+  },
+  "de": {
+    "name": "Deutsch"
+  }
 }

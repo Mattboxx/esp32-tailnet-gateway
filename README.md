@@ -78,6 +78,8 @@ remain available; [release notes](docs/releases/RELEASE-1.13.md) explain what is
 | want **alerts** on your phone or inbox | sends **Telegram** and **email** (TLS/STARTTLS) next to ntfy, MQTT/Home Assistant and SNMP *(3.0)* |
 | wonder whether the link is fast enough | runs a **throughput test** on request *(3.0)* |
 | need to wake a NAS or PC remotely | sends Wake-on-LAN and checks that the service answers ([recovery](docs/NAS-RECOVERY.md)) |
+| need a public name for your home connection | keeps a **dynamic DNS** name up to date: DuckDNS, Cloudflare or any update URL *(3.0.1 beta, [guide](docs/DDNS.md))* |
+| have Ethernet or only a mobile SIM at the site | is set up for **Wi-Fi, an Ethernet cable or a SIM** right in the first-boot wizard *(3.0.1 beta)* |
 | run a 2.x gateway | moves to 3.0 **keeping every setting** ([guide](docs/MIGRATION-3.0.md)) |
 
 Every feature is a switch, off until you need it.
@@ -274,8 +276,10 @@ are on the website.
 - **History (3.0):** event history, trends with a chart, settings copies
   before updates, kept in the flash storage area.
 - **Automation:** MQTT with Home Assistant Discovery, ntfy alerts and commands,
-  Telegram and email notifications, read-only SNMP — all optional and
-  supervised.
+  Telegram and email notifications ([guide](docs/NOTIFICATIONS.md)), read-only
+  SNMP — all optional and supervised.
+- **Languages:** English, Italiano, Español, 简体中文; Français and Deutsch and
+  the translated first-boot setup from 3.0.1 beta ([details](docs/I18N.md)).
 - **Tailnet names (3.0):** gateway Wi-Fi and LAN clients resolve tailnet
   peers by name.
 - **Management:** responsive Web UI and API, profiles with rollback, encrypted

@@ -1183,7 +1183,7 @@ async function main() {
     assert.equal(await f.page.evaluate(() => localStorage.getItem('ui-lang')), 'en');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // An unsupported browser language falls back to English.
-    f = await fixture(browser, { page: 'status', locale: 'de-DE' });
+    f = await fixture(browser, { page: 'status', locale: 'pt-BR' });
     await f.page.waitForFunction(() => document.querySelector('#goal-grid .goal-tile'));
     assert.equal(await f.page.evaluate(() => document.documentElement.lang), 'en');
     assert.match(await f.page.locator('#wizard-card .card-title').textContent(), /What do you want to do\?/);

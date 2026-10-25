@@ -147,7 +147,13 @@ static void note_reply(smtp_t *s, const char *what, const char *line, size_t len
     size_t n = len < sizeof text - 1 ? len : sizeof text - 1;
     for (size_t i = 0; i < n; i++) text[i] = (unsigned char)line[i] < 0x20 || (unsigned char)line[i] > 0x7E ? '?' : line[i];
     text[n] = 0;
-    snprintf(s->why, s->cap, "%s: %s", what, text);
+    /* What to do first, then the server's own words for the details. */
+    int code = n >= 3 && is_digit(text[0]) && is_digit(text[1]) && is_digit(text[2]) ? (text[0] - 48) * 100 + (text[1] - 48) * 10 + (text[2] - 48) : 0;
+    const char *hint = code == 530 ? "sign-in required: enter the user name and password — "
+                     : code == 535 ? "user name or password not accepted (many providers need an app password) — "
+                     : (code == 550 || code == 553) && !strcmp(what, "sender") ? "the server refused the From address — "
+                     : "";
+    snprintf(s->why, s->cap, "%s%s: %s", hint, what, text);
 }
 
 /* Reads one (possibly multi-line) reply; returns its code or -1. */
@@ -325,7 +331,7 @@ static const char *TAG = "notify";
 
 typedef struct {uint32_t magic, version; notify_config_t config; uint32_t checksum;} cfg_record_t;
 typedef struct {uint8_t kind, level, channels, attempts; uint32_t wall; char text[NOTIFY_TEXT_MAX];} note_t;
-typedef struct {uint32_t sent, failed; bool last_ok; char last_error[96];} channel_status_t;
+typedef struct {uint32_t sent, failed; bool last_ok; char last_error[192];} channel_status_t;   /* PSRAM */
 
 static SemaphoreHandle_t s_lock;
 static StaticSemaphore_t s_lock_storage;
@@ -522,7 +528,7 @@ static void worker(void *arg)
         note_t note = s_queue[s_head];
         notify_config_t c = s_cfg;
         xSemaphoreGive(s_lock);
-        char text[NOTIFY_TEXT_MAX + 32], when[16], why[96];
+        char text[NOTIFY_TEXT_MAX + 32], when[16], why[192];   /* PSRAM stack */
         when_text(note.wall, when, sizeof when);
         static const char *const mark[] = {"", "\xE2\x9A\xA0\xEF\xB8\x8F ", "\xE2\x9D\x97 "};   /* warning, error */
         snprintf(text, sizeof text, "%s%s%s%s", note.level < 3 ? mark[note.level] : "", when, when[0] ? " " : "", note.text);
