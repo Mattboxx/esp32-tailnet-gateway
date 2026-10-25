@@ -1,13 +1,16 @@
 # Maintainer continuation
 
-Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v3.0.1**;
+Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v3.0.2**;
 the 2.1.0 migration bridge remains available for 2.x installations.
 Follow [Release availability](PRESENTATION-STATUS.md) for public downloads.
-Exact stable image source/tag: `9e03f20d5dd23cd8d42e4e5eea91bf9f9daca8f8` /
-`v3.0.1`. Do not rebuild or substitute its qualified image with the earlier
-3.0.1-beta.1 image or a new build from a later documentation commit.
+Exact stable image source/tag: `fcc6011bab4b2f1aa38d5fb49564f0cef3163378` /
+`v3.0.2` (firmware.bin `fdb763c1…85e0`). Do not rebuild or substitute its
+qualified image with the unpublished 3.0.2-beta.1 image or a new build from a
+later documentation commit. The previous stable 3.0.1 (`9e03f20`) stays
+published unchanged.
 
-Read ignored `build/private-device/STABLE-301-IN-PROGRESS.md` for the exact
+Read ignored `build/private-device/CLAUDE-TO-CODEX-NVS-ATOMIC.md` (3.0.2) and
+`build/private-device/STABLE-301-IN-PROGRESS.md` for the exact
 operational checkpoint, device state, acceptance scope, remaining independent
 test cases and next authorized action. That record takes precedence over older
 beta handovers. Later site/documentation commits are not the image source.

@@ -40,10 +40,15 @@ settings pages.
   before every NVS operation of a save and again during the recovery).
   Handler wiring is covered by build and code review, not by end-to-end
   fault injection on each page.
-- On an N16R8 test board: settings saved by 3.0.1 were read correctly after
-  the update, new settings survived a restart, and the previous firmware
-  still read them after switching back to it; feature and page checks
-  passed. No physical NVS fault or power cut was injected.
+- On an N16R8 test board, with the exact release image: System, Network,
+  Tailscale and MTU settings saved in one request each were kept after a
+  restart; a Tailscale save with an invalid 4via6 subnet was refused and
+  changed nothing; the published 3.0.1 read all of them after switching
+  back, and 3.0.2 again after returning; feature and page checks passed.
+  The migration of 3.0.0/3.0.1 notification, history and tailnet-name
+  settings was checked on the same board with 3.0.2-beta.1 (same storage
+  code for those records). No physical NVS fault or power cut was injected
+  on the board.
 
 ## [3.0.1] — 2026-10-25
 
