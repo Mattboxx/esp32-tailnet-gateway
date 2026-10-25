@@ -11,6 +11,7 @@ scripts; a strict Content-Security-Policy allows only same-origin resources.
 python tools/build_site.py --check          # build/site + link/SEO/a11y checks
 python -m http.server -d build/site 8000    # http://localhost:8000/
 node tools/test_site_browser.cjs            # 9 viewports, needs Playwright
+node tools/test_site_installer_mobile.cjs   # Phone fallback + desktop installer
 ```
 
 `--check` fails on broken internal links, missing repository files, more or
@@ -18,6 +19,10 @@ fewer than one `h1`, skipped heading levels, missing `alt`, duplicate titles
 or descriptions and pages missing from the sitemap. The browser test checks
 320–1920 px and landscape phone widths for page overflow, text size, 44 px
 touch targets, the mobile menu, search and console errors.
+The installer regression also removes Web Serial in phone-emulated contexts
+to exercise the actual unsupported-browser slot, in light and dark themes.
+It checks a single readable notice panel and preserves the supported desktop
+button. This is Chromium rendering coverage, not a physical iOS/USB flash test.
 
 ## What each page gets
 
@@ -36,11 +41,12 @@ No partial translation is published.
 
 ## Publishing (owner authorization required)
 
-`.github/workflows/pages.yml` runs only on manual dispatch. During this early
-presentation phase, Pages uses GitHub Actions under the existing repository
-name: `https://mattboxx.github.io/esp32-tailscale-gateway-NAS-recovery/`.
-The firmware source and release assets stay unchanged. Update the site/repo
-constants and recheck all paths only after the separately authorized rename.
+`.github/workflows/pages.yml` runs only on manual dispatch. Pages is published
+from `Main` at `https://mattboxx.github.io/esp32-tailnet-gateway/` after the
+repository rename. `NEXT_VERSION` selects the versioned installer; its files
+must remain byte-identical to the released package. Presentation-only changes
+do not rebuild firmware or replace release assets. CSS URLs include a content
+hash so returning visitors receive the matching layout after a deployment.
 
 ## Search engines
 
@@ -59,5 +65,5 @@ Tailscale IoT gateway, LAN to Tailnet, Tailnet port forwarding, devices without
 a Tailscale client, Tailscale Wake-on-LAN, ESP32 remote recovery, Tailscale
 ESP32-S3, ESP32 Home Assistant.
 
-Lighthouse has not been run in this environment; run it on the deployed
-site before announcing it.
+For performance and accessibility reviews, run Lighthouse against the deployed
+site and retain the execution records with the private validation logs.
