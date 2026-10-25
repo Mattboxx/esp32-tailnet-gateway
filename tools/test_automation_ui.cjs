@@ -339,12 +339,12 @@ async function main() {
       assert.deepEqual(f.errors, []); await f.context.close(); count++;
     }
     // Layout migration card: only on the 2.x table, explicit confirmation, progress.
-    f = await fixture(browser, { page: 'system' });
+    f = await fixture(browser, { page: 'system/maintenance' });
     await f.page.waitForFunction(() => document.getElementById('sys-updates-reload'));
     await f.page.waitForTimeout(500);
     assert.equal(await f.page.locator('#mig-card').isHidden(), true);
     await f.context.close(); count++;
-    f = await fixture(browser, { page: 'system', migrationBody: {layout: '2.x', bridge: true, needed: true, supported: true, busy: false,
+    f = await fixture(browser, { page: 'system/maintenance', migrationBody: {layout: '2.x', bridge: true, needed: true, supported: true, busy: false,
       physical_flash: 16777216, state: 'idle', progress: 0, target: '', error: ''} });
     await f.page.waitForFunction(() => !document.getElementById('mig-card').hidden);
     assert.equal(await f.page.locator('#mig-start').isDisabled(), true);
@@ -358,7 +358,7 @@ async function main() {
     assert.equal(await f.page.locator('#mig-progress-wrap').isHidden(), false);
     assert.equal(await f.page.locator('#mig-start').isDisabled(), true);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
-    f = await fixture(browser, { page: 'system', migrationBody: {layout: '2.x', bridge: true, needed: true, supported: false, busy: false,
+    f = await fixture(browser, { page: 'system/maintenance', migrationBody: {layout: '2.x', bridge: true, needed: true, supported: false, busy: false,
       physical_flash: 4194304, state: 'idle', progress: 0, target: '', error: ''} });
     await f.page.waitForFunction(() => document.getElementById('mig-status').textContent.includes('needs 8 MB'));
     assert.equal(await f.page.locator('#mig-confirm').isDisabled(), true);
@@ -486,7 +486,7 @@ async function main() {
 
     // New upstream SNMP settings use the same honest unknown-state model:
     // no failed read may turn a running listener into an unchecked switch.
-    f = await fixture(browser, { page: 'system', snmpBody: { enabled: true, running: true, community: 'fixture' } });
+    f = await fixture(browser, { page: 'system/logging', snmpBody: { enabled: true, running: true, community: 'fixture' } });
     await f.page.waitForFunction(() => document.getElementById('sys-snmp-badge').textContent === 'Running');
     assert.equal(await f.page.locator('#sys-snmp-en').isChecked(), true);
     f.state.snmpFailures = 2;
@@ -500,7 +500,7 @@ async function main() {
     assert.deepEqual(f.errors, []);
     await f.context.close(); count++;
     // An unlimited idle timer must not imply that password protection is off.
-    f = await fixture(browser, { page: 'system' });
+    f = await fixture(browser, { page: 'system/security' });
     await f.page.waitForFunction(() => document.getElementById('sys-auth-to-badge').textContent === 'Password required · no idle timeout');
     assert.equal(await f.page.locator('#sys-web-auth-enabled').isChecked(), true);
     f.state.systemBody = { web_auth_enabled: false, session_timeout_s: 1800 };
@@ -530,7 +530,7 @@ async function main() {
     await f.context.close(); count++;
     // Manual GitHub installs remain usable while periodic checks are OFF;
     // channel changes must be saved and writes are never retried silently.
-    f = await fixture(browser, { page: 'system' });
+    f = await fixture(browser, { page: 'system/maintenance' });
     await f.page.waitForFunction(() => !document.getElementById('sys-updates-install').disabled);
     assert.equal(await f.page.locator('#sys-updates-enabled').isChecked(), false);
     assert.equal(await f.page.locator('#sys-updates-auto').isDisabled(), true);
@@ -574,7 +574,7 @@ async function main() {
 
     // A successful check with no candidate disables installation, not checks.
     // Refresh/polling must preserve this until a newer candidate is found.
-    f = await fixture(browser, { page: 'system' });
+    f = await fixture(browser, { page: 'system/maintenance' });
     await f.page.waitForFunction(() => !document.getElementById('sys-updates-check').disabled);
     await f.page.locator('#sys-updates-check').click();
     await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Working…');
@@ -606,7 +606,7 @@ async function main() {
 
     // Missing or non-boolean availability fields must not unlock installation.
     for (const invalid of [{checked: undefined}, {update_available: 'false'}]) {
-      f = await fixture(browser, {page: 'system', updatesBody: {...updates, ...invalid}});
+      f = await fixture(browser, {page: 'system/maintenance', updatesBody: {...updates, ...invalid}});
       await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Unavailable');
       assert.equal(await f.page.locator('#sys-updates-install').isDisabled(), true);
       assert.equal(await f.page.locator('#sys-updates-check').isDisabled(), true);
@@ -618,7 +618,7 @@ async function main() {
       assert.deepEqual(f.errors, []); await f.context.close(); count++;
     }
 
-    f = await fixture(browser, { page: 'system' });
+    f = await fixture(browser, { page: 'system/maintenance' });
     await f.page.waitForFunction(() => !document.getElementById('sys-updates-install').disabled);
     f.page.on('dialog', dialog => dialog.accept());
     await f.page.locator('#sys-updates-enabled').locator('..').click();
@@ -633,7 +633,7 @@ async function main() {
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Failed status reads retain visible policy, disable writes and do not
     // report an enabled automatic installer as OFF. Invalid links stay hidden.
-    f = await fixture(browser, { page: 'system', updatesBody: {...updates,
+    f = await fixture(browser, { page: 'system/maintenance', updatesBody: {...updates,
       enabled: true, auto_install: true, beta_channel: true, install_hour: 3,
       release_url: 'javascript:alert(1)'} });
     await f.page.waitForFunction(() => document.getElementById('sys-ota-badge').textContent === 'Automatic install');
@@ -684,7 +684,7 @@ async function main() {
         code: 'mapping_installed', summary: 'Mapping installed; service not tested',
         next_step: 'Connect from an allowed LAN client.', service_status: 'not_tested', data_plane_status: 'not_verified'}};
     const forwardBody = {max: 8, rules: [forwardRule], uplink_ip: '192.0.2.20', observation: 'passive_snapshot'};
-    f = await fixture(browser, {page: 'network', forwardBody});
+    f = await fixture(browser, {page: 'network/services', forwardBody});
     await f.page.waitForFunction(() => document.getElementById('tf-context').textContent.startsWith('Saved configuration'));
     assert.equal(await f.page.locator('.tf-runtime-badge').textContent(), forwardRule.diagnostic.summary);
     await f.page.locator('.tf-diagnostic summary').click();
@@ -725,13 +725,13 @@ async function main() {
       ['name','enabled','protocol','listen_port','tailnet_destination','destination_port','allowed_source_subnet'].sort());
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Malformed status must not wipe the saved/draft rule table or enable Save.
-    f = await fixture(browser, {page: 'network', forwardBody: {rules: {}, max: 8}});
+    f = await fixture(browser, {page: 'network/services', forwardBody: {rules: {}, max: 8}});
     await f.page.waitForFunction(() => document.getElementById('tf-badge').textContent === 'Unavailable');
     assert.equal(await f.page.locator('#tf-save').isDisabled(), true);
     assert.equal(await f.page.locator('#tf-add').isDisabled(), true);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Remote fields are text, not HTML, and /0 exposure is explicit on mobile.
-    f = await fixture(browser, {page: 'network', viewport: {width: 390, height: 844}, forwardBody: {
+    f = await fixture(browser, {page: 'network/services', viewport: {width: 390, height: 844}, forwardBody: {
       ...forwardBody, rules: [{...forwardRule, name: '<img src=x onerror="window.tfInjected=1">',
         allowed_source_subnet: '0.0.0.0/0', diagnostic: {...forwardRule.diagnostic,
           next_step: '<img src=x onerror="window.tfInjected=1">'}}]}});
@@ -747,7 +747,7 @@ async function main() {
     }
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Template drafts are OFF and require actual destination/source parameters.
-    f=await fixture(browser,{page:'network'});
+    f=await fixture(browser,{page:'network/services'});
     await f.page.waitForFunction(()=>!document.getElementById('tf-add').disabled);
     await f.page.locator('#tf-template').selectOption('home-assistant');await f.page.locator('#tf-add').click();
     assert.equal(await f.page.locator('.tf-enabled').isChecked(),false);
@@ -759,7 +759,7 @@ async function main() {
     // excludes concurrent editor writes, and never retries a stale-table conflict.
     const importFile={name:'fixture.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({format:'homelab-service-rules/v1',rules:[{name:'Remote SSH',enabled:true,protocol:'tcp',listen_port:2222,tailnet_destination:'100.64.0.2',destination_port:22,allowed_source_subnet:'192.0.2.42/32'}]}))};
     for(const conflict of [false,true]){
-      f=await fixture(browser,{page:'network',importConflict:conflict,importDelay:100});
+      f=await fixture(browser,{page:'network/services',importConflict:conflict,importDelay:100});
       await f.page.waitForFunction(()=>!document.getElementById('tf-add').disabled);
       await f.page.getByText('Back up or import saved service rules',{exact:true}).click();
       await f.page.locator('#tf-import-file').setInputFiles(importFile);
@@ -923,7 +923,7 @@ async function main() {
     const tfRule=()=>({index:0,rule_token:77,name:'NAS',enabled:false,installed:false,protocol:'tcp',listen_port:15000,tailnet_destination:'100.64.0.9',
       destination_port:5000,allowed_source_subnet:'192.168.1.20/32',accepted_packets:0,blocked_packets:0,error:'',diagnostic:{code:'disabled',summary:'Rule disabled',next_step:'Enable it'},
       activity:{peer_path:'relay',last_accepted_age_s:null,last_rejected_age_s:12,service_reply_age_s:null}});
-    f=await fixture(browser,{page:'network',forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
+    f=await fixture(browser,{page:'network/services',forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
     await f.page.waitForFunction(()=>document.querySelector('.tf-test')&&!document.querySelector('.tf-test').disabled);
     assert.equal(await f.page.locator('.tf-check-state').textContent(),'Not tested');
     assert.match(await f.page.locator('.tf-activity').textContent(),/Last accepted: never this boot · last rejected: 12 s ago · reply from the Tailnet service: none seen · destination peer: relayed via DERP/);
@@ -935,7 +935,7 @@ async function main() {
     await f.page.locator('.tf-name').fill('NAS edited');
     assert.equal(await f.page.locator('.tf-test').isDisabled(),true); // tests the saved rule only
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
-    f=await fixture(browser,{page:'network',checkStatus:429,forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
+    f=await fixture(browser,{page:'network/services',checkStatus:429,forwardBody:{rules:[tfRule()],max:8,uplink_ip:'192.0.2.20',observation:'passive_snapshot'}});
     await f.page.waitForFunction(()=>document.querySelector('.tf-test')&&!document.querySelector('.tf-test').disabled);
     await f.page.locator('.tf-test').click();
     await f.page.waitForFunction(()=>document.querySelector('.tf-check-state').textContent.includes('Test not started: another check is running'));
@@ -992,7 +992,7 @@ async function main() {
     assert.equal(await f.page.locator('#wizard-start').isDisabled(),false);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Templates: risk hint, first free listen port per protocol, UDP template.
-    f=await fixture(browser,{page:'network'});
+    f=await fixture(browser,{page:'network/services'});
     await f.page.waitForFunction(()=>!document.getElementById('tf-add').disabled);
     await f.page.locator('#tf-template').selectOption('mqtt');
     assert.match(await f.page.locator('#tf-template-hint').textContent(),/Unencrypted/);
@@ -1058,6 +1058,7 @@ async function main() {
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // ntfy system events are opt-in and saved with the rest of the card.
     f=await fixture(browser,{});await loaded(f.page);
+    await f.page.locator('.page-section.active .subnav-tab[data-sub="notifications"]').click();
     assert.equal(await f.page.locator('#ntfy-system-events').isChecked(),false);
     await f.page.locator('label:has(#ntfy-system-events)').click();
     await f.page.waitForFunction(()=>!document.getElementById('ntfy-save').disabled);
@@ -1080,7 +1081,7 @@ async function main() {
     assert.deepEqual(f.state.savedEthernet,{enabled:true,chip:'w5500',preference:'ethernet_first',spi_host:2,spi_mhz:20,sclk:12,mosi:11,miso:13,cs:10,int:14,rst:9,static_ip:true,ip:'192.168.1.60',netmask:'255.255.255.0',gateway:'192.168.1.1',dns:''});
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Service watch: off by default, saved with typed fields.
-    f=await fixture(browser,{page:'network'});
+    f=await fixture(browser,{page:'network/services'});
     await f.page.waitForFunction(()=>document.getElementById('sw-status').textContent==='Off.');
     await f.page.locator('#sw-box summary').click();
     await f.page.locator('label:has(#sw-enabled)').click();await f.page.locator('#sw-interval').fill('300');
@@ -1126,7 +1127,7 @@ async function main() {
     await f.page.waitForFunction(()=>document.getElementById('wizard-panel').hidden&&document.activeElement.classList.contains('goal-tile'));
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Board without PSRAM: destination test and service watch are gated by the manifest.
-    f=await fixture(browser,{page:'network',forwardBody:{rules:[{index:0,rule_token:77,name:'NAS',enabled:false,installed:false,protocol:'tcp',listen_port:15000,tailnet_destination:'100.64.0.9',destination_port:5000,allowed_source_subnet:'192.168.1.20/32',accepted_packets:0,blocked_packets:0,error:''}],max:8},
+    f=await fixture(browser,{page:'network/services',forwardBody:{rules:[{index:0,rule_token:77,name:'NAS',enabled:false,installed:false,protocol:'tcp',listen_port:15000,tailnet_destination:'100.64.0.9',destination_port:5000,allowed_source_subnet:'192.168.1.20/32',accepted_packets:0,blocked_packets:0,error:''}],max:8},
       capabilityBody:{schema:2,features:[{id:'smart-recovery',compiled:true,hardware_supported:false,configured:false,active:false,verified:false,experimental:true,evidence:'Fixture: no PSRAM'},
         {id:'destination-test',compiled:true,hardware_supported:false,configured:true,active:null,verified:false,experimental:true,evidence:'Fixture: no PSRAM'},
         {id:'service-watch',compiled:true,hardware_supported:false,configured:false,active:false,verified:false,experimental:true,evidence:'Fixture: no PSRAM'}]}});
@@ -1158,7 +1159,7 @@ async function main() {
     assert.equal(await f.page.locator('body.ui-simple').count(), 1);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Translations: browser language detection, manual switch, technical values untouched, English fallback.
-    f = await fixture(browser, { page: 'network', locale: 'it-IT', forwardBody: { rules: [tfRule()], max: 8, uplink_ip: '192.0.2.20', observation: 'passive_snapshot' } });
+    f = await fixture(browser, { page: 'network/services', locale: 'it-IT', forwardBody: { rules: [tfRule()], max: 8, uplink_ip: '192.0.2.20', observation: 'passive_snapshot' } });
     await f.page.waitForFunction(() => document.documentElement.lang === 'it' && document.querySelector('.nav-tab[data-page="network"]').textContent.includes('Rete'));
     await f.page.waitForFunction(() => document.querySelector('.tf-sum-route'));
     assert.match(await f.page.locator('.tf-sum-route').first().textContent(), /192\.0\.2\.20:15000 → 100\.64\.0\.9:5000 · TCPda 192\.168\.1\.20\/32/); // values never translated
@@ -1183,7 +1184,7 @@ async function main() {
     assert.match(await f.page.locator('#wizard-card .card-title').textContent(), /What do you want to do\?/);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // 3.0 history: off by default, saving the switches, escaped and filtered events.
-    f = await fixture(browser, { page: 'tools', histEvents: [
+    f = await fixture(browser, { page: 'tools/history', histEvents: [
       {k: 'boot', l: 'info', b: 3, t: 1700000000, u: 1, m: 'Started 3.0.0 from ota_1, reset SW'},
       {k: 'security', l: 'warn', b: 3, t: 0, u: 300, m: 'Admin login failed <img src=x onerror=alert(1)>'},
       {k: 'crash', l: 'error', b: 2, t: 0, u: 50, m: 'Crash: task=x'}] });
@@ -1222,7 +1223,7 @@ async function main() {
     assert.ok(f.calls.includes('/api/history'));
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Settings copies: list, escaped firmware text, restore and delete need a confirmation.
-    f = await fixture(browser, { page: 'system' });
+    f = await fixture(browser, { page: 'system/maintenance' });
     f.page.on('dialog', dialog => dialog.accept());
     await f.page.waitForFunction(() => document.getElementById('snap-badge').textContent === '1 of 3');
     assert.equal(await f.page.locator('#snap-tbody b').count(), 0, 'firmware text escaped');
@@ -1235,7 +1236,7 @@ async function main() {
     assert.deepEqual(f.state.snapPosts, [{ action: 'take' }, { action: 'delete', slot: 1, confirm: true }, { action: 'restore', slot: 1, confirm: true }]);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Tailnet names, notifications and the throughput test.
-    f = await fixture(browser, { page: 'tailscale' });
+    f = await fixture(browser, { page: 'tailscale/options' });
     await f.page.waitForFunction(() => document.getElementById('tsn-status').textContent.startsWith('Off'));
     await f.page.locator('#tsn-card label.feature-switch', { hasText: 'Answer tailnet names' }).click();
     await f.page.locator('#tsn-save').click();
@@ -1243,7 +1244,7 @@ async function main() {
     assert.deepEqual(f.state.savedNames, { enabled: true, lan: false });
     assert.match(await f.page.locator('#tsn-status').textContent(), /5 tailnet peers known/);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
-    f = await fixture(browser, { page: 'automation' });
+    f = await fixture(browser, { page: 'automation/notifications' });
     await f.page.waitForFunction(() => document.getElementById('nt-status').textContent === 'Off.');
     assert.match(await f.page.locator('#nt-tg-status').textContent(), /401: Unauthorized/);
     await f.page.locator('#nt-card label.feature-switch', { hasText: 'Send to Telegram' }).click();
@@ -1269,6 +1270,41 @@ async function main() {
     assert.deepEqual(f.state.savedSpeed, { url: 'http://100.64.0.7/big.iso', seconds: 10 });
     assert.match(await f.page.locator('#thr-status').textContent(), /12\.0 MB in 10\.0 s — 10\.07 Mbit\/s/);
     assert.equal(await f.page.locator('#thr-start').isDisabled(), false);
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    // Sub-sections: one group at a time, deep links, keyboard, remembered choice, guides open the right group.
+    f = await fixture(browser, { page: 'network' });
+    await f.page.waitForSelector('#page-network.active .subnav');
+    const visibleGroups = () => f.page.evaluate(() => [...document.querySelectorAll('#page-network .subpage')].filter(g => !g.hidden).map(g => g.dataset.sub));
+    assert.deepEqual(await visibleGroups(), ['internet']);
+    assert.equal(await f.page.locator('#page-network .subnav-tab[aria-selected="true"]').textContent(), 'Internet');
+    await f.page.locator('#page-network .subnav-tab[data-sub="services"]').click();
+    assert.deepEqual(await visibleGroups(), ['services']);
+    assert.equal(await f.page.evaluate(() => location.hash), '#network/services');
+    assert.equal(await f.page.locator('#tf-add').isVisible(), true);
+    await f.page.locator('#page-network .subnav-tab[data-sub="services"]').focus();
+    await f.page.keyboard.press('ArrowLeft');
+    assert.deepEqual(await visibleGroups(), ['clients']);
+    await f.page.keyboard.press('Home');
+    assert.deepEqual(await visibleGroups(), ['internet']);
+    await f.page.keyboard.press('End');
+    assert.deepEqual(await visibleGroups(), ['services']);
+    await f.page.evaluate(() => { location.hash = 'firewall'; });
+    await f.page.waitForFunction(() => document.getElementById('page-firewall').classList.contains('active'));
+    await f.page.evaluate(() => { location.hash = 'network'; });
+    await f.page.waitForFunction(() => document.getElementById('page-network').classList.contains('active'));
+    assert.deepEqual(await visibleGroups(), ['services'], 'the last group is remembered');
+    await f.page.evaluate(() => { location.hash = 'system/about'; });
+    await f.page.waitForFunction(() => document.getElementById('page-system').classList.contains('active'));
+    assert.equal(await f.page.locator('#page-system .subnav-tab[aria-selected="true"]').textContent(), 'About');
+    await f.page.evaluate(() => { location.hash = 'status'; });
+    await f.page.waitForFunction(() => document.getElementById('page-status').classList.contains('active'));
+    await f.page.locator('#uplink-lan-name-edit').click();
+    await f.page.waitForFunction(() => document.activeElement && document.activeElement.id === 'net-hostname');
+    assert.deepEqual(await visibleGroups(), ['internet'], '"Change" opens the group with the name field');
+    assert.equal(await f.page.locator('#page-tailscale .subnav-tab').count(), 3);
+    assert.equal(await f.page.evaluate(() => document.querySelectorAll('.page-section').length), 8);
+    assert.equal(await f.page.evaluate(() => [...document.querySelectorAll('.page-section')].every(s => s.parentElement.classList.contains('page-container'))), true,
+      'every page inside the centred container');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     console.log(`PASS: ${count} browser scenarios (synthetic APIs, including operational/health settings, profiles, guided setup, MQTT backoff, Service Gateway destination tests and malformed/stale-state refusal)`);
   } finally { await browser.close(); }
