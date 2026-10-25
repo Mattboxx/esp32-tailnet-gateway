@@ -31,7 +31,8 @@
 #define CHECK_BIT 1U
 #define INSTALL_BIT 2U
 #define CONFIG_BIT 4U
-#define JSON_LIMIT (256U * 1024U)
+/* Ten releases with notes measured 186 KB (2026-10-25): keep room to grow. */
+#define JSON_LIMIT (512U * 1024U)
 #define DAILY_US (24LL * 3600 * 1000000)
 #define WORKER_STACK 16384
 #define OTA_NOINLINE __attribute__((noinline))

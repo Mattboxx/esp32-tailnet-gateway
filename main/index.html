@@ -3803,6 +3803,7 @@
         <div class="card-body">
           <p class="form-hint">Firmware 3.0 needs a new flash layout with larger update slots. This gateway can switch over the network: it downloads 3.0 from GitHub, checks every file, writes 3.0 next to the running firmware and then rewrites the boot loader and the partition table. All settings stay (WiFi, Tailscale identity, passwords, rules). It takes a few minutes and ends with a restart into 3.0.</p>
           <p class="form-hint"><strong>Keep the power on.</strong> A power cut during the last step (well under a second) needs a USB reinstall with Easy Install or the web installer; settings are still kept. If anything fails before that step, nothing changes. If 3.0 does not start, the gateway returns to this firmware.</p>
+          <p class="alert alert-warning" id="mig-lock" hidden>Needs the web UI lock: turn on Require the admin password (System → Access → Web session), sign in, then try again.</p>
           <p id="mig-status" role="status">Not loaded</p>
           <div id="mig-progress-wrap" hidden style="background:var(--bg-subtle); border-radius:var(--radius-sm); height:0.5rem; overflow:hidden; margin-bottom:var(--sp-3);"><div id="mig-progress" style="background:var(--accent); height:100%; width:0%; transition:width 0.2s;"></div></div>
           <label class="feature-switch"><input type="checkbox" id="mig-confirm"><span class="feature-switch-track" aria-hidden="true"></span><span>The power supply is stable and I want to move this gateway to 3.0 now</span></label>
@@ -3890,6 +3891,7 @@
               <tbody id="snap-tbody"><tr><td colspan="5" class="form-hint">—</td></tr></tbody>
             </table>
           </div>
+          <p class="alert alert-warning" id="snap-lock" hidden>Needs the web UI lock: turn on Require the admin password (System → Access → Web session), sign in, then try again.</p>
           <div class="page-header-actions"><button class="btn btn-secondary" id="snap-cancel" type="button" hidden>Cancel the pending restore</button><button class="btn btn-primary" id="snap-take" type="button" disabled>Save a copy now</button></div>
           <p class="form-hint" id="snap-status" role="status">Loading…</p>
         </div>
@@ -4971,6 +4973,10 @@
     // =====================================================================
 
     var s_web_auth_required = true;
+    /* Actions that change or reveal secrets need a password session: say so
+     * up front instead of failing with a bare 403 while the lock is off. */
+    var LOCK_TEXT = 'Needs the web UI lock: turn on Require the admin password (System → Access → Web session), sign in, then try again.';
+    function lockOff() { return !s_web_auth_required; }
 
     function showAuthOverlay(which) {
       // which: 'setup' | 'login' | null
@@ -6753,7 +6759,8 @@
         var badge=document.getElementById('mig-badge');
         badge.textContent=d.busy?'In progress':d.state==='failed'?'Not done':'Needed for 3.0';
         badge.className='badge '+(d.state==='failed'?'badge-danger':d.busy?'badge-info':'badge-warning');
-        document.getElementById('mig-start').disabled=!d.supported||d.busy||!document.getElementById('mig-confirm').checked;
+        document.getElementById('mig-lock').hidden=!lockOff()||d.busy;
+        document.getElementById('mig-start').disabled=lockOff()||!d.supported||d.busy||!document.getElementById('mig-confirm').checked;
         document.getElementById('mig-confirm').disabled=!d.supported||d.busy;
         if(d.busy&&onPage('system'))s_mig_poll=setTimeout(loadMigration,2000);
       }).catch(function(){
@@ -6761,12 +6768,12 @@
         if(onPage('system')&&!document.getElementById('mig-card').hidden)s_mig_poll=setTimeout(loadMigration,4000);
       });
     }
-    document.getElementById('mig-confirm').addEventListener('change',function(){document.getElementById('mig-start').disabled=!this.checked;});
+    document.getElementById('mig-confirm').addEventListener('change',function(){document.getElementById('mig-start').disabled=lockOff()||!this.checked;});
     document.getElementById('mig-start').addEventListener('click',async function(){
       if(!confirm('Move this gateway to the 3.0 flash layout now? It restarts into 3.0 when done. Keep the power on.'))return;
       var btn=this;btn.disabled=true;
       try{var r=await apiFetch('/api/system/migration',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({confirm:'MIGRATE'})});
-        if(!r.ok)throw new Error(r.status===409?'already running, or an update is in progress':'HTTP '+r.status);
+        if(!r.ok)throw new Error(r.status===403?LOCK_TEXT:r.status===409?'already running, or an update is in progress':'HTTP '+r.status);
         await loadMigration();}
       catch(e){document.getElementById('mig-status').textContent='Not started: '+e.message;btn.disabled=false;}
     });
@@ -7171,11 +7178,13 @@
           el('snap-cancel').hidden = !d.restore_pending;
           el('snap-status').textContent = !d.available ? 'Not available on the 2.x flash layout: move to the 3.0 layout first.' :
             d.restore_pending ? 'A restore is waiting for the next start.' : d.before_update ? 'A copy is also saved before each firmware update.' : 'Copies are saved only by hand (Diagnostics → History can save one before each update).';
+          el('snap-lock').hidden = !d.available || !lockOff();
           el('snap-tbody').innerHTML = d.slots.map(function (x) {
             if (!x.valid) return '<tr><td>' + x.slot + '</td><td colspan="4" class="form-hint">Empty</td></tr>';
+            var off = lockOff() ? ' disabled' : '';
             return '<tr><td>' + x.slot + '</td><td>' + html(x.t ? new Date(x.t * 1000).toLocaleString() : 'Clock not set') + '</td><td>' + html(REASON[x.reason] || x.reason) +
               '</td><td class="mono">' + html(x.firmware) + '</td><td style="white-space:nowrap;"><button class="btn btn-secondary btn-sm" type="button" data-snap-restore="' + x.slot +
-              '">Restore</button> <button class="btn btn-ghost btn-sm text-danger" type="button" data-snap-delete="' + x.slot + '">Delete</button></td></tr>';
+              '"' + off + '>Restore</button> <button class="btn btn-ghost btn-sm text-danger" type="button" data-snap-delete="' + x.slot + '"' + off + '>Delete</button></td></tr>';
           }).join('');
         }).catch(function (e) { el('snap-status').textContent = 'Unavailable: ' + e.message; });
       }
@@ -7184,7 +7193,7 @@
         try {
           var r = await apiFetch('/api/system/snapshots', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
           var d = await r.json().catch(function () { return {}; });
-          if (!r.ok || !d.ok) throw new Error(d.reason || (r.status === 401 || r.status === 403 ? 'sign in with the admin password' : 'HTTP ' + r.status));
+          if (!r.ok || !d.ok) throw new Error(d.reason || (r.status === 401 || r.status === 403 ? LOCK_TEXT : 'HTTP ' + r.status));
           return true;
         } catch (e) { el('snap-status').textContent = 'Not done: ' + e.message; if (button) button.disabled = false; return false; }
       }
@@ -8624,7 +8633,7 @@
         function () {
           btn.disabled = true; btn.textContent = 'Regenerating…';
           apiFetch('/api/tailscale/reset_identity', { method: 'POST' })
-            .then(function (r) { return r.json(); })
+            .then(function (r) { if (r.status === 403) return { ok: false, reason: LOCK_TEXT }; return r.json(); })
             .then(function (d) {
               if (d.ok) {
                 showToast('success', 'Identity wiped', 'Device is rebooting — refresh in ~10 s.', 8000);
@@ -10677,8 +10686,11 @@
                   + '<a href="#" id="factory-backup-link" style="color:var(--accent); white-space:nowrap;">Back up first&nbsp;&rarr;</a>'
                   + '</div>',
                   function () {
-                    apiFetch('/api/system/factory_reset', { method: 'POST' });
-                    showToast('info', 'Factory reset triggered', 'Device is rebooting into the wizard.', 8000);
+                    apiFetch('/api/system/factory_reset', { method: 'POST' }).then(function (r) {
+                      if (r.status === 403) showToast('error', 'Factory reset not started', LOCK_TEXT, 9000);
+                      else if (!r.ok) showToast('error', 'Factory reset not started', 'HTTP ' + r.status, 6000);
+                      else showToast('info', 'Factory reset triggered', 'Device is rebooting into the wizard.', 8000);
+                    }).catch(function () { showToast('info', 'Factory reset triggered', 'Device is rebooting into the wizard.', 8000); });
                   },
                   { html: true, confirmText: 'Erase everything', danger: true });
       /* "Back up first" cancels this dialog and opens the backup flow. */
