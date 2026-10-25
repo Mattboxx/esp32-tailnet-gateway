@@ -19,6 +19,7 @@ schema: home
       <!-- if:v2 --><a class="btn" href="{{repo}}/releases/download/v{{next_version}}/ESP32-Tailnet-Gateway-v{{next_version}}-EASY-INSTALL-Windows-macOS-Linux.zip">Easy Install (.zip)</a><!-- endif -->
       <a class="btn" href="{{root}}downloads/">Download</a>
     </div>
+    <p class="boards"><strong>Runs on ESP32-S3 N8R8 and N16R8</strong> (8 MB octal PSRAM, at least 8 MB flash): ESP32-S3-DevKitC-1, ESP32-S3-WROOM-1/1U, Freenove ESP32-S3-WROOM, Seeed XIAO ESP32S3. <a href="{{root}}hardware/">Supported boards</a></p>
   </div>
   <svg class="roles" viewBox="0 0 480 300" role="img" aria-labelledby="roles-t">
     <title id="roles-t">A LAN device passes through the ESP32; the Service Gateway role is enabled, the other roles stay off until you enable them.</title>
@@ -43,9 +44,20 @@ schema: home
     <text x="44" y="196" text-anchor="middle">LAN device</text>
   </svg>
 </section>
-<section class="note ok" aria-labelledby="new-3">
-  <h2 id="new-3">New in Firmware {{next_version}}</h2>
-  <p>One image for ESP32-S3 <strong>N8R8</strong> and <strong>N16R8</strong> with every language, a reorganised Web UI, event history and trends kept on the gateway, settings copies before updates, tailnet names for local devices, Telegram and email notifications and a throughput test. Every new feature is off until you switch it on. 2.x gateways move over keeping their settings: <a href="{{root}}updating/#from-v2">how to update</a> · <a href="{{root}}hardware/">supported boards</a> · <a href="{{root}}changelog/">changelog</a>.</p>
+<section aria-labelledby="for-you">
+  <h2 id="for-you">Is it for you?</h2>
+  <p>If one of these sounds like your network, the gateway can do it today — every feature is a switch, off until you need it.</p>
+  <div class="grid">
+    <div class="card"><h3>A device can't run Tailscale</h3><p>A printer, a PLC, an old PC or a home-automation box must reach <strong>one</strong> service at another site. Publish one rule; nothing changes on the device or the router.</p><a href="{{root}}service-gateway/">Service Gateway</a></div>
+    <div class="card"><h3>“What happened while I was away?” <span class="badge on">3.0</span></h3><p>The gateway keeps an <strong>event history</strong> across restarts: power losses, crashes, Wi-Fi and tailnet drops, updates, failed logins.</p><a href="{{root}}screenshots/#history">See it</a></div>
+    <div class="card"><h3>You want trends, not a snapshot <span class="badge on">3.0</span></h3><p>A <strong>chart</strong> of memory, traffic, Wi-Fi signal, CPU and online peers: 6 hours in detail, about 45 days in summary, stored on the gateway.</p><a href="{{root}}screenshots/#trends">See the chart</a></div>
+    <div class="card"><h3>An update must not cost your setup <span class="badge on">3.0</span></h3><p>Up to three <strong>settings copies</strong> on the gateway, taken by hand or automatically before every update, restored in one step.</p><a href="{{root}}updating/">Updating</a></div>
+    <div class="card"><h3>Local devices should find <code>nas</code> by name <span class="badge on">3.0</span></h3><p><strong>Tailnet names</strong> for devices on the gateway's Wi-Fi or your home LAN: they reach peers as <code>nas</code> or <code>nas.your-tailnet.ts.net</code>, no client needed.</p><a href="{{root}}network-modes/">Network modes</a></div>
+    <div class="card"><h3>Alerts on your phone or inbox <span class="badge on">3.0</span></h3><p><strong>Telegram</strong> and <strong>email</strong> (TLS or STARTTLS, verified certificates) next to ntfy, MQTT/Home Assistant and SNMP for your monitoring.</p><a href="{{root}}automation/">Automation</a></div>
+    <div class="card"><h3>Is the link fast enough? <span class="badge on">3.0</span></h3><p>A <strong>throughput test</strong> on request: the gateway downloads from your NAS or the internet, or your browser downloads from the gateway.</p><a href="{{root}}features/#new-3">All new features</a></div>
+    <div class="card"><h3>A NAS or PC must wake up remotely</h3><p>A separately powered tailnet node sends Wake-on-LAN and checks that the service really answers.</p><a href="{{root}}remote-recovery/">Remote recovery</a></div>
+    <div class="card"><h3>Already running 2.x?</h3><p>Move to 3.0 <strong>keeping every setting</strong>: over the network with the 2.1.0 bridge, or once over USB.</p><a href="{{root}}updating/#from-v2">How to move</a></div>
+  </div>
 </section>
 
 <p><strong>Tailscale on ESP32-S3, without an additional always-on Linux gateway.</strong> This open-source ESP32 Tailscale gateway connects compatible IoT and homelab devices to selected remote services. Use it as a Headscale-compatible gateway, a subnet router, or a separately powered Wake-on-LAN node for a NAS or PC.</p>

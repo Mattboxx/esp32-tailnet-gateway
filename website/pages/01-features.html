@@ -2,7 +2,7 @@
 slug: features/
 title: Features
 search_title: ESP32 Tailscale Firmware — Routing, MQTT, Home Assistant & WoL
-description: Everything ESP32 Tailnet Gateway can do: Service Gateway, subnet routing, AP gateway, exit node, recovery, diagnostics and automation.
+description: Everything ESP32 Tailnet Gateway can do: Service Gateway, routing, recovery, history and trends, tailnet names, Telegram, email, MQTT and SNMP.
 nav: Features
 order: 1
 -->
@@ -13,6 +13,22 @@ order: 1
   <img src="{{root}}assets/diagrams/architecture.svg" alt="Six ownership areas: Network Gateway, Recovery and Device Management, Monitoring and Diagnostics, Automation and Integrations, Configuration and Management, and the Connectivity Core on ESP-IDF." width="960" height="460">
   <figcaption>Firmware architecture: six ownership areas on one ESP32-S3.</figcaption>
 </figure>
+
+<h2 id="new-3">New in Firmware 3.0</h2>
+<table>
+  <thead><tr><th>Capability</th><th>Useful when</th><th>Default</th></tr></thead>
+  <tbody>
+    <tr><td>Event history</td><td>You want to know what happened while you were away: starts and power losses, crashes, updates, Wi-Fi and tailnet drops, failed admin logins, settings copies. Kept in the gateway's flash across restarts.</td><td>Off</td></tr>
+    <tr><td>Trends with a chart</td><td>You want to see how memory, uplink traffic, Wi-Fi signal, CPU load and online peers behave over time: 6 hours at one-minute detail, about 45 days in summary.</td><td>Off</td></tr>
+    <tr><td>Settings copies</td><td>An update or a wrong change must be reversible: up to three copies of every setting, by hand or automatically before each update; restore needs the admin password.</td><td>Off</td></tr>
+    <tr><td>Tailnet names for local devices</td><td>Devices without Tailscale on the gateway's Wi-Fi or your home LAN should reach peers by name (<code>nas</code>, <code>nas.your-tailnet.ts.net</code>). A name is not access: rules and policies still apply.</td><td>Off</td></tr>
+    <tr><td>Telegram and email notifications</td><td>You want problems or every event on your phone or in your inbox. Email over TLS (465) or STARTTLS (587) with verified certificates; passwords are never sent without TLS.</td><td>Off</td></tr>
+    <tr><td>Throughput test</td><td>You need to know whether the link is fast enough: the gateway downloads from a URL (a NAS through the tailnet, or the internet), or the browser downloads from the gateway.</td><td>On request</td></tr>
+    <tr><td>Cellular uplink (experimental)</td><td>A site has no usable Wi-Fi: a UART modem with a SIM as primary or failover uplink. Not yet tested with a real modem.</td><td>Off</td></tr>
+    <tr><td>One image, every language</td><td>English, Italiano, Español and 简体中文 in the same firmware, plus the W5500 Ethernet driver (experimental, off until configured).</td><td>—</td></tr>
+  </tbody>
+</table>
+<p>Switched off, these features use no memory, processor time or flash writes. Runs on ESP32-S3 <strong>N8R8</strong> and <strong>N16R8</strong>: see <a href="{{root}}hardware/">supported boards</a>.</p>
 
 <h2>Network gateway</h2>
 <table>
@@ -49,4 +65,4 @@ order: 1
 </ul>
 
 <h2>Automation and integrations</h2>
-<p>MQTT with Home Assistant Discovery, ntfy alerts and commands, read-only SNMP v1/v2c. Each is supervised and off by default; see <a href="{{root}}automation/">Automation</a>.</p>
+<p>MQTT with Home Assistant Discovery, ntfy alerts and commands, Telegram and email (SMTP) notifications, read-only SNMP v1/v2c. Each is supervised and off by default; none can block routing or local administration. See <a href="{{root}}automation/">Automation</a>.</p>

@@ -91,6 +91,8 @@ main:focus { outline: none; }
 .tagline { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
 .tagline span { color: var(--accent-text); }
 .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.boards { margin-top: 18px; font-size: 15px; color: var(--muted); }
+.boards strong { color: var(--text, inherit); }
 .btn { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 18px; border-radius: 10px; font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--card); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .roles { width: 100%; }
