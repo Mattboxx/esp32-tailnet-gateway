@@ -144,6 +144,8 @@ static esp_err_t index_handler(httpd_req_t *req)
             && !web_host_trusted(host)) {
         return first_boot_not_found(req, HTTPD_404_NOT_FOUND);
     }
+    httpd_resp_set_type(req, "text/html; charset=utf-8");
+    httpd_resp_set_hdr(req, "Content-Encoding", "gzip");   /* essential: first */
     set_browser_security_headers(req);
     /* The page is static per firmware and holds no secret: the browser may
      * keep it but must ask every time (no-cache); the content hash answers
@@ -156,8 +158,6 @@ static esp_err_t index_handler(httpd_req_t *req)
         httpd_resp_set_status(req, "304 Not Modified");
         return httpd_resp_send(req, NULL, 0);
     }
-    httpd_resp_set_type(req, "text/html; charset=utf-8");
-    httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
     return httpd_resp_send(req, index_html_gz_start, index_html_gz_len);
 }
 
@@ -187,9 +187,9 @@ static esp_err_t i18n_handler(httpd_req_t *req)
     size_t n = strcspn(name, "?#");
     for (size_t i = 0; i < i18n_asset_count; i++) {
         if (strlen(i18n_assets[i].name) != n || strncmp(i18n_assets[i].name, name, n)) continue;
-        set_browser_security_headers(req);
         httpd_resp_set_type(req, "text/javascript; charset=utf-8");
-        httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+        httpd_resp_set_hdr(req, "Content-Encoding", "gzip");   /* essential: first */
+        set_browser_security_headers(req);
         httpd_resp_set_hdr(req, "Cache-Control", "public, max-age=31536000, immutable");
         return httpd_resp_send(req, (const char *)i18n_assets[i].data, i18n_assets[i].len);
     }
@@ -5757,6 +5757,11 @@ void web_ui_init(void)
     httpd_config_t conf           = HTTPD_DEFAULT_CONFIG();
     conf.uri_match_fn             = httpd_uri_match_wildcard;
     conf.max_uri_handlers         = 128;
+    /* The page sends 6 security headers plus Content-Encoding, Cache-Control
+     * and ETag. With the default of 8 the ninth is silently dropped, and a
+     * missing Content-Encoding shows the gzip bytes as text (3.0.1-beta.1 on
+     * hardware). Room for downloads that add Content-Disposition too. */
+    conf.max_resp_headers         = 12;
     conf.stack_size               = 12288;
     /* Local uploads and queued GitHub OTA work freeze flash caches. */
     conf.task_caps                = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
