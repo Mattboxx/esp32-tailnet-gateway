@@ -183,6 +183,9 @@ def build_and_run(name, program, extra=()):
         path = Path(folder); (path / f'{name}.c').write_text(program, encoding='utf-8')
         binary = path / (f'{name}.exe' if os.name == 'nt' else name)
         flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-Wno-unused-variable', '-I', str(ROOT / 'main')]
+        if os.name != 'nt':
+            # glibc hides POSIX strnlen in strict C11 unless requested.
+            flags += ['-D_POSIX_C_SOURCE=200809L']
         libs = ['-lm']
         if extra:
             dep = os.environ.get('CJSON_SOURCE')

@@ -48,5 +48,13 @@ jobs:
           persist-credentials: false
       - name: Independent client crypto for first-boot setup regressions
         run: python3 -m pip install cryptography==44.0.2
+      - name: Pinned ESP-IDF 5.5.3 partition generator for migration regressions
+        uses: actions/checkout@v7
+        with:
+          repository: espressif/esp-idf
+          ref: 2c211b236707889e8400c4dc5644dd5c4ee071e0
+          sparse-checkout: components/partition_table
+          path: .test-deps/esp-idf
+          persist-credentials: false
       - name: Consolidated offline validation
-        run: LWIP_SOURCE=.test-deps/esp-lwip MQTT_SOURCE=.test-deps/esp-mqtt/mqtt_client.c MBEDTLS_DIR=.test-deps/mbedtls python3 tools/validate_all.py --sanitizers
+        run: PARTITION_TABLE_SOURCE=.test-deps/esp-idf/components/partition_table/gen_esp32part.py LWIP_SOURCE=.test-deps/esp-lwip MQTT_SOURCE=.test-deps/esp-mqtt/mqtt_client.c MBEDTLS_DIR=.test-deps/mbedtls python3 tools/validate_all.py --sanitizers
