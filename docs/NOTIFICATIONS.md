@@ -43,6 +43,10 @@ Delivery through a real account is up to you to confirm with *Send test*.
 
 ## Storage
 
-`notify_cfg` (Telegram and email settings, CRC-checked; secrets never
-returned by the API) and `ntf_mlv` (email event choice; absent = the shared
-choice of 3.0.0). See [NVS keys](NVS-KEYS.md).
+One CRC-checked record, `notify_cfg`, holds the Telegram and email settings
+and the email event choice, so a save is all or nothing; secrets are never
+returned by the API. 3.0.1 kept the email choice in a second key, `ntf_mlv`:
+a failed second write could leave the record changed although the page
+reported an error. From the next release the record decides; `ntf_mlv` is
+still written after it, only so that a rollback to 3.0.1 keeps the choice, and
+3.0.0/3.0.1 records migrate. See [NVS keys](NVS-KEYS.md).

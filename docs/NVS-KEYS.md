@@ -18,7 +18,7 @@ guessed configuration. Stable 1.13 does not read any of these keys.
 | `hist_ev`, `hist_mx`, `hist_snap` | history.c | event history, trends, settings copy before updates (3.0) | each off |
 | `tsn_en`, `tsn_lan` | tailnet_names.c | tailnet names, LAN listener (3.0) | off |
 | `notify_cfg` | notify_channels.c | Telegram and email settings, write-only secrets (3.0) | both off |
-| `ntf_mlv` | notify_channels.c | email event choice (3.0.1; absent = the Telegram/shared choice of 3.0.0) | same as Telegram |
+| `ntf_mlv` | notify_channels.c | 3.0.1 email event choice; after 3.0.1 written only for a rollback, the `notify_cfg` record decides (choice kept in its former padding bytes, same size/version) | 3.0.1 record: shared choice |
 | `ddns_cfg` | ddns.c | dynamic DNS provider, name, zone, write-only token/URL (3.0.1) | off |
 | `tz` | first_boot.c, web_ui.c | POSIX time zone, set by the setup from the browser (3.0.1) or in System | UTC |
 
