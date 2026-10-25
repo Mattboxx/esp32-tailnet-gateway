@@ -1725,12 +1725,29 @@
       .subnav-tab { padding: 0 var(--sp-3); }
     }
     /* Trends (history of resources and traffic) */
-    .trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-3); }
-    .trend { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: var(--sp-2) var(--sp-3); min-width: 0; }
-    .trend-head { display: flex; justify-content: space-between; gap: var(--sp-2); font-size: var(--text-xs); color: var(--fg-muted); }
-    .trend-now { font-weight: 600; color: var(--fg); white-space: nowrap; }
-    .trend svg { width: 100%; height: 48px; display: block; margin-top: 4px; }
-    .trend-range { font-size: var(--text-xs); color: var(--fg-muted); }
+    .trend-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-2); }
+    .trend-tile { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; cursor: pointer; font: inherit; color: inherit;
+      background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: var(--sp-2) var(--sp-3); min-height: 44px; }
+    .trend-tile:hover { border-color: var(--fg-muted); }
+    .trend-tile[aria-pressed="true"] { border-color: var(--accent-border); box-shadow: inset 0 0 0 1px var(--accent-border); background: var(--accent-muted); }
+    .trend-tile:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+    .trend-tile-label { font-size: var(--text-xs); color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trend-tile-value { font-size: var(--text-md); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .trend-tile svg { width: 100%; height: 22px; display: block; }
+    .trend-main { margin-top: var(--sp-4); }
+    .trend-main-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-2); }
+    .trend-main-title { font-size: var(--text-sm); font-weight: var(--weight-semibold); }
+    .trend-legend { display: flex; flex-wrap: wrap; gap: var(--sp-3); font-size: var(--text-xs); color: var(--fg-muted); }
+    .trend-sw { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+    .trend-plot { position: relative; margin-top: var(--sp-2); min-height: 230px; }
+    .trend-plot svg { display: block; width: 100%; height: 230px; touch-action: pan-y; }
+    .trend-plot text { fill: var(--fg-muted); font-size: 11px; font-family: var(--font-ui); }
+    .trend-tip { position: absolute; top: 4px; pointer-events: none; white-space: nowrap; font-size: var(--text-xs); font-variant-numeric: tabular-nums;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 6px 8px; box-shadow: 0 6px 18px -8px rgba(0, 0, 0, .55); }
+    .trend-tip-time { color: var(--fg-muted); margin-bottom: 2px; }
+    .trend-stats { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-2); font-size: var(--text-xs); color: var(--fg-muted); }
+    .trend-stats b { color: var(--fg-primary); font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; }
+    .trend-off { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-3); }
     .hist-table td { vertical-align: top; }
     .nt-head { font-size: var(--text-sm); margin: var(--sp-4) 0 var(--sp-2) 0; color: var(--accent-primary); }
   </style>
@@ -2364,8 +2381,19 @@
           <div class="card-header-right"><select class="input" id="trend-range" aria-label="Period" style="width:auto;"><option value="live">Last 6 hours</option><option value="day">Last 24 hours</option><option value="week">Last 7 days</option><option value="month">Last 30 days</option></select></div>
         </div>
         <div class="card-body">
-          <p class="form-hint" id="trend-status" role="status">Loading…</p>
-          <div class="trend-grid" id="trend-grid"></div>
+          <div class="trend-off" id="trend-off" hidden>
+            <p class="form-hint" style="margin:0;">Trends are off. When on, the gateway records memory, uplink traffic, Wi-Fi signal, CPU and online peers once a minute: about 12 KB of PSRAM, nothing sent anywhere.</p>
+            <button class="btn btn-primary btn-sm" id="trend-enable" type="button">Turn on trends</button>
+          </div>
+          <div id="trend-on">
+            <div class="trend-tiles" id="trend-tiles" role="group" aria-label="Measures"></div>
+            <div class="trend-main" id="trend-main" hidden>
+              <div class="trend-main-head"><span class="trend-main-title" id="trend-title">—</span><span class="trend-legend" id="trend-legend"></span></div>
+              <div class="trend-plot" id="trend-plot"></div>
+              <div class="trend-stats" id="trend-stats"></div>
+            </div>
+            <p class="form-hint" id="trend-status" role="status" style="margin:var(--sp-3) 0 0;">Loading…</p>
+          </div>
         </div>
       </div>
 
@@ -6927,29 +6955,172 @@
         } catch (e) { el('hist-status').textContent = 'Not saved: ' + e.message; btn.disabled = false; }
       });
 
-      /* Trends: small SVG lines, oldest on the left. */
-      var SERIES = [
-        {label: 'Internal RAM free', get: function (p) { return p[3] / 1024; }, fmt: function (v) { return v.toFixed(1) + ' KB'; }},
-        {label: 'Largest internal block', get: function (p) { return p[4] / 1024; }, fmt: function (v) { return v.toFixed(1) + ' KB'; }},
-        {label: 'PSRAM free', get: function (p) { return p[5] / 1048576; }, fmt: function (v) { return v.toFixed(2) + ' MB'; }},
-        {label: 'Uplink download', rate: 6, fmt: rateText},
-        {label: 'Uplink upload', rate: 7, fmt: rateText},
-        {label: 'Wi-Fi signal', get: function (p) { return p[8] ? p[8] : null; }, fmt: function (v) { return Math.round(v) + ' dBm'; }},
-        {label: 'CPU load', get: function (p) { return p[9] >= 0 ? p[9] : null; }, fmt: function (v) { return Math.round(v) + ' %'; }},
-        {label: 'Tailnet peers online', get: function (p) { return p[10]; }, fmt: function (v) { return String(Math.round(v)); }}
+      /* Trends: a tile per measure (current value and a small line) picks
+       * the large chart, drawn with time and value axes and a hover readout. */
+      var NS = 'http://www.w3.org/2000/svg';
+      function rateText(v) { return v >= 1000 ? (v / 1000).toFixed(2) + ' Mbit/s' : v.toFixed(v >= 100 ? 0 : 1) + ' kbit/s'; }
+      var MEASURES = [
+        {id: 'memory', label: 'Internal RAM free', series: [
+          {label: 'Free', color: 'var(--accent)', get: function (p) { return p[3] / 1024; }},
+          {label: 'Largest block', color: 'var(--info)', get: function (p) { return p[4] / 1024; }}],
+          fmt: function (v) { return v.toFixed(1) + ' KB'; }, zero: true},
+        {id: 'psram', label: 'PSRAM free', series: [{label: 'Free', color: 'var(--accent)', get: function (p) { return p[5] / 1048576; }}],
+          fmt: function (v) { return v.toFixed(2) + ' MB'; }, zero: true},
+        {id: 'traffic', label: 'Uplink traffic', series: [
+          {label: 'Download', color: 'var(--accent)', rate: 6}, {label: 'Upload', color: 'var(--info)', rate: 7}],
+          fmt: rateText, zero: true},
+        {id: 'signal', label: 'Wi-Fi signal', series: [{label: 'Signal', color: 'var(--accent)', get: function (p) { return p[8] ? p[8] : null; }}],
+          fmt: function (v) { return Math.round(v) + ' dBm'; }},
+        {id: 'cpu', label: 'CPU load', series: [{label: 'CPU', color: 'var(--accent)', get: function (p) { return p[9] >= 0 ? p[9] : null; }}],
+          fmt: function (v) { return Math.round(v) + ' %'; }, zero: true, max: 100},
+        {id: 'peers', label: 'Tailnet peers online', series: [{label: 'Peers', color: 'var(--accent)', get: function (p) { return p[10]; }}],
+          fmt: function (v) { return String(Math.round(v)); }, zero: true, integer: true}
       ];
-      function rateText(v) { return v >= 1000 ? (v / 1000).toFixed(2) + ' Mbit/s' : v.toFixed(1) + ' kbit/s'; }
-      function line(values) {
-        var W = 300, H = 48, nums = values.filter(function (v) { return v !== null; });
-        if (nums.length < 2) return '<svg viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true"></svg>';
-        var lo = Math.min.apply(null, nums), hi = Math.max.apply(null, nums), span = hi - lo || 1, path = '', pen = false;
+      var s_trend = {measure: 'memory', data: null};
+      try { var saved = localStorage.getItem('ui-trend-measure'); if (MEASURES.some(function (m) { return m.id === saved; })) s_trend.measure = saved; } catch (e) {}
+      function svgEl(tag, attrs, parent) {
+        var n = document.createElementNS(NS, tag);
+        Object.keys(attrs).forEach(function (k) { n.setAttribute(k, attrs[k]); });
+        if (parent) parent.appendChild(n);
+        return n;
+      }
+      function niceStep(span, count) {
+        var raw = span / Math.max(1, count), mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+        return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * mag;
+      }
+      /* Point time in ms: the clock when the gateway had one, else derived
+       * from uptime within the current start; null when it cannot be placed. */
+      function pointTime(p, d) {
+        if (p[0]) return p[0] * 1000;
+        if (p[1] === d.boot && d.uptime >= p[2]) return d.now ? (d.now - (d.uptime - p[2])) * 1000 : -(d.uptime - p[2]) * 1000;
+        return null;
+      }
+      function seriesValues(m, pts, step) {
+        return m.series.map(function (sr) {
+          return pts.map(function (p) { return sr.rate !== undefined ? p[sr.rate] * 8 / step / 1000 : sr.get(p); });
+        });
+      }
+      function spark(values) {
+        var nums = values.filter(function (v) { return v !== null; }), svg = svgEl('svg', {viewBox: '0 0 100 22', preserveAspectRatio: 'none', 'aria-hidden': 'true'});
+        if (nums.length < 2) return svg;
+        var lo = Math.min.apply(null, nums), hi = Math.max.apply(null, nums), span = hi - lo || 1, d = '', pen = false;
         values.forEach(function (v, i) {
           if (v === null) { pen = false; return; }
-          var x = values.length > 1 ? i * W / (values.length - 1) : 0, y = H - 3 - (v - lo) / span * (H - 6);
-          path += (pen ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); pen = true;
+          d += (pen ? 'L' : 'M') + (i * 100 / (values.length - 1)).toFixed(2) + ' ' + (20 - (v - lo) / span * 18).toFixed(2); pen = true;
         });
-        return '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true"><path d="' + path +
-          '" fill="none" stroke="var(--accent-primary)" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>';
+        svgEl('path', {d: d, fill: 'none', stroke: 'var(--accent)', 'stroke-width': '1.5', 'vector-effect': 'non-scaling-stroke'}, svg);
+        return svg;
+      }
+      function timeLabel(ms, relative, long) {
+        if (relative) return Math.round(-ms / 60000) + ' min ago';
+        var t = new Date(ms);
+        return long ? t.toLocaleDateString([], {day: '2-digit', month: '2-digit'}) + ' ' + t.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+                    : t.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+      }
+      function drawMain(m, pts, times, values, step, relative, long) {
+        var box = el('trend-plot');
+        box.replaceChildren();
+        var W = Math.max(280, box.clientWidth || 600), H = 230, top = 10, bottom = 24;
+        var all = []; values.forEach(function (v) { v.forEach(function (x) { if (x !== null) all.push(x); }); });
+        var lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+        if (m.zero) lo = Math.min(0, lo);
+        if (m.max !== undefined) hi = Math.max(hi, Math.min(m.max, hi * 1.1 || 1));
+        if (hi === lo) { hi += m.integer ? 1 : Math.abs(hi) * 0.1 || 1; if (!m.zero) lo -= Math.abs(lo) * 0.1 || 1; }
+        var yStep = niceStep(hi - lo, 4); if (m.integer) yStep = Math.max(1, Math.round(yStep));
+        lo = Math.floor(lo / yStep) * yStep; hi = Math.ceil(hi / yStep) * yStep;
+        var svg = svgEl('svg', {viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': m.label + ' over the selected period'}, box);
+        var probe = svgEl('text', {x: 0, y: -10}, svg); probe.textContent = m.fmt(hi);
+        var left = Math.ceil(probe.getComputedTextLength ? probe.getComputedTextLength() : 40) + 12; svg.removeChild(probe);
+        var right = 12, t0 = Math.min.apply(null, times.filter(function (t) { return t !== null; })), t1 = Math.max.apply(null, times.filter(function (t) { return t !== null; }));
+        if (t1 === t0) t1 = t0 + 60000;
+        var X = function (t) { return left + (t - t0) / (t1 - t0) * (W - left - right); };
+        var Y = function (v) { return H - bottom - (v - lo) / (hi - lo) * (H - top - bottom); };
+        for (var v = lo; v <= hi + yStep / 2; v += yStep) {
+          svgEl('line', {x1: left, x2: W - right, y1: Y(v), y2: Y(v), stroke: 'var(--border)', 'stroke-width': 1}, svg);
+          var lab = svgEl('text', {x: left - 6, y: Y(v) + 4, 'text-anchor': 'end'}, svg); lab.textContent = m.fmt(v);
+        }
+        var ticks = Math.max(2, Math.min(5, Math.floor((W - left) / 110)));
+        for (var i = 0; i <= ticks; i++) {
+          var tt = t0 + (t1 - t0) * i / ticks, xl = svgEl('text', {x: X(tt), y: H - 6, 'text-anchor': i === 0 ? 'start' : i === ticks ? 'end' : 'middle'}, svg);
+          xl.textContent = timeLabel(tt, relative, long);
+        }
+        /* A gap of more than three intervals (a restart, trends off) breaks the line. */
+        values.forEach(function (vals, k) {
+          var d = '', pen = false, last = null;
+          vals.forEach(function (val, j) {
+            if (val === null || times[j] === null) { pen = false; return; }
+            if (last !== null && times[j] - last > step * 3000) pen = false;
+            d += (pen ? 'L' : 'M') + X(times[j]).toFixed(1) + ' ' + Y(val).toFixed(1); pen = true; last = times[j];
+          });
+          svgEl('path', {d: d, fill: 'none', stroke: m.series[k].color, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round'}, svg);
+        });
+        var rule = svgEl('line', {y1: top, y2: H - bottom, stroke: 'var(--fg-muted)', 'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: 0}, svg);
+        var dots = m.series.map(function (sr) { return svgEl('circle', {r: 3.5, fill: sr.color, opacity: 0}, svg); });
+        var tip = document.createElement('div'); tip.className = 'trend-tip'; tip.hidden = true; box.appendChild(tip);
+        var hit = svgEl('rect', {x: left, y: 0, width: W - left - right, height: H - bottom, fill: 'transparent'}, svg);
+        function show(ev) {
+          var r = svg.getBoundingClientRect(), px = (ev.clientX - r.left) * W / r.width, tm = t0 + (px - left) / (W - left - right) * (t1 - t0), best = -1, bd = Infinity;
+          times.forEach(function (t, j) { if (t !== null && Math.abs(t - tm) < bd) { bd = Math.abs(t - tm); best = j; } });
+          if (best < 0) return;
+          var x = X(times[best]);
+          rule.setAttribute('x1', x); rule.setAttribute('x2', x); rule.setAttribute('opacity', 1);
+          tip.replaceChildren();
+          var h = document.createElement('div'); h.className = 'trend-tip-time'; h.textContent = timeLabel(times[best], relative, true); tip.appendChild(h);
+          values.forEach(function (vals, k) {
+            var val = vals[best];
+            dots[k].setAttribute('opacity', val === null ? 0 : 1);
+            if (val === null) return;
+            dots[k].setAttribute('cx', x); dots[k].setAttribute('cy', Y(val));
+            var row = document.createElement('div');
+            if (values.length > 1) { var sw = document.createElement('i'); sw.className = 'trend-sw'; sw.style.background = m.series[k].color; row.appendChild(sw); }
+            row.appendChild(document.createTextNode(m.series[k].label + ': ' + m.fmt(val))); tip.appendChild(row);
+          });
+          tip.hidden = false;
+          var bx = x * r.width / W, tw = tip.offsetWidth;
+          tip.style.left = Math.max(0, Math.min(bx + 12, box.clientWidth - tw)) + 'px';
+        }
+        function hide() { tip.hidden = true; rule.setAttribute('opacity', 0); dots.forEach(function (d) { d.setAttribute('opacity', 0); }); }
+        hit.addEventListener('pointermove', show); hit.addEventListener('pointerdown', show); hit.addEventListener('pointerleave', hide);
+      }
+      function renderTrends() {
+        var d = s_trend.data, range = el('trend-range').value;
+        if (!d) return;
+        var step = d.step || 60, pts = d.points.slice().reverse();
+        var times = pts.map(function (p) { return pointTime(p, d); }), relative = !d.now, long = range === 'week' || range === 'month';
+        var keep = times.map(function (t) { return t !== null; });
+        pts = pts.filter(function (p, i) { return keep[i]; }); times = times.filter(function (t) { return t !== null; });
+        var tiles = el('trend-tiles'); tiles.replaceChildren();
+        MEASURES.forEach(function (m) {
+          var vals = seriesValues(m, pts, step), first = vals[0], nums = first.filter(function (v) { return v !== null; });
+          var b = document.createElement('button'); b.type = 'button'; b.className = 'trend-tile'; b.dataset.measure = m.id;
+          b.setAttribute('aria-pressed', m.id === s_trend.measure ? 'true' : 'false');
+          var l = document.createElement('span'); l.className = 'trend-tile-label'; l.textContent = m.label;
+          var v = document.createElement('span'); v.className = 'trend-tile-value'; v.textContent = nums.length ? m.fmt(nums[nums.length - 1]) : '—';
+          b.append(l, v, spark(first));
+          b.addEventListener('click', function () {
+            s_trend.measure = m.id; try { localStorage.setItem('ui-trend-measure', m.id); } catch (e) {}
+            renderTrends();
+          });
+          tiles.appendChild(b);
+        });
+        var m = MEASURES.filter(function (x) { return x.id === s_trend.measure; })[0] || MEASURES[0];
+        var values = seriesValues(m, pts, step), any = values.some(function (v) { return v.filter(function (x) { return x !== null; }).length >= 2; });
+        el('trend-main').hidden = !any;
+        el('trend-title').textContent = m.label;
+        var legend = el('trend-legend'); legend.replaceChildren();
+        if (m.series.length > 1) m.series.forEach(function (sr) {
+          var span = document.createElement('span'), sw = document.createElement('i'); sw.className = 'trend-sw'; sw.style.background = sr.color;
+          span.append(sw, sr.label); legend.appendChild(span);
+        });
+        if (any) {
+          drawMain(m, pts, times, values, step, relative, long);
+          var stats = el('trend-stats'); stats.replaceChildren();
+          var nums = values[0].filter(function (x) { return x !== null; });
+          [['Lowest', Math.min.apply(null, nums)], ['Average', nums.reduce(function (a, x) { return a + x; }, 0) / nums.length], ['Highest', Math.max.apply(null, nums)]]
+            .forEach(function (pair) { var sp = document.createElement('span'), bb = document.createElement('b'); bb.textContent = m.fmt(pair[1]); sp.append(pair[0] + ' ', bb); stats.appendChild(sp); });
+        }
+        el('trend-status').textContent = pts.length ? (range === 'live' ? 'One point a minute since the last start.' : 'One point every ' + Math.round(step / 60) + ' minutes.') + (d.persist || range === 'live' ? '' : ' Older trends need the 3.0 layout.') :
+          (range === 'live' ? 'The first sample arrives a minute after trends are switched on.' : 'No stored trend yet: the first point is saved after ten minutes.');
       }
       var s_trend_at = 0;
       function loadTrends() {
@@ -6959,20 +7130,32 @@
           if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
         }).then(function (d) {
           var card = el('trend-card');
-          card.hidden = !d || !d.config.metrics;
-          if (card.hidden) return;
-          var pts = d.points.slice().reverse(), step = d.step || 60;
-          el('trend-status').textContent = pts.length ? (range === 'live' ? 'One point a minute since the last start.' : 'One point every ' + Math.round(step / 60) + ' minutes.') + (d.persist || range === 'live' ? '' : ' Older trends need the 3.0 layout.') :
-            (range === 'live' ? 'The first sample arrives a minute after trends are switched on.' : 'No stored trend yet: the first point is saved after ten minutes.');
-          el('trend-grid').innerHTML = !pts.length ? '' : SERIES.map(function (s) {
-            var values = pts.map(function (p) { return s.rate !== undefined ? p[s.rate] * 8 / step / 1000 : s.get(p); });
-            var nums = values.filter(function (v) { return v !== null; }), now = nums.length ? nums[nums.length - 1] : null;
-            return '<div class="trend"><div class="trend-head"><span>' + html(s.label) + '</span><span class="trend-now">' + (now === null ? '—' : html(s.fmt(now))) + '</span></div>' +
-              line(values) + '<div class="trend-range">' + (nums.length ? html(s.fmt(Math.min.apply(null, nums))) + ' – ' + html(s.fmt(Math.max.apply(null, nums))) : '—') + '</div></div>';
-          }).join('');
+          card.hidden = !d;
+          if (!d) return;
+          var on = !!(d.config && d.config.metrics);
+          el('trend-off').hidden = on; el('trend-on').hidden = !on; el('trend-range').disabled = !on;
+          if (!on) return;
+          s_trend.data = d;
+          renderTrends();
         }).catch(function (e) { el('trend-status').textContent = 'Unavailable: ' + e.message; });
       }
       el('trend-range').addEventListener('change', loadTrends);
+      el('trend-enable').addEventListener('click', async function () {
+        var btn = this; btn.disabled = true;
+        try {
+          var r = await apiFetch('/api/history/config', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({metrics: true})});
+          var d = await r.json().catch(function () { return {}; });
+          if (!r.ok || !d.ok) throw new Error(d.reason || ('HTTP ' + r.status));
+          showToast('success', 'Trends on', 'The first point appears in about a minute.', 4000);
+          await loadTrends();
+        } catch (e) { showToast('error', 'Trends not turned on', e.message, 5000); }
+        finally { btn.disabled = false; }
+      });
+      var s_trend_width = 0;
+      window.addEventListener('resize', function () {
+        var w = el('trend-plot').clientWidth;
+        if (w && Math.abs(w - s_trend_width) > 24 && !el('trend-card').hidden && s_trend.data) { s_trend_width = w; renderTrends(); }
+      });
 
       /* Settings copies. */
       var REASON = {manual: 'Saved by hand', update: 'Before a GitHub update', upload: 'Before a firmware upload', before_restore: 'Before a restore', other: 'Other'};
