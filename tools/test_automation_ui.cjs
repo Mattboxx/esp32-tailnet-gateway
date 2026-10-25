@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
-const html = require('./ui_build.cjs').builtHtml();
+const { builtHtml, serveAsset } = require('./ui_build.cjs');
+const html = builtHtml();
 const mqtt = { enabled: true, connected: true, uri: 'mqtts://broker.example',
   base_topic: 'fixture/router', interval_seconds: 30, broker_watchdog_timeout_seconds: 300,
   broker_watchdog_wol_mac: '02:00:00:00:00:01' };
@@ -30,6 +31,7 @@ async function fixture(browser, options = {}) {
   await page.route('http://esp32.test/**', async route => {
     const url = new URL(route.request().url());
     if (url.pathname === '/') return route.fulfill({ contentType: 'text/html', body: html });
+    if (url.pathname.startsWith('/i18n/') && await serveAsset(route, url.pathname)) return;
     calls.push(url.pathname);
     let body = {};
     let status = 200;
@@ -179,6 +181,9 @@ async function fixture(browser, options = {}) {
         email: {enabled: false, host: '', port: 465, security: 'tls', user: '', has_password: false, from: '', to: '', sent: 0, failed: 0, last_error: ''}};
     } else if (url.pathname === '/api/notify/test') {
       state.notifyTest = route.request().postDataJSON(); body = {ok: true, queued: true};
+    } else if (url.pathname === '/api/ddns') {
+      if (route.request().method() === 'POST') { state.savedDdns = route.request().postDataJSON(); body = {ok: true}; }
+      else body = {provider: 'off', name: '', zone: '', has_token: false, has_url: false, status: 'Not updated yet', public_ip: '203.0.113.7', updated_ip: '', updated_ago_s: -1, running: false};
     } else if (url.pathname === '/api/diag/speedtest') {
       if (route.request().method() === 'POST') { state.savedSpeed = route.request().postDataJSON(); state.speedPolls = 0; body = {ok: true}; }
       else { state.speedPolls = (state.speedPolls || 0) + 1;
@@ -1257,7 +1262,7 @@ async function main() {
     assert.equal(await f.page.locator('#snap-take').isDisabled(), false, 'saving a copy needs no lock');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Settings copies: list, escaped firmware text, restore and delete need a confirmation.
-    f = await fixture(browser, { page: 'system/maintenance' });
+    f = await fixture(browser, { page: 'system/backup' });
     f.page.on('dialog', dialog => dialog.accept());
     await f.page.waitForFunction(() => document.getElementById('snap-badge').textContent === '1 of 3');
     assert.equal(await f.page.locator('#snap-tbody b').count(), 0, 'firmware text escaped');
@@ -1279,22 +1284,41 @@ async function main() {
     assert.match(await f.page.locator('#tsn-status').textContent(), /5 tailnet peers known/);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     f = await fixture(browser, { page: 'automation/notifications' });
-    await f.page.waitForFunction(() => document.getElementById('nt-status').textContent === 'Off.');
+    await f.page.waitForFunction(() => document.getElementById('nt-tg-note').textContent === 'Off.' && document.getElementById('nt-mail-note').textContent === 'Off.');
     assert.match(await f.page.locator('#nt-tg-status').textContent(), /401: Unauthorized/);
-    await f.page.locator('#nt-card label.feature-switch', { hasText: 'Send to Telegram' }).click();
+    assert.ok(await f.page.locator('#nt-mail-save').isDisabled(), 'email untouched by Telegram edits');
+    await f.page.locator('#nt-tg-card label.feature-switch', { hasText: 'Send to Telegram' }).click();
     await f.page.fill('#nt-tg-token', '123456789:AAH4kq_ZXcvbnm-1234567890qwertyuiopASD');
     await f.page.fill('#nt-tg-chat', ' 42 ');
-    await f.page.locator('#nt-save').click();
-    await f.page.waitForFunction(() => document.getElementById('nt-badge').textContent === 'On');
+    await f.page.selectOption('#nt-tg-events', 'all');
+    assert.ok(await f.page.locator('#nt-mail-save').isDisabled());
+    await f.page.locator('#nt-tg-save').click();
+    await f.page.waitForFunction(() => document.getElementById('nt-tg-badge').textContent === 'On');
     assert.equal(f.state.savedNotify.telegram.token, '123456789:AAH4kq_ZXcvbnm-1234567890qwertyuiopASD');
-    assert.equal(f.state.savedNotify.telegram.chat, '42'); assert.equal(f.state.savedNotify.email.password, '');
+    assert.equal(f.state.savedNotify.telegram.chat, '42'); assert.equal(f.state.savedNotify.telegram.events, 'all');
+    assert.equal(f.state.savedNotify.email, undefined, 'saving Telegram sends nothing about email');
+    assert.equal(await f.page.locator('#nt-mail-badge').textContent(), 'Off');
     assert.equal(await f.page.inputValue('#nt-tg-token'), '', 'token cleared from the form');
     assert.equal(await f.page.getAttribute('#nt-tg-token', 'placeholder'), 'Saved — leave empty to keep');
     await f.page.selectOption('#nt-mail-security', 'starttls');
     assert.equal(await f.page.inputValue('#nt-mail-port'), '587', 'STARTTLS suggests port 587');
+    assert.ok(!(await f.page.locator('#nt-mail-save').isDisabled()), 'email edits enable its own Save');
     await f.page.locator('#nt-test-tg').click();
-    await f.page.waitForFunction(() => document.getElementById('nt-status').textContent.includes('queued'));
+    await f.page.waitForFunction(() => document.getElementById('nt-tg-note').textContent.includes('queued'));
     assert.deepEqual(f.state.notifyTest, { channel: 'telegram' });
+    assert.deepEqual(f.errors, []); await f.context.close(); count++;
+    f = await fixture(browser, { page: 'network/internet' });
+    await f.page.waitForFunction(() => document.getElementById('ddns-status').textContent === 'Off.');
+    assert.equal(await f.page.locator('#ddns-badge').textContent(), 'Off');
+    await f.page.selectOption('#ddns-provider', 'duckdns');
+    assert.equal(await f.page.locator('#ddns-zone').isHidden(), true); assert.equal(await f.page.locator('#ddns-url').isHidden(), true);
+    assert.equal(await f.page.locator('#ddns-name-label').textContent(), 'Sub-domain');
+    await f.page.fill('#ddns-name', 'myhome'); await f.page.fill('#ddns-token', 'a7c4d2e1-0b3f-4c5d-9e8f-1234567890ab');
+    await f.page.locator('#ddns-save').click();
+    await f.page.waitForFunction(() => document.getElementById('ddns-token').value === '');
+    assert.deepEqual(f.state.savedDdns, { provider: 'duckdns', name: 'myhome', zone: '', token: 'a7c4d2e1-0b3f-4c5d-9e8f-1234567890ab', url: '', update_now: false });
+    await f.page.selectOption('#ddns-provider', 'custom');
+    assert.equal(await f.page.locator('#ddns-url').isVisible(), true); assert.equal(await f.page.locator('#ddns-name').isHidden(), true);
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     f = await fixture(browser, { page: 'tools' });
     await f.page.waitForSelector('#thr-start');

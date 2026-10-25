@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
 const crypto = require('node:crypto');
 const path = require('node:path');
 const assert = require('node:assert/strict');
-const { builtHtml } = require('./ui_build.cjs');
+const { builtHtml, serveAsset } = require('./ui_build.cjs');
 
 const html = builtHtml();
 const PKCS8 = Buffer.from('302e020100300506032b656e04220420', 'hex');
@@ -27,6 +27,7 @@ function mockGateway(opts = {}) {
     if (body) g.bodies.push(body);
     const send = (status, obj) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(obj) });
     const sidHeader = req.headers()['x-setup-session'] || '';
+    if (url.pathname.startsWith('/i18n/') && await serveAsset(route, url.pathname)) return;
     switch (url.pathname) {
       case '/': return route.fulfill({ contentType: 'text/html', body: html });
       case '/api/auth/status': return send(200, { setup_mode: true, password_set: false, auth_enabled: true, auth_required: false, authenticated: false, device_name: 'Tailnet Gateway' });

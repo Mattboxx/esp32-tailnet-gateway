@@ -26,6 +26,12 @@
 #include "module_supervisor.h"
 #include "task_reaper.h"
 #include "dns_relay.h"
+#include "history.h"
+#include "notify_channels.h"
+#include "tailnet_names.h"
+#if CONFIG_TSR_DDNS
+#include "ddns.h"
+#endif
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
 #include "esp_app_desc.h"
@@ -494,7 +500,12 @@ cJSON *homelab_ops_capabilities(void) {
         "subnet-routing","exit-node","ap-gateway","lan-tailnet-forwarding","temporary-services",
         "service-rule-transfer","4via6","dns-relay","firewall","wol","smart-recovery","health",
         "resource-guard","mqtt","home-assistant","ntfy","snmp","ota","diagnostic-export","web-ui",
-        "destination-test","service-watch","profiles"};
+        "destination-test","service-watch","profiles","event-history","trends","settings-copies",
+        "tailnet-names","telegram","email","throughput-test","ddns"};
+    bool hist_events,hist_metrics,hist_snapshots,names_on,names_lan,tg_on,mail_on;
+    history_get_config(&hist_events,&hist_metrics,&hist_snapshots);
+    tailnet_names_get(&names_on,&names_lan);
+    notify_channels_enabled(&tg_on,&mail_on);
     service_watch_config_t watch;service_watch_get(&watch);
     profile_id_t profile;bool profile_rollback;config_profiles_status(&profile,&profile_rollback);
     for(unsigned i=0;i<sizeof capabilities/sizeof capabilities[0];i++){
@@ -542,6 +553,18 @@ cJSON *homelab_ops_capabilities(void) {
         else if(!strcmp(id,"destination-test")){hardware=psram>0;configured=1;experimental=true;reason="On-request TCP handshake from this gateway; not application, UDP or LAN-client verification.";}
         else if(!strcmp(id,"service-watch")){hardware=psram>0;configured=watch.enabled;running=watch.enabled&&worker_running;experimental=true;reason="Periodic destination tests of enabled TCP rules; notifies, never changes rules.";}
         else if(!strcmp(id,"profiles")){configured=profile!=PROFILE_NONE;reason="Enable-only presets with token-bound preview and one rollback level.";}
+        else if(!strcmp(id,"event-history")){configured=running=hist_events;reason="Local record in the flash storage area; off means no flash writes.";}
+        else if(!strcmp(id,"trends")){configured=running=hist_metrics;reason="One sample a minute in PSRAM, summaries in the flash storage area.";}
+        else if(!strcmp(id,"settings-copies")){configured=hist_snapshots;reason="Copy before each firmware update when on; copies by hand always available.";}
+        else if(!strcmp(id,"tailnet-names")){configured=names_on;running=names_on&&dns_relay_is_enabled();reason="Name answers for local clients; a name is not access to the service.";}
+        else if(!strcmp(id,"telegram")){configured=tg_on;reason="Configuration only; delivery is reported per message.";}
+        else if(!strcmp(id,"email")){configured=mail_on;reason="SMTP over verified TLS; delivery is reported per message.";}
+        else if(!strcmp(id,"throughput-test")){configured=1;running=0;reason="Runs only on request, one at a time.";}
+#if CONFIG_TSR_DDNS
+        else if(!strcmp(id,"ddns")){configured=ddns_provider()!=0;running=configured&&ddns_last_update_ok();reason="Last update result; the name only points at the router, nothing is opened.";}
+#else
+        else if(!strcmp(id,"ddns")){compiled=false;configured=running=0;reason="Not included in this firmware.";}
+#endif
         if(!capability_add(arr,id,compiled,hardware,configured,running,experimental,reason)){cJSON_Delete(root);return NULL;}
     }
     ok=cJSON_AddBoolToObject(root,"authority_ready",policy.authority_ready)

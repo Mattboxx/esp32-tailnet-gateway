@@ -9,6 +9,8 @@
 #include "cJSON.h"
 #include "driver/gpio.h"
 #include "dns_relay.h"
+#include "eth_uplink.h"
+#include "cell_uplink.h"
 #include "esp_app_desc.h"
 #include "esp_log.h"
 #include "esp_mac.h"
@@ -288,6 +290,15 @@ static esp_err_t state_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "other_pairing", busy);
     cJSON_AddBoolToObject(root, "code_locked", locked);
     cJSON_AddBoolToObject(root, "finished", s_finished);
+    /* Internet connections this firmware can set up (the page offers only these). */
+    eth_status_t eth; cell_status_t cell;
+    eth_uplink_get_status(&eth); cell_uplink_get_status(&cell);
+    cJSON *ups = cJSON_AddArrayToObject(root, "uplinks");
+    if (ups) {
+        cJSON_AddItemToArray(ups, cJSON_CreateString("wifi"));
+        if (eth.compiled) cJSON_AddItemToArray(ups, cJSON_CreateString("ethernet"));
+        if (cell.compiled) cJSON_AddItemToArray(ups, cJSON_CreateString("cellular"));
+    }
     if (s_task) cJSON_AddNumberToObject(root, "presence_stack_free", uxTaskGetStackHighWaterMark(s_task));
     cJSON_AddNumberToObject(root, "pairing_window_s", (double)(FB_PENDING_TTL_US / 1000000ULL));
     if (st == FB_CLAIMED) {
@@ -413,8 +424,60 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
     const char *ssid = str_of(wifi, "ssid"), *wpw = str_of(wifi, "password");
     const char *ap_ssid = str_of(cmd, "ap_ssid"), *ap_pw = str_of(cmd, "ap_password");
     const char *key = str_of(tn, "auth_key"), *server = str_of(tn, "login_server"), *host = str_of(tn, "hostname");
+    const cJSON *up = cJSON_GetObjectItem(cmd, "uplink");
+    const char *type = str_of(up, "type"), *tz = str_of(cmd, "tz");
+    if (!type) type = "wifi";                                /* 3.0 pages */
+    bool has_wifi = ssid && *ssid, eth_up = !strcmp(type, "ethernet"), cell_up = !strcmp(type, "cellular");
     const char *reason = fb_check_admin_password(admin, ssid);
-    if (!reason) reason = fb_check_wifi(ssid, wpw ? wpw : "");
+    if (!reason) reason = fb_check_uplink(type, has_wifi, key && *key, bool_of(cmd, "exit_node", false));
+    if (!reason && has_wifi) reason = fb_check_wifi(ssid, wpw ? wpw : "");
+    if (!reason) reason = fb_check_tz(tz);
+    /* Ethernet (W5500) or a SIM modem: the saved defaults plus the pins and
+     * settings chosen on the page, checked by the same rules as their cards. */
+    char why[96] = "";
+    eth_config_t eth; cell_config_t cell;
+    eth_uplink_get_config(&eth); cell_uplink_get_config(&cell);
+    if (!reason && (eth_up || cell_up)) {
+        eth_status_t es; cell_status_t cs;
+        eth_uplink_get_status(&es); cell_uplink_get_status(&cs);
+        if (eth_up && !es.compiled) reason = "Ethernet is not included in this firmware";
+        if (cell_up && !cs.compiled) reason = "the mobile network is not included in this firmware";
+    }
+    const cJSON *pins = eth_up ? cJSON_GetObjectItem(up, "ethernet") : cell_up ? cJSON_GetObjectItem(up, "cellular") : NULL;
+    if (!reason && eth_up) {
+        static const char *const keys[] = {"sclk", "mosi", "miso", "cs", "intr", "rst"};
+        int8_t *fields[] = {&eth.sclk, &eth.mosi, &eth.miso, &eth.cs, &eth.intr, &eth.rst};
+        for (unsigned i = 0; i < 6; i++) {
+            const cJSON *v = cJSON_GetObjectItem(pins, keys[i]);
+            if (cJSON_IsNumber(v) && v->valuedouble >= -1 && v->valuedouble <= 48 && v->valuedouble == (int)v->valuedouble) *fields[i] = (int8_t)v->valuedouble;
+        }
+        eth.enabled = 1; eth.ip_static = 0;
+        eth.preference = ETH_PREF_ETHERNET_FIRST;            /* the cable first, Wi-Fi as a backup */
+        if (!eth_config_valid(&eth, why, sizeof why)) reason = why;
+    }
+    if (!reason && cell_up) {
+        static const char *const keys[] = {"tx", "rx", "pwrkey"};
+        int8_t *fields[] = {&cell.tx, &cell.rx, &cell.pwrkey};
+        for (unsigned i = 0; i < 3; i++) {
+            const cJSON *v = cJSON_GetObjectItem(pins, keys[i]);
+            if (cJSON_IsNumber(v) && v->valuedouble >= -1 && v->valuedouble <= 48 && v->valuedouble == (int)v->valuedouble) *fields[i] = (int8_t)v->valuedouble;
+        }
+        const char *apn = str_of(pins, "apn"), *pin = str_of(pins, "pin"), *user = str_of(pins, "user"), *pass = str_of(pins, "password");
+        if (!apn || strlen(apn) >= sizeof cell.apn || (pin && strlen(pin) >= sizeof cell.pin) ||
+            (user && strlen(user) >= sizeof cell.user) || (pass && strlen(pass) >= sizeof cell.password)) reason = "APN required; PIN, user and password too long";
+        else {
+            strlcpy(cell.apn, apn, sizeof cell.apn);
+            strlcpy(cell.pin, pin ? pin : "", sizeof cell.pin);
+            strlcpy(cell.user, user ? user : "", sizeof cell.user);
+            strlcpy(cell.password, pass ? pass : "", sizeof cell.password);
+            cell.enabled = 1;
+            cell.data_ack = bool_of(pins, "data_ack", false);
+            cell.roaming = bool_of(pins, "roaming", false);
+            /* With a Wi-Fi network the SIM is the backup; alone it is the uplink. */
+            cell.mode = has_wifi ? CELL_MODE_FAILOVER : CELL_MODE_PRIMARY;
+            if (!cell_config_valid(&cell, why, sizeof why)) reason = why;
+        }
+    }
     if (!reason) reason = fb_check_ap_password(ap_pw);
     if (!reason && (!ap_ssid || !*ap_ssid || strlen(ap_ssid) > 32)) reason = "access point name must be 1 to 32 bytes";
     if (!reason) reason = fb_check_auth_key(key);
@@ -433,7 +496,7 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
     if (e == ESP_OK) e = nvs_param_set_str("ap_passwd", ap_pw);
     if (e == ESP_OK) e = nvs_param_set_u8("ap_auto_off", ap_recovery ? 1 : 0);
     if (e == ESP_OK) e = set_web_password_hashed(admin);
-    if (e == ESP_OK) {
+    if (e == ESP_OK && has_wifi) {
         wifi_network_t n = {0};
         strlcpy(n.ssid, ssid, sizeof n.ssid);
         strlcpy(n.passwd, wpw ? wpw : "", sizeof n.passwd);
@@ -448,6 +511,10 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
     if (e == ESP_OK && join && host && *host) e = nvs_param_set_str("ts_hostname", host);
     if (e == ESP_OK) e = nvs_param_set_int("ts_adv_ap", share_ap ? 1 : 0);
     if (e == ESP_OK) e = nvs_param_set_str("ts_routes", cidr);
+    if (e == ESP_OK && eth_up) e = eth_uplink_set_config(&eth, why, sizeof why);
+    if (e == ESP_OK && cell_up) e = cell_uplink_set_config(&cell, why, sizeof why);
+    memset(&cell, 0, sizeof cell);                         /* SIM PIN and APN password */
+    if (e == ESP_OK && tz && *tz) e = nvs_param_set_str("tz", tz);
     if (e == ESP_OK) e = nvs_param_set_int("ts_adv_exit", exit_node ? 1 : 0);
     /* Roles chosen in the wizard: the dashboard highlights them in its goal
      * launcher. Only known ids are stored. */
@@ -491,6 +558,7 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
         cJSON_AddBoolToObject(out, "ok", true);
         cJSON_AddNumberToObject(out, "restart_in_s", 3);
         cJSON_AddBoolToObject(out, "tailnet", join);
+        cJSON_AddStringToObject(out, "uplink", type);
         char lan[LAN_NAME_MAX + 1];
         lan_name_get(lan, sizeof lan);
         cJSON_AddStringToObject(out, "lan_name", lan);

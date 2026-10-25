@@ -130,6 +130,18 @@ void tailnet_names_uplink(uint32_t ip_nbo)
     if (s_enabled && s_lan) dns_relay_set_lan(true, ip_nbo);
 }
 
+void tailnet_names_get(bool *enabled, bool *lan) {*enabled = s_enabled; *lan = s_lan;}
+
+esp_err_t tailnet_names_set(bool enabled, bool lan)
+{
+    esp_err_t err = nvs_param_set_u8("tsn_en", enabled);
+    if (!err) err = nvs_param_set_u8("tsn_lan", lan);
+    if (err) return err;
+    s_enabled = enabled; s_lan = lan;
+    apply();
+    return ESP_OK;
+}
+
 static esp_err_t get_names(httpd_req_t *req)
 {
     if (web_ui_require_auth(req) != ESP_OK) return ESP_FAIL;
@@ -161,11 +173,8 @@ static esp_err_t post_names(httpd_req_t *req)
     bool next_en = cJSON_IsTrue(en), next_lan = cJSON_IsTrue(lan);
     cJSON_Delete(root);
     if (!valid) {httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "expected boolean enabled and lan"); return ESP_FAIL;}
-    esp_err_t err = nvs_param_set_u8("tsn_en", next_en);
-    if (!err) err = nvs_param_set_u8("tsn_lan", next_lan);
+    esp_err_t err = tailnet_names_set(next_en, next_lan);
     if (err) {httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, esp_err_to_name(err)); return ESP_FAIL;}
-    s_enabled = next_en; s_lan = next_lan;
-    apply();
     httpd_resp_set_type(req, "application/json");
     return httpd_resp_sendstr(req, "{\"ok\":true}");
 }

@@ -351,7 +351,6 @@ CONFIG_LWIP_PPP_SUPPORT=y
 CONFIG_LWIP_PPP_PAP_SUPPORT=y
 CONFIG_LWIP_PPP_CHAP_SUPPORT=y
 
-# 3.0 images: SNMP agent compiled in (off until enabled); dynamic DNS left out
-# (owner decision 2026-10-24, until requested again).
+# 3.0.1 images: SNMP agent and dynamic DNS compiled in, both off until enabled
 CONFIG_TSR_SNMP=y
-# CONFIG_TSR_DDNS is not set
+CONFIG_TSR_DDNS=y

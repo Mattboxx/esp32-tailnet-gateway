@@ -311,6 +311,7 @@ done:
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 #include "nvs.h"
+#include "nvs_params.h"
 #include <stdlib.h>
 #include <time.h>
 
@@ -560,7 +561,17 @@ static void enqueue_locked(uint8_t kind, uint8_t level, uint8_t channels, uint32
     }
 }
 
+/* Email has its own event selection since 3.0.1 (key "ntf_mlv"; absent =
+ * the Telegram selection, which is what 3.0.0 used for both). */
+static uint8_t s_mail_level = NOTIFY_PROBLEMS;
+
 static uint8_t channels_locked(void) {return (s_cfg.tg_enabled ? CH_TG : 0) | (s_cfg.mail_enabled ? CH_MAIL : 0);}
+
+static uint8_t wanted_channels_locked(unsigned kind, unsigned level)
+{
+    return (s_cfg.tg_enabled && notify_wanted(s_cfg.level, kind, level) ? CH_TG : 0) |
+           (s_cfg.mail_enabled && notify_wanted(s_mail_level, kind, level) ? CH_MAIL : 0);
+}
 
 /* History sink: runs on the history task. */
 static void offer(unsigned kind, unsigned level, uint32_t wall, const char *text)
@@ -569,8 +580,9 @@ static void offer(unsigned kind, unsigned level, uint32_t wall, const char *text
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000000);
     /* At most 6 at once, then one every 2 minutes: an outage storm stays short. */
     if (now - s_refill >= 120) {uint32_t add = (now - s_refill) / 120; s_tokens = s_tokens + add > 6 ? 6 : s_tokens + add; s_refill += add * 120;}
-    if (notify_wanted(s_cfg.level, kind, level)) {
-        if (s_tokens) {s_tokens--; enqueue_locked((uint8_t)kind, (uint8_t)level, channels_locked(), wall, text);}
+    uint8_t channels = wanted_channels_locked(kind, level);
+    if (channels) {
+        if (s_tokens) {s_tokens--; enqueue_locked((uint8_t)kind, (uint8_t)level, channels, wall, text);}
         else s_dropped++;
     }
     xSemaphoreGive(s_lock);
@@ -584,10 +596,18 @@ static void apply_locked(void)
     history_set_sink(on && s_queue ? offer : NULL);
 }
 
+void notify_channels_enabled(bool *telegram, bool *email)
+{
+    *telegram = s_cfg.tg_enabled;
+    *email = s_cfg.mail_enabled;
+}
+
 void notify_channels_init(void)
 {
     if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
     load(&s_cfg);
+    uint8_t v = 0;
+    s_mail_level = nvs_param_get_u8("ntf_mlv", &v) == ESP_OK && v <= NOTIFY_ALL ? v : s_cfg.level;
     if (s_cfg.tg_enabled || s_cfg.mail_enabled) {xSemaphoreTake(s_lock, portMAX_DELAY); apply_locked(); xSemaphoreGive(s_lock);}
 }
 
@@ -600,6 +620,7 @@ static esp_err_t get_notify(httpd_req_t *req)
     cJSON *root = cJSON_CreateObject(), *tg = cJSON_AddObjectToObject(root, "telegram"), *mail = cJSON_AddObjectToObject(root, "email");
     xSemaphoreTake(s_lock, portMAX_DELAY);
     notify_config_t c = s_cfg;
+    uint8_t mail_level = s_mail_level;
     channel_status_t a = s_tg, b = s_mail;
     unsigned waiting = s_count, dropped = s_dropped;
     xSemaphoreGive(s_lock);
@@ -607,11 +628,13 @@ static esp_err_t get_notify(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "waiting", waiting);
     cJSON_AddNumberToObject(root, "dropped", dropped);
     cJSON_AddBoolToObject(tg, "enabled", c.tg_enabled);
+    cJSON_AddStringToObject(tg, "events", c.level == NOTIFY_ALL ? "all" : "problems");
     cJSON_AddBoolToObject(tg, "has_token", c.tg_token[0] != 0);
     add_string(tg, "chat", c.tg_chat);
     cJSON_AddNumberToObject(tg, "sent", a.sent); cJSON_AddNumberToObject(tg, "failed", a.failed);
     add_string(tg, "last_error", a.last_error);
     cJSON_AddBoolToObject(mail, "enabled", c.mail_enabled);
+    cJSON_AddStringToObject(mail, "events", mail_level == NOTIFY_ALL ? "all" : "problems");
     add_string(mail, "host", c.mail_host);
     cJSON_AddNumberToObject(mail, "port", c.mail_port);
     add_string(mail, "security", c.mail_security == NOTIFY_STARTTLS ? "starttls" : "tls");
@@ -670,7 +693,16 @@ static esp_err_t post_notify(httpd_req_t *req)
     const cJSON *events = cJSON_GetObjectItemCaseSensitive(root, "events");
     ok = cJSON_IsObject(root) && (!tg || cJSON_IsObject(tg)) && (!mail || cJSON_IsObject(mail)) &&
          (!events || (cJSON_IsString(events) && (!strcmp(events->valuestring, "all") || !strcmp(events->valuestring, "problems"))));
-    if (ok && events) next->level = !strcmp(events->valuestring, "all") ? NOTIFY_ALL : NOTIFY_PROBLEMS;
+    /* "events" at the top sets both channels (3.0.0 clients); per channel wins. */
+    uint8_t mail_level = s_mail_level;
+    if (ok && events) next->level = mail_level = !strcmp(events->valuestring, "all") ? NOTIFY_ALL : NOTIFY_PROBLEMS;
+    for (int i = 0; ok && i < 2; i++) {
+        const cJSON *e = cJSON_GetObjectItemCaseSensitive(i ? mail : tg, "events");
+        if (!e) continue;
+        if (!cJSON_IsString(e) || (strcmp(e->valuestring, "all") && strcmp(e->valuestring, "problems"))) {ok = false; break;}
+        uint8_t lv = !strcmp(e->valuestring, "all") ? NOTIFY_ALL : NOTIFY_PROBLEMS;
+        if (i) mail_level = lv; else next->level = lv;
+    }
     if (ok && tg) {
         const cJSON *en = cJSON_GetObjectItemCaseSensitive(tg, "enabled"), *token = cJSON_GetObjectItemCaseSensitive(tg, "token");
         ok = (!en || cJSON_IsBool(en)) && copy_string(tg, "chat", next->tg_chat, sizeof next->tg_chat);
@@ -704,9 +736,11 @@ static esp_err_t post_notify(httpd_req_t *req)
     esp_err_t err = ESP_OK;
     if (ok && !notify_config_valid(next, why, sizeof why)) ok = false;
     if (ok) err = save(next);                             /* persist before publishing */
+    if (ok && !err) err = nvs_param_set_u8("ntf_mlv", mail_level);
     if (ok && !err) {
         xSemaphoreTake(s_lock, portMAX_DELAY);
         s_cfg = *next;
+        s_mail_level = mail_level;
         apply_locked();
         xSemaphoreGive(s_lock);
     }

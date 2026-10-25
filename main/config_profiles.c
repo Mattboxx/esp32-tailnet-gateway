@@ -5,6 +5,8 @@
 #include "config_profiles.h"
 #include "homelab_ops.h"
 #include "health_monitor.h"
+#include "history.h"
+#include "tailnet_names.h"
 #include "json_guard.h"
 #include "nvs.h"
 #include "nvs_params.h"
@@ -34,12 +36,17 @@ static profile_record_t record;
 static const char *const profile_names[PROFILE_COUNT] =
     {"none", "gateway", "recovery", "iot", "monitoring", "advanced"};
 static const char *const key_names[PK_COUNT] =
-    {"device_monitoring", "service_expiry_notifications", "health_monitor"};
+    {"device_monitoring", "service_expiry_notifications", "health_monitor",
+     "event_history", "trends", "settings_copy_before_update", "tailnet_names"};
+/* Only low-risk, local switches: nothing here opens access or sends data
+ * anywhere (notification channels and routes stay as configured). */
 static const uint8_t profile_wants[PROFILE_COUNT] = {
-    [PROFILE_GATEWAY] = 1u << PK_LEASE_NOTIFY,
-    [PROFILE_RECOVERY] = 1u << PK_OPS_MONITORING,
-    [PROFILE_MONITORING] = 1u << PK_OPS_MONITORING | 1u << PK_HEALTH,
+    [PROFILE_GATEWAY] = 1u << PK_LEASE_NOTIFY | 1u << PK_SNAPSHOTS,
+    [PROFILE_RECOVERY] = 1u << PK_OPS_MONITORING | 1u << PK_HIST_EVENTS,
+    [PROFILE_IOT] = 1u << PK_TAILNET_NAMES,
+    [PROFILE_MONITORING] = 1u << PK_OPS_MONITORING | 1u << PK_HEALTH | 1u << PK_HIST_EVENTS | 1u << PK_HIST_TRENDS,
 };
+_Static_assert(PK_COUNT <= 8, "profile record holds 8 values");
 
 const char *config_profile_name(profile_id_t profile)
 {
@@ -214,12 +221,30 @@ static bool values_read(profile_values_t *out)
     out->value[PK_OPS_MONITORING] = settings.monitoring ? 1 : 0;
     out->value[PK_LEASE_NOTIFY] = settings.lease_notifications ? 1 : 0;
     out->value[PK_HEALTH] = health_monitor_enabled() ? 1 : 0;
+    bool events, metrics, snapshots, names, lan;
+    history_get_config(&events, &metrics, &snapshots);
+    tailnet_names_get(&names, &lan);
+    out->value[PK_HIST_EVENTS] = events;
+    out->value[PK_HIST_TRENDS] = metrics;
+    out->value[PK_SNAPSHOTS] = snapshots;
+    out->value[PK_TAILNET_NAMES] = names;
     return true;
 }
 
 static esp_err_t value_write(profile_key_t key, uint8_t value)
 {
     if (key == PK_HEALTH) return health_monitor_set_enabled(value != 0);
+    if (key == PK_HIST_EVENTS || key == PK_HIST_TRENDS || key == PK_SNAPSHOTS) {
+        bool v[3];
+        history_get_config(&v[0], &v[1], &v[2]);
+        v[key - PK_HIST_EVENTS] = value != 0;
+        return history_set_config(v[0], v[1], v[2]);
+    }
+    if (key == PK_TAILNET_NAMES) {
+        bool names, lan;
+        tailnet_names_get(&names, &lan);
+        return tailnet_names_set(value != 0, lan);       /* the LAN listener keeps its own choice */
+    }
     ops_settings_t settings;
     homelab_ops_settings(&settings);
     if (key == PK_OPS_MONITORING) settings.monitoring = value;
@@ -278,20 +303,21 @@ static const char *const profile_titles[PROFILE_COUNT] = {
     "No profile", "Gateway", "Recovery", "IoT", "Monitoring", "Advanced"};
 static const char *const profile_summaries[PROFILE_COUNT] = {
     "Settings are exactly as configured.",
-    "Routing, subnet and remote access. Turns on expiry notifications for temporary service rules.",
-    "Wake-on-LAN, Smart Recovery and device control. Turns on device reachability monitoring.",
-    "Devices without a Tailscale client behind the AP gateway, with integrations. Changes nothing automatically.",
-    "Monitoring and diagnostics first. Turns on device monitoring and the Health Monitor worker.",
+    "Routing, subnet and remote access. Turns on expiry notifications for temporary service rules and a settings copy before each firmware update.",
+    "Wake-on-LAN, Smart Recovery and device control. Turns on device reachability monitoring and the event history.",
+    "Devices without a Tailscale client behind the AP gateway, with integrations. Turns on tailnet names for the gateway's Wi-Fi clients.",
+    "Monitoring and diagnostics first. Turns on device monitoring, the Health Monitor worker, the event history and trends.",
     "Full configuration access. Changes nothing automatically."};
 static const char *const profile_steps[PROFILE_COUNT][3] = {
     [PROFILE_GATEWAY] = {"Advertise subnet routes or exit node in the Tailscale tab, then approve them in your admin console.",
                          "Add LAN to Tailnet rules in the Service Gateway; new rules start disabled.", NULL},
     [PROFILE_RECOVERY] = {"Add devices with MAC and target in Devices & Recovery.",
-                          "Optionally configure ntfy or MQTT for recovery results.", NULL},
+                          "Optionally configure ntfy, Telegram, email or MQTT for recovery results.", NULL},
     [PROFILE_IOT] = {"Enable the AP gateway and review AP-side forwarding rules.",
                      "Configure MQTT and Home Assistant Discovery for device integrations.", NULL},
     [PROFILE_MONITORING] = {"Configure Health Monitor targets (gateway, DNS, Internet, Tailnet).",
-                            "Health checks are light TCP/DNS probes; they never change routing.", NULL},
+                            "Health checks are light TCP/DNS probes; they never change routing.",
+                            "Choose where alerts go in Automation: ntfy, Telegram or email."},
     [PROFILE_ADVANCED] = {"All settings remain available in every profile.", NULL, NULL}};
 
 static esp_err_t send_json(httpd_req_t *req, cJSON *root)

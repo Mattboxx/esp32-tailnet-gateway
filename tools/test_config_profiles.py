@@ -51,6 +51,7 @@ static void reset(void){
     memset(&settings,0,sizeof settings);record_defaults(&record);
     fail_write_at=-1;fail_undo=0;fail_save_at=-1;writes=saves=reads_fail=0;trace_len=0;memset(trace,0,sizeof trace);
 }
+#define MON_MASK (1u<<PK_OPS_MONITORING|1u<<PK_HEALTH|1u<<PK_HIST_EVENTS|1u<<PK_HIST_TRENDS)
 static uint32_t token_for(profile_id_t p){profile_plan_t plan;assert(preview_locked(p,&plan)==ESP_OK);return plan.token;}
 int main(void){
     profile_plan_t plan; profile_result_t r; profile_id_t id;
@@ -60,9 +61,12 @@ int main(void){
     assert(!strcmp(config_profile_name(PROFILE_COUNT),"unknown"));
     assert(preview_locked(PROFILE_NONE,&plan)==ESP_ERR_INVALID_ARG&&preview_locked(PROFILE_COUNT,&plan)==ESP_ERR_INVALID_ARG);
     assert(preview_locked(PROFILE_MONITORING,&plan)==ESP_OK);
-    assert(plan.change_mask==(1u<<PK_OPS_MONITORING|1u<<PK_HEALTH)&&plan.token);
-    assert(preview_locked(PROFILE_GATEWAY,&plan)==ESP_OK&&plan.change_mask==1u<<PK_LEASE_NOTIFY);
-    assert(preview_locked(PROFILE_IOT,&plan)==ESP_OK&&!plan.change_mask&&!plan.proposed_mask);
+    assert(plan.change_mask==MON_MASK&&plan.token);
+    assert(preview_locked(PROFILE_GATEWAY,&plan)==ESP_OK&&plan.change_mask==(1u<<PK_LEASE_NOTIFY|1u<<PK_SNAPSHOTS));
+    assert(preview_locked(PROFILE_RECOVERY,&plan)==ESP_OK&&plan.change_mask==(1u<<PK_OPS_MONITORING|1u<<PK_HIST_EVENTS));
+    assert(preview_locked(PROFILE_IOT,&plan)==ESP_OK&&plan.change_mask==1u<<PK_TAILNET_NAMES&&plan.proposed_mask==plan.change_mask);
+    settings.value[PK_TAILNET_NAMES]=1;assert(preview_locked(PROFILE_IOT,&plan)==ESP_OK&&!plan.change_mask&&plan.proposed_mask);   /* already on */
+    settings.value[PK_TAILNET_NAMES]=0;
     assert(preview_locked(PROFILE_ADVANCED,&plan)==ESP_OK&&!plan.change_mask);
     for(unsigned p=0;p<PROFILE_COUNT;p++)assert(!(profile_wants[p]>>PK_COUNT));
     for(unsigned k=0;k<PK_COUNT;k++)assert(key_names[k]&&key_names[k][0]);
@@ -80,7 +84,8 @@ int main(void){
 
     /* Apply: backup persisted before any setting changes. */
     assert(apply_locked(PROFILE_MONITORING,mon,&r)==ESP_OK&&r.applied&&!r.rolled_back);
-    assert(!strcmp(trace,"sww")&&settings.value[PK_OPS_MONITORING]&&settings.value[PK_HEALTH]&&!settings.value[PK_LEASE_NOTIFY]);
+    assert(!strcmp(trace,"swwww")&&settings.value[PK_OPS_MONITORING]&&settings.value[PK_HEALTH]&&!settings.value[PK_LEASE_NOTIFY]);
+    assert(settings.value[PK_HIST_EVENTS]&&settings.value[PK_HIST_TRENDS]&&!settings.value[PK_SNAPSHOTS]&&!settings.value[PK_TAILNET_NAMES]);
     assert(record.active==PROFILE_MONITORING&&record.has_backup&&record.applied_mask==r.changed_mask);
     assert(!memcmp(stored,&record,sizeof record));
     assert(apply_locked(PROFILE_MONITORING,mon,&r)==ESP_ERR_INVALID_STATE); /* replay refused */
@@ -88,13 +93,14 @@ int main(void){
 
     /* Operator turned health off since; rollback keeps that, restores the rest. */
     settings.value[PK_HEALTH]=0;trace_len=0;memset(trace,0,sizeof trace);
-    assert(rollback_locked(&r)==ESP_OK&&r.rolled_back&&r.changed_mask==1u<<PK_OPS_MONITORING&&r.kept_mask==1u<<PK_HEALTH);
-    assert(!strcmp(trace,"ws")&&!settings.value[PK_OPS_MONITORING]&&!record.has_backup&&record.active==PROFILE_NONE);
+    assert(rollback_locked(&r)==ESP_OK&&r.rolled_back&&r.changed_mask==(MON_MASK&~(1u<<PK_HEALTH))&&r.kept_mask==1u<<PK_HEALTH);
+    assert(!strcmp(trace,"wwws")&&!settings.value[PK_OPS_MONITORING]&&!settings.value[PK_HIST_EVENTS]&&!settings.value[PK_HIST_TRENDS]);
+    assert(!record.has_backup&&record.active==PROFILE_NONE);
     assert(rollback_locked(&r)==ESP_ERR_NOT_FOUND);
 
     /* Never disables something already on, even on rollback. */
     reset();settings.value[PK_OPS_MONITORING]=1;
-    assert(apply_locked(PROFILE_MONITORING,token_for(PROFILE_MONITORING),&r)==ESP_OK&&r.changed_mask==1u<<PK_HEALTH);
+    assert(apply_locked(PROFILE_MONITORING,token_for(PROFILE_MONITORING),&r)==ESP_OK&&r.changed_mask==(MON_MASK&~(1u<<PK_OPS_MONITORING)));
     assert(rollback_locked(&r)==ESP_OK&&settings.value[PK_OPS_MONITORING]==1&&!settings.value[PK_HEALTH]);
     reset();assert(apply_locked(PROFILE_ADVANCED,token_for(PROFILE_ADVANCED),&r)==ESP_OK&&!writes&&record.active==PROFILE_ADVANCED);
     assert(rollback_locked(&r)==ESP_OK&&record.active==PROFILE_NONE&&!writes);
@@ -125,13 +131,17 @@ int main(void){
     /* Rollback record save failure: values restored, backup retained; retry converges. */
     fail_write_at=-1;fail_save_at=saves;
     assert(rollback_locked(&r)==ESP_FAIL&&r.partial&&record.has_backup&&!settings.value[PK_OPS_MONITORING]);
-    fail_save_at=-1;assert(rollback_locked(&r)==ESP_OK&&r.kept_mask==(1u<<PK_OPS_MONITORING|1u<<PK_HEALTH)&&!record.has_backup);
+    fail_save_at=-1;assert(rollback_locked(&r)==ESP_OK&&r.kept_mask==MON_MASK&&!record.has_backup);
 
     /* Single-level history: rollback returns to the previous profile only. */
     reset();assert(apply_locked(PROFILE_GATEWAY,token_for(PROFILE_GATEWAY),&r)==ESP_OK);
     assert(apply_locked(PROFILE_MONITORING,token_for(PROFILE_MONITORING),&r)==ESP_OK&&record.previous==PROFILE_GATEWAY);
     assert(rollback_locked(&r)==ESP_OK&&record.active==PROFILE_GATEWAY&&settings.value[PK_LEASE_NOTIFY]);
-    assert(!settings.value[PK_OPS_MONITORING]&&!settings.value[PK_HEALTH]);
+    assert(!settings.value[PK_OPS_MONITORING]&&!settings.value[PK_HEALTH]&&settings.value[PK_SNAPSHOTS]);
+
+    /* A record saved by 3.0.0 (three keys, zeros after them) is still valid. */
+    {profile_record_t old;record_defaults(&old);old.active=PROFILE_MONITORING;old.previous_values[0]=1;old.applied_mask=1u<<PK_HEALTH;
+     old.has_backup=1;old.checksum=record_checksum(&old);assert(record_valid(&old));}
 
     /* Record validation rejects every malformed field. */
     profile_record_t v=record;v.checksum=record_checksum(&v);assert(record_valid(&v));
@@ -177,7 +187,7 @@ HTTP = r'''
 #define ESP_ERR_NO_MEM 0x101
 #define ESP_ERR_NOT_FOUND 0x105
 struct httpd_req {int content_len,offset,status;const char *body;bool authorized;char reply[300];};
-static const char *const key_names[PK_COUNT]={"device_monitoring","service_expiry_notifications","health_monitor"};
+static const char *const key_names[PK_COUNT]={"device_monitoring","service_expiry_notifications","health_monitor","event_history","trends","settings_copy_before_update","tailnet_names"};
 static const char *const profile_names[PROFILE_COUNT]={"none","gateway","recovery","iot","monitoring","advanced"};
 const char *config_profile_name(profile_id_t p){return p<PROFILE_COUNT?profile_names[p]:"unknown";}
 bool config_profile_parse(const char *n,profile_id_t *o){for(unsigned i=1;n&&i<PROFILE_COUNT;i++)if(!strcmp(n,profile_names[i])){*o=(profile_id_t)i;return true;}return false;}

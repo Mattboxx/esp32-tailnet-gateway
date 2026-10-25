@@ -161,6 +161,42 @@ static const httpd_uri_t uri_index = {
     .user_ctx = NULL,
 };
 
+/* One script per Web UI language, generated next to the page (gzip in
+ * flash). The page asks only for the language in use; the name carries a
+ * content hash, so the browser may keep it until the firmware changes. */
+typedef struct {const char *name; const unsigned char *data; size_t len;} i18n_asset_t;
+extern const i18n_asset_t i18n_assets[];
+extern const size_t i18n_asset_count;
+
+static esp_err_t i18n_handler(httpd_req_t *req)
+{
+    char host[64];
+    if (first_boot_active()
+            && httpd_req_get_hdr_value_str(req, "Host", host, sizeof host) == ESP_OK
+            && !web_host_trusted(host)) {
+        return first_boot_not_found(req, HTTPD_404_NOT_FOUND);
+    }
+    const char *name = req->uri + strlen("/i18n/");
+    size_t n = strcspn(name, "?#");
+    for (size_t i = 0; i < i18n_asset_count; i++) {
+        if (strlen(i18n_assets[i].name) != n || strncmp(i18n_assets[i].name, name, n)) continue;
+        set_browser_security_headers(req);
+        httpd_resp_set_type(req, "text/javascript; charset=utf-8");
+        httpd_resp_set_hdr(req, "Content-Encoding", "gzip");
+        httpd_resp_set_hdr(req, "Cache-Control", "public, max-age=31536000, immutable");
+        return httpd_resp_send(req, (const char *)i18n_assets[i].data, i18n_assets[i].len);
+    }
+    httpd_resp_send_404(req);
+    return ESP_FAIL;
+}
+
+static const httpd_uri_t uri_i18n = {
+    .uri      = "/i18n/*",
+    .method   = HTTP_GET,
+    .handler  = i18n_handler,
+    .user_ctx = NULL,
+};
+
 static void ip4_to_str(uint32_t ip_nbo, char *out, size_t out_size)
 {
     const ip4_addr_t a = { .addr = ip_nbo };
@@ -5748,6 +5784,7 @@ void web_ui_init(void)
      * records, but do not install a DNAT binding over the admin service. */
     portmap_install_all();
     reg_uri(server, &uri_index);
+    reg_uri(server, &uri_i18n);
     if (first_boot_register_http(server) != ESP_OK) ESP_LOGE(TAG, "First-boot setup API registration failed");
     if(homelab_ops_register_http(server)!=ESP_OK)ESP_LOGE(TAG,"Operational API registration failed");
     reg_uri(server, &uri_favicon);

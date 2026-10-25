@@ -110,6 +110,12 @@ const char *fb_check_ap_password(const char *pw);
 const char *fb_check_auth_key(const char *key);
 const char *fb_check_login_server(const char *url);
 const char *fb_check_hostname(const char *name);
+/* Internet connection chosen in setup: "wifi", "ethernet" or "cellular".
+ * Wi-Fi needs a network; with only a SIM the gateway is reached through
+ * the tailnet, so an auth key is needed. NULL = acceptable. */
+const char *fb_check_uplink(const char *type, bool has_wifi, bool has_key, bool exit_node);
+/* POSIX TZ rule as written by the Web UI (empty = UTC). */
+const char *fb_check_tz(const char *tz);
 
 int fb_hex_decode(const char *hex, uint8_t *out, size_t out_len);
 void fb_hex_encode(const uint8_t *in, size_t len, char *out);

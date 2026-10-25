@@ -90,10 +90,10 @@ menu "Example Configuration"
 
     config TSR_DDNS
         bool "Dynamic DNS (DuckDNS, Cloudflare, custom URL)"
-        default n
+        default y
         help
-            Not in the 3.0 images (owner decision 2026-10-24). The module
-            and its host tests stay in the source for a later release.
+            In the images from 3.0.1 (owner request 2026-10-25); off until a
+            provider is chosen. Not in the 2.1 migration bridge.
 
     config TSR_MIGRATION_BRIDGE
         bool "2.x to 3.0 migration bridge build (2.x flash layout)"

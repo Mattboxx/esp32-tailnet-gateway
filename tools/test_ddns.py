@@ -64,7 +64,7 @@ int main(void){
     uint32_t a=IP(203,0,113,7),b=IP(198,51,100,9);
     assert(!ddns_due(&st,DDNS_OFF,a,100));
     assert(ddns_due(&st,DDNS_DUCKDNS,0,100));                                   /* first update, address unknown */
-    assert(!ddns_due(&st,DDNS_CLOUDFLARE,0,100)&&ddns_due(&st,DDNS_CLOUDFLARE,a,100));   /* Cloudflare needs the address */
+    assert(ddns_due(&st,DDNS_CLOUDFLARE,0,100)&&ddns_due(&st,DDNS_CLOUDFLARE,a,100));    /* unknown: the worker asks the trace endpoint */
     ddns_result(&st,true,a,100);
     assert(st.ever&&st.last_ip==a&&!st.backoff_s);
     assert(!ddns_due(&st,DDNS_CLOUDFLARE,b,120));                               /* at most one a minute */
@@ -90,6 +90,17 @@ int main(void){
     c=custom("https://e.org/u?a={ip}&b={ip}");assert(!ddns_build_url(&c,b,url,sizeof url));   /* one placeholder */
     c=custom("https://e.org/u");assert(ddns_build_url(&c,0,url,sizeof url)&&!strcmp(url,"https://e.org/u"));
     c=cf();assert(!ddns_build_url(&c,a,url,sizeof url));                        /* Cloudflare uses its API */
+
+    /* Cloudflare trace answer, used when Tailscale has not seen the address. */
+    uint32_t ip=0;
+    assert(ddns_parse_trace("fl=123\nh=www.cloudflare.com\nip=203.0.113.7\nts=1\n",&ip)&&ip==a);
+    assert(ddns_parse_trace("ip=198.51.100.9",&ip)&&ip==b);                     /* last line, no newline */
+    assert(ddns_parse_trace("ip=198.51.100.9\r\nts=1",&ip)&&ip==b);
+    assert(!ddns_parse_trace("fl=1\nh=x\n",&ip));                              /* no ip line */
+    assert(!ddns_parse_trace("ip=2001:db8::1\n",&ip));                         /* IPv6: no A record */
+    assert(!ddns_parse_trace("ip=256.1.1.1\n",&ip)&&!ddns_parse_trace("ip=1.2.3.4x\n",&ip));
+    assert(!ddns_parse_trace("ip=0.0.0.0\n",&ip)&&!ddns_parse_trace("",&ip));
+    assert(!ddns_parse_trace("xip=203.0.113.7\n",&ip));                        /* key must start the line */
     puts("ddns core: ok");
     return 0;
 }
