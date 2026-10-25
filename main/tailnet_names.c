@@ -116,11 +116,13 @@ static void apply(void)
     dns_relay_set_lan(s_enabled && s_lan, s_uplink);
 }
 
+static const char *const NAMES_LEGACY[] = {"tsn_en", "tsn_lan"};
+const nvs_flags_t tailnet_names_flags = {.record = "tsn_cfg", .legacy = NAMES_LEGACY, .count = 2};
+
 void tailnet_names_init(void)
 {
-    uint8_t v = 0;
-    s_enabled = nvs_param_get_u8("tsn_en", &v) == ESP_OK && v == 1;
-    s_lan = nvs_param_get_u8("tsn_lan", &v) == ESP_OK && v == 1;
+    uint8_t bits = nvs_flags_load(&tailnet_names_flags);
+    s_enabled = bits & 1; s_lan = bits >> 1 & 1;
     if (s_enabled) apply();
 }
 
@@ -134,8 +136,7 @@ void tailnet_names_get(bool *enabled, bool *lan) {*enabled = s_enabled; *lan = s
 
 esp_err_t tailnet_names_set(bool enabled, bool lan)
 {
-    esp_err_t err = nvs_param_set_u8("tsn_en", enabled);
-    if (!err) err = nvs_param_set_u8("tsn_lan", lan);
+    esp_err_t err = nvs_flags_save(&tailnet_names_flags, (uint8_t)(enabled | lan << 1));   /* all or nothing */
     if (err) return err;
     s_enabled = enabled; s_lan = lan;
     apply();

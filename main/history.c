@@ -377,13 +377,14 @@ static void number_boot(void)
     s_boot = (uint16_t)(last + 1);
 }
 
+static const char *const HISTORY_LEGACY[] = {"hist_ev", "hist_mx", "hist_snap"};
+const nvs_flags_t history_flags = {.record = "hist_cfg", .legacy = HISTORY_LEGACY, .count = 3};
+
 void history_init(void)
 {
     if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
-    uint8_t v = 0;
-    s_cfg.events = nvs_param_get_u8("hist_ev", &v) == ESP_OK && v == 1;
-    s_cfg.metrics = nvs_param_get_u8("hist_mx", &v) == ESP_OK && v == 1;
-    s_cfg.snapshots = nvs_param_get_u8("hist_snap", &v) == ESP_OK && v == 1;
+    uint8_t bits = nvs_flags_load(&history_flags);
+    s_cfg.events = bits & 1; s_cfg.metrics = bits >> 1 & 1; s_cfg.snapshots = bits >> 2 & 1;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_inited = true;
     bool any = s_cfg.events || s_cfg.metrics || s_sink;
@@ -421,10 +422,8 @@ void history_get_config(bool *events, bool *metrics, bool *snapshots)
 esp_err_t history_set_config(bool events, bool metrics, bool snapshots)
 {
     if (!s_lock) return ESP_ERR_INVALID_STATE;
-    /* Persist before publishing the new state. */
-    esp_err_t err = nvs_param_set_u8("hist_ev", events);
-    if (!err) err = nvs_param_set_u8("hist_mx", metrics);
-    if (!err) err = nvs_param_set_u8("hist_snap", snapshots);
+    /* Persist before publishing the new state: one byte, all or nothing. */
+    esp_err_t err = nvs_flags_save(&history_flags, (uint8_t)(events | metrics << 1 | snapshots << 2));
     if (err) return err;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     bool events_were = s_cfg.events;

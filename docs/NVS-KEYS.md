@@ -15,8 +15,10 @@ guessed configuration. Stable 1.13 does not read any of these keys.
 | `svc_watch` | service_check.c | Service watch enable/notify/interval | watch off |
 | `ntfy_sysev` | ntfy_integration.c | system-events switch (separate so the ntfy v1 record keeps its flag mask) | events off |
 | `cell_cfg` | cell_uplink.c | cellular modem pins, APN, PIN, mode (3.0) | cellular off |
-| `hist_ev`, `hist_mx`, `hist_snap` | history.c | event history, trends, settings copy before updates (3.0) | each off |
-| `tsn_en`, `tsn_lan` | tailnet_names.c | tailnet names, LAN listener (3.0) | off |
+| `hist_cfg` | history.c, nvs_flags.c | event history, trends, settings copy before updates as one byte (bits 0–2, bit 7 marks the record; after 3.0.1) | all off; damaged = all off |
+| `hist_ev`, `hist_mx`, `hist_snap` | history.c | 3.0.0/3.0.1 per-switch keys: read only while `hist_cfg` is absent, written after it for a rollback | each off |
+| `tsn_cfg` | tailnet_names.c, nvs_flags.c | tailnet names and LAN listener as one byte (after 3.0.1) | off |
+| `tsn_en`, `tsn_lan` | tailnet_names.c | 3.0.0/3.0.1 per-switch keys: read only while `tsn_cfg` is absent, written after it for a rollback | off |
 | `notify_cfg` | notify_channels.c | Telegram and email settings, write-only secrets (3.0) | both off |
 | `ntf_mlv` | notify_channels.c | 3.0.1 email event choice; after 3.0.1 written only for a rollback, the `notify_cfg` record decides (choice kept in its former padding bytes, same size/version) | 3.0.1 record: shared choice |
 | `ddns_cfg` | ddns.c | dynamic DNS provider, name, zone, write-only token/URL (3.0.1) | off |

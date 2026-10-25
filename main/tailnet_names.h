@@ -31,5 +31,8 @@ void tailnet_names_init(void);                 /* after dns_relay_init */
 void tailnet_names_uplink(uint32_t ip_nbo);    /* uplink address, 0 when down */
 void tailnet_names_get(bool *enabled, bool *lan);
 esp_err_t tailnet_names_set(bool enabled, bool lan);   /* persist, then apply */
+/* NVS record of the switches (enabled bit 0, LAN listener bit 1). */
+#include "nvs_flags.h"
+extern const nvs_flags_t tailnet_names_flags;
 #include "esp_http_server.h"
 esp_err_t tailnet_names_register_http(httpd_handle_t server);
