@@ -9,6 +9,10 @@
 All-in-one ESP32-S3 Tailscale/Headscale gateway with selective LAN-to-Tailnet
 access, subnet routing, remote recovery and optional automation.
 
+**Runs on ESP32-S3 N8R8 and N16R8** (8 MB octal PSRAM, at least 8 MB flash) —
+ESP32-S3-DevKitC-1, ESP32-S3-WROOM-1/1U, Freenove ESP32-S3-WROOM, Seeed XIAO
+ESP32S3. [Supported boards](#8-supported-hardware)
+
 > **Firmware v3.0.0 is available** for ESP32-S3 **N8R8** and **N16R8**.
 > [Download the release](../../releases/tag/v3.0.0), use the
 > [browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/),
@@ -61,6 +65,22 @@ processor time or flash writes while off. See the [changelog](CHANGELOG.md).
 The advanced workflows described below require Firmware v2.0.0 or later unless listed in
 the legacy 1.13 release. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
 remain available; [release notes](docs/releases/RELEASE-1.13.md) explain what is shipped.
+
+### Is it for you?
+
+| If you… | The gateway… |
+|---|---|
+| have a device that can't run Tailscale but must reach **one** service at another site | forwards one TCP/UDP port to that tailnet service, for one allowed source ([Service Gateway](docs/SERVICE-GATEWAY.md)) |
+| want to know **what happened while you were away** | keeps an **event history** across restarts: power losses, crashes, Wi-Fi and tailnet drops, updates, failed logins *(3.0)* |
+| want **trends**, not a snapshot | charts memory, traffic, Wi-Fi signal, CPU and peers: 6 h in detail, ~45 days in summary *(3.0)* |
+| fear an update or a wrong click will cost your setup | keeps up to three **settings copies**, automatically before each update *(3.0)* |
+| want local devices to reach `nas` **by name** | answers **tailnet names** for clients on its Wi-Fi or your LAN *(3.0)* |
+| want **alerts** on your phone or inbox | sends **Telegram** and **email** (TLS/STARTTLS) next to ntfy, MQTT/Home Assistant and SNMP *(3.0)* |
+| wonder whether the link is fast enough | runs a **throughput test** on request *(3.0)* |
+| need to wake a NAS or PC remotely | sends Wake-on-LAN and checks that the service answers ([recovery](docs/NAS-RECOVERY.md)) |
+| run a 2.x gateway | moves to 3.0 **keeping every setting** ([guide](docs/MIGRATION-3.0.md)) |
+
+Every feature is a switch, off until you need it.
 
 ## 1. What it is
 
