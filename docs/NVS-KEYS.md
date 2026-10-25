@@ -15,6 +15,7 @@ guessed configuration. Stable 1.13 does not read any of these keys.
 | `svc_watch` | service_check.c | Service watch enable/notify/interval | watch off |
 | `ntfy_sysev` | ntfy_integration.c | system-events switch (separate so the ntfy v1 record keeps its flag mask) | events off |
 | `cell_cfg` | cell_uplink.c | cellular modem pins, APN, PIN, mode (3.0) | cellular off |
+| `txn_undo` | nvs_params.c | undo journal of a multi-key settings save in progress (previous value or absence of each key, CRC-32); dropped when the save is kept, applied and dropped on failure or at the next boot after a power loss; a damaged journal is discarded without being applied (after 3.0.1) | absent |
 | `hist_cfg` | history.c, nvs_flags.c | event history, trends, settings copy before updates as one byte (bits 0–2, bit 7 marks the record; after 3.0.1) | all off; damaged = all off |
 | `hist_ev`, `hist_mx`, `hist_snap` | history.c | 3.0.0/3.0.1 per-switch keys: read only while `hist_cfg` is absent, written after it for a rollback | each off |
 | `tsn_cfg` | tailnet_names.c, nvs_flags.c | tailnet names and LAN listener as one byte (after 3.0.1) | off |

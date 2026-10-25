@@ -64,8 +64,13 @@ void tailscale_mtu_init(void);
 void tailscale_mtu_update(void);
 
 /* Persists mode + fixed_mtu to NVS and runs an update. Returns ESP_OK on
- * success or ESP_ERR_INVALID_ARG on out-of-range fixed_mtu. */
+ * success, ESP_ERR_INVALID_ARG on out-of-range fixed_mtu, or the NVS error
+ * (the running state is then unchanged). */
 esp_err_t tailscale_mtu_set(ts_mtu_mode_t mode, uint16_t fixed_mtu);
+
+/* Re-read mode + fixed_mtu from NVS (defaults when absent) and update;
+ * used after a settings save was rolled back. */
+void tailscale_mtu_reload(void);
 
 /* Read-only snapshot for UI / diagnostics. Returned struct is a copy. */
 ts_mtu_state_t tailscale_mtu_get(void);

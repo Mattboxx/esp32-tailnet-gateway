@@ -926,6 +926,9 @@ void app_main(void)
         ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
+    /* Undo a multi-key settings save cut short by a power loss before any
+     * setting is read (see nvs_params.h). */
+    (void)nvs_param_txn_recover();
     microlink_json_memory_init();
     remove_legacy_outbound_settings();
     ota_remote_init();

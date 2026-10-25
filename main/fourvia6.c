@@ -111,8 +111,8 @@ void fourvia6_init(void)
              s_prefix_text[0] ? s_prefix_text : "unset");
 }
 
-esp_err_t fourvia6_set_config(bool enabled, const char *lan_cidr,
-                              uint16_t site_id, char *error, size_t error_size)
+esp_err_t fourvia6_check_config(bool enabled, const char *lan_cidr,
+                                char *error, size_t error_size)
 {
     uint32_t network = 0;
     uint8_t prefix = 0;
@@ -124,9 +124,24 @@ esp_err_t fourvia6_set_config(bool enabled, const char *lan_cidr,
         if (error) snprintf(error, error_size, "Invalid IPv4 LAN subnet");
         return ESP_ERR_INVALID_ARG;
     }
-    esp_err_t err = nvs_param_set_u8("ts_4v6_en", enabled ? 1 : 0);
-    if (err == ESP_OK) err = nvs_param_set_str("ts_4v6_lan", lan_cidr ? lan_cidr : "");
-    if (err == ESP_OK) err = nvs_param_set_u16("ts_4v6_site", site_id);
+    return ESP_OK;
+}
+
+esp_err_t fourvia6_set_config(bool enabled, const char *lan_cidr,
+                              uint16_t site_id, char *error, size_t error_size)
+{
+    esp_err_t err = fourvia6_check_config(enabled, lan_cidr, error, error_size);
+    if (err != ESP_OK) return err;
+    /* One settings transaction (nested in the caller's, if any): the three
+     * keys change together. */
+    err = nvs_param_txn_begin();
+    if (err == ESP_OK) {
+        esp_err_t w = nvs_param_set_u8("ts_4v6_en", enabled ? 1 : 0);
+        if (w == ESP_OK) w = nvs_param_set_str("ts_4v6_lan", lan_cidr ? lan_cidr : "");
+        if (w == ESP_OK) w = nvs_param_set_u16("ts_4v6_site", site_id);
+        err = nvs_param_txn_end(w == ESP_OK);
+        if (w != ESP_OK) err = w;
+    }
     if (err != ESP_OK) {
         if (error) snprintf(error, error_size, "NVS write failed: %s", esp_err_to_name(err));
         return err;

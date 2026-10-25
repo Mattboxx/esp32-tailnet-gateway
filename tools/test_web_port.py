@@ -15,6 +15,7 @@ policy = '\n'.join(line for line in policy.splitlines() if not line.startswith('
 web = (ROOT / 'main/web_ui.c').read_text(encoding='utf-8')
 handler = 'static esp_err_t system_save_handler' + web.split('static esp_err_t system_save_handler', 1)[1].split('    /* Device-name update', 1)[0]
 handler += '''
+    (void)nvs_param_txn_end(recorded_error == ESP_OK);
     cJSON_Delete(root);
     req->status = recorded_error == ESP_OK ? 200 : 500;
     return recorded_error;
@@ -71,6 +72,11 @@ static esp_err_t require_auth(httpd_req_t *req) {
     req->status = 401; return ESP_FAIL;
 }
 static void nvs_save_errors_reset(void) { recorded_error = ESP_OK; }
+/* settings transaction: opened after validation, always closed */
+static int settings_txn;
+static bool save_txn_begin(void) { assert(!settings_txn); settings_txn = 1; return true; }
+static esp_err_t send_save_response(httpd_req_t *req) { (void)req; assert(0); return ESP_FAIL; }
+static esp_err_t nvs_param_txn_end(bool keep) { assert(settings_txn); settings_txn = 0; return keep ? ESP_OK : ESP_ERR_INVALID_STATE; }
 static void nvs_save_record_err(const char *key, esp_err_t err) {
     assert(!strcmp(key, "web_port")); recorded_error = err;
 }
@@ -123,7 +129,7 @@ int main(void) {
     authenticated = true; write_failed = true; request.body = "{\"web_port\":9090}";
     assert(system_save_handler(&request) == ESP_FAIL && request.status == 500 && configured == 65535);
     web_ui_set_active_port(0); assert(!web_ui_port_reserved(80) && web_ui_port_reserved(65535));
-    assert(!transaction && !critical);
+    assert(!transaction && !critical && !settings_txn);
     puts("PASS: actual live/next-boot Web UI reservations, transactional AP/Tailnet/PeerAPI conflicts, NVS failure, HTTP auth/type/range/fraction/large-number validation");
 }
 '''

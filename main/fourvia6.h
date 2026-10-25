@@ -25,6 +25,9 @@ typedef struct {
 
 void fourvia6_init(void);
 void fourvia6_get_status(fourvia6_status_t *out);
+/* Validate without storing (same messages as fourvia6_set_config). */
+esp_err_t fourvia6_check_config(bool enabled, const char *lan_cidr,
+                                char *error, size_t error_size);
 esp_err_t fourvia6_set_config(bool enabled, const char *lan_cidr,
                               uint16_t site_id, char *error, size_t error_size);
 bool fourvia6_calculate_prefix(const char *lan_cidr, uint16_t site_id,
