@@ -63,6 +63,7 @@ p, li { max-width: 72ch; }
   padding: 6px 12px; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .tools .kofi:hover, .tools .kofi:focus-visible { background: #FF7D7A; border-color: #FF7D7A; }
 .tools .kofi svg { width: 18px; height: 18px; fill: currentColor; }
+.tools .kofi .emoji { font-style: normal; filter: drop-shadow(0 0 1px #fff) drop-shadow(0 0 1px #fff); }
 .tools .icon { width: 44px; justify-content: center; padding: 0; }
 .icon svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .icon svg .fill { fill: currentColor; stroke: none; }
@@ -162,13 +163,17 @@ summary { cursor: pointer; font-weight: 600; }
   .tools .gh { display: none; }
   .brand span { font-size: 15px; }
 }
-/* The header row is tight: Ko-fi is a heart-only button below 1280 px and a
- * text-only "Ko-fi" button above; GitHub stays in the footer below 900 px. */
-@media (max-width: 1279px) {
+/* The header row is tight: the Ko-fi link is a heart-only button below
+ * 1200 px and "Support me! ❤️" above, where the header may grow wider than the
+ * content column; GitHub stays in the footer below 900 px. */
+@media (max-width: 1199px) {
   .tools .kofi { width: 44px; padding: 0; justify-content: center; }
   .tools .kofi span { display: none; }
 }
-@media (min-width: 1280px) { .tools .kofi svg { display: none; } }
+@media (min-width: 1200px) {
+  .top-inner { max-width: 1360px; }
+  .tools .kofi svg { display: none; }
+}
 @media (max-width: 899px) { .tools .gh { display: none; } }
 @media (max-width: 700px) {
   figure.diagram { overflow-x: auto; -webkit-overflow-scrolling: touch; }
