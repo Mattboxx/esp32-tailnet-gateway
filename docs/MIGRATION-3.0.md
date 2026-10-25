@@ -11,6 +11,8 @@ Supported boards: ESP32-S3 with 8 MB octal PSRAM and at least 8 MB of flash
 
 ## 1. Over the network, no cable (2.1 bridge)
 
+*Not published yet: until the 2.1 bridge release is out, use option 2 or 3.*
+
 1. In **System → Firmware**, check for updates and install **2.1.0**. It is a
    normal 2.x update.
 2. After the restart, **System** shows **Move to the 3.0 flash layout**. Make

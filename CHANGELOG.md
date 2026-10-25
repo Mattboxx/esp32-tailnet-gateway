@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [3.0.0] — in development
+## [3.0.0] — in development (3.0.0-beta.1 published 2026-10-25 as a pre-release)
 
 In development: 8 MB partition table for ESP32-S3 N8R8 and N16R8, one
 firmware image with every language and Ethernet, optional cellular uplink.
@@ -44,6 +44,10 @@ USB install; settings are kept ([guide](docs/MIGRATION-3.0.md)). Work so far
 
 ### Changed
 
+- **Web UI reorganised:** the long pages show one group of cards at a time
+  (Network, Tailscale, Diagnostics, Automation, System) with links straight
+  to a group; every page has the same width (a stray tag made all pages
+  after Network full-width); Wake-on-LAN moved to Devices & Recovery.
 - Application tables (scan cache, firewall lists, saved networks, Service
   Gateway rules, 4via6 flows, DHCP reservations, WoL devices, Devices &
   Recovery store, console capture) moved from internal RAM to PSRAM, leaving
