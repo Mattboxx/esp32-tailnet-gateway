@@ -48,6 +48,19 @@ def sha(path):
     return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
+def write_web_installer(folder, web, version, notices):
+    """Keep exact image parts and their required notices together for Pages."""
+    web.mkdir()
+    for name in LAYOUT:
+        shutil.copyfile(folder / name, web / name)
+    shutil.copyfile(notices, web / 'FIRMWARE-LICENSES.txt')
+    ewt = {'name': 'ESP32 Tailnet Gateway', 'version': version, 'new_install_prompt_erase': True,
+           'new_install_improv_wait_time': 0,
+           'builds': [{'chipFamily': 'ESP32-S3', 'parts': [{'path': n, 'offset': o} for n, o in LAYOUT.items()]}]}
+    (web / 'manifest.json').write_text(json.dumps(ewt, indent=1) + '\n', encoding='utf-8')
+    write_sums(web, [*LAYOUT, 'FIRMWARE-LICENSES.txt'])
+
+
 def repository_url(repository):
     """Do not ship premature renamed URLs during the bridge migration window."""
     assert repository in (CURRENT_REPOSITORY, RENAMED_REPOSITORY), 'Unknown release repository'
@@ -189,14 +202,7 @@ def main():
 
     # Browser installer (website/firmware/<version>/ when the release is final).
     web = out / 'web-installer'
-    web.mkdir()
-    for name in LAYOUT:
-        shutil.copyfile(a.wifi_dir / name, web / name)
-    ewt = {'name': 'ESP32 Tailnet Gateway', 'version': v, 'new_install_prompt_erase': True,
-           'new_install_improv_wait_time': 0,
-           'builds': [{'chipFamily': 'ESP32-S3', 'parts': [{'path': n, 'offset': o} for n, o in LAYOUT.items()]}]}
-    (web / 'manifest.json').write_text(json.dumps(ewt, indent=1) + '\n', encoding='utf-8')
-    write_sums(web, list(LAYOUT))
+    write_web_installer(a.wifi_dir, web, v, pkg / 'FIRMWARE-LICENSES.txt')
     for line in (assets / 'SHA256SUMS.txt').read_text(encoding='ascii').splitlines():
         print(line)
     print(f'-> {out}')
