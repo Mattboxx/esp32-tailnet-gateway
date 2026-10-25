@@ -269,7 +269,8 @@ async function flow(browser, [width, height, locale], failures, full) {
     assert.equal(g.finish.ap_ssid, 'ESP32-Tailnet-1A2B');
     assert.deepEqual(g.finish.roles, ['subnet-router', 'wol', 'monitoring', 'advanced']);
     assert.deepEqual(g.finish.extras, { history: true, trends: true, snapshots: true, tailnet_names: false });
-    assert.ok(summaryText.includes('Event history') && summaryText.includes('Trends'), 'extras in the summary'); assert.equal(g.finish.advanced_ui, true); assert.ok(g.finish.ap_password.length >= 8 && g.finish.ap_password !== SECRETS.admin);
+    const [xh, xt] = await page.evaluate(() => [I18N.t('Event history'), I18N.t('Trends')]);
+    assert.ok(summaryText.includes(xh) && summaryText.includes(xt), 'extras in the summary, in the page language'); assert.equal(g.finish.advanced_ui, true); assert.ok(g.finish.ap_password.length >= 8 && g.finish.ap_password !== SECRETS.admin);
     assert.ok((await page.textContent('#fb-done-open')).includes('http://192.168.1.77/'));
     assert.equal(await page.getAttribute('#fb-done-open a[href="http://192.168.1.77/"]', 'href'), 'http://192.168.1.77/', 'tested address is a link');
     assert.equal(await page.getAttribute('#fb-done-open a[href="http://esp32-tailnet-1a2b.local/"]', 'href'), 'http://esp32-tailnet-1a2b.local/', 'per-board .local link');
