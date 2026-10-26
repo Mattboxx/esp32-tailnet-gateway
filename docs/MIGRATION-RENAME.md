@@ -22,12 +22,17 @@ Their updater can therefore report **GitHub check failed** after the rename.
 The installed firmware keeps running; this does not erase settings or partially
 install an image. Releases before 1.10 have no GitHub updater.
 
-Update once manually:
+The current 3.x application does not fit these old OTA slots. Do not upload
+its `firmware.bin` directly to a 1.x/2.x layout.
 
-1. Back up your configuration.
-2. Download **`firmware.bin`** from the [latest release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/latest).
-3. Upload it in **System → Firmware** and allow the gateway to restart.
-4. Alternatively use the Easy Install **keep-settings** option over USB.
+1. Back up your configuration and check the [3.x hardware requirements](HARDWARE.md).
+2. For a cable-based upgrade, use the current [Easy Install keep-settings
+   option](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/).
+3. For the staged network route, first upload `firmware.bin` from the
+   [legacy 1.100 bridge](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v0.1.38-Mattboxx-1.100)
+   in **System → Firmware**. This is the old-layout bridge, not the latest 3.x image.
+4. Continue through the **2.1.0 bridge** and its **Move to the 3.0 flash layout**
+   action as described in [Moving to 3.0](MIGRATION-3.0.md).
 
 Do not upload a factory image in the Web UI. New-device/erase installation
 deletes settings. USB keep-settings installation writes the first app slot
@@ -41,8 +46,9 @@ not overwrite a deliberately protected recovery image.
   do not silently select another repository.
 - Release downloads accept the fixed old and new repository paths and the
   approved GitHub asset CDN, retaining TLS verification and SHA-256 checks.
-- Application identity `esp32_tsr`, NVS namespace and partition layout remain
-  unchanged; an ordinary application update preserves configuration.
+- Application identity `esp32_tsr` and the NVS namespace remain stable.
+  Ordinary application updates within a compatible layout preserve settings;
+  moving to the 3.x layout requires the separate migration procedure above.
 - Periodic checks, automatic installation and beta participation remain
   explicit opt-ins. **Check now** and **Install latest update** are on demand.
 

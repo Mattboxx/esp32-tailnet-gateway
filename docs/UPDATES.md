@@ -1,16 +1,18 @@
 # Firmware updates — ESP32 Tailnet Gateway
 
-> **Firmware v3.0.0.** Application updates preserve the existing app identity,
-> NVS namespace and partition layout. Keep a configuration backup before updating.
+> **Firmware 3.x.** Application updates within the same layout preserve the
+> existing app identity, NVS namespace and partitions. Keep a configuration
+> backup before updating.
 >
 > **From 2.x to 3.0:** 3.0 uses a new 8 MB flash layout, so the 2.x updater
 > skips it (its image does not fit a 2.x slot). Install the **2.1.0 bridge**
 > from the 2.x updater and migrate over the network, or install 3.0 once over
 > USB without erasing; settings are kept. See [Moving to 3.0](MIGRATION-3.0.md).
 >
-> **From v2.0.0 or v2.0.1, update once by hand** (upload `firmware.bin`, or
-> USB keeping settings): the GitHub updater of those versions restarts the
-> gateway while beginning the update and installs nothing. Fixed in v2.0.2.
+> **From v2.0.0 or v2.0.1:** upload the **2.1.0 bridge's** `firmware.bin`
+> and follow the migration guide, or use the current USB keep-settings
+> installer. Do not upload a 3.x application into the old slots. The GitHub
+> updater bug in those two releases was fixed in v2.0.2.
 
 
 System → Firmware → Firmware update supports three independent workflows:
@@ -51,8 +53,8 @@ the bridge release cannot follow the rename automatically; see the
 
 ## Web UI languages
 
-From 3.0 a single `firmware.bin` carries every Web UI language (English,
-Italiano, Español, 简体中文) and the W5500 Ethernet driver. The 2.x line
+The current 3.x `firmware.bin` carries all six Web UI languages (English,
+Italiano, Español, 简体中文, Français and Deutsch) and the W5500 Ethernet driver. The 2.x line
 shipped one image per language (`firmware-it.bin`, `firmware-es.bin`,
 `firmware-zh.bin`) and a separate `firmware-eth.bin`; those names are not
 used by 3.x releases.

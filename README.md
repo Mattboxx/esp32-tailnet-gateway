@@ -79,7 +79,7 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 
 | Firmware 2.x | Firmware 3.0 |
 |---|---|
-| 4 MB layout, one Web UI language per image, separate Ethernet build | **One image** for N8R8 and N16R8 with every language (English, Italiano, Español, 简体中文) and the W5500 driver; 3.5 MB update slots |
+| 4 MB layout, one Web UI language per image, separate Ethernet build | **One image** for N8R8 and N16R8 with all six UI languages and the W5500 driver; 3.5 MB update slots |
 | Long settings pages | **Reorganised Web UI:** each page shows one group at a time (Network, Tailscale, Diagnostics, Automation, System) |
 | Logs lost at restart | **Event history** and **trends** with a chart on Status, kept in flash |
 | Encrypted backup download | Plus up to three **settings copies** on the gateway, taken by hand or before each update |
@@ -92,9 +92,10 @@ New optional services are **off until you switch them on**. Disabled services
 do not run their background jobs; compiled code and static state still occupy
 space. See the [changelog](CHANGELOG.md).
 
-The advanced workflows described below require Firmware v2.0.0 or later unless listed in
-the legacy 1.13 release. [Stable 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13)
-remain available; [release notes](docs/releases/RELEASE-1.13.md) explain what is shipped.
+This README describes the current 3.x firmware. For an older installation,
+follow its versioned documentation and the [migration guide](docs/MIGRATION-3.0.md).
+[Legacy 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailnet-gateway/tree/v0.1.38-Mattboxx-1.13)
+remain available; [its release notes](docs/releases/RELEASE-1.13.md) describe that historical build.
 
 ### Is it for you?
 
@@ -182,8 +183,8 @@ their changes and can be rolled back.
 
 ## 6. Quick start
 
-These steps apply to Firmware 3.0 (and 2.x). For legacy installations use
-the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/tree/v0.1.38-Mattboxx-1.13).
+These steps apply to the current Firmware 3.x. For legacy installations use
+the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailnet-gateway/tree/v0.1.38-Mattboxx-1.13).
 
 1. **Install** by desktop browser, Easy Install or advanced download below.
    Use a USB **data** cable. Erase only for a new setup, never for a routine update.
@@ -204,8 +205,8 @@ the [versioned 1.13 instructions](https://github.com/Mattboxx/esp32-tailscale-ga
    LAN → Tailnet**, review its allowed source and run **Test destination**.
 
 An existing installation keeps its settings and does **not** reopen the setup
-network. First setup is English-only; the main administration UI retains its
-existing translations. The setup network forwards no LAN/Internet traffic;
+network. Setup and the main Web UI offer English, Italiano, Español, 简体中文,
+Français and Deutsch. The setup network forwards no LAN/Internet traffic;
 credentials use sealed setup requests. Set up nearby on a trusted physical site:
 a malicious lookalike access point remains a risk.
 
@@ -219,7 +220,7 @@ Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailnet-gateway
 |---|---|---|
 | **Browser installer** | New WiFi gateway, no flashing application | [Install Firmware](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/) in desktop Chrome/Edge over USB |
 | **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/) |
-| **Advanced downloads** | Web UI OTA, manual flashing or experimental W5500 | [Downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/) with exact checksums, variant labels and recovery notes |
+| **Advanced downloads** | Web UI OTA or manual USB installation | [Downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/) with exact checksums, image roles and recovery notes |
 
 Firmware v3.0.2 release assets:
 
@@ -227,12 +228,16 @@ Firmware v3.0.2 release assets:
 |---|---|
 | `ESP32-Tailnet-Gateway-v3.0.2-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip` | Guided USB install (new device) or update keeping settings |
 | `firmware.bin` | Application image for the Web UI updater on 3.x |
-| `bootloader.bin`, `partitions.bin` | 3.0 boot loader and partition table (manual USB update keeping settings) |
+| `bootloader.bin`, `partitions.bin` | 3.x bootloader and partition-table components; use the complete installer for migration |
 | `ESP32-Tailnet-Gateway-v3.0.2-factory.bin` | Full image for a new device at offset `0x0` (erases settings) |
 | `SHA256SUMS.txt`, `release-manifest.json`, `source-provenance.json`, `FIRMWARE-LICENSES.txt` | Checksums, build metadata, exact source revision and third-party notices |
 
+Verify the `WITH-NOTICES.zip` and esptool source download with
+[LICENSE-SHA256SUMS.txt](licenses/releases/v3.0.2/LICENSE-SHA256SUMS.txt).
+The original release `SHA256SUMS.txt` remains valid for the original images and archives.
+
 The **2.1.0 bridge** release carries only a 2.x `firmware.bin` for the
-network migration. The [legacy 1.13 release](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/releases/tag/v0.1.38-Mattboxx-1.13)
+network migration. The [legacy 1.13 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v0.1.38-Mattboxx-1.13)
 keeps its original files.
 
 ## 8. Supported hardware
@@ -308,8 +313,8 @@ are on the website.
 - **Automation:** MQTT with Home Assistant Discovery, ntfy alerts and commands,
   Telegram and email notifications ([guide](docs/NOTIFICATIONS.md)), read-only
   SNMP — all optional and supervised.
-- **Languages:** English, Italiano, Español, 简体中文; Français and Deutsch and
-  the translated first-boot setup from 3.0.1 ([details](docs/I18N.md)).
+- **Languages:** English, Italiano, Español, 简体中文, Français and Deutsch,
+  including translated first-boot setup ([details](docs/I18N.md)).
 - **Tailnet names (3.0):** gateway Wi-Fi and LAN clients resolve tailnet
   peers by name.
 - **Management:** responsive Web UI and API, profiles with rollback, encrypted
@@ -449,8 +454,9 @@ Back up your configuration first; see [Updates](docs/UPDATES.md) and
 
 **Legacy OTA migration:** the bridge `0.1.38-Mattboxx-1.100` was published under
 the previous repository name before the rename. Older updaters cannot follow
-the renamed API. Devices still on 1.13 or earlier need one manual Web UI/USB
-update if they missed the bridge; settings can be kept.
+the renamed API. For 1.13 or earlier, use the staged bridge path or USB keeping
+settings in [Legacy migration](docs/MIGRATION-RENAME.md). The current 3.x
+application does not fit the old OTA slots; do not upload it directly there.
 
 **Build from source:**
 
@@ -494,4 +500,4 @@ Full attribution: [NOTICE.md](NOTICE.md). Brand assets: [assets/brand](assets/br
 The root MIT license is not a relicensing of bundled third-party components
 or the separately distributed GPL esptool flashing program.
 Tailscale, Headscale, WireGuard and ESP32 are trademarks of their respective
-owners. Previous stable README: [1.13 documentation](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/blob/v0.1.38-Mattboxx-1.13/README.md).
+owners. Legacy README: [1.13 documentation](https://github.com/Mattboxx/esp32-tailnet-gateway/blob/v0.1.38-Mattboxx-1.13/README.md).

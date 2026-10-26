@@ -2,6 +2,7 @@
 from pathlib import Path
 import os
 import re
+from unittest.mock import patch
 import build_site
 
 root = Path(__file__).resolve().parents[1]
@@ -42,6 +43,16 @@ assets = ('firmware.bin','bootloader.bin','partitions.bin','-factory.bin',build_
     'firmware.bin','firmware-factory.bin','RELEASE-SHA256SUMS.txt','ESP32-S3-router-0.1.38-Mattboxx-1.13-windows.zip')
 for name in assets:
     assert name in (site/'downloads/index.html').read_text(encoding='utf-8'), name
+if build_site.NEXT_PUBLISHED:
+    for slug in ('downloads','easy-install'):
+        assert build_site.easy_install_checksums() in (site/slug/'index.html').read_text(encoding='utf-8')
+    if build_site.NEXT_VERSION == '3.0.2':
+        sums=(root/'licenses/releases/v3.0.2/LICENSE-SHA256SUMS.txt').read_text(encoding='ascii')
+        files={name: digest for digest,name in (line.split('  ',1) for line in sums.splitlines())}
+        assert re.fullmatch('[0-9a-f]{64}',files[build_site.easy_install_asset()])
+    with patch.object(build_site,'NEXT_VERSION','3.0.3'):
+        assert build_site.easy_install_checksums()==build_site.REPO_URL+'/releases/download/v3.0.3/SHA256SUMS.txt'
+        assert build_site.easy_install_asset()=='ESP32-Tailnet-Gateway-v3.0.3-EASY-INSTALL-Windows-macOS-Linux.zip'
 installer = (site/'install-firmware/index.html').read_text(encoding='utf-8')
 assert ('<esp-web-install-button manifest=' in installer) == build_site.NEXT_PUBLISHED
 if build_site.NEXT_PUBLISHED:

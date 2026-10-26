@@ -10,20 +10,20 @@ order: 12
 
 <h2>The device does not join the tailnet</h2>
 <ul>
-  <li>The auth key is expired, ephemeral or single-use and already consumed: create a reusable, non-ephemeral key.</li>
+  <li>Check whether the auth key expired, was revoked or was single-use and already consumed. Use registration credentials appropriate for a persistent gateway and your administrator's policy.</li>
   <li>Headscale: check the login server URL and that its certificate comes from a public CA.</li>
   <li>Tailnet lock is enabled: it is not supported.</li>
 </ul>
 
 <h2>It was working and dropped off after months</h2>
-<p>Node-key expiry was left enabled. Disable it in the admin console and reboot the ESP32 once.</p>
+<p>Check node-key expiry in the admin console and reauthorize the device if required. Also check the uplink, clock and gateway logs before changing settings. Whether to disable expiry for a persistent recovery node is an administrator policy decision, not a required troubleshooting step.</p>
 
 <h2>Tailnet clients cannot reach the LAN</h2>
 <p>Approve the advertised route in the admin console. If LAN hosts have no route back to <code>100.64.0.0/10</code>, enable source NAT for advertised routes.</p>
 
 <h2>A Service Gateway rule does not work</h2>
 <ol>
-  <li>Run <strong>Test destination</strong>. If it fails, the peer is offline, the port is closed or the peer ACL does not allow the ESP32.</li>
+  <li>Run <strong>Test destination</strong>. Read the reported result: DNS resolution, the tunnel path, the listening service or authorization may be involved. For UDP, use reply evidence from the actual service; there is no TCP handshake to test.</li>
   <li>Check that the rule is enabled and not expired, and that the client's address is inside the source CIDR (rejected counter).</li>
   <li>Check the client points at the ESP32's address and listen port, not at the remote service.</li>
 </ol>
@@ -36,7 +36,7 @@ order: 12
 </ul>
 
 <h2>The updater says the GitHub check failed</h2>
-<p>Check Internet access and the time of day (TLS). Firmware 1.13 or older cannot follow the repository rename: update once manually with <code>firmware.bin</code>.</p>
+<p>Check Internet access, the clock used for TLS and the reported GitHub error. For 1.13 or earlier, follow the <a href="{{root}}updating/#from-older">legacy migration path</a>; a direct upload of the current 3.x application does not fit the old OTA slots.</p>
 
 <h2>Still stuck?</h2>
-<p>Export a diagnostic report (System → Diagnostics), review it for private details, and open an issue. Full guide: <a href="{{repo}}/blob/Main/docs/TROUBLESHOOTING.md">docs/TROUBLESHOOTING.md</a>.</p>
+<p>Use <strong>Devices &amp; Recovery → Sanitized export</strong>, review it for private details, and open an issue. Full guide: <a href="{{repo}}/blob/Main/docs/TROUBLESHOOTING.md">docs/TROUBLESHOOTING.md</a>.</p>
