@@ -1,0 +1,12 @@
+{
+  "package": "tibs",
+  "version": "0.5.7",
+  "wheel": {
+    "kind": "bdist_wheel",
+    "filename": "tibs-0.5.7-cp38-abi3-win_amd64.whl",
+    "url": "https://files.pythonhosted.org/packages/46/ab/aab78827ba7e0d65fe346b86d1d61e0792c38d5f9b7547e0f71b7027c835/tibs-0.5.7-cp38-abi3-win_amd64.whl",
+    "sha256": "a61d36155f8ab8642e1b6744e13822f72050fc7ec4f86ec6965295afa04949e2"
+  },
+  "generated_wrapper_sha256": "55571d551d0afe79b3199ced7939869f95ebba379a46fa8c614ecccad101facd",
+  "scope": "Original wheel-generated Python wrapper (source absent from sdist; Maturin generates it during the source build). This supplements, without replacing, the complete Rust preferred source/build inputs in the main tool source collection."
+}

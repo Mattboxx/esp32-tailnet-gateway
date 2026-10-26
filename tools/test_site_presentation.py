@@ -38,7 +38,7 @@ for target in re.findall(r'(?:\]\(|src=")([^\s"\)]+)',readme):
     if target.startswith(('https:', 'http:', 'mailto:', '#', '../../releases')):
         continue
     assert (root/target.split('#')[0]).exists(), target
-assets = ('firmware.bin','bootloader.bin','partitions.bin','-factory.bin','EASY-INSTALL-Windows-macOS-Linux.zip') if build_site.NEXT_PUBLISHED else (
+assets = ('firmware.bin','bootloader.bin','partitions.bin','-factory.bin',build_site.easy_install_asset()) if build_site.NEXT_PUBLISHED else (
     'firmware.bin','firmware-factory.bin','RELEASE-SHA256SUMS.txt','ESP32-S3-router-0.1.38-Mattboxx-1.13-windows.zip')
 for name in assets:
     assert name in (site/'downloads/index.html').read_text(encoding='utf-8'), name

@@ -5,3 +5,4 @@ website/firmware/*/* -text
 licenses/*.txt -text -whitespace
 website/assets/esp-web-tools/*/DEPENDENCY-LICENSES.txt -text -whitespace
 website/firmware/*/FIRMWARE-LICENSES.txt -whitespace
+licenses/releases/** -text -whitespace

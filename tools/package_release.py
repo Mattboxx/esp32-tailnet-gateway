@@ -236,6 +236,8 @@ def main():
     parser.add_argument('--tested-sha256', required=True)
     parser.add_argument('--esptool', type=Path, required=True)
     parser.add_argument('--esptool-license', type=Path, required=True)
+    parser.add_argument('--tool-sources', type=Path, required=True,
+                        help='Corresponding-source companion for the exact esptool executable')
     parser.add_argument('--build-dir', type=Path,
                         help='Exact PlatformIO environment directory, if built outside .pio')
     parser.add_argument('--variant', choices=sorted(VARIANTS), default='wifi',
@@ -267,8 +269,13 @@ def main():
     for name in ('bootloader.bin', 'partitions.bin', 'ota_data_initial.bin'):
         shutil.copyfile(sdkbuild / name, out / name)
     shutil.copyfile(args.esptool, out / 'esptool.exe')
+    from prepare_license_archive import SOURCE_NAME, source_bundle_index
+    source_bundle_index(args.tool_sources, sha(args.esptool))
     shutil.copyfile(args.esptool_license, out / 'ESPTOOL-LICENSE.txt')
     shutil.copyfile(ROOT / 'docs/FLASHING-TOOL-LICENSES.md', out / 'FLASHING-TOOL-LICENSES.md')
+    (out / 'SOURCE-DOWNLOAD.txt').write_text(
+        f'Corresponding source for the bundled esptool:\n{SOURCE_URL}/releases/download/v{version}/{SOURCE_NAME}\n'
+        f'SHA-256: {sha(args.tool_sources)}\n', encoding='utf-8')
     (out / 'FIRMWARE-LICENSES.txt').write_text(collect_release_notices(ROOT, sdkbuild), encoding='utf-8')
     for path in (ROOT / 'tools/flashing').iterdir():
         # Windows double-click scripts must carry CRLF, also in Linux builds.
@@ -305,7 +312,8 @@ def main():
         for line in z.read('SHA256SUMS.txt').decode().splitlines():
             digest, name = line.split('  ', 1)
             assert hashlib.sha256(z.read(name)).hexdigest() == digest
-    assets = [out / ota_name, out / factory_name, archive, out / 'FIRMWARE-LICENSES.txt', out / 'release-manifest.json']
+    shutil.copyfile(args.tool_sources, out / SOURCE_NAME)
+    assets = [out / ota_name, out / factory_name, archive, out / 'FIRMWARE-LICENSES.txt', out / 'release-manifest.json', out / SOURCE_NAME]
     (out / 'RELEASE-SHA256SUMS.txt').write_text(''.join(f'{sha(path)}  {path.name}\n' for path in assets), encoding='ascii')
     print('PASS: exact tested image, blank NVS, factory application, ZIP CRC, payload hashes and credential patterns')
     for path in assets:
