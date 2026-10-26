@@ -17,7 +17,7 @@ order: 8
   <div class="card"><h3>B. Easy Install — Windows, macOS &amp; Linux</h3>
     <p>A download with guided scripts for every desktop system.</p>
     <a class="btn" href="{{repo}}/releases/download/v{{next_version}}/{{easy_install_asset}}">Download Easy Install</a>
-    <p><a href="{{root}}easy-install/">Instructions</a></p></div>
+    <p><a href="{{root}}easy-install/">Instructions</a> · <a href="{{easy_install_checksums}}">ZIP and source checksums</a></p></div>
   <div class="card"><h3>C. Advanced downloads</h3>
     <p>Factory and update images, boot loader and partition table, checksums and manifest.</p>
     <a class="btn" href="#advanced">Advanced downloads</a></div>
@@ -28,9 +28,9 @@ order: 8
   <tbody>
     <tr><td><code>ESP32-Tailnet-Gateway-v{{next_version}}-factory.bin</code></td><td>New device: esptool at <code>0x0</code>. Erases all settings.</td></tr>
     <tr><td><code>firmware.bin</code></td><td>Application image with every Web UI language (English, Italiano, Español, 简体中文, Français, Deutsch) and the W5500 driver: Web UI upload and GitHub updater on 3.x.</td></tr>
-    <tr><td><code>bootloader.bin</code>, <code>partitions.bin</code></td><td>3.0 boot loader (<code>0x0</code>) and partition table (<code>0x8000</code>): with <code>firmware.bin</code> at <code>0x20000</code> they update a 2.x or 3.x board over USB keeping settings.</td></tr>
+    <tr><td><code>bootloader.bin</code>, <code>partitions.bin</code></td><td>3.x bootloader and partition-table components. Use the complete browser/Easy Install procedure for a layout migration: it also initializes OTA selection. These files alone are not a complete update procedure.</td></tr>
     <tr><td>Release <a href="{{repo}}/releases/tag/v2.1.0">2.1.0</a> <code>firmware.bin</code></td><td>Migration bridge for 2.x gateways: moves them to 3.0 over the network.</td></tr>
-    <tr><td><code>SHA256SUMS.txt</code>, <code>release-manifest.json</code></td><td>Checksums and machine-readable build metadata.</td></tr>
+    <tr><td><code>SHA256SUMS.txt</code>, <code>release-manifest.json</code></td><td>Original image/archive checksums and build metadata. For the current Easy Install ZIP, use the <a href="{{easy_install_checksums}}">ZIP and source checksums</a>.</td></tr>
     <tr><td><a href="{{root}}firmware/{{next_version}}/FIRMWARE-LICENSES.txt">FIRMWARE-LICENSES.txt</a></td><td>Firmware and bundled dependency copyright and license notices.</td></tr>
     <tr><td>Source code and <a href="{{repo}}/releases/tag/v{{next_version}}">release notes</a></td><td>Exact sources of this release.</td></tr>
   </tbody>
@@ -82,4 +82,4 @@ Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
 <p>Firmware 3.x ships a single image for N8R8 and N16R8 boards with every language and the W5500 Ethernet driver (experimental, off until configured). There are no separate language or Ethernet downloads.</p>
 
 <h2>Updating an existing device</h2>
-<p>Back up the configuration first (System → Backup). Upload <code>firmware.bin</code> in System → Firmware or use the opt-in updater; settings are kept and a failed boot returns to the previous image. 2.x gateways move to 3.0 as described in <a href="{{root}}updating/#from-v2">Updating</a>. Devices on 1.13 or older that cannot find updates after the repository rename: see the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">migration note</a>.</p>
+<p>On an existing 3.x gateway, back up first (System → Backup). Upload <code>firmware.bin</code> in System → Firmware or use the opt-in updater; settings are kept and a failed boot returns to the previous image. 2.x gateways move to 3.0 as described in <a href="{{root}}updating/#from-v2">Updating</a>. Devices on 1.13 or older that cannot find updates after the repository rename: see the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">migration note</a>.</p>

@@ -25,15 +25,16 @@ order: 3
 <p>Boards with 4 MB of flash cannot run 3.0 and stay on 2.x. Full guide: <a href="{{repo}}/blob/Main/docs/MIGRATION-3.0.md">Moving a 2.x gateway to 3.0</a>.</p>
 
 <h2 id="from-v2-0">From v2.0.0 or v2.0.1</h2>
-<p>Update <strong>once by hand</strong>: upload <code>firmware.bin</code> in <strong>System → Firmware</strong>, or use USB keeping settings. The built-in GitHub updater of those two versions restarts the gateway without installing anything; with automatic installation enabled it may do so at its install hour until you update. From v2.0.2 the GitHub update works again; from 2.0.0 or 2.0.1 you can upload the 2.1.0 bridge directly.</p>
+<p>The GitHub updater in these two releases restarts the gateway without installing the update. For the network migration, upload <code>firmware.bin</code> from the <a href="{{repo}}/releases/tag/v2.1.0">2.1.0 bridge</a> once in <strong>System → Firmware</strong>, then follow the bridge steps above. Do not upload the current 3.x application directly into a 2.x slot. Alternatively, use the current Easy Install package over USB keeping settings.</p>
 
 <h2 id="usb">By USB, keeping settings</h2>
 <p>Use the <a href="{{root}}install-firmware/">browser installer</a> with <strong>Erase device</strong> unticked, or <code>UPDATE-KEEP-SETTINGS</code> / <code>install.sh update</code> from the <a href="{{root}}easy-install/">Easy Install package</a>.</p>
 
 <h2 id="from-older">From 1.13 and earlier to v{{next_version}}</h2>
-<p>Since v2 the firmware uses product-own version numbers (see <a href="{{root}}versioning/">Versioning</a>). Updaters in 1.10–1.13 only understand the older numbering and only the repository's previous name. The published migration used two steps:</p>
+<p>These installations use the old 4 MB layout and cannot install the current 3.x application as an ordinary OTA update. Their older updater can also fail after the repository rename.</p>
 <ol>
-  <li>The <strong>1.100 bridge release</strong> was published under the old repository name before the rename. Devices that installed it received the new updater.</li>
-  <li>From the bridge, the device can find v{{next_version}} like a later update.</li>
+  <li>Back up your configuration and check the <a href="{{root}}hardware/">3.x hardware requirements</a>.</li>
+  <li>For USB, use the current <a href="{{root}}easy-install/">Easy Install keep-settings option</a>.</li>
+  <li>For a staged network upgrade, first upload <code>firmware.bin</code> from the <a href="{{repo}}/releases/tag/v0.1.38-Mattboxx-1.100">legacy 1.100 bridge release</a>. Then install the <a href="{{repo}}/releases/tag/v2.1.0">2.1.0 bridge</a> and follow <a href="#from-v2">Move to the 3.0 flash layout</a>.</li>
 </ol>
-<p>After the repository is renamed, devices still on 1.13 or older cannot find updates by themselves. Update them once by hand: upload <code>firmware.bin</code> in the Web UI, or use USB keeping settings. Settings, the tailnet identity and saved Wi-Fi carry over; the first-boot setup does not appear.</p>
+<p>Use the image belonging to each bridge stage, not <code>firmware.bin</code> from the latest 3.x release. See the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">legacy migration guide</a>. Keeping configuration does not reopen the initial setup wizard.</p>

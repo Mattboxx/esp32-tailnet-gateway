@@ -14,7 +14,7 @@ order: 1
   <li><strong>Power the board.</strong> After a few seconds it opens an open Wi-Fi network called <code>ESP32-Tailnet-Setup-XXXX</code> (XXXX identifies your board).</li>
   <li><strong>Join that network</strong> with a phone or computer. Most phones and PCs then show a sign-in notification or open the setup page by themselves.</li>
   <li><strong>If nothing opens</strong>, open <code>http://192.168.4.1/</code> in a browser. This address always works while the setup network is active.</li>
-  <li><strong>Confirm it is yours:</strong> press the <strong>BOOT</strong> button on the board once. No reachable button? Connect USB, open a serial console at 115200 baud and type the 8-digit setup code it prints.</li>
+  <li><strong>Confirm it is yours:</strong> press the <strong>BOOT</strong> button on the board once. No reachable button? Connect USB, open a serial console at 115200 baud and enter the current 8-digit code it prints <strong>in the setup page</strong>.</li>
   <li><strong>Secure your gateway:</strong> create the admin password (at least 8 characters). There is no default password.</li>
   <li><strong>Choose the Internet uplink:</strong> Wi-Fi, a W5500 Ethernet cable or a cellular modem. For Wi-Fi, pick your home network, enter its password and press <em>Test connection</em>. Your phone may briefly lose the setup network. Ethernet and cellular are experimental and require external hardware; follow the wiring and APN prompts rather than choosing them on a Wi-Fi-only board.</li>
   <li><strong>Connect your Tailnet:</strong> paste a Tailscale or Headscale auth key, or skip and do it later from the dashboard.</li>

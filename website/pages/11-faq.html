@@ -19,13 +19,13 @@ schema: faq
 <p>No. It is community firmware built on the microlink stack, compatible with Tailscale and Headscale coordination servers. It is not affiliated with Tailscale Inc.</p></details>
 
 <details><summary>Does it work with Headscale?</summary>
-<p>Yes, with Headscale 0.26 or newer. Set the login server and use a pre-auth key. HTTPS servers need a certificate from a public CA; self-signed certificates are not supported.</p></details>
+<p>Headscale is supported through a custom login server and pre-auth key. Compatibility depends on server version and policy features; follow the <a href="{{repo}}/blob/Main/docs/HEADSCALE.md">Headscale guide</a>. HTTPS servers need a certificate from a public CA; self-signed certificates are not supported.</p></details>
 
 <details><summary>What is the difference between the Service Gateway and a subnet router?</summary>
 <p>The Service Gateway lets LAN devices reach one specific Tailnet service through the ESP32 (LAN → Tailnet). A subnet router lets tailnet clients reach LAN devices (Tailnet → LAN). You can use both.</p></details>
 
 <details><summary>How fast is it?</summary>
-<p>It is a microcontroller doing userspace WireGuard on a shared 2.4 GHz radio. Upstream measured roughly 0.3–1.4 Mbit/s through the tunnel; the current candidate has not been benchmarked. Use it for control, telemetry, dashboards and SSH, not video or bulk transfers.</p></details>
+<p>It is a microcontroller doing userspace WireGuard on a shared 2.4 GHz radio. Throughput depends on the radio, uplink, direct or DERP path and enabled services. Use it for control, telemetry, dashboards and SSH, not video or bulk transfers.</p></details>
 
 <details><summary>Does the LAN client need any software?</summary>
 <p>No. It connects to the ESP32's LAN address and listen port like any other server.</p></details>
@@ -46,4 +46,4 @@ schema: faq
 <p>No. Every integration is optional; the Service Gateway, Web UI and manual Wake-on-LAN work without them.</p></details>
 
 <details><summary>Is tailnet lock supported?</summary>
-<p>No. The device cannot sign its own node key; disable tailnet lock or pre-authorize the node.</p></details>
+<p>Tailnet Lock is not supported. Do not assume that pre-authorizing a node adds the missing protocol support. See the <a href="{{root}}security/">documented compatibility boundaries</a>.</p></details>

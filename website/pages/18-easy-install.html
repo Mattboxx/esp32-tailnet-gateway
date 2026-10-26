@@ -9,7 +9,7 @@ order: 2
 <!-- if:stable --><p class="note">The Easy Install package ships with firmware v{{next_version}}. For the current stable 1.13 use its Windows package from the <a href="{{root}}downloads/">downloads page</a>.</p><!-- endif -->
 <p class="lead">One download with guided scripts for every desktop system. Use it when the <a href="{{root}}install-firmware/">browser installer</a> is not available, for example in Safari or Firefox.</p>
 <!-- if:v2 --><p><a class="btn primary" href="{{repo}}/releases/download/v{{next_version}}/{{easy_install_asset}}">Download Easy Install (.zip)</a></p><!-- endif -->
-<p><code>{{easy_install_asset}}</code> · <a href="{{repo}}/releases/tag/v{{next_version}}">release page and checksums</a></p>
+<p><code>{{easy_install_asset}}</code> · <a href="{{repo}}/releases/tag/v{{next_version}}">release page</a> · <a href="{{easy_install_checksums}}">ZIP and source checksums</a></p>
 <p class="note">If no board answers, put it in download mode: hold <strong>BOOT</strong>, press and release <strong>RST</strong>, then release <strong>BOOT</strong> and run the script again.</p>
 
 <h2 id="before">Before you start</h2>
@@ -39,7 +39,7 @@ sh macos-linux/install.sh update     # configured device, keeps settings</code><
 <table>
   <thead><tr><th>Mode</th><th>Writes</th><th>Settings</th></tr></thead>
   <tbody>
-    <tr><td>New device</td><td>Factory image from <code>0x0</code> (bootloader, partition table, empty settings, OTA data, application)</td><td>Erased</td></tr>
+    <tr><td>New device</td><td>Erase, then write bootloader, partition table, initial OTA data and application at the offsets below</td><td>Erased</td></tr>
     <tr><td>Update</td><td>Bootloader <code>0x0</code>, partition table <code>0x8000</code>, OTA data <code>0x19000</code>, application <code>0x20000</code></td><td>Kept</td></tr>
   </tbody>
 </table>

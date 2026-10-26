@@ -1,5 +1,18 @@
 # Codex continuation checkpoint — 2026-10-26
 
+## Presentation follow-up
+
+The owner requested a wider README/site copy audit after Getting Started.
+The update corrects current six-language descriptions, current ZIP/checksum
+links, legacy migration stages (no direct 3.x OTA into old small slots), the
+diagnostic export menu and unsupported troubleshooting assumptions. Historical
+captures and explicitly versioned documentation are preserved. Website build,
+presentation/SEO checks, 25 pages × 9 browser viewports and the source/history
+scan pass locally. The ZIP checksum link was compared against the actual
+GitHub asset digest. Exact publication status and newer continuation steps
+are saved in ignored `build/COPY-AUDIT-CHECKPOINT.*` and the shared private
+handoff; these supersede the earlier task checklist below.
+
 ## Authoritative source state
 
 Claude completed and published the legal-material repair on `Main`:

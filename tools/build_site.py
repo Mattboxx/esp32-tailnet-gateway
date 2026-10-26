@@ -38,6 +38,7 @@ NAME = 'ESP32 Tailnet Gateway'
 TAGLINE = 'One ESP32. Multiple Tailnet roles. Enable only what you need.'
 DESCRIPTION = ('All-in-one ESP32-S3 Tailscale/Headscale gateway with selective '
                'LAN-to-Tailnet access, subnet routing, remote recovery and optional automation.')
+# Legacy fallback only. NEXT_VERSION is the public release when NEXT_PUBLISHED.
 STABLE_VERSION = '0.1.38-Mattboxx-1.13'
 STABLE_TAG = 'v' + STABLE_VERSION
 # Current firmware: keep NEXT_PUBLISHED False until the qualified release
@@ -160,6 +161,12 @@ def easy_install_asset():
     return f'ESP32-Tailnet-Gateway-v{NEXT_VERSION}-EASY-INSTALL-Windows-macOS-Linux{suffix}.zip'
 
 
+def easy_install_checksums():
+    if NEXT_VERSION == '3.0.2':
+        return f'{REPO_URL}/raw/refs/heads/Main/licenses/releases/v{NEXT_VERSION}/LICENSE-SHA256SUMS.txt'
+    return f'{REPO_URL}/releases/download/v{NEXT_VERSION}/SHA256SUMS.txt'
+
+
 def firmware_manifest():
     path = FIRMWARE_DIR / NEXT_VERSION / 'manifest.json'
     if not path.exists():
@@ -251,6 +258,7 @@ def render(page: Page, pages: list[Page]) -> str:
         for p in nav_pages)
     body = page.body.replace('{{root}}', page.rel('')).replace('{{repo}}', REPO_URL)
     body = body.replace('{{easy_install_asset}}', easy_install_asset())
+    body = body.replace('{{easy_install_checksums}}', easy_install_checksums())
     body = (body.replace('{{next_version}}', NEXT_VERSION).replace('{{stable_tag}}', STABLE_TAG)
                 .replace('{{stable_version}}', STABLE_VERSION).replace('{{future_repo}}', FUTURE_REPO_URL))
     if '{{flasher}}' in body:

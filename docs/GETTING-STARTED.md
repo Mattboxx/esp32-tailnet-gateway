@@ -10,12 +10,12 @@ roles, not for local administration or local Wake-on-LAN.
 - **Browser:** [Install firmware](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
   in desktop Chrome/Edge, connect USB and choose the ESP32-S3 port.
 - **Easy Install:** download the Windows/macOS/Linux ZIP from the
-  [v3.0.0 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v3.0.0).
+  [current downloads page](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/).
   Read `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3
   and esptool 5. Choose `windows/INSTALL-NEW-DEVICE.bat` for a fresh setup or
   `windows/UPDATE-KEEP-SETTINGS.bat` for an existing gateway.
 - **Advanced:** use the factory image for a fresh USB installation, or upload
-  **`firmware.bin`** in **System → Firmware** for an existing gateway.
+  **`firmware.bin`** in **System → Firmware** for an existing 3.x gateway.
 
 Back up an existing configuration first. Factory/new-device erase modes delete
 settings. Never upload a factory image through the Web UI. USB keep-settings
@@ -39,7 +39,7 @@ near the board. If the captive page does not open, visit **http://192.168.4.1/**
 Setup requests are sealed, but a malicious lookalike AP is still a risk: use
 your own board and a trusted physical location. The setup AP does not forward
 LAN/Internet traffic. The setup language picker offers English, Italian, Spanish, Simplified Chinese,
-French and German. The main UI also offers Italian, Spanish and Simplified Chinese.
+French and German. The same six languages are available in the main UI.
 
 An already configured gateway keeps its settings and does **not** reopen this
 initial setup network. See [First boot](FIRST-BOOT-SETUP.md) for details.

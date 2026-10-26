@@ -56,7 +56,7 @@ Client connects to  192.0.2.50:18830</code></pre>
 </ul>
 
 <h2>Limits</h2>
-<p>IPv4 TCP/UDP, up to 8 rules, one Tailnet IPv4 destination per rule. It is a port forwarder, not transparent routing. Throughput is that of a microcontroller and has not been benchmarked for the current candidate.</p>
+<p>IPv4 TCP/UDP, up to 8 rules, one Tailnet IPv4 destination per rule. It is a port forwarder, not transparent routing. Throughput depends on the microcontroller, radio/uplink and direct or DERP path. Use it for control and small services rather than bulk transfers.</p>
 
 <h2>Security</h2>
 <p>A source CIDR is not client identity: anyone who can use that address can use the service. The remote peer sees the ESP32's tailnet identity and its own ACL still decides. Protect the Web UI with a password. Rule commands over MQTT carry the rule's binding token so a stale command cannot act on a replaced rule.</p>

@@ -20,7 +20,7 @@ order: 4
 </table>
 
 <h2 id="tailnet">Tailnet</h2>
-<p>Tailscale (hosted) and Headscale 0.26 or newer. This is a community firmware, not an official Tailscale client; features follow the documented subset.</p>
+<p>Tailscale (hosted) and self-hosted Headscale. Version and policy compatibility follow the documented subset; see the <a href="{{repo}}/blob/Main/docs/HEADSCALE.md">Headscale guide</a>. This is community firmware, not an official Tailscale client.</p>
 
 <h2 id="install">Installing</h2>
 <p>Browser installer: desktop Chrome or Edge (Web Serial). Easy Install package: Windows 10/11, macOS and Linux with Python 3 and esptool 5.</p>
@@ -28,7 +28,7 @@ order: 4
 <h2 id="limits">Known limits</h2>
 <ul>
   <li>The Web UI uses HTTP: administer it from a trusted LAN or over the tailnet.</li>
-  <li>The first-boot setup page and captive portal are in English; the dashboard also offers Italian, Spanish and Simplified Chinese.</li>
+  <li>Setup and the dashboard offer English, Italiano, Español, 简体中文, Français and Deutsch.</li>
   <li>Throughput is limited by a single 2.4 GHz radio and the userspace WireGuard stack.</li>
   <li>Opening the setup page automatically depends on the phone or PC; the address <code>http://192.168.4.1/</code> always works.</li>
 </ul>
