@@ -1,50 +1,61 @@
 <!--
 slug: getting-started/
 title: Getting started
-description: Flash an ESP32-S3, join your WiFi and Tailscale or Headscale tailnet, and publish your first LAN-to-Tailnet service rule in about 20 minutes.
+description: Start with the current ESP32 Tailnet Gateway firmware: install by USB, complete the guided phone or PC setup, and enable the gateway or recovery role you need.
 group: Start
 order: 6
 -->
 <h1>Getting started</h1>
-<!-- if:v2 --><p class="note">New device? Install from the <a href="{{root}}install-firmware/">browser</a> or with <a href="{{root}}easy-install/">Easy Install</a>, then follow the <a href="{{root}}first-boot/">guided first boot</a>. The steps below describe manual configuration.</p><!-- endif -->
-<!-- if:stable --><p class="note">These steps describe the current stable 1.13. Firmware v{{next_version}} adds a <a href="{{root}}first-boot/">guided first boot</a>.</p><!-- endif -->
-<p><strong>You need:</strong> an ESP32-S3 N8R8 or N16R8 board (8 MB octal PSRAM, at least 8 MB flash; <a href="{{root}}hardware/">which boards</a>), a USB data cable, a 2.4 GHz WiFi network, and a Tailscale account or a Headscale server (0.26 or newer).</p>
+<p class="lead">Install Firmware v{{next_version}}, complete the guided setup, then enable only the roles you need. Use a computer for USB installation; a phone or computer can handle the setup afterwards.</p>
 
-<h2>1. Flash the firmware</h2>
-<p>Download the Windows package from the <a href="{{root}}downloads/">downloads page</a> and run <code>CLEAN_INSTALL_ERASE_ALL.bat</code> for a first install. On Linux or macOS:</p>
-<pre><code>python -m pip install esptool
-esptool.py --chip esp32s3 --baud 921600 write_flash 0x0 firmware-factory.bin</code></pre>
-
-<h2>2. First-time setup</h2>
-<p>Join the setup access point (default <code>ESP32-TSR-Setup</code>; its name and password are printed on the serial console), open <code>http://192.168.4.1</code>, set an admin password and rename the access point.</p>
-<figure>
-  <img src="{{root}}assets/login-1.14-dev6.png" alt="Sign-in screen of the ESP32 Tailnet Gateway Web UI, development build 1.14-dev.6" width="1280" height="800" loading="lazy">
-  <figcaption>Authentic capture of the sign-in screen, development build 0.1.38-Mattboxx-1.14-dev.6.</figcaption>
-</figure>
-
-<h2>3. Join your WiFi</h2>
-<p>Under <strong>Network</strong>, select your 2.4 GHz network and save. Reserve a fixed address for the ESP32 on your router.</p>
-
-<h2>4. Enrol on your tailnet</h2>
-<ol>
-  <li>Create a <strong>reusable, non-ephemeral</strong> auth key (Tailscale admin → Settings → Keys) or a Headscale pre-auth key.</li>
-  <li>In <strong>Tailscale</strong>, paste the key, set a hostname and, for Headscale, the login server URL.</li>
-  <li>After it appears in the admin console, <strong>disable node-key expiry</strong> and reboot the ESP32 once.</li>
-  <li>Approve any advertised routes.</li>
-</ol>
-
-<h2>5. Publish your first service</h2>
-<p>Follow the <a href="{{root}}service-gateway/">Service Gateway guide</a>: add a rule with a single-device source, run <strong>Test destination</strong>, then enable it.</p>
-
-<h2>Verify</h2>
+<h2 id="before">Before you start</h2>
 <ul>
-  <li>Status shows the uplink connected and Tailscale running with peers.</li>
-  <li><code>tailscale ping &lt;esp-hostname&gt;</code> answers from another node.</li>
-  <li>The rule's accepted counter grows when the LAN client connects.</li>
+  <li>An <strong>ESP32-S3 N8R8 or N16R8</strong>: 8 MB octal PSRAM and at least 8 MB flash. Check <a href="{{root}}hardware/">supported hardware</a>.</li>
+  <li>A USB <strong>data</strong> cable and a computer. The browser installer needs desktop Chrome or Edge; <a href="{{root}}easy-install/">Easy Install</a> supports Windows, macOS and Linux.</li>
+  <li>A 2.4 GHz Wi-Fi network for the usual Wi-Fi setup. Ethernet and cellular need external hardware and remain experimental.</li>
+  <li>Tailscale or Headscale for Tailnet roles. Local administration and local Wake-on-LAN do not require either.</li>
 </ul>
 
-<h2>Common problems</h2>
-<p>An unapproved route, node-key expiry left on, or a peer ACL that does not include the ESP32 cause most first-day issues. See <a href="{{root}}troubleshooting/">Troubleshooting</a>. Detailed walk-through with screenshots: <a href="{{repo}}/blob/Main/docs/GETTING-STARTED.md">docs/GETTING-STARTED.md</a>.</p>
+<h2 id="install">1. Install, or update an existing gateway</h2>
+<div class="grid">
+  <section class="card"><h3>New board</h3>
+    <p>Use <a href="{{root}}install-firmware/">Connect &amp; Install in your browser</a> or the <a href="{{root}}easy-install/">Easy Install package</a>. Choose the new-device installation and confirm the erase only when you intend to initialize the board. Restart after installation, then continue below.</p></section>
+  <section class="card"><h3>Already configured?</h3>
+    <p>Back up first and follow <a href="{{root}}updating/">Updating</a>. For an existing 3.x gateway, prefer <strong>System → Firmware</strong> to keep its settings and previous OTA image. Versions 2.x and 1.x have their own migration steps.</p></section>
+</div>
+<p class="note">A factory/new-device erase deletes settings and the Tailnet identity. It is not needed for an ordinary update or a Wi-Fi connection problem. Follow the current installer instructions rather than commands for the older partition layout.</p>
 
-<h2>Security</h2>
-<p>Set the admin password before joining any shared network. The local Web UI is HTTP: administer it from a trusted LAN or over the tailnet.</p>
+<h2 id="setup">2. Complete the guided first-boot setup</h2>
+<ol>
+  <li>On a genuinely unconfigured board, join <strong><code>ESP32-Tailnet-Setup-XXXX</code></strong>. Its suffix identifies the board. Stay connected if your phone reports that this open setup network has no Internet.</li>
+  <li>Open the setup notification. If it does not appear, browse to <strong><code>http://192.168.4.1/</code></strong>.</li>
+  <li>When prompted, press <strong>BOOT</strong> once to pair. Alternatively, read the current eight-digit code from the USB serial console at 115200 baud and enter it <strong>in the setup page</strong>.</li>
+  <li>Create your administrator password: at least eight characters. <strong>There is no default admin password.</strong></li>
+  <li>Select the available uplink. For Wi-Fi, choose your 2.4 GHz network, enter its password and press <strong>Test connection</strong>. The setup Wi-Fi may briefly disconnect during the test.</li>
+  <li>Configure Tailscale or Headscale, or skip it and join later where the chosen uplink permits. Choose your roles and a separate password for the gateway's protected Wi-Fi/recovery network.</li>
+  <li>Review the summary, save and restart. Rejoin your home Wi-Fi and use the address shown by setup. The displayed <code>.local</code> name is another option when your LAN and client support mDNS.</li>
+</ol>
+<p>Choose your language in the setup page. The <a href="{{root}}first-boot/">First boot guide</a> explains pairing, uplinks and finding the gateway after restart. An update preserving an existing configuration does not reopen this initial setup network.</p>
+
+<h2 id="tailnet">3. Join your Tailnet</h2>
+<p>If you skipped registration, open the <strong>Tailscale</strong> page. Set the gateway's name and registration credentials; Headscale also needs your control-server URL. Keep auth keys private and scoped to the intended role.</p>
+<p>Review node expiry and approve only the routes or exit-node role you intend to use in your Tailnet administration. See <a href="{{repo}}/blob/Main/docs/HEADSCALE.md">Headscale</a>, <a href="{{repo}}/blob/Main/docs/SUBNET-ROUTER.md">Subnet routing</a> and <a href="{{repo}}/blob/Main/docs/EXIT-NODE.md">Exit-node roles</a>.</p>
+
+<h2 id="role">4. Start with one useful role</h2>
+<ul>
+  <li><strong>Reach a remote service from an ordinary LAN device:</strong> reserve the gateway's LAN address, then add a <strong>Network → LAN → Tailnet</strong> rule. Restrict its source to the intended client, check the destination and test from that client. <a href="{{root}}service-gateway/">Service Gateway guide</a>.</li>
+  <li><strong>Connect an IoT device:</strong> configure the protected gateway Wi-Fi and the routing it needs. <a href="{{root}}network-modes/">IoT gateway guide</a>.</li>
+  <li><strong>Wake or recover a NAS/PC:</strong> save a compatible device and configure Wake-on-LAN or Smart Recovery. A sent packet is not proof that the device booted. <a href="{{root}}remote-recovery/">Remote recovery guide</a>.</li>
+  <li><strong>Automate later:</strong> MQTT, Home Assistant, ntfy and other integrations are optional. They are not prerequisites for local administration, routing or local recovery. <a href="{{root}}automation/">Automation guide</a>.</li>
+</ul>
+
+<h2 id="verify">5. Check the path you actually need</h2>
+<ul>
+  <li>Confirm the uplink and Tailnet state in <strong>Status</strong>.</li>
+  <li>From another authorized Tailnet device, open the gateway through its Tailnet address or name.</li>
+  <li>For a service rule, connect to its listen port from the intended LAN client and check its counters. A visible peer or connected control plane alone does not prove service authorization or reachability.</li>
+</ul>
+
+<h2 id="help">If something does not work</h2>
+<p>Keep a configuration backup. If home Wi-Fi becomes unavailable, use the protected recovery network configured during setup; it is distinct from the open first-boot network. Administer the HTTP Web UI from a trusted LAN or over the Tailnet. Follow <a href="{{root}}device-recovery/">Device recovery</a> or <a href="{{root}}troubleshooting/">Troubleshooting</a> before considering a factory reset.</p>
+<p>Repository reference: <a href="{{repo}}/blob/Main/docs/GETTING-STARTED.md">Getting started</a>.</p>

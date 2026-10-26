@@ -1,4 +1,4 @@
-# Getting started — Firmware v3.0.0
+# Getting started — Firmware 3.x
 
 You need an **ESP32-S3 N8R8 or N16R8** (8 MB octal PSRAM, at least 8 MB of
 flash; see [Hardware](HARDWARE.md) for which boards work), a USB data
@@ -38,8 +38,8 @@ near the board. If the captive page does not open, visit **http://192.168.4.1/**
 
 Setup requests are sealed, but a malicious lookalike AP is still a risk: use
 your own board and a trusted physical location. The setup AP does not forward
-LAN/Internet traffic. Setup is English-only; the main UI also offers Italian,
-Spanish and Simplified Chinese.
+LAN/Internet traffic. The setup language picker offers English, Italian, Spanish, Simplified Chinese,
+French and German. The main UI also offers Italian, Spanish and Simplified Chinese.
 
 An already configured gateway keeps its settings and does **not** reopen this
 initial setup network. See [First boot](FIRST-BOOT-SETUP.md) for details.
