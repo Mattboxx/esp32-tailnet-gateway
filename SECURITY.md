@@ -150,10 +150,12 @@ Reports will be reviewed privately and coordinated before disclosure.
 
 This repository is the **ESP-IDF firmware** for the router (AP/STA NAT, web UI,
 ACL firewall, DHCP/DNS, etc.). The Tailscale-compatible WireGuard userspace
-stack lives in the [microlink](https://github.com/Csontikka/microlink)
-submodule — if the vulnerability is in the DISCO/DERP/magicsock/WireGuard
-protocol handling itself, please consider reporting it there as well, since the
-fix will likely need to land in that project first.
+stack lives in the [Mattboxx/microlink](https://github.com/Mattboxx/microlink)
+submodule, a fork of [Csontikka/microlink](https://github.com/Csontikka/microlink)
+and ultimately [Cameron Malone's MicroLink](https://github.com/CamM2325/microlink).
+For DISCO/DERP/magicsock/WireGuard handling, identify the affected dependency
+revision in a private report so fixes can be coordinated with the relevant
+upstream maintainers. See [NOTICE.md](NOTICE.md) for the dependency chain.
 
 ## Supported Versions
 

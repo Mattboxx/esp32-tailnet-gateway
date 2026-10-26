@@ -159,6 +159,7 @@ def main():
     shutil.copytree(TEMPLATES / 'macos-linux', pkg / 'macos-linux')
     shutil.copyfile(a.esptool, pkg / 'windows' / 'esptool.exe')
     shutil.copyfile(a.esptool_license, pkg / 'windows' / 'ESPTOOL-LICENSE.txt')
+    shutil.copyfile(ROOT / 'docs/FLASHING-TOOL-LICENSES.md', pkg / 'FLASHING-TOOL-LICENSES.md')
     for bat in (pkg / 'windows').glob('*.bat'):
         bat.write_bytes(bat.read_bytes().replace(b'\r\n', b'\n').replace(b'\n', b'\r\n'))
     sh = pkg / 'macos-linux' / 'install.sh'
@@ -168,6 +169,7 @@ def main():
     (pkg / 'START-HERE.txt').write_bytes(start.replace('\r\n', '\n').replace('\n', '\r\n').encode('utf-8'))
     (pkg / 'FIRMWARE-LICENSES.txt').write_text(collect_release_notices(ROOT, a.wifi_dir), encoding='utf-8')
     files = [f'firmware/{n}' for n in LAYOUT]
+    files += ['FIRMWARE-LICENSES.txt', 'FLASHING-TOOL-LICENSES.md', 'windows/ESPTOOL-LICENSE.txt']
     manifest = {'product': PRODUCT, 'version': v, 'channel': 'pre-release' if a.prerelease else 'stable',
                 'variant': 'single image (WiFi, Ethernet driver, every Web UI language)', 'chip': 'esp32s3', 'board': BOARD,
                 'app_identity': description.get('project_name'), 'flash': {k: hex(o) for k, o in LAYOUT.items()},

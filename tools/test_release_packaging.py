@@ -80,15 +80,41 @@ class PackagingVersionTests(unittest.TestCase):
             component.mkdir(parents=True)
             (component / 'COPYING').write_text('Component redistribution terms', encoding='utf-8')
             (component / 'NOTICE.c').write_text('Not a license document', encoding='utf-8')
+            wpa = idf/'components/wpa_supplicant'; wpa.mkdir()
+            (wpa/'COPYING').write_text('See README for license terms',encoding='utf-8')
+            (wpa/'README').write_text('Synthetic complete WPA redistribution terms',encoding='utf-8')
+            source = component / 'responder.c'
+            source.write_text('/* File documentation */\n/* Copyright (c) Synthetic responder author\n'
+                              'Redistribution and use in source and binary forms.\nAS IS. */\nint x;\n',encoding='utf-8')
+            compiler = base/'toolchain/bin/compiler'
+            compiler.parent.mkdir(parents=True); compiler.write_text('synthetic compiler fixture')
+            runtime = ('newlib/COPYING.NEWLIB','newlib/COPYING.LIBGLOSS','gcc/COPYING3',
+                       'gcc/COPYING.RUNTIME','gcc/COPYING3.LIB')
+            for name in runtime:
+                path = base/'toolchain/share/licenses'/name
+                path.parent.mkdir(parents=True,exist_ok=True)
+                path.write_text('Original runtime notice: '+name,encoding='utf-8')
             (build / 'project_description.json').write_text(json.dumps({
-                'idf_path': str(idf), 'build_component_paths': [str(component), '']}), encoding='utf-8')
+                'idf_path': str(idf), 'build_component_paths': [str(component), str(wpa), ''],
+                'c_compiler':str(compiler),'build_component_info':{'example':{'sources':[str(source)]}}}), encoding='utf-8')
             notices = collect_release_notices(root, build)
             for name in names:
                 self.assertIn('Original copyright: ' + name, notices)
             self.assertIn('Original SDK license', notices)
             self.assertIn('Component redistribution terms', notices)
+            self.assertIn('Synthetic responder author', notices)
+            self.assertIn('Synthetic complete WPA redistribution terms',notices)
+            self.assertIn('Original runtime notice: gcc/COPYING.RUNTIME',notices)
+            self.assertIn('Original runtime notice: newlib/COPYING.NEWLIB',notices)
             self.assertNotIn(str(base), notices)
             self.assertNotIn('Not a license document', notices)
+            (wpa/'README').unlink()
+            with self.assertRaisesRegex(AssertionError,'wpa_supplicant BSD terms missing'):
+                collect_release_notices(root,build)
+            (wpa/'README').write_text('Synthetic complete WPA redistribution terms',encoding='utf-8')
+            (base/'toolchain/share/licenses/gcc/COPYING.RUNTIME').unlink()
+            with self.assertRaisesRegex(AssertionError,'Missing toolchain runtime notice'):
+                collect_release_notices(root,build)
 
     def test_missing_original_license_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:

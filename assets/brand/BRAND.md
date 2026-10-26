@@ -85,3 +85,7 @@ peers, addresses or results; mask private addresses and identifiers.
 Brand assets are original work for this project and are distributed under the
 repository's MIT licence. The upstream bunny artwork in `assets/logo/` belongs
 to the upstream author and is kept for attribution only.
+
+The visual recommendations in this guide are not additional license conditions
+or an approval requirement for exercising MIT rights. Do not misrepresent a
+modified work as endorsed by upstream authors or unrelated trademark owners.

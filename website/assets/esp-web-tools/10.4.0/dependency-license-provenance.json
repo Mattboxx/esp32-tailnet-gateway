@@ -1,0 +1,169 @@
+{
+  "installer_version": "10.4.0",
+  "source_revision": "fab2ba48253d19fd29a15af57bec771d34978b62",
+  "tarball_sha256": "f18da75335d2f0dca044c4bb052848c0696e7b03cc23d61d8530dd6eba0a9008",
+  "lock_sha256": "b26b3d4ee0ee7c5c92f42759bcbdca4ce2ace680248a5e41ac35dcc19a415173",
+  "dependencies": [
+    {
+      "lock_path": "node_modules/@lit-labs/ssr-dom-shim",
+      "version": "1.2.0",
+      "tarball": "https://registry.npmjs.org/@lit-labs/ssr-dom-shim/-/ssr-dom-shim-1.2.0.tgz",
+      "integrity": "sha512-yWJKmpGE6lUURKAaIltoPIE/wrbY3TEkqQt+X0m+7fQNnAv0keydnYvbiJFP1PnMhizmIWRWOG5KLhYyc/xl+g==",
+      "notices": [
+        {
+          "path": "upstream LICENSE",
+          "url": "https://raw.githubusercontent.com/lit/lit/b4e3c0ef472b89aee09c1ecf194e2bbb9b1441f7/LICENSE",
+          "sha256": "45d31799d0db956cc3eb5469346abbd9b7025babc5ff29fab10d7095da992ef1"
+        }
+      ],
+      "source_header_notice_count": 2
+    },
+    {
+      "lock_path": "node_modules/@lit/reactive-element",
+      "version": "2.1.0",
+      "tarball": "https://registry.npmjs.org/@lit/reactive-element/-/reactive-element-2.1.0.tgz",
+      "integrity": "sha512-L2qyoZSQClcBmq0qajBVbhYEcG6iK0XfLn66ifLe/RfC0/ihpc+pl0Wdn8bJ8o+hj38cG0fGXRgSS20MuXn7qA==",
+      "notices": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "45d31799d0db956cc3eb5469346abbd9b7025babc5ff29fab10d7095da992ef1"
+        }
+      ],
+      "source_header_notice_count": 3
+    },
+    {
+      "lock_path": "node_modules/@material/web",
+      "version": "2.4.1",
+      "tarball": "https://registry.npmjs.org/@material/web/-/web-2.4.1.tgz",
+      "integrity": "sha512-0sk9t25acJ72Qv3r0n9r0lgDbPaAKnpm0p+QmEAAwYyZomHxuVbgrrAdtNXaRm7jFyGh+WsTr8bhtvCnpPRFjw==",
+      "notices": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "295cdb4364b782931c914f5ca8c47fac87c732fa7e448b788a47aa5b25728212"
+        }
+      ],
+      "source_header_notice_count": 6
+    },
+    {
+      "lock_path": "node_modules/@types/trusted-types",
+      "version": "2.0.7",
+      "tarball": "https://registry.npmjs.org/@types/trusted-types/-/trusted-types-2.0.7.tgz",
+      "integrity": "sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==",
+      "notices": [
+        {
+          "path": "trusted-types/LICENSE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ],
+      "source_header_notice_count": 0
+    },
+    {
+      "lock_path": "node_modules/atob-lite",
+      "version": "2.0.0",
+      "tarball": "https://registry.npmjs.org/atob-lite/-/atob-lite-2.0.0.tgz",
+      "integrity": "sha512-LEeSAWeh2Gfa2FtlQE1shxQ8zi5F9GHarrGKz08TMdODD5T4eH6BMsvtnhbWZ+XQn+Gb6om/917ucvRu7l7ukw==",
+      "notices": [
+        {
+          "path": "package/LICENSE.md",
+          "sha256": "435a6722c786b0a56fbe7387028f1d9d3f3a2d0fb615bb8fee118727c3f59b7b"
+        }
+      ],
+      "source_header_notice_count": 0
+    },
+    {
+      "lock_path": "node_modules/esptool-js",
+      "version": "0.6.0",
+      "tarball": "https://registry.npmjs.org/esptool-js/-/esptool-js-0.6.0.tgz",
+      "integrity": "sha512-ZyuSBXvmS+4DRKM6GrDHfCscnq3YSNlRfM+Zw0DoS7uC3SdkyC262s/ji4MjDYVmMH8SE2BiYx3/dZ1J23Xiew==",
+      "notices": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "1c25f29242785d63e9adb0be7fdc137551dfbbc0756b622fcd26d9cd7de3a4f3"
+        }
+      ],
+      "source_header_notice_count": 0
+    },
+    {
+      "lock_path": "node_modules/esptool-js/node_modules/pako",
+      "version": "2.2.0",
+      "tarball": "https://registry.npmjs.org/pako/-/pako-2.2.0.tgz",
+      "integrity": "sha512-zJq6RP/5q+TO2OpFV3FHzlPnFjmkb7Nc99a5SNjJE+uu/PkpChs+NIZSSzbBoD+6kjiISXjfYdwj1ZRQ81dz/w==",
+      "notices": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "a04665b3b2de56c66730c1f720f528175739e4104f79073614aa611da1e85539"
+        }
+      ],
+      "source_header_notice_count": 0
+    },
+    {
+      "lock_path": "node_modules/improv-wifi-serial-sdk",
+      "version": "2.8.0",
+      "tarball": "https://registry.npmjs.org/improv-wifi-serial-sdk/-/improv-wifi-serial-sdk-2.8.0.tgz",
+      "integrity": "sha512-3MCm9NAD6c4OXyXl+jPqu0kNasIZi80JVeDkPaOQEI4JpItCaOAyQGdL/yg5mOqlKJ0nn2K/xb8H7enbNPc/5g==",
+      "notices": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ],
+      "source_header_notice_count": 0
+    },
+    {
+      "lock_path": "node_modules/lit",
+      "version": "3.3.3",
+      "tarball": "https://registry.npmjs.org/lit/-/lit-3.3.3.tgz",
+      "integrity": "sha512-fycuvZg/hkpozL00lm1pEJH5nN/lr9ZXd6mJI2HSN4+Bzc+LDNdEApJ6HFbPkdFNHLvOplIIuJvxkS4XUxqirw==",
+      "notices": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "45d31799d0db956cc3eb5469346abbd9b7025babc5ff29fab10d7095da992ef1"
+        }
+      ],
+      "source_header_notice_count": 3
+    },
+    {
+      "lock_path": "node_modules/lit-element",
+      "version": "4.2.0",
+      "tarball": "https://registry.npmjs.org/lit-element/-/lit-element-4.2.0.tgz",
+      "integrity": "sha512-MGrXJVAI5x+Bfth/pU9Kst1iWID6GHDLEzFEnyULB/sFiRLgkd8NPK/PeeXxktA3T6EIIaq8U3KcbTU5XFcP2Q==",
+      "notices": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "45d31799d0db956cc3eb5469346abbd9b7025babc5ff29fab10d7095da992ef1"
+        }
+      ],
+      "source_header_notice_count": 2
+    },
+    {
+      "lock_path": "node_modules/lit-html",
+      "version": "3.3.0",
+      "tarball": "https://registry.npmjs.org/lit-html/-/lit-html-3.3.0.tgz",
+      "integrity": "sha512-RHoswrFAxY2d8Cf2mm4OZ1DgzCoBKUKSPvA1fhtSELxUERq2aQQ2h05pO9j81gS1o7RIRJ+CePLogfyahwmynw==",
+      "notices": [
+        {
+          "path": "package/LICENSE",
+          "sha256": "2b66f9390afde29edfe4314daff93f01fb182e1178053e228120178987e5db75"
+        }
+      ],
+      "source_header_notice_count": 7
+    },
+    {
+      "lock_path": "node_modules/tslib",
+      "version": "2.8.1",
+      "tarball": "https://registry.npmjs.org/tslib/-/tslib-2.8.1.tgz",
+      "integrity": "sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==",
+      "notices": [
+        {
+          "path": "package/CopyrightNotice.txt",
+          "sha256": "da16ddb65f8ca390998fb99223d0112498b56b45784d00afd77ff8ce1ac4de8b"
+        },
+        {
+          "path": "package/LICENSE.txt",
+          "sha256": "210b19e543130388c68654b7497e967119ce17145f66ab7d85688fbd70f08751"
+        }
+      ],
+      "source_header_notice_count": 2
+    }
+  ]
+}

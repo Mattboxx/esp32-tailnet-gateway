@@ -3,6 +3,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+/* Modified for the subnet-router / ESP32 Tailnet Gateway custom DHCP server;
+ * local extensions use dhcps_ext.h. Original Espressif notices remain above.
+ * Modification notice recorded on 2026-10-25; declarations are unchanged.
+ */
 #ifndef __DHCPS_H__
 #define __DHCPS_H__
 

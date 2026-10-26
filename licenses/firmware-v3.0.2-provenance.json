@@ -1,0 +1,14 @@
+{
+  "version": "3.0.2",
+  "image_source_commit": "fcc6011bab4b2f1aa38d5fb49564f0cef3163378",
+  "review_base_commit": "bfbc50879f183839dacb5455a5042794b1c9f066",
+  "microlink_gitlink": "fa3153b6892d00d0c9a9c42f11c8f1a89c6ea910",
+  "sdk_version": "5.5.3",
+  "compiler_version": "14.2.0",
+  "firmware_sha256": "fdb763c1db0d3c2320c26280792894b20f7595190e03ec1b036652756ba585e0",
+  "elf_sha256": "d9a5c00c56ee2b6e295c1f985403b4b3d3bb7cbb40793bf845c864d5b303469e",
+  "notices_file": "firmware-v3.0.2-notices.txt",
+  "notices_sha256": "8bd0d577e1431f55c9536671cb30d5c6c74d0b2c491a2a3d456dc3166e9407ed",
+  "notice_sections": 346,
+  "scope": "Saved build component/source metadata and actual toolchain notices; configured component trees may also contain unlinked or disabled material. Legal documents and modification comments post-date the qualified image; no firmware bytes rebuilt or changed. This is not a full historical dependency or GPL desktop-tool source audit."
+}
