@@ -42,7 +42,8 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 
 > Community firmware built on Csontikka's
 > [esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)
-> and the [microlink](https://github.com/Csontikka/microlink) stack. It is not an
+> and [MicroLink](https://github.com/Mattboxx/microlink), through Csontikka's fork
+> of Cameron Malone's original stack. It is not an
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
@@ -481,11 +482,16 @@ MIT licensed ([LICENSE](LICENSE)). Built on:
 
 - **[Csontikka/esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)** —
   the original firmware this edition forks.
-- **[microlink](https://github.com/Csontikka/microlink)** — Tailscale `ts2021`
-  client (MIT), based on [CamM2325/microlink](https://github.com/CamM2325/microlink).
-- **wireguard_lwip** — userspace WireGuard for lwIP (BSD-3-Clause).
-- **[ESP-IDF](https://github.com/espressif/esp-idf)** — Espressif SDK (Apache-2.0).
+- **[Mattboxx/microlink](https://github.com/Mattboxx/microlink)** — the actual
+  MIT-licensed dependency fork, through [Csontikka/microlink](https://github.com/Csontikka/microlink),
+  of **Cameron Malone's [original MicroLink](https://github.com/CamM2325/microlink)**.
+- **[wireguard_lwip](https://github.com/smartalock/wireguard-lwip)** — Daniel Hope's
+  userspace WireGuard for lwIP (BSD-3-Clause), with separately licensed crypto notices.
+- **[ESP-IDF](https://github.com/espressif/esp-idf)** — Espressif SDK (primarily
+  Apache-2.0; bundled libraries retain their own licenses).
 
 Full attribution: [NOTICE.md](NOTICE.md). Brand assets: [assets/brand](assets/brand/BRAND.md).
+The root MIT license is not a relicensing of bundled third-party components
+or the separately distributed GPL esptool flashing program.
 Tailscale, Headscale, WireGuard and ESP32 are trademarks of their respective
 owners. Previous stable README: [1.13 documentation](https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery/blob/v0.1.38-Mattboxx-1.13/README.md).

@@ -1,3 +1,7 @@
 # Versioned installer payloads are release artifacts, copied byte for byte.
 # Preserve manifests, checksum lists and third-party license text as well.
 website/firmware/*/* -text
+# Verbatim legal material retains upstream whitespace, including trailing spaces.
+licenses/*.txt -text -whitespace
+website/assets/esp-web-tools/*/DEPENDENCY-LICENSES.txt -text -whitespace
+website/firmware/*/FIRMWARE-LICENSES.txt -whitespace

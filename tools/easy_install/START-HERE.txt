@@ -54,7 +54,11 @@ FILES
    windows/esptool.exe           Espressif esptool v5.3.1, GPL-2.0-or-later,
                                  source: https://github.com/espressif/esptool
    SHA256SUMS.txt, release-manifest.json, FIRMWARE-LICENSES.txt
+   FLASHING-TOOL-LICENSES.md      separate desktop-tool licensing information
 
-Based on Csontikka/esp32-tailscale-subnet-router and Csontikka/microlink.
+Based on Csontikka/esp32-tailscale-subnet-router. Uses Mattboxx/microlink,
+through Csontikka/microlink, from Cameron Malone's original MicroLink.
+Keep FIRMWARE-LICENSES.txt and the separate esptool license with copies.
+The root MIT license does not relicense the desktop esptool program.
 Not an official Tailscale client. No telemetry. Release notes:
 {NOTES_URL}

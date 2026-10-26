@@ -3,6 +3,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+/* Modified in ESP32 Tailnet Gateway and its upstream subnet-router fork:
+ * custom DHCP server integration, reservation/lease extensions and validation.
+ * This is not the unmodified ESP-IDF source. Original notices above remain.
+ * Modification notice recorded on 2026-10-25; no program logic changed here.
+ */
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>

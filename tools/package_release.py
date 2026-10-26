@@ -35,6 +35,34 @@ def validate_build_description(description, root, version):
     assert project and Path(project).resolve() == root.resolve(), 'Unrelated build directory'
 
 
+def source_notice_blocks(text):
+    """Return verbatim leading legal comments, not function bodies or new terms."""
+    prefix = text[:65536]
+    pattern = re.compile(r'\s*(/\*[\s\S]*?\*/|//[^\n]*(?:\n[ \t]*//[^\n]*)*)')
+    position = 0
+    while (match := pattern.match(prefix, position)) is not None:
+        comment = match.group(1)
+        if re.search(r'copyright|SPDX-License-Identifier|redistribution and use|permission is hereby granted', comment, re.I):
+            yield comment
+        position = match.end()
+
+
+def toolchain_notice_files(description):
+    """Compiler runtimes are linked too; they are outside build_component_paths."""
+    compiler = Path(description.get('c_compiler', '')).resolve()
+    assert compiler.is_file(), 'Exact build compiler required to locate runtime notices'
+    toolchain = compiler.parent.parent
+    relative = ('share/licenses/newlib/COPYING.NEWLIB',
+                'share/licenses/newlib/COPYING.LIBGLOSS',
+                'share/licenses/gcc/COPYING3',
+                'share/licenses/gcc/COPYING.RUNTIME',
+                'share/licenses/gcc/COPYING3.LIB')
+    for name in relative:
+        path = toolchain / name
+        assert path.is_file(), f'Missing toolchain runtime notice: {name}'
+        yield 'toolchain/' + name, path
+
+
 def collect_release_notices(root, sdkbuild):
     """Carry original notices into binary distributions without local paths."""
     root = root.resolve()
@@ -49,9 +77,15 @@ def collect_release_notices(root, sdkbuild):
             continue
         component = Path(directory).resolve()
         assert component.is_relative_to(root) or component.is_relative_to(idf), 'Unknown component origin'
+        # This component's COPYING explicitly delegates the complete BSD terms
+        # to README, which a filename-only license collector would omit.
+        if component == idf / 'components/wpa_supplicant':
+            notice = component / 'README'
+            assert notice.is_file(), 'wpa_supplicant BSD terms missing from README'
+            files.add(notice)
         for path in component.rglob('*'):
             if path.is_file() and path.suffix.lower() in ('', '.txt', '.md', '.rst') and \
-                    path.name.upper().startswith(('LICENSE', 'COPYING', 'NOTICE')):
+                    path.name.upper().startswith(('LICENSE', 'COPYING', 'COPYRIGHT', 'NOTICE')):
                 files.add(path.resolve())
     records = []
     for path in files:
@@ -60,10 +94,40 @@ def collect_release_notices(root, sdkbuild):
         else:
             label = 'project/' + path.relative_to(root).as_posix()
         records.append((label, path.read_text(encoding='utf-8')))
+    records.extend((label, path.read_text(encoding='utf-8'))
+                   for label, path in toolchain_notice_files(description))
+    info = description.get('build_component_info')
+    assert isinstance(info, dict) and info, 'Build source metadata required for file-specific legal notices'
+    generated = Path(description.get('build_dir', sdkbuild)).resolve()
+    seen = set()
+    for component in info.values():
+        pending = [Path(filename) for filename in component.get('sources', [])]
+        while pending:
+            path = pending.pop().resolve()
+            origin = next(((base, label) for base, label in ((root, 'project'), (idf, 'ESP-IDF'), (generated, 'generated-build'))
+                           if path.is_relative_to(base)), None)
+            assert origin, 'Unknown build source origin'
+            base, label = origin
+            if path.is_dir():
+                pending.extend(p for p in path.rglob('*') if p.is_file() and p.suffix.lower() in ('.c','.h','.cc','.cpp','.cxx','.s','.hpp'))
+                continue
+            # Generated build glue may not be retained in a saved image bundle;
+            # never silently skip a missing original source that carried notices.
+            if not path.is_file() and label == 'generated-build':
+                continue
+            assert path.is_file(), 'Original build source missing: ' + label + '/' + path.relative_to(base).as_posix()
+            if path.suffix.lower() not in ('.c', '.h', '.cc', '.cpp', '.cxx', '.s', '.hpp'):
+                continue
+            for block in source_notice_blocks(path.read_text(encoding='utf-8', errors='strict')):
+                if block not in seen:
+                    records.append((label + '/' + path.relative_to(base).as_posix() + ' (source notice)', block))
+                    seen.add(block)
     header = ('Original authors retain their copyrights. This is ESP32 Tailnet Gateway, the Mattboxx custom edition.\n'
               'Optional tips support the mod; they do not purchase features or imply upstream endorsement.\n'
               'Source: ' + SOURCE_URL + '\n'
-              'The following unmodified license/notice texts accompany the firmware distribution.\n')
+              'The following unmodified license/notice texts accompany the firmware distribution.\n'
+              'Includes configured component sources and compiler runtimes; conservative inclusion is not a claim that every listed source survived linker garbage collection.\n'
+              'Separately distributed desktop flashing tools retain their own licenses and source-distribution obligations.\n')
     return header + ''.join('\n\n===== ' + label + ' =====\n\n' + content for label, content in sorted(records))
 
 
@@ -73,7 +137,7 @@ VARIANTS = {
     'eth': ('esp32-s3-eth', 'firmware-eth.bin', 'firmware-eth-factory.bin', '-eth'),
 }
 # The current repository name keeps working after the rename (GitHub redirects).
-SOURCE_URL = 'https://github.com/Mattboxx/esp32-tailscale-gateway-NAS-recovery'
+SOURCE_URL = 'https://github.com/Mattboxx/esp32-tailnet-gateway'
 
 
 def release_readme(version, prerelease, variant):
@@ -103,6 +167,7 @@ def release_readme(version, prerelease, variant):
         '  CLEAN_INSTALL_ERASE_ALL.bat  Windows fresh install, asks for YES',
         '  SHA256SUMS.txt               checksums; VERIFY_FILES.ps1 checks them',
         '  release-manifest.json        machine-readable build and file metadata',
+        '  FLASHING-TOOL-LICENSES.md    separate desktop-tool redistribution scope',
         '',
         'UPDATE (keeps settings): back up first (System > Backup). Then Web UI >',
         f'System > Firmware > choose {ota} > Upload. A failed boot returns to the',
@@ -131,8 +196,9 @@ def release_readme(version, prerelease, variant):
         'SNMPv1/v2c is unencrypted and OFF by default. A release channel is not a',
         'guarantee that every configuration was tested; see the release notes:',
         notes,
-        'Original credits: Csontikka/esp32-tailscale-subnet-router, Csontikka/microlink',
-        'and their contributors. Notices: FIRMWARE-LICENSES.txt.',
+        'Original firmware: Csontikka/esp32-tailscale-subnet-router. MicroLink:',
+        "Mattboxx/microlink through Csontikka/microlink, from Cameron Malone's",
+        'original project. Contributors retain their notices: FIRMWARE-LICENSES.txt.',
         'Optional support for the Mattboxx edition: https://ko-fi.com/mattboxx',
         '',
         'esptool.exe: Espressif esptool v5.3.1 Windows amd64, GPL-2.0-or-later.',
@@ -202,6 +268,7 @@ def main():
         shutil.copyfile(sdkbuild / name, out / name)
     shutil.copyfile(args.esptool, out / 'esptool.exe')
     shutil.copyfile(args.esptool_license, out / 'ESPTOOL-LICENSE.txt')
+    shutil.copyfile(ROOT / 'docs/FLASHING-TOOL-LICENSES.md', out / 'FLASHING-TOOL-LICENSES.md')
     (out / 'FIRMWARE-LICENSES.txt').write_text(collect_release_notices(ROOT, sdkbuild), encoding='utf-8')
     for path in (ROOT / 'tools/flashing').iterdir():
         # Windows double-click scripts must carry CRLF, also in Linux builds.
