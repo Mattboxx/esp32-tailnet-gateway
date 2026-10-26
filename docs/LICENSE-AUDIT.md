@@ -216,6 +216,8 @@ Executed offline results (2026-10-26):
 | Desktop-source correspondence | PASS, 617 Python modules; official native-extension wheels and Python DLL; source archive internal checksums |
 | Main tracked/untracked content, artifacts and reachable history scan | PASS, no findings |
 | MicroLink history scan | Scanner reports 9 existing example-key placeholders, manually classified as all-X examples; scanner was not relaxed and history was not rewritten |
+| Published releases after the repair (live GitHub API) | PASS: 28 releases, 144 original assets with unchanged ID/size/digest; 149 legal materials with the planned SHA-256 (109 release assets, 40 repository copies byte for byte); 29 note links answer 200 |
+| `python tools/check_release_list.py` | Ten newest releases 197 KiB: 2.x updater 77 % of its 256 KiB buffer (was 103 % right after publication), 2.1 bridge/3.x 39 %, bridge target v3.0.2. The 75 % early-warning threshold still reports FAIL by two points; it was not relaxed |
 
 The site checks above are static/offline checks, not a new browser or firmware
 qualification campaign. No network/device state or application behavior changed.
