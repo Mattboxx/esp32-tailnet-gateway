@@ -1,0 +1,1083 @@
+{
+ "repository": "Mattboxx/esp32-tailnet-gateway",
+ "published": "2026-10-26",
+ "relocated_to_repository": "2026-10-26",
+ "scope": "Additive legal materials for every public release; original assets, tags and checksums unchanged.",
+ "relocation_reason": "2.x firmware in the field reads GET /releases?per_page=10 into a 256 KiB buffer; for the ten newest releases four small companions are kept in licenses/releases/ byte for byte instead of as release assets.",
+ "esptool_source": {
+  "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+  "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+  "generated_source_supplement": "licenses/tibs-0.5.7/"
+ },
+ "releases": [
+  {
+   "tag": "v3.0.2",
+   "release_id": 423567925,
+   "original_assets_unchanged": 9,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "cd928808a46ce66626dcccbe7cdab7046e8714c61e4e1994422623534129a08e",
+     "bytes": 1287269,
+     "location": "repository: licenses/releases/v3.0.2/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "f9cc2149351567ac62e237fe3d086682d396df18f28d399c2a9b765fba726ece",
+     "bytes": 732,
+     "location": "repository: licenses/releases/v3.0.2/license-provenance.json"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-v3.0.2-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip",
+     "sha256": "7bd02ca8eb97fd8314253bb9ac478c29708350638f08317feb6d6caa6714415a",
+     "bytes": 15961849,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "f387c1787a2be3e3700f4a64f0e5d3f7155f5e8c241fdd19eff4133625d86b16",
+     "bytes": 533,
+     "location": "repository: licenses/releases/v3.0.2/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v3.0.1",
+   "release_id": 423334553,
+   "original_assets_unchanged": 9,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "98dacc733cf8db5cafa156cfce6d7d7c1633817f4c17a1386f48c380a5383175",
+     "bytes": 1286383,
+     "location": "repository: licenses/releases/v3.0.1/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "94555a80ff393e11c6b3b8a874db7ea543f3e5b9a3950bab28fdf721e68a827f",
+     "bytes": 732,
+     "location": "repository: licenses/releases/v3.0.1/license-provenance.json"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-v3.0.1-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip",
+     "sha256": "96421117d7d89e24e87b23f9c8447bd1181cde50423af39e17cb5abf22543157",
+     "bytes": 15957693,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "da6718be6e67409f8cbd4ed3a8b7010fe9835dc72344061ba231525156c8be78",
+     "bytes": 533,
+     "location": "repository: licenses/releases/v3.0.1/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v3.0.1-beta.1",
+   "release_id": 423302623,
+   "original_assets_unchanged": 9,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "e384f867f9d9e06e306b23f50fe26e6853511f61535acda0796415f64b42d75e",
+     "bytes": 1286397,
+     "location": "repository: licenses/releases/v3.0.1-beta.1/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "dca7ec022fa6c4793f0559e58e9b75f3a34c178e37cee0f70d2e6f7e3ddff7c7",
+     "bytes": 760,
+     "location": "repository: licenses/releases/v3.0.1-beta.1/license-provenance.json"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-v3.0.1-beta.1-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip",
+     "sha256": "89d9847123dc1baf85659d0859e372c86c71f04213e75bd92f43637214ba6287",
+     "bytes": 15952871,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "3216648838ed0ced6818ad18f40d1e7cc2283d5a4220ac5773deef41031f3a6a",
+     "bytes": 540,
+     "location": "repository: licenses/releases/v3.0.1-beta.1/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v3.0.0",
+   "release_id": 423231464,
+   "original_assets_unchanged": 8,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "6e2fc426e66753fb54cfbf465f5129e67ea63f8b1a3a217e351f136e6d74847f",
+     "bytes": 1286383,
+     "location": "repository: licenses/releases/v3.0.0/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "7ff14718afad4982ba55aece58d8347d7f0d4bb6e8cc5c9f458ba04603b20d82",
+     "bytes": 732,
+     "location": "repository: licenses/releases/v3.0.0/license-provenance.json"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-v3.0.0-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip",
+     "sha256": "34900bfa7bb2019478d4625aaabd60893712fec31175693107107b903eab0ff4",
+     "bytes": 15827586,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "a6ed39b4285a4f3d3a84f4479e1156785e543ea8be481de314ff0b72d0586c7f",
+     "bytes": 533,
+     "location": "repository: licenses/releases/v3.0.0/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v3.0.0-beta.1",
+   "release_id": 423118555,
+   "original_assets_unchanged": 8,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "7d5fd71112efe814687da676982afc121e01aefb0fb6fa28dd89db3739125f71",
+     "bytes": 1286397,
+     "location": "repository: licenses/releases/v3.0.0-beta.1/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "1508f156ce759d5a3a3422c893479b583afbb0afb95240990499aa0a0a0781c1",
+     "bytes": 760,
+     "location": "repository: licenses/releases/v3.0.0-beta.1/license-provenance.json"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-v3.0.0-beta.1-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip",
+     "sha256": "cf82db87eaa53600400d0538ee708cae901320d80f64384d9ed3cb978a5269d7",
+     "bytes": 15823068,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "4661b44f360f6f9a9f999fe8a9670dafe83e5dfc38106465141b5445eb3fbb58",
+     "bytes": 540,
+     "location": "repository: licenses/releases/v3.0.0-beta.1/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v2.1.0",
+   "release_id": 423231440,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "e5776779f5824671993d80aa07f2fb848647361eb22068f21431e9c903bc3525",
+     "bytes": 1286383,
+     "location": "repository: licenses/releases/v2.1.0/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "e6e9ff5e485ca7ce0a5e87b9eb769b8a9721d664e12baab44322327262e96646",
+     "bytes": 618,
+     "location": "repository: licenses/releases/v2.1.0/license-provenance.json"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "1e74249916d8f8ae251298ae7ae424494d1e59ace2028d8ab130b6caf0d212ce",
+     "bytes": 388,
+     "location": "repository: licenses/releases/v2.1.0/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v2.0.4-beta.2",
+   "release_id": 422606215,
+   "original_assets_unchanged": 8,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "dfa146889b65c01f6ef68ea88742e82d2013698cc6c7054077c5d12639ede81d",
+     "bytes": 1284321,
+     "location": "repository: licenses/releases/v2.0.4-beta.2/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "085dc4daeb8edc966c5568b3598182c2c0e2554218a963a5177e9524c3901ede",
+     "bytes": 760,
+     "location": "repository: licenses/releases/v2.0.4-beta.2/license-provenance.json"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-v2.0.4-beta.2-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip",
+     "sha256": "e9beb819ee459d8f4c31bfc5193718e6e581bf3892dce0e956e87a17bfd95c83",
+     "bytes": 17046580,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "e2ccac614e8b60de20ec5595539d156ff712cfddc2f3935d77423e3e2de5ac40",
+     "bytes": 540,
+     "location": "repository: licenses/releases/v2.0.4-beta.2/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v2.0.4-beta.1",
+   "release_id": 422594656,
+   "original_assets_unchanged": 8,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "91258872bd1bf38aa1e80cf2184e315e86721d2da5c1a391868b2e0d64016345",
+     "bytes": 1284321,
+     "location": "repository: licenses/releases/v2.0.4-beta.1/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "23525b2e1ca0bc499ed30e702871ee4d7fe7021a994fefc54c82a2b243531aa0",
+     "bytes": 760,
+     "location": "repository: licenses/releases/v2.0.4-beta.1/license-provenance.json"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-v2.0.4-beta.1-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip",
+     "sha256": "181a4d418f858583532e05fc35288982716cf3bc9548941d716478aa7719903b",
+     "bytes": 17039206,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "16457f159a7e7a7a7d1d6b02a2c9e2c02eed4bed274ba1b291c2394f2cb3ec62",
+     "bytes": 540,
+     "location": "repository: licenses/releases/v2.0.4-beta.1/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v2.0.3",
+   "release_id": 422572498,
+   "original_assets_unchanged": 8,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "d015cc6ef3c6300827b43390d3cd3259ed635aa5ed71d250f2aa8f9920e4c02b",
+     "bytes": 1284307,
+     "location": "repository: licenses/releases/v2.0.3/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "fc988e54dfb073a8ca6dd33e1efe9156c54cb76c136f8f2a50a65e5132c9a2fe",
+     "bytes": 732,
+     "location": "repository: licenses/releases/v2.0.3/license-provenance.json"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-v2.0.3-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip",
+     "sha256": "f16afcfa216cb5d91b6a1a94a23ee97e20bfb32fd54fe93e30309ed4b6bb2d4d",
+     "bytes": 17029251,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "602a3d6659a242bf1c6c9825b4440699c53389b26797b2a2e888bace61c5ffcc",
+     "bytes": 533,
+     "location": "repository: licenses/releases/v2.0.3/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v2.0.2",
+   "release_id": 422283828,
+   "original_assets_unchanged": 8,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "7a862e253003a9e5d63c612e7e78b5a8447544b0d3eea01f3be1e65602ed02ac",
+     "bytes": 1284307,
+     "location": "repository: licenses/releases/v2.0.2/FIRMWARE-LICENSES-ADDENDUM.txt"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "repository: licenses/releases/FLASHING-TOOL-LICENSES.txt"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "638c1d2ccdfbae633d4115a825d907f00aefc74881f7fc0dcf525c8c8a7319f8",
+     "bytes": 732,
+     "location": "repository: licenses/releases/v2.0.2/license-provenance.json"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-v2.0.2-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip",
+     "sha256": "cda6a0993a566b71b85e415746fee254d93510a62278b1369cc2e9df5c1c57b5",
+     "bytes": 17036059,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "c5776f9d87c2e46708a705940720e439766e99cca45ad6f743fc9963fcb1480f",
+     "bytes": 533,
+     "location": "repository: licenses/releases/v2.0.2/LICENSE-SHA256SUMS.txt"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.38-Mattboxx-1.100",
+   "release_id": 421893321,
+   "original_assets_unchanged": 6,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "ab558cbc63463a8aa148b28c8c5945badbc2f0ba743a951a5693c6ce9efb0c39",
+     "bytes": 1281345,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "6ac2f2fad2975972ddaf3dad606e8c35e12f209ff23eff75c2cd21703d44363f",
+     "bytes": 703,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-Tailnet-Gateway-0.1.38-Mattboxx-1.100-windows-WITH-NOTICES.zip",
+     "sha256": "ae4efc4749417993796477e76c59448453d530aefd1ae200a8c9af79bdd0610e",
+     "bytes": 16996108,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "3c3017e246b346e885d39b749d81ccb72468cf55772bc9a24b8ed0f44e911ca7",
+     "bytes": 523,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.38-Mattboxx-1.13",
+   "release_id": 418769265,
+   "original_assets_unchanged": 5,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "2b93d7e9c0d23a51c2f400c9e3b26d8178757617b571bb5fb311442011001bb4",
+     "bytes": 1263631,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "eb0b70d876de4868afeedf7cf14a57e6afe1601b2d067b12cc42986bed2b94f1",
+     "bytes": 694,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.38-Mattboxx-1.13-windows-WITH-NOTICES.zip",
+     "sha256": "1f856c51620cdcf24bc4c47a8fd5a370529918f9c7725cd7872ab94df90d6430",
+     "bytes": 16682032,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "772c8d2c13bef65960014533cbaba7c9ef686e7401608b02f4310f9b1077b7cc",
+     "bytes": 516,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.33-Mattboxx-1.12-dev.1",
+   "release_id": 411662952,
+   "original_assets_unchanged": 5,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "d5fc3bd99509e6dfc1b638540f1ba0aabc916e63d9cb047a69d7baa7e22a49bd",
+     "bytes": 1263643,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "5fc9a3d1c607d0fc6bd8ae7dbc4586a13e3fb26610daf4c6d96d651632c52ced",
+     "bytes": 712,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.33-Mattboxx-1.12-dev.1-windows-WITH-NOTICES.zip",
+     "sha256": "3557d366c1ca77fd261419ffd540b76345f808a0da676c8a63e40da53ce70c2c",
+     "bytes": 16681343,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "c242b2b6e366224b20adc66f96be0ea5ec4be2f4d3ba73132b5f2a66b24d06dc",
+     "bytes": 522,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.31-Mattboxx-1.11",
+   "release_id": 411597716,
+   "original_assets_unchanged": 5,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES-ADDENDUM.txt",
+     "sha256": "ed469270be34277444cf9616c30554bc1b35840304c4a1d3136329f3701b65dd",
+     "bytes": 1263394,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "1a33dbdecec8a4cda888c31d2b4bac82ec2be526aaf3d6237e587e7434244b44",
+     "bytes": 694,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.31-Mattboxx-1.11-windows-WITH-NOTICES.zip",
+     "sha256": "1d382c844c70e85b936daaaba8a365173ab0df8c0d44d76f2a48ca9f64c381bd",
+     "bytes": 16676298,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "e54a03859b6a5f71da75c4e669276f8acbc08a89eee5346e313811c94b7589ef",
+     "bytes": 516,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.31-Mattboxx-1.10-dev.11",
+   "release_id": 409578347,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "af92f5599d4fec5b27a391cbf642323bcc761c5aa07e9713c0a38859b5da7318",
+     "bytes": 1263318,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "262288c0496bc0d1abb34451edfc0ecc9d1c9a31ed56e3b17f0c9d185f5ff572",
+     "bytes": 715,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.31-Mattboxx-1.10-dev.11-windows-WITH-NOTICES.zip",
+     "sha256": "797b6d718027e3a8805bd07f03f2552a9a5826b0de0496012d2f02396d6aef47",
+     "bytes": 16631921,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "f1755da3c48a4805fa93510e8821107e705feda2a3791fbab20f5b411ca8c51c",
+     "bytes": 514,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.31-Mattboxx-1.10-dev.10",
+   "release_id": 408846705,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "46c625a3d1855f80b1458af6aa15f3d8ad2cee02df2704dd0b6acddd71a3e6e1",
+     "bytes": 1263318,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "796a51336c4a1cf1ad7ec20767f18d099e85bc5a19065f91f2dd55a5b0bce92c",
+     "bytes": 715,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.31-Mattboxx-1.10-dev.10-windows-WITH-NOTICES.zip",
+     "sha256": "99532cebadeb70544c694cdb585a74bd7b96189001d24395ba0133fc679403a8",
+     "bytes": 16624030,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "a5dfaf1fecbe8942f372b55cb32dd0720da5bf4b01c1e8373e1b842a445da57b",
+     "bytes": 514,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.29-Mattboxx-1.8",
+   "release_id": 403063579,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "b59ee7d6b59465f1fb14beed5961d41af73496e4d5733d796200786c75d02bd8",
+     "bytes": 1260644,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "68887deaff23c579565880a87467bc8020c4221ee3c8951ecdde1ada33470b68",
+     "bytes": 691,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.29-Mattboxx-1.8-windows-WITH-NOTICES.zip",
+     "sha256": "e0ff679512fb6a0490b6c1070c61cdef305eca4ce73824bd27c3d601af0190c9",
+     "bytes": 16586106,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "9ada93a016dde256f6c8b71360ce005934e8ca28902f7055bef3a833390d1849",
+     "bytes": 506,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.29-Mattboxx-1.7",
+   "release_id": 402717092,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "54367811f6b6e5ded46a4a90fa5769376eabdfd042292dc17efca1d6cf9beddd",
+     "bytes": 1260644,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "b16ecb1beca41612a29e0e7f92a7d50dc0295b612e9cb1cec44f6546a2507179",
+     "bytes": 691,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.29-Mattboxx-1.7-windows-WITH-NOTICES.zip",
+     "sha256": "10e0e5c431aaf15bf76b17bd936d5b87b208c5ee810cf45e49b8848682d49569",
+     "bytes": 16586158,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "5d8217720bd6785aa53458a80000a84f7f9aa8def1c28f18a41a8bf58bcafd52",
+     "bytes": 506,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.28-Mattboxx-1.6",
+   "release_id": 401561666,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "816506322ae9e8bcab870caa73d70b642a58fd8c86c6f6b61fee2883bdc726d6",
+     "bytes": 1260644,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "b48bf0c94d8303eee322f23953f429ef57282ab9670d05d643c80d728ad9b836",
+     "bytes": 691,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.28-Mattboxx-1.6-windows-WITH-NOTICES.zip",
+     "sha256": "a1ecf0048a7c4c27f2ea5d050e1498b1aace0a672b5315c28924e6f95511109b",
+     "bytes": 16585651,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "40e36964c507f5a057eff9480b61e682572569f9885b5458bfdcb28e30e9370d",
+     "bytes": 506,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.19-Mattboxx-1.5",
+   "release_id": 384336515,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "a1b6e23f5386b8069afeca0e58885c2daa0c81ab050c12055501b4ae2e33d303",
+     "bytes": 1173635,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "b661b0002f4df7964d17d18a25b638fa247f6a647ff47fc8c0cad32bbb69c1f8",
+     "bytes": 695,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.19-Mattboxx-1.5-windows-WITH-NOTICES.zip",
+     "sha256": "41fc6265e8b22cceb37ad1c4a4c2b61a24bbcc503aa6973c8a4e71117f0195d2",
+     "bytes": 16491263,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "ab39abaa060f8f7a6e4b63c70a8d1438a4fe0361a5df57a94329bd0a743fdba0",
+     "bytes": 506,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.19-Mattboxx-1.4",
+   "release_id": 383246606,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "19b4c177a5e8fc1e373761ea500074269ac85c34eb4058884a24b38fb32a2630",
+     "bytes": 1173635,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "354977bf26b6555ae33faaf5ea5694d8f8bcf2aeac8d6658ad83ecf0139647cd",
+     "bytes": 691,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.19-Mattboxx-1.4-windows-WITH-NOTICES.zip",
+     "sha256": "789f222f3fcb0a040206c74b5f35a164bd534ecd3ad841b8a4411ccd90b07a42",
+     "bytes": 16489611,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "7f10f5753a1fed4368bfaebf943dadbb6568af9e280e430e7f6d03a936e86823",
+     "bytes": 506,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.19-Mattboxx-1.3",
+   "release_id": 383238030,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "84b98ba50959c0d148836b5cfddb61a4d7f52727b0f881812b8229355e51b744",
+     "bytes": 1173635,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "0890348128b6913469ba9bbd6d7baa954e0a06251db4616229be5a8221279979",
+     "bytes": 691,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.19-Mattboxx-1.3-windows-WITH-NOTICES.zip",
+     "sha256": "835cfe189b4c0d616e612b676e291dae264e0b9a09a1307bdb36cb5f3442a525",
+     "bytes": 16486962,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "018d5f0959446b254bb579c112a6c3e35b19341b8423e3a4a7639dba28bd123f",
+     "bytes": 506,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.19-Mattboxx-1.2",
+   "release_id": 383168472,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "1b7a6190fcbf6a862022957bc63264e04194a70abcb549ba5dc0aef562149c93",
+     "bytes": 1173596,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "e6a6c119abf63570ca74fa0936957b7b8dcde477bb655accde3cf9ae99ead1b6",
+     "bytes": 691,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.19-Mattboxx-1.2-windows-WITH-NOTICES.zip",
+     "sha256": "d254a9f54380cf340198d0c261b6458de389b6f7bc1528649c407b59895eb0a9",
+     "bytes": 16486172,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "d77a9d87d2aeae78ef201bc7eec9d354f223454ab2fc564c6089ff94b7f381a8",
+     "bytes": 506,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.19-Mattboxx-1.1",
+   "release_id": 382834389,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "4df22e5b1d831cc6842387568c82a944faa06d4a3dda8809eea03149506bd126",
+     "bytes": 1173596,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "22922e283c2e8372b8255cc6ddb4ec1044ee93bbdcffdbf0cb6c2e53d202c683",
+     "bytes": 683,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.19-Mattboxx-windows-WITH-NOTICES.zip",
+     "sha256": "04e01f9a2f9760419b20682695ce4f77fef3d93e8634e48daf550116b55e23fe",
+     "bytes": 16460918,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "9e1288702a49d33eaf8a115309b6d97ea86ad58b428b4ed3b8bfb92212c0b348",
+     "bytes": 502,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  },
+  {
+   "tag": "v0.1.19-Mattboxx",
+   "release_id": 381577097,
+   "original_assets_unchanged": 4,
+   "legal_materials": [
+    {
+     "name": "FIRMWARE-LICENSES.txt",
+     "sha256": "6addb8d7a87e86211a1a79bf037e06eea8b945848829f059edd0f9b729431bb0",
+     "bytes": 1173588,
+     "location": "release asset"
+    },
+    {
+     "name": "FLASHING-TOOL-LICENSES.txt",
+     "sha256": "a62e9582d8859201bae02ce251db20493030da6f349fdc68ab78587501b44709",
+     "bytes": 558729,
+     "location": "release asset"
+    },
+    {
+     "name": "license-provenance.json",
+     "sha256": "b179dad6a0ffbf9732954b3bcc0c7de169fd1754465bc3c3824db3c8c65bb5c8",
+     "bytes": 679,
+     "location": "release asset"
+    },
+    {
+     "name": "ESP32-S3-router-0.1.19-Mattboxx-windows-WITH-NOTICES.zip",
+     "sha256": "c6c031741ca0d91a968d47500a39f5ce37e175733e02acafb1adca06288932ed",
+     "bytes": 16460820,
+     "location": "release asset"
+    },
+    {
+     "name": "LICENSE-SHA256SUMS.txt",
+     "sha256": "6f9fe56df920bb06bac5c94ec36cbd15dd7ac52ea8698c031d58f80c45f44ef2",
+     "bytes": 502,
+     "location": "release asset"
+    },
+    {
+     "name": "esptool-5.3.1-CORRESPONDING-SOURCE.tar.gz",
+     "sha256": "c407d13fd84a0d8019ea9d5634412918fd9dbeaf999d0289841425aa8dafa018",
+     "bytes": 105754439,
+     "location": "release asset"
+    }
+   ]
+  }
+ ]
+}
