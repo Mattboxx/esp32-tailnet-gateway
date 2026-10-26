@@ -225,7 +225,7 @@ Firmware v3.0.2 release assets:
 
 | Asset | Use |
 |---|---|
-| `ESP32-Tailnet-Gateway-v3.0.2-EASY-INSTALL-Windows-macOS-Linux.zip` | Guided USB install (new device) or update keeping settings |
+| `ESP32-Tailnet-Gateway-v3.0.2-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip` | Guided USB install (new device) or update keeping settings |
 | `firmware.bin` | Application image for the Web UI updater on 3.x |
 | `bootloader.bin`, `partitions.bin` | 3.0 boot loader and partition table (manual USB update keeping settings) |
 | `ESP32-Tailnet-Gateway-v3.0.2-factory.bin` | Full image for a new device at offset `0x0` (erases settings) |
@@ -425,7 +425,7 @@ For **Firmware v3.0.2**, the browser route is the easiest first install. Safari,
 Firefox and phone browsers should use a desktop computer and Easy Install.
 
 **Easy Install:** unzip
-`ESP32-Tailnet-Gateway-v3.0.2-EASY-INSTALL-Windows-macOS-Linux.zip` and read
+`ESP32-Tailnet-Gateway-v3.0.2-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip` and read
 `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3 and
 esptool 5. The scripts verify checksums and the ESP32-S3 target first.
 

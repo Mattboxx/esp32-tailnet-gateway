@@ -1,0 +1,18 @@
+{
+  "tag": "v3.0.0",
+  "source_commit": "4d159c96b7a21fb7d89a71be642ebdf433ac3229",
+  "microlink_gitlink": "fa3153b6892d00d0c9a9c42f11c8f1a89c6ea910",
+  "sdk_version": "5.5.3",
+  "images": [
+    {
+      "archive": "ESP32-Tailnet-Gateway-v3.0.0-EASY-INSTALL-Windows-macOS-Linux.zip",
+      "member": "ESP32-Tailnet-Gateway-v3.0.0-EASY-INSTALL/firmware/firmware.bin",
+      "sha256": "2f7e98bc6bcef0c12bdcf7822c1b9e0b3ce43ed38376783e174fa4627f4b35da",
+      "version": "3.0.0",
+      "project": "esp32_tsr",
+      "sdk": "5.5.3",
+      "elf_sha256": "cc8bec68c37488dd24fa3499e1306cd703b657406d3d4651f4ce4eb80447061c"
+    }
+  ],
+  "notice_sha256": "6e2fc426e66753fb54cfbf465f5129e67ea63f8b1a3a217e351f136e6d74847f"
+}

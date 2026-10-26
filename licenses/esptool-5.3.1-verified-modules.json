@@ -1,0 +1,6817 @@
+[
+  {
+    "module": "bitarray",
+    "package": "bitarray",
+    "version": "3.8.2",
+    "source": "bitarray/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitarray.test_bitarray",
+    "package": "bitarray",
+    "version": "3.8.2",
+    "source": "bitarray/test_bitarray.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitarray.test_util",
+    "package": "bitarray",
+    "version": "3.8.2",
+    "source": "bitarray/test_util.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitarray.util",
+    "package": "bitarray",
+    "version": "3.8.2",
+    "source": "bitarray/util.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitstring",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitstring.array_",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/array_.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "bitstring.bitarray_",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/bitarray_.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitstring.bits",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/bits.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "bitstring.bitstore_bitarray",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/bitstore_bitarray.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "bitstring.bitstore_bitarray_helpers",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/bitstore_bitarray_helpers.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "bitstring.bitstore_common_helpers",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/bitstore_common_helpers.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "bitstring.bitstore_tibs",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/bitstore_tibs.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "bitstring.bitstore_tibs_helpers",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/bitstore_tibs_helpers.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "bitstring.bitstream",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/bitstream.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitstring.bitstring_options",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/bitstring_options.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitstring.dtypes",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/dtypes.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitstring.exceptions",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/exceptions.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitstring.fp8",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/fp8.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitstring.helpers",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/helpers.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "bitstring.luts",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/luts.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "bitstring.methods",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/methods.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "bitstring.mxfp",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/mxfp.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "bitstring.utils",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/utils.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "bitstring.__main__",
+    "package": "bitstring",
+    "version": "4.4.0",
+    "source": "bitstring/__main__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "click",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click.core",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/core.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "click.decorators",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/decorators.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "click.exceptions",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/exceptions.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click.formatting",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/formatting.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click.globals",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/globals.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click.parser",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/parser.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "click.shell_completion",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/shell_completion.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click.termui",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/termui.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click.types",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/types.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "click.utils",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/utils.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click._compat",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/_compat.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click._termui_impl",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/_termui_impl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click._textwrap",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/_textwrap.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click._utils",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/_utils.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "click._winconsole",
+    "package": "click",
+    "version": "8.4.2",
+    "source": "click/_winconsole.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "colorama",
+    "package": "colorama",
+    "version": "0.4.6",
+    "source": "colorama/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "colorama.ansi",
+    "package": "colorama",
+    "version": "0.4.6",
+    "source": "colorama/ansi.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "colorama.ansitowin32",
+    "package": "colorama",
+    "version": "0.4.6",
+    "source": "colorama/ansitowin32.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "colorama.initialise",
+    "package": "colorama",
+    "version": "0.4.6",
+    "source": "colorama/initialise.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "colorama.win32",
+    "package": "colorama",
+    "version": "0.4.6",
+    "source": "colorama/win32.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "colorama.winterm",
+    "package": "colorama",
+    "version": "0.4.6",
+    "source": "colorama/winterm.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "esptool",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "esptool.bin_image",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/bin_image.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "esptool.cli_util",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/cli_util.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.cmds",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/cmds.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "esptool.config",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/config.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "esptool.loader",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/loader.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.logger",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/logger.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "esptool.reset",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/reset.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32c2",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32c2.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32c3",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32c3.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32c5",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32c5.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32c6",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32c6.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32c61",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32c61.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32e22",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32e22.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32h2",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32h2.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32h21",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32h21.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32h4",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32h4.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32p4",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32p4.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32s2",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32s2.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32s3",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32s3.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp32s31",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp32s31.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.targets.esp8266",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/targets/esp8266.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.uf2_writer",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/uf2_writer.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "esptool.util",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/util.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "esptool.__init__",
+    "package": "esptool",
+    "version": "5.3.1",
+    "source": "esptool/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "intelhex",
+    "package": "intelhex",
+    "version": "2.3.0",
+    "source": "intelhex/__init__.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "intelhex.compat",
+    "package": "intelhex",
+    "version": "2.3.0",
+    "source": "intelhex/compat.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "intelhex.getsizeof",
+    "package": "intelhex",
+    "version": "2.3.0",
+    "source": "intelhex/getsizeof.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.common",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/common/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.common.entities",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/common/entities.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.common.html_blocks",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/common/html_blocks.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.common.html_re",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/common/html_re.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.common.normalize_url",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/common/normalize_url.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.common.utils",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/common/utils.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.helpers",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/helpers/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.helpers.parse_link_destination",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/helpers/parse_link_destination.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.helpers.parse_link_label",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/helpers/parse_link_label.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.helpers.parse_link_title",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/helpers/parse_link_title.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.main",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/main.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.parser_block",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/parser_block.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.parser_core",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/parser_core.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.parser_inline",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/parser_inline.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.presets",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/presets/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.presets.commonmark",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/presets/commonmark.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.presets.default",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/presets/default.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.presets.zero",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/presets/zero.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.renderer",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/renderer.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.ruler",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/ruler.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.blockquote",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/blockquote.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.code",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/code.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.fence",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/fence.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.heading",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/heading.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.hr",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/hr.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.html_block",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/html_block.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.lheading",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/lheading.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.list",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/list.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.paragraph",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/paragraph.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.reference",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/reference.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.state_block",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/state_block.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_block.table",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_block/table.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_core",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_core/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_core.block",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_core/block.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_core.inline",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_core/inline.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_core.linkify",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_core/linkify.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "markdown_it.rules_core.normalize",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_core/normalize.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_core.replacements",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_core/replacements.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_core.smartquotes",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_core/smartquotes.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "markdown_it.rules_core.state_core",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_core/state_core.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_core.text_join",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_core/text_join.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.autolink",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/autolink.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.backticks",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/backticks.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.balance_pairs",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/balance_pairs.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.emphasis",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/emphasis.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.entity",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/entity.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.escape",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/escape.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.fragments_join",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/fragments_join.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.html_inline",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/html_inline.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.image",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/image.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.link",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/link.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.linkify",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/linkify.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.newline",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/newline.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.state_inline",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/state_inline.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.strikethrough",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/strikethrough.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.rules_inline.text",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/rules_inline/text.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "markdown_it.token",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/token.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it.utils",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/utils.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "markdown_it._punycode",
+    "package": "markdown-it-py",
+    "version": "4.2.0",
+    "source": "markdown_it/_punycode.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "mdurl",
+    "package": "mdurl",
+    "version": "0.1.2",
+    "source": "mdurl/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "mdurl._decode",
+    "package": "mdurl",
+    "version": "0.1.2",
+    "source": "mdurl/_decode.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "mdurl._encode",
+    "package": "mdurl",
+    "version": "0.1.2",
+    "source": "mdurl/_encode.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "mdurl._format",
+    "package": "mdurl",
+    "version": "0.1.2",
+    "source": "mdurl/_format.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "mdurl._parse",
+    "package": "mdurl",
+    "version": "0.1.2",
+    "source": "mdurl/_parse.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "mdurl._url",
+    "package": "mdurl",
+    "version": "0.1.2",
+    "source": "mdurl/_url.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "pygments",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.console",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/console.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.filter",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/filter.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.filters",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/filters/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatter",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatter.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.bbcode",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/bbcode.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.groff",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/groff.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.html",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/html.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.img",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/img.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.irc",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/irc.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.latex",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/latex.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.other",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/other.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.pangomarkup",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/pangomarkup.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.rtf",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/rtf.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.svg",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/svg.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.terminal",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/terminal.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters.terminal256",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/terminal256.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.formatters._mapping",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/formatters/_mapping.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "pygments.lexer",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexer.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "pygments.lexers",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.actionscript",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/actionscript.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ada",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ada.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.agile",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/agile.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.algebra",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/algebra.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ambient",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ambient.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.amdgpu",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/amdgpu.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ampl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ampl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.apdlexer",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/apdlexer.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.apl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/apl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.archetype",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/archetype.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.arrow",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/arrow.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.arturo",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/arturo.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.asc",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/asc.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.asm",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/asm.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.asn1",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/asn1.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.automation",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/automation.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.bare",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/bare.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.basic",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/basic.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.bdd",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/bdd.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.berry",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/berry.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.bibtex",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/bibtex.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.blueprint",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/blueprint.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.boa",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/boa.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.bqn",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/bqn.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.business",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/business.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.capnproto",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/capnproto.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.carbon",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/carbon.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.cddl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/cddl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.chapel",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/chapel.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.clean",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/clean.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.codeql",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/codeql.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.comal",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/comal.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.compiled",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/compiled.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.configs",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/configs.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.console",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/console.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.cplint",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/cplint.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.crystal",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/crystal.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.csound",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/csound.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.css",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/css.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.c_cpp",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/c_cpp.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.c_like",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/c_like.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.d",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/d.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.dalvik",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/dalvik.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.data",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/data.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.dax",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/dax.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.devicetree",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/devicetree.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.diff",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/diff.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.dns",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/dns.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.dotnet",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/dotnet.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.dsls",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/dsls.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.dylan",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/dylan.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ecl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ecl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.eiffel",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/eiffel.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.elm",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/elm.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.elpi",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/elpi.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.email",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/email.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.erlang",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/erlang.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.esoteric",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/esoteric.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ezhil",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ezhil.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.factor",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/factor.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.fantom",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/fantom.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.felix",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/felix.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.fift",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/fift.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.floscript",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/floscript.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.forth",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/forth.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.fortran",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/fortran.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.foxpro",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/foxpro.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.freefem",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/freefem.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.func",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/func.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.functional",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/functional.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.futhark",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/futhark.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.gcodelexer",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/gcodelexer.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.gdscript",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/gdscript.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.gleam",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/gleam.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.go",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/go.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.grammar_notation",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/grammar_notation.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.graph",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/graph.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.graphics",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/graphics.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.graphql",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/graphql.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.graphviz",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/graphviz.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.gsql",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/gsql.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.hare",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/hare.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.haskell",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/haskell.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.haxe",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/haxe.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.hdl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/hdl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.hexdump",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/hexdump.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.html",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/html.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.idl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/idl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.igor",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/igor.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.inferno",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/inferno.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.installers",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/installers.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.int_fiction",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/int_fiction.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.iolang",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/iolang.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.j",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/j.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.javascript",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/javascript.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.jmespath",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/jmespath.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.jslt",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/jslt.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.json5",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/json5.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.jsonnet",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/jsonnet.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.jsx",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/jsx.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.julia",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/julia.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.jvm",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/jvm.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.kuin",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/kuin.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.kusto",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/kusto.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ldap",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ldap.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.lean",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/lean.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.lilypond",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/lilypond.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "pygments.lexers.lisp",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/lisp.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.macaulay2",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/macaulay2.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.make",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/make.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.maple",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/maple.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.markup",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/markup.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.math",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/math.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.matlab",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/matlab.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.maxima",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/maxima.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.meson",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/meson.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.mime",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/mime.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.minecraft",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/minecraft.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.mips",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/mips.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ml",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ml.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.modeling",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/modeling.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.modula2",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/modula2.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.mojo",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/mojo.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.monte",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/monte.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.mosel",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/mosel.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ncl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ncl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.nimrod",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/nimrod.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.nit",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/nit.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.nix",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/nix.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.numbair",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/numbair.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.oberon",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/oberon.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.objective",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/objective.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ooc",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ooc.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.openscad",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/openscad.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.other",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/other.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.parasail",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/parasail.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.parsers",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/parsers.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.pascal",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/pascal.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.pawn",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/pawn.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.pddl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/pddl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.perl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/perl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.phix",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/phix.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.php",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/php.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.pointless",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/pointless.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.pony",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/pony.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.praat",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/praat.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.procfile",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/procfile.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.prolog",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/prolog.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.promql",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/promql.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.prql",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/prql.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ptx",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ptx.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.python",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/python.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.q",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/q.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.qlik",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/qlik.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.qvt",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/qvt.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.r",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/r.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.rdf",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/rdf.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.rebol",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/rebol.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.rego",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/rego.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.rell",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/rell.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.resource",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/resource.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ride",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ride.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.rita",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/rita.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.rnc",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/rnc.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.roboconf",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/roboconf.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.robotframework",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/robotframework.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ruby",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ruby.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.rust",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/rust.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.sas",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/sas.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.savi",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/savi.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.scdoc",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/scdoc.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.scripting",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/scripting.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "pygments.lexers.sgf",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/sgf.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.shell",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/shell.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.sieve",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/sieve.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.slash",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/slash.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.smalltalk",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/smalltalk.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.smithy",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/smithy.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.smv",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/smv.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.snobol",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/snobol.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.solidity",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/solidity.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.soong",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/soong.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.sophia",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/sophia.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.special",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/special.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.spice",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/spice.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.sql",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/sql.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "pygments.lexers.srcinfo",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/srcinfo.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.stata",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/stata.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.supercollider",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/supercollider.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.tablegen",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/tablegen.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.tact",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/tact.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.tal",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/tal.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.tcl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/tcl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.teal",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/teal.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.templates",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/templates.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.teraterm",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/teraterm.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.testing",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/testing.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.text",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/text.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.textedit",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/textedit.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.textfmts",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/textfmts.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.theorem",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/theorem.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.thingsdb",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/thingsdb.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.tlb",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/tlb.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.tls",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/tls.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.tnt",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/tnt.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.trafficscript",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/trafficscript.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.typoscript",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/typoscript.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.typst",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/typst.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.ul4",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/ul4.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.unicon",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/unicon.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.urbi",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/urbi.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.usd",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/usd.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.varnish",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/varnish.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.verification",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/verification.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.verifpal",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/verifpal.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.vip",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/vip.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.vyper",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/vyper.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.web",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/web.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.webassembly",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/webassembly.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.webidl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/webidl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.webmisc",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/webmisc.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.wgsl",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/wgsl.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.whiley",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/whiley.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.wowtoc",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/wowtoc.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.wren",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/wren.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.x10",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/x10.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.xorg",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/xorg.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.yang",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/yang.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.yara",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/yara.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers.zig",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/zig.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._ada_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_ada_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._asy_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_asy_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._cl_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_cl_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._cocoa_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_cocoa_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._csound_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_csound_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._css_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_css_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._googlesql_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_googlesql_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._julia_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_julia_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._lasso_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_lasso_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._lilypond_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_lilypond_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._luau_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_luau_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._lua_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_lua_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._mapping",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_mapping.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "pygments.lexers._mql_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_mql_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._mysql_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_mysql_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._openedge_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_openedge_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._php_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_php_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._postgres_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_postgres_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._qlik_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_qlik_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._scheme_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_scheme_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._scilab_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_scilab_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._sourcemod_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_sourcemod_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._sql_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_sql_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._stan_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_stan_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._stata_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_stata_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._tsql_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_tsql_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._usd_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_usd_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._vbscript_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_vbscript_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.lexers._vim_builtins",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/lexers/_vim_builtins.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.modeline",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/modeline.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.plugin",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/plugin.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.regexopt",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/regexopt.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.scanner",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/scanner.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.style",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/style.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "pygments.styles",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.abap",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/abap.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.algol",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/algol.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.algol_nu",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/algol_nu.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.arduino",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/arduino.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.autumn",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/autumn.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.borland",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/borland.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.bw",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/bw.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.coffee",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/coffee.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.colorful",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/colorful.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.default",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/default.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.dracula",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/dracula.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.emacs",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/emacs.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.friendly",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/friendly.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.friendly_grayscale",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/friendly_grayscale.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.fruity",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/fruity.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.gh_dark",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/gh_dark.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.gruvbox",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/gruvbox.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.igor",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/igor.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.inkpot",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/inkpot.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.lightbulb",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/lightbulb.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.lilypond",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/lilypond.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.lovelace",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/lovelace.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.manni",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/manni.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.material",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/material.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.monokai",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/monokai.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.murphy",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/murphy.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.native",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/native.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.nord",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/nord.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.onedark",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/onedark.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.paraiso_dark",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/paraiso_dark.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.paraiso_light",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/paraiso_light.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.pastie",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/pastie.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.perldoc",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/perldoc.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.rainbow_dash",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/rainbow_dash.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.rrt",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/rrt.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.sas",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/sas.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.solarized",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/solarized.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.staroffice",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/staroffice.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.stata_dark",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/stata_dark.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.stata_light",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/stata_light.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.tango",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/tango.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.trac",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/trac.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.vim",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/vim.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.vs",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/vs.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.xcode",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/xcode.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles.zenburn",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/zenburn.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.styles._mapping",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/styles/_mapping.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "pygments.token",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/token.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.unistring",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/unistring.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pygments.util",
+    "package": "Pygments",
+    "version": "2.20.0",
+    "source": "pygments/util.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pyiboot01_bootstrap",
+    "package": "pyinstaller",
+    "version": "6.11.1",
+    "source": "PyInstaller/loader/pyiboot01_bootstrap.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "pyimod01_archive",
+    "package": "pyinstaller",
+    "version": "6.11.1",
+    "source": "PyInstaller/loader/pyimod01_archive.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pyimod02_importers",
+    "package": "pyinstaller",
+    "version": "6.11.1",
+    "source": "PyInstaller/loader/pyimod02_importers.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "pyimod03_ctypes",
+    "package": "pyinstaller",
+    "version": "6.11.1",
+    "source": "PyInstaller/loader/pyimod03_ctypes.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "pyimod04_pywin32",
+    "package": "pyinstaller",
+    "version": "6.11.1",
+    "source": "PyInstaller/loader/pyimod04_pywin32.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.abc",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/abc.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.align",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/align.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.ansi",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/ansi.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.box",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/box.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.cells",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/cells.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.color",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/color.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich.color_triplet",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/color_triplet.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.columns",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/columns.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.console",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/console.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich.constrain",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/constrain.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.containers",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/containers.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.control",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/control.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.default_styles",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/default_styles.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich.emoji",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/emoji.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.errors",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/errors.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.file_proxy",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/file_proxy.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.highlighter",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/highlighter.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.json",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/json.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.jupyter",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/jupyter.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.live",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/live.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich.live_render",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/live_render.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.markdown",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/markdown.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich.markup",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/markup.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.measure",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/measure.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.padding",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/padding.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.pager",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/pager.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.palette",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/palette.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.panel",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/panel.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.pretty",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/pretty.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich.protocol",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/protocol.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.region",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/region.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.repr",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/repr.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.rule",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/rule.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.scope",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/scope.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.screen",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/screen.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.segment",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/segment.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich.spinner",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/spinner.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.status",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/status.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.style",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/style.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.styled",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/styled.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.syntax",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/syntax.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich.table",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/table.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.terminal_theme",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/terminal_theme.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.text",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/text.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich.theme",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/theme.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.themes",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/themes.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich.traceback",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/traceback.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich._emoji_codes",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_emoji_codes.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._emoji_replace",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_emoji_replace.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich._export_format",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_export_format.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._extension",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_extension.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._fileno",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_fileno.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich._inspect",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_inspect.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich._log_render",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_log_render.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._loop",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_loop.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich._null_file",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_null_file.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._palettes",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_palettes.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._pick",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_pick.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich._ratio",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_ratio.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich._spinners",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_spinners.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich._stack",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_stack.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich._timer",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_timer.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich._unicode_data",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/__init__.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode10-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode10-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode11-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode11-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode12-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode12-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode12-1-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode12-1-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode13-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode13-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode14-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode14-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode15-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode15-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode15-1-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode15-1-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode16-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode16-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode17-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode17-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode4-1-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode4-1-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode5-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode5-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode5-1-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode5-1-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode5-2-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode5-2-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode6-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode6-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode6-1-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode6-1-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode6-2-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode6-2-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode6-3-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode6-3-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode7-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode7-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode8-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode8-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data.unicode9-0-0",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/unicode9-0-0.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._unicode_data._versions",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_unicode_data/_versions.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich._win32_console",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_win32_console.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich._windows",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_windows.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich._windows_renderer",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_windows_renderer.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich._wrap",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/_wrap.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich.__main__",
+    "package": "rich",
+    "version": "15.0.0",
+    "source": "rich/__main__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich_click",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich_click.decorators",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/decorators.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich_click.patch",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/patch.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich_click.rich_box",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_box.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich_click.rich_click",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_click.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich_click.rich_click_theme",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_click_theme.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich_click.rich_command",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_command.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich_click.rich_context",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_context.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich_click.rich_help_configuration",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_help_configuration.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich_click.rich_help_formatter",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_help_formatter.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich_click.rich_help_rendering",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_help_rendering.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich_click.rich_panel",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_panel.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "rich_click.rich_parameter",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/rich_parameter.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich_click.utils",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/utils.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "rich_click._click_types_cache",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/_click_types_cache.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich_click._compat_click",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/_compat_click.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "rich_click._compat_typer",
+    "package": "rich-click",
+    "version": "1.9.8",
+    "source": "rich_click/_compat_typer.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "serial",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.rfc2217",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/rfc2217.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.serialcli",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/serialcli.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.serialjava",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/serialjava.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.serialposix",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/serialposix.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "serial.serialutil",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/serialutil.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.serialwin32",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/serialwin32.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.tools",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/tools/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "serial.tools.list_ports",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/tools/list_ports.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.tools.list_ports_common",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/tools/list_ports_common.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.tools.list_ports_linux",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/tools/list_ports_linux.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.tools.list_ports_osx",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/tools/list_ports_osx.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.tools.list_ports_posix",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/tools/list_ports_posix.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.tools.list_ports_windows",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/tools/list_ports_windows.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.urlhandler",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/urlhandler/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "serial.urlhandler.protocol_alt",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/urlhandler/protocol_alt.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.urlhandler.protocol_cp2110",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/urlhandler/protocol_cp2110.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "serial.urlhandler.protocol_hwgrep",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/urlhandler/protocol_hwgrep.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.urlhandler.protocol_loop",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/urlhandler/protocol_loop.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.urlhandler.protocol_rfc2217",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/urlhandler/protocol_rfc2217.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  },
+  {
+    "module": "serial.urlhandler.protocol_socket",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/urlhandler/protocol_socket.py",
+    "matched": true,
+    "optimization": [
+      0
+    ]
+  },
+  {
+    "module": "serial.urlhandler.protocol_spy",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/urlhandler/protocol_spy.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "serial.win32",
+    "package": "pyserial",
+    "version": "3.5",
+    "source": "serial/win32.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1
+    ]
+  },
+  {
+    "module": "tibs",
+    "package": "tibs",
+    "version": "0.5.7",
+    "source": "tibs/__init__.py",
+    "matched": true,
+    "optimization": [
+      0,
+      1,
+      2
+    ]
+  }
+]

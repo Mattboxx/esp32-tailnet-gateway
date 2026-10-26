@@ -116,55 +116,72 @@ upstream support links. No donation, new attribution display or upstream
 approval requirement was imposed. This audit does not address taxation or
 independently establish title to every artwork or trademark.
 
-## Remaining distribution issues: NOT closed
+## Distribution remediation (2026-10-26)
 
-1. **Historical download notices:** eleven ZIPs, from
-   `v0.1.19-Mattboxx` through the earlier `v0.1.31-Mattboxx-1.10-dev.11` series,
-   have an esptool license but no firmware license/notice member. Their public
-   release assets also lack standalone `FIRMWARE-LICENSES.txt`. Do not mistake
-   the desktop tool's GPL license for firmware attribution. Each historical
-   image needs a matching notice addendum/source-dependency review; the 3.0.2
-   supplement is not proof of its exact old dependency versions.
+The original inspection found eleven old ZIPs without firmware notices and
+incomplete newer notices. The follow-up prepared matching companions for all
+**25 public releases**, based on each source tag, its actual MicroLink gitlink
+and the SDK version parsed from the image descriptor. The earliest six
+releases identify **ESP-IDF 5.3.1**; the others identify **5.5.3**. SDK/component
+source notices and runtime profiles were collected for those versions rather
+than reusing a modern notice file as proof of the older image's dependencies.
+The runtime profile follows the SDK/toolchain generation; a historical exact
+compiler/link-map reconstruction is not asserted.
 
-   Affected archive release tags:
-   `v0.1.19-Mattboxx`, `v0.1.19-Mattboxx-1.1`, `v0.1.19-Mattboxx-1.2`,
-   `v0.1.19-Mattboxx-1.3`, `v0.1.19-Mattboxx-1.4`,
-   `v0.1.19-Mattboxx-1.5`, `v0.1.28-Mattboxx-1.6`,
-   `v0.1.29-Mattboxx-1.7`, `v0.1.29-Mattboxx-1.8`,
-   `v0.1.31-Mattboxx-1.10-dev.10`, `v0.1.31-Mattboxx-1.10-dev.11`.
-2. **Published 3.0.2 packages:** the expanded supplement and corrected future
-   generator do not mean the already-published asset/ZIP/browser copy has been
-   replaced. The local `website/firmware/3.0.2/FIRMWARE-LICENSES.txt` and its
-   checksum are corrected, with all binary parts and the installer manifest
-   unchanged; this needs a later authorized Pages deployment. Publish
-   appropriate companion notices and update relevant package
-   checksums/metadata without changing or rebuilding qualified firmware. No
-   release assets or tags were mutated during this local audit.
-3. **GPL esptool corresponding source:** the current executable reports 5.3.1
-   and matches Espressif's official Windows executable by hash. All 24 inspected
-   ZIPs include `ESPTOOL-LICENSE.txt`. They contain no source bundle; current
-   instructions link the generic upstream repository but do not themselves
-   demonstrate a complete applicable GPLv2 section 3 source arrangement.
-   A frozen-tool table inspection additionally identifies Python 3.13 and an
-   OpenSSL DLL, with three embedded notice files (Click and stub-flasher
-   notices). Complete frozen dependency/source/license coverage remains
-   unverified. See [Flashing-tool redistribution](FLASHING-TOOL-LICENSES.md).
-   Do not call this resolved merely by adding another link or inventing a
-   written offer on the owner's behalf.
-4. **Scope boundaries:** a complete file-by-file provenance reconstruction of
-   every historical binary, all opaque vendor objects and frozen desktop tool
-   dependencies was not established. Original upstream source notices are
-   preserved; no full legal-compliance guarantee follows from a successful scan.
+The release pages now provide version-specific firmware notices, provenance,
+legal-download checksums and the source companion for the separately bundled
+esptool. For the ten newest releases (v2.0.2–v3.0.2) the firmware addendum,
+desktop-tool notices, provenance and checksum files were moved after
+publication from release assets to [licenses/releases](../licenses/releases/)
+in this repository, byte for byte: 2.x firmware in the field reads the ten
+newest releases into a 256 KiB buffer and the extra assets had grown that list
+to 263 KiB (about 202 KiB afterwards). The addendum and tool notices also stay
+inside each release's `WITH-NOTICES.zip`; the ZIP and the esptool source
+download stay attached to every release. **24 additional `WITH-NOTICES.zip` archives** include the expanded
+firmware and desktop-tool notices and exact source download/hash. Original
+ZIPs, binary images, release tags and their checksums are retained unchanged.
+The current README/download button points at the new 3.0.2 legal-material ZIP.
+The browser installer still serves the same four binary parts and manifest;
+only its notice text/checksum is expanded.
+
+The esptool source arrangement is no longer merely a generic upstream link:
+a same-place source download supplies 104 pinned upstream source archives,
+build scripts and original legal material, including the **GPL legacy flasher
+stub** that the initial frozen-table inspection had not established. Source
+correspondence was checked for 617 Python modules, both native dependency
+wheels and the Python DLL. Details and scope are in
+[Flashing-tool redistribution](FLASHING-TOOL-LICENSES.md). No written source
+offer was invented and no private signing key was distributed.
+
+Publication evidence is recorded in
+[distribution-remediation.json](../licenses/distribution-remediation.json).
+It identifies the additive assets and their hashes. Original asset IDs, sizes
+and digests were compared before/after the repairs. The initial eleven
+missing-notice archives are retained for historical integrity; users receive
+complete materials from the documented corrected downloads and companions.
+
+## Remaining verification boundaries
+
+No new specific notice/source omission is established within this inspected
+set after the documented repairs. This is not an absolute legal-compliance
+opinion. Historical per-symbol provenance, exact old compiler flags, all
+opaque vendor-object ownership, artwork/title and trademark clearance were
+not independently certified. SDK notice inventories deliberately include
+unlinked/disabled material. Microsoft runtime components retain their own
+terms. The desktop executable was not rebuilt byte for byte; the supplied
+source and build materials do not claim private signing keys or a new owner
+source-offer commitment. Future executable/dependency changes require a new
+review; these results do not automatically cover them.
 
 ## License-obligation checklist
 
 | License / material | Evidence and handling | Status |
 |---|---|---|
-| MIT: original firmware, MicroLink, X25519, other MIT components | Original text/copyright retained; fork relationships corrected; binary generator carries notices | Source verified; historical binary repairs remain |
-| BSD-3-Clause: wireguard_lwip, lwIP/mDNS, Lit | Full terms/copyright/disclaimer preserved or supplemented; no implied endorsement | Current legal material corrected; publication still required |
+| MIT: original firmware, MicroLink, X25519, other MIT components | Original text/copyright retained; fork relationships corrected; binary generator carries notices | Preserved; matching distribution companions supplied |
+| BSD-3-Clause: wireguard_lwip, lwIP/mDNS, Lit | Full terms/copyright/disclaimer preserved or supplemented; no implied endorsement | Corrected notices and binary companions supplied |
 | Apache-2.0: SDK, local DHCP copies, website tools | License/NOTICE collection and source modification markers; no relicensing | Reviewed for the identified components |
-| GCC runtime / libstdc++ and newlib | Actual toolchain license and exception texts included; not mislabeled root MIT | Supplement prepared |
-| GPL-2.0-or-later: separate esptool executable | License present, official current binary hash verified | Corresponding-source/dependency closure OPEN |
+| GCC runtime / libstdc++ and newlib | Actual toolchain license and exception texts included; not mislabeled root MIT | Version-specific supplements supplied |
+| GPL-2.0-or-later: separate esptool executable | License present, official current binary hash verified | Pinned source access supplied; scope documented |
 | Branding / tips | Independent edition and recipient distinction; no added MIT restrictions | Preserved, no absolute trademark/title opinion |
 
 ## Validation records
@@ -178,9 +195,8 @@ cover the added legal links. No firmware build, flash or hardware test is
 needed for comment/document/packaging-only changes.
 
 Detailed downloads, hashes, parsed archive tables and command outputs are
-kept in ignored `build/license-audit/`. New release publication still requires
-explicit authority. This audit must not be presented as fully closed while
-the distribution/source items above remain open.
+kept in ignored `build/license-audit/`. The owner authorized the additive distribution repair. This review does not
+replace the verification boundaries above or authorize unrelated releases.
 
 Executed offline results (2026-10-26):
 
@@ -189,12 +205,15 @@ Executed offline results (2026-10-26):
 | `python tools/test_license_compliance.py` | PASS, 8 cases |
 | `python tools/test_release_packaging.py` | PASS, 8 cases |
 | `python tools/test_v2_packaging.py` | PASS, 6 cases |
+| `python tools/test_license_remediation.py` | PASS, 8 cases: nested/flat ZIPs, checksums, unchanged payloads, wrong source/executable, tampered source, malformed image metadata |
 | `python tools/test_easy_install.py` | PASS, POSIX shell with stub esptool; no device access |
 | `python tools/build_site.py --check` | PASS, 25 pages + 404 and 8 redirects; links/SEO/accessibility structure |
 | `python tools/test_site_seo.py` / `test_site_presentation.py` | PASS |
 | CFF against the official 1.2.0 JSON Schema | PASS (schema and validator stored in ignored audit output) |
 | Two modified DHCP files, original versus current C token streams | PASS, identical non-comment tokens |
 | Saved 3.0.2 metadata and runtime notice collection; exact BIN/ELF hashes | PASS; provenance beside the supplement |
+| Actual corrected archives | PASS, 24 ZIPs retain every original image/executable/script byte; original ZIPs untouched |
+| Desktop-source correspondence | PASS, 617 Python modules; official native-extension wheels and Python DLL; source archive internal checksums |
 | Main tracked/untracked content, artifacts and reachable history scan | PASS, no findings |
 | MicroLink history scan | Scanner reports 9 existing example-key placeholders, manually classified as all-X examples; scanner was not relaxed and history was not rewritten |
 
@@ -211,12 +230,8 @@ the original [MIT terms](https://opensource.org/license/mit),
 and the copied GCC runtime exception. A license-family label alone does not
 replace any component's original copyright, notice or license text.
 
-Changes are local until explicitly authorized for publication. Apply this
-scoped audit commit to the current development/public-source branch only after
-reviewing intervening changes. Do not replace qualified BIN files, rewrite
-historical tags, or merge archived private history. After source/Pages approval,
-publish the notice-only browser update and current companion notices; review
-each of the eleven older archives against its own recorded dependencies.
-Resolve the desktop-tool corresponding-source arrangement separately before
-claiming full binary redistribution compliance. No new source offer, relicensing
-or upstream approval requirement is created by this handoff.
+The owner authorized publication of these scoped corrections. Preserve all
+original artifacts and tags when integrating later firmware work. Future
+packages must carry the corresponding notices and, when bundling esptool,
+the validated source companion. Do not substitute an independently rebuilt
+image or merge archived/private history for a legal-material update.

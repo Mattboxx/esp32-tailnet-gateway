@@ -21,3 +21,23 @@ of the desktop esptool executable. See
 
 Future packages generate notices directly from their own exact build metadata;
 do not reuse this version's supplement as proof for an unrelated image or SDK.
+
+## Desktop-tool source and distribution repairs
+
+`esptool-5.3.1-source-index.json` pins the upstream source archives supplied
+with the public esptool corresponding-source download. The module verification
+record identifies the 617 checked Python modules. This does not relicense
+esptool, Windows components, or the firmware under a common license.
+See [desktop-tool redistribution](../docs/FLASHING-TOOL-LICENSES.md) for the
+source download, reproduction command and the packaging `--tool-sources` input.
+
+`tibs-0.5.7/` holds the Maturin-generated `tibs/__init__.py` wrapper of the
+frozen executable (absent from the tibs sdist), with its license and provenance.
+
+`releases/` holds four small legal companions of the ten newest releases that
+are kept in the repository instead of as release assets; see
+[releases/README.md](releases/README.md).
+
+`distribution-remediation.json` records the additive legal-material assets
+published with historical releases. Original images and ZIPs retain their
+identities/checksums; `WITH-NOTICES.zip` downloads add legal documentation.

@@ -155,6 +155,11 @@ def flash_layout() -> dict[str, int]:
             'otadata': layout['otadata'], 'ota_0': layout['ota_0']}
 
 
+def easy_install_asset():
+    suffix = '-WITH-NOTICES' if NEXT_VERSION == '3.0.2' else ''
+    return f'ESP32-Tailnet-Gateway-v{NEXT_VERSION}-EASY-INSTALL-Windows-macOS-Linux{suffix}.zip'
+
+
 def firmware_manifest():
     path = FIRMWARE_DIR / NEXT_VERSION / 'manifest.json'
     if not path.exists():
@@ -245,6 +250,7 @@ def render(page: Page, pages: list[Page]) -> str:
         f'<li><a href="{page.rel(p.slug)}"{" aria-current=\"page\"" if p is page else ""}>{html.escape(p.nav)}</a></li>'
         for p in nav_pages)
     body = page.body.replace('{{root}}', page.rel('')).replace('{{repo}}', REPO_URL)
+    body = body.replace('{{easy_install_asset}}', easy_install_asset())
     body = (body.replace('{{next_version}}', NEXT_VERSION).replace('{{stable_tag}}', STABLE_TAG)
                 .replace('{{stable_version}}', STABLE_VERSION).replace('{{future_repo}}', FUTURE_REPO_URL))
     if '{{flasher}}' in body:

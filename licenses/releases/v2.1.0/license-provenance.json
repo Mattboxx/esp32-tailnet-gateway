@@ -1,0 +1,18 @@
+{
+  "tag": "v2.1.0",
+  "source_commit": "29dc8f15c6842141637ccf8510455c6f04ee15d9",
+  "microlink_gitlink": "fa3153b6892d00d0c9a9c42f11c8f1a89c6ea910",
+  "sdk_version": "5.5.3",
+  "images": [
+    {
+      "archive": null,
+      "member": "firmware.bin",
+      "sha256": "6072ee1eda1ef2dcd42c9f13f38edab742f4669bbc3d3ed9ac14ecbfd5ee3d7e",
+      "version": "2.1.0",
+      "project": "esp32_tsr",
+      "sdk": "5.5.3",
+      "elf_sha256": "2bdb8d8da501aa9e299076e38e26fabde4ad6a0c313ab993cfb1e74763b4d478"
+    }
+  ],
+  "notice_sha256": "e5776779f5824671993d80aa07f2fb848647361eb22068f21431e9c903bc3525"
+}
