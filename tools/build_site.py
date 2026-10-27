@@ -305,6 +305,7 @@ def render(page: Page, pages: list[Page]) -> str:
     layout = 'with-sidebar' if sidebar else 'plain'
     image = SITE_URL + 'assets/social-preview.png'
     style_version = hashlib.sha256((SRC / 'assets/site.css').read_bytes()).hexdigest()[:12]
+    script_version = hashlib.sha256((SRC / 'assets/site.js').read_bytes()).hexdigest()[:12]
     return f'''<!doctype html>
 <html lang="{page.lang}">
 <head>
@@ -345,7 +346,7 @@ def render(page: Page, pages: list[Page]) -> str:
     <div class="tools">
       <button class="search-open icon" type="button" aria-haspopup="dialog" aria-label="Search" title="Search (/)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg></button>
       <button class="theme icon" type="button" aria-label="Toggle colour theme" title="Theme"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" class="fill"/></svg></button>
-      <a class="kofi" href="https://ko-fi.com/mattboxx" title="Support me on Ko-fi" aria-label="Support me on Ko-fi"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 7.5 2.8C19.5 15.4 12 20 12 20z"/></svg><span>Support me! <i class="emoji">❤️</i></span></a>
+      <a class="kofi" href="https://ko-fi.com/mattboxx" data-support-open aria-haspopup="dialog" aria-controls="support-dialog" title="Choose GitHub Sponsors or Ko-fi" aria-label="Support Mattboxx Edition"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 7.5 2.8C19.5 15.4 12 20 12 20z"/></svg><span>Support me! <i class="emoji">❤️</i></span></a>
       <a class="gh icon" href="{REPO_URL}" aria-label="GitHub" title="Source on GitHub"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="fill" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg></a>
       <button class="menu icon" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
     </div>
@@ -370,11 +371,24 @@ def render(page: Page, pages: list[Page]) -> str:
     <p><strong>{NAME} — Mattboxx Edition.</strong> {TAGLINE}</p>
     <p>Community firmware based on Csontikka's esp32-tailscale-subnet-router and microlink. Not an official Tailscale client; not affiliated with Tailscale Inc., the Headscale project or Espressif. Tailscale, Headscale, WireGuard and ESP32 are trademarks of their respective owners.</p>
     <p><a href="{REPO_URL}">Source</a> · <a href="{page.rel('security/')}">Security</a> · <a href="{page.rel('about/')}">About and credits</a> · MIT licence · No analytics or tracking.</p>
-    <p>Support the project (optional): the Mattboxx edition on <a href="https://ko-fi.com/mattboxx">Ko-fi</a>, the original author on <a href="https://github.com/sponsors/Csontikka">GitHub Sponsors</a>.</p>
+    <p>Support the project (optional): <a href="https://ko-fi.com/mattboxx" data-support-open aria-haspopup="dialog" aria-controls="support-dialog">choose how to support Mattboxx Edition</a>. Support the original author separately on <a href="https://github.com/sponsors/Csontikka">GitHub Sponsors</a>.</p>
+    <noscript><p>Support Mattboxx directly: <a href="https://github.com/sponsors/Mattboxx">GitHub Sponsors</a> or <a href="https://ko-fi.com/mattboxx">Ko-fi</a>.</p></noscript>
   </div>
 </footer>
+<dialog class="support-dialog" id="support-dialog" aria-labelledby="support-title" aria-describedby="support-description">
+  <div class="support-heading">
+    <h2 id="support-title">Support Mattboxx Edition</h2>
+    <button class="support-close" type="button" aria-label="Close support choices">✕</button>
+  </div>
+  <p id="support-description">Enjoying the gateway? Choose where to leave a tip or support its development.</p>
+  <div class="support-options">
+    <a class="support-provider" href="https://github.com/sponsors/Mattboxx" target="_blank" rel="noopener noreferrer" autofocus><strong>GitHub Sponsors</strong><span>Support via GitHub <span aria-hidden="true">↗</span></span></a>
+    <a class="support-provider" href="https://ko-fi.com/mattboxx" target="_blank" rel="noopener noreferrer"><strong>Ko-fi</strong><span>Leave a tip on Ko-fi <span aria-hidden="true">↗</span></span></a>
+  </div>
+  <p class="support-note">Entirely optional. The firmware and all features stay free. Payments are handled on your chosen provider's website.</p>
+</dialog>
 <script src="{page.rel('search-index.js')}" defer></script>
-<script src="{page.rel('assets/site.js')}" defer></script>
+<script src="{page.rel('assets/site.js')}?v={script_version}" defer></script>
 </body>
 </html>
 '''
