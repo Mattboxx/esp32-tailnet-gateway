@@ -40,6 +40,13 @@ pages.unshift('');
   try {
     for (const [width, height] of viewports) {
       const context = await browser.newContext({ viewport: { width, height }, hasTouch: width < 768 });
+      // Never contact payment providers: exercise the real links with local fixtures.
+      const providerUrls = ['https://github.com/sponsors/Mattboxx', 'https://ko-fi.com/mattboxx'];
+      let providerRequests = 0;
+      for (const url of providerUrls) await context.route(url, route => {
+        providerRequests++;
+        return route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Payment provider fixture</title>' });
+      });
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', e => errors.push(String(e)));
@@ -84,6 +91,57 @@ pages.unshift('');
       const hits = await page.locator('#search-results a').count();
       if (!hits) failures.push(`${width}: search found nothing for "headscale"`);
       await page.keyboard.press('Escape');
+      // Donation choice is opt-in, keyboard accessible and fits phone/desktop screens.
+      if (providerRequests) failures.push(`${width}: provider requested before a choice`);
+      const support = page.locator('.tools [data-support-open]');
+      const dialog = page.locator('#support-dialog');
+      await support.click();
+      await dialog.waitFor({ state: 'visible' });
+      const dialogBox = await dialog.boundingBox();
+      if (dialogBox.x < 0 || dialogBox.y < 0 || dialogBox.x + dialogBox.width > width || dialogBox.y + dialogBox.height > height)
+        failures.push(`${width}: support dialog outside viewport`);
+      if (await dialog.evaluate(el => el.scrollWidth > el.clientWidth)) failures.push(`${width}: support dialog horizontal overflow`);
+      for (const url of providerUrls) {
+        const link = dialog.locator(`a[href="${url}"]`);
+        if (await link.count() !== 1 || await link.getAttribute('target') !== '_blank' || !(await link.getAttribute('rel')).includes('noopener'))
+          failures.push(`${width}: wrong support provider destination or opener protection`);
+        const box = await link.boundingBox();
+        if (box.height < 44 || box.width < 44) failures.push(`${width}: small support choice target`);
+      }
+      await page.keyboard.press('Tab');
+      if (!(await page.evaluate(() => !!document.activeElement.closest('#support-dialog')))) failures.push(`${width}: modal focus escaped`);
+      await page.keyboard.press('/');
+      if (await page.isVisible('.search-panel')) failures.push(`${width}: search opens behind support dialog`);
+      if (shots && (width === 390 || width === 1440)) {
+        for (const theme of ['dark', 'light']) {
+          await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), theme);
+          await page.screenshot({ path: path.join(shots, `support-${width}-${theme}.png`) });
+        }
+        await page.evaluate(() => document.documentElement.removeAttribute('data-theme'));
+      }
+      await page.keyboard.press('Escape');
+      await dialog.waitFor({ state: 'hidden' });
+      if (!(await support.evaluate(el => el === document.activeElement))) failures.push(`${width}: support trigger focus not restored`);
+      await support.click();
+      await dialog.locator('.support-close').click();
+      await dialog.waitFor({ state: 'hidden' });
+      await support.click();
+      await page.mouse.click(4, 4);
+      await dialog.waitFor({ state: 'hidden' });
+      if (providerRequests) failures.push(`${width}: opening or dismissing support contacted a provider`);
+      await page.locator('footer [data-support-open]').click();
+      await dialog.waitFor({ state: 'visible' });
+      for (const url of providerUrls) {
+        const [popup] = await Promise.all([context.waitForEvent('page'), dialog.locator(`a[href="${url}"]`).click()]);
+        await popup.waitForLoadState('domcontentloaded');
+        if (popup.url() !== url) failures.push(`${width}: provider choice opened wrong address`);
+        await popup.close();
+      }
+      await dialog.locator('.support-close').click();
+      await page.goto(base + 'about/', { waitUntil: 'load' });
+      await page.locator('main [data-support-open]').click();
+      await dialog.waitFor({ state: 'visible' });
+      await page.keyboard.press('Escape');
       await page.goto(base + 'screenshots/', { waitUntil: 'load' });
       const uiImages = page.locator('main img');
       for (let i = 0; i < await uiImages.count(); i++) {
@@ -98,9 +156,16 @@ pages.unshift('');
       if (errors.length) failures.push(`${width}: console/page errors ${[...new Set(errors)].slice(0, 3).join(' | ')}`);
       await context.close();
     }
+    const noJs = await browser.newContext({ javaScriptEnabled: false });
+    const fallback = await noJs.newPage();
+    await fallback.goto(base);
+    for (const url of ['https://github.com/sponsors/Mattboxx', 'https://ko-fi.com/mattboxx']) {
+      if (!(await fallback.locator(`footer noscript a[href="${url}"]`).isVisible())) failures.push('Support destination missing without JavaScript');
+    }
+    await noJs.close();
   } finally {
     await browser.close(); server.close();
   }
   if (failures.length) { console.log(failures.join('\n')); console.log(`FAIL ${failures.length}`); process.exit(1); }
-  console.log(`PASS: website ${pages.length} pages x ${viewports.length} viewports: no page overflow, readable text, 44px touch targets, mobile menu, search, no console errors`);
+  console.log(`PASS: website ${pages.length} pages x ${viewports.length} viewports: layout, navigation, support choice/focus/dismissal/provider links/no-JS fallback, search, no console errors`);
 })();
