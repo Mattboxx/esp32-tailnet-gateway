@@ -27,6 +27,7 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 [![CodeQL](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml)
 [![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailnet-gateway?label=stable&color=0B7A4B)](../../releases/latest)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20the%20Mattboxx%20edition-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/mattboxx)
+[![Support on GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-support%20Mattboxx-0B7A4B?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Mattboxx)
 
 [Website](https://mattboxx.github.io/esp32-tailnet-gateway/) ·
 [Real firmware screenshots](https://mattboxx.github.io/esp32-tailnet-gateway/screenshots/) ·
@@ -474,7 +475,10 @@ Bug reports, hardware reports and guide improvements are welcome. Read
 use the issue templates. Follow the checks in [Testing](docs/TESTING.md) for
 the published source.
 
-Support the Mattboxx edition on Ko-fi — entirely optional:
+Support the Mattboxx edition on GitHub Sponsors or Ko-fi — entirely optional.
+The firmware and all features remain free:
+
+[![Support Mattboxx on GitHub Sponsors](https://img.shields.io/badge/GitHub%20Sponsors-Mattboxx-0B7A4B?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/Mattboxx)
 
 [![Support the Mattboxx edition on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mattboxx)
 

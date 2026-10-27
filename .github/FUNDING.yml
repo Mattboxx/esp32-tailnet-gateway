@@ -1,4 +1,4 @@
 ko_fi: mattboxx
-# Ko-fi supports the Mattboxx custom edition; the destinations below support upstream.
-github: Csontikka
+# Mattboxx destinations support this edition; Csontikka destinations support upstream.
+github: [Mattboxx, Csontikka]
 buy_me_a_coffee: Csontikka

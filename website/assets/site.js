@@ -1,7 +1,28 @@
-// Navigation, theme toggle, copy buttons and client-side search.
+// Navigation, support choices, theme toggle, copy buttons and client-side search.
 // No network requests: the search index ships as search-index.js.
 (function () {
   var doc = document.documentElement;
+
+  var supportDialog = document.getElementById('support-dialog'), supportOpener = null;
+  if (supportDialog && typeof supportDialog.showModal === 'function') {
+    document.querySelectorAll('[data-support-open]').forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        // Keep the direct provider link usable if native dialogs are unavailable.
+        e.preventDefault();
+        if (panel && !panel.hidden) closeSearch();
+        supportOpener = link;
+        if (!supportDialog.open) supportDialog.showModal();
+      });
+    });
+    supportDialog.querySelector('.support-close').addEventListener('click', function () { supportDialog.close(); });
+    supportDialog.addEventListener('click', function (e) {
+      var r = supportDialog.getBoundingClientRect();
+      if (e.target === supportDialog && (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom)) supportDialog.close();
+    });
+    supportDialog.addEventListener('close', function () {
+      if (supportOpener) supportOpener.focus();
+    });
+  }
 
   var menu = document.querySelector('.menu'), nav = document.getElementById('site-nav');
   if (menu && nav) menu.addEventListener('click', function () {
@@ -55,6 +76,7 @@
     panel.querySelector('.search-close').addEventListener('click', closeSearch);
     input.addEventListener('input', function () { search(input.value); });
     document.addEventListener('keydown', function (e) {
+      if (supportDialog && supportDialog.open) return;
       if (e.key === 'Escape' && !panel.hidden) closeSearch();
       if (e.key === '/' && panel.hidden && !/input|textarea/i.test((e.target || {}).tagName || '')) { e.preventDefault(); openSearch(); }
     });
