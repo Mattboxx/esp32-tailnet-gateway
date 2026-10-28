@@ -1,5 +1,21 @@
 # Maintainer continuation
 
+## Local notification/UI candidate — 2026-10-28
+
+Local branch `fix/notification-ui-20261028`, based on public Main `72ef753`,
+contains unpublished **3.0.3-dev.1** fixes for short-outage notification noise,
+queue identity/task-allocation recovery, notification drafts/refresh and the
+firmware donor choice. Read ignored `build/notification-ui/CHECKPOINT.md` in
+the isolated worktree for current commit, actual tests/build and remaining
+hardware qualification. Do not install/push/release this candidate without
+the applicable explicit authorization. The exact published 3.0.2 image below
+remains the stable artifact; do not replace or relabel it.
+
+The owner merged presentation PR #1 and published Pages (workflow
+40565493169 succeeded); do not repeat that completed website work. Keep its
+Sponsors/Ko-fi choices when integrating this branch. All 42 requirements,
+private backups, COMMUNITY-POSTS and other dirty/unpushed work are preserved.
+
 Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v3.0.2**;
 the 2.1.0 migration bridge remains available for 2.x installations.
 Follow [Release availability](PRESENTATION-STATUS.md) for public downloads.

@@ -50,3 +50,31 @@ a failed second write could leave the record changed although the page
 reported an error. From the next release the record decides; `ntf_mlv` is
 still written after it, only so that a rollback to 3.0.1 keeps the choice, and
 3.0.0/3.0.1 records migrate. See [NVS keys](NVS-KEYS.md).
+# Candidate change: brief connectivity interruptions
+
+The unpublished 3.0.3-dev.1 candidate waits for **60 continuous seconds** before
+queuing a Telegram or email warning about Wi-Fi or Tailnet connectivity.
+Short drops and their corresponding recoveries do not create a delayed
+notification. Local event history remains controlled by its existing enable
+switch and rate/queue limits. Wi-Fi and Tailnet have independent windows;
+other uplink events such as DDNS errors cannot reset them. Other warning/error
+types, security/crash events and explicit tests retain their existing policy.
+
+Only one pending warning is created for an ongoing incident. If connectivity
+returns while it is queued, its text becomes a duration-based recovery summary.
+If transport retries expired during a long outage, an undelivered channel can
+receive the summary after recovery. A request already accepted by an external
+server cannot be recalled; network acknowledgement loss can still produce
+duplicates during retries. This is not an exactly-once delivery guarantee.
+
+The existing history task performs the bounded poll: no new task, timer, socket
+or NVS record is added for the grace period. The queue/state costs a small
+additional PSRAM/static allocation; compiled sizes are recorded privately,
+and runtime heap/stack impact still needs actual candidate hardware testing.
+When task creation fails, the existing queue is retried after 30 seconds with
+exponential backoff capped at five minutes. Persisted settings and channel
+selections retain the 3.0.2 schema and rollback format.
+
+The Automation Refresh button updates Telegram/email delivery status too.
+Status polls preserve drafts and independently saved cards, and an older
+response cannot replace a newer one. The token/password remains write-only.
