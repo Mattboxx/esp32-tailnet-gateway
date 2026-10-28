@@ -659,7 +659,7 @@ static void enqueue_locked(uint8_t kind, uint8_t level, uint8_t channels, uint32
     n->kind = kind; n->level = level; n->channels = channels; n->wall = wall;
     if (++s_note_id == 0) ++s_note_id;
     n->id = s_note_id;
-    snprintf(n->text, sizeof n->text, "%s", text);
+    snprintf(n->text, sizeof n->text, "%.*s", (int)sizeof n->text - 1, text);
     s_count++;
     start_worker_locked((uint32_t)(esp_timer_get_time() / 1000000));
 }
@@ -716,7 +716,7 @@ static void link_recovered_locked(unsigned link, uint32_t now)
         for (unsigned i = 0; i < s_count; ++i) {
             note_t *n = &s_queue[(s_head + i) % QUEUE_MAX];
             if (n->link == link && n->episode == s->episode) {
-                snprintf(n->text, sizeof n->text, "%s", text);
+                snprintf(n->text, sizeof n->text, "%.*s", (int)sizeof n->text - 1, text);
                 n->wall = notify_wall(); n->attempts = 0;
                 if (++s_note_id == 0) ++s_note_id;
                 n->id = s_note_id;   /* an in-flight old warning cannot discard the new summary */
