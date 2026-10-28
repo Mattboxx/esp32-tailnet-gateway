@@ -1,6 +1,7 @@
 /* Event and metrics history; see history.h.
  * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
 #include "history.h"
+#include "esp_system.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -405,8 +406,13 @@ void history_init(void)
     const esp_app_desc_t *app = esp_app_get_description();
     const esp_partition_t *running = esp_ota_get_running_partition();
     const char *reason = have ? entry.reason : "?";
-    bool bad = !strcmp(reason, "PANIC") || strstr(reason, "WDT") || !strcmp(reason, "BROWNOUT");
-    const char *start = !strcmp(reason, "POWERON") ? "Power-on start" : "Started";
+    /* FLASH/ROLLBACK are useful history labels but can override a physical
+     * power-on. Select notification categories from the hardware reset cause. */
+    esp_reset_reason_t raw = esp_reset_reason();
+    bool bad = raw == ESP_RST_PANIC || raw == ESP_RST_INT_WDT || raw == ESP_RST_TASK_WDT ||
+               raw == ESP_RST_WDT || raw == ESP_RST_BROWNOUT || !strcmp(reason, "PANIC") ||
+               strstr(reason, "WDT") || !strcmp(reason, "BROWNOUT");
+    const char *start = raw == ESP_RST_POWERON ? "Power-on start" : "Started";
     history_event(HIST_EV_BOOT, bad ? HIST_ERROR : HIST_INFO, "%s %s from %s, reset %s%s%s", start,
                   app->version, running ? running->label : "?", reason,
                   have && entry.who[0] ? ": " : "", have ? entry.who : "");

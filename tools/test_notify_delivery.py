@@ -13,6 +13,8 @@ src=(ROOT/'main/notify_channels.c').read_text(encoding='utf-8')
 types=src[src.index('typedef struct {uint8_t kind, level, channels, attempts;'):src.index('/* --- notify store (begin) --- */')]
 code=src[src.index('/* --- delivery worker:'):src.index('void notify_channels_enabled')]
 wanted=src[src.index('bool notify_wanted('):src.index('typedef struct {',src.index('bool notify_wanted('))]
+history=(ROOT/'main/history.c').read_text(encoding='utf-8')
+boot=history[history.index('    reset_history_entry_t entry = {0};'):history.index('\n}',history.index('    reset_history_entry_t entry = {0};'))]
 fixture=r'''
 #include <assert.h>
 #include <setjmp.h>
@@ -108,6 +110,41 @@ int main(void){
  free(s_queue);puts("PASS actual notify delivery: independent boot masks, crash bypass, short/daily drops, long outage/recovery, expired retries, lost recovery event, DDNS separation, independent Tailnet grace, critical bypass, task OOM retry, queue overflow and in-flight recovery");
 }
 '''
+producer = r'''
+#include <stdarg.h>
+typedef enum {ESP_RST_POWERON,ESP_RST_SW,ESP_RST_PANIC,ESP_RST_INT_WDT,ESP_RST_TASK_WDT,ESP_RST_WDT,ESP_RST_BROWNOUT} esp_reset_reason_t;
+typedef struct {char reason[16],who[32],crash[128];} reset_history_entry_t;
+typedef struct {const char *version;} esp_app_desc_t;
+typedef struct {const char *label;} esp_partition_t;
+typedef int esp_ota_img_states_t;
+#define ESP_OTA_IMG_PENDING_VERIFY 1
+static esp_reset_reason_t raw_cause;
+static const char *recorded_cause="FLASH";
+static esp_reset_reason_t esp_reset_reason(void){return raw_cause;}
+static int reset_history_load(reset_history_entry_t *entry,int n){assert(n==1);snprintf(entry->reason,sizeof entry->reason,"%s",recorded_cause);return 1;}
+static const esp_app_desc_t *esp_app_get_description(void){static const esp_app_desc_t app={"fixture"};return &app;}
+static const esp_partition_t *esp_ota_get_running_partition(void){static const esp_partition_t p={"ota_0"};return &p;}
+static int esp_ota_get_state_partition(const esp_partition_t *p,esp_ota_img_states_t *s){(void)p;(void)s;return ESP_FAIL;}
+void history_event(history_kind_t kind,history_level_t level,const char *format,...){
+ char text[HIST_TEXT_MAX+1];va_list ap;va_start(ap,format);vsnprintf(text,sizeof text,format,ap);va_end(ap);offer(kind,level,0,text);
+}
+static void emit_actual_boot(void){
+''' + boot + r'''
+}
+'''
+boot_cases=r'''
+ /* Actual history producer -> actual sink -> channel selection. History's
+  * FLASH label must not hide a power-on or fault from the hardware reason. */
+ for(unsigned raw=ESP_RST_POWERON;raw<=ESP_RST_BROWNOUT;raw++){
+  reset();raw_cause=(esp_reset_reason_t)raw;recorded_cause="FLASH";s_startup_channels=CH_TG<<2;
+  emit_actual_boot();
+  if(raw==ESP_RST_SW)assert(!s_count);
+  else {assert(s_count==1);assert(s_queue[s_head].level==(raw==ESP_RST_POWERON?HIST_INFO:HIST_ERROR));}
+ }
+ reset();raw_cause=ESP_RST_SW;recorded_cause="POWERON";s_startup_channels=CH_TG<<2;
+ emit_actual_boot();assert(!s_count);
+'''
+fixture=fixture.replace('int main(void){',producer+'\nint main(void){'+boot_cases,1)
 with tempfile.TemporaryDirectory(prefix='notify-delivery-') as directory:
     p=Path(directory)
     (p/'esp_err.h').write_text('#pragma once\ntypedef int esp_err_t;\n#define ESP_OK 0\n#define ESP_FAIL -1\n')

@@ -335,6 +335,7 @@ static const char *TAG = "notify";
  * every queue slot for the delivery wrapper's larger formatting buffer. */
 typedef struct {uint8_t kind, level, channels, attempts; uint32_t wall, id, episode; uint8_t link; char text[HIST_TEXT_MAX + 1];} note_t;
 _Static_assert(HIST_TEXT_MAX + 1 <= NOTIFY_TEXT_MAX, "Delivery must fit a complete history event");
+_Static_assert(sizeof(note_t) <= 200, "Keep the queue within its 3.0.2 memory budget");
 typedef struct {uint32_t sent, failed; bool last_ok; char last_error[192];} channel_status_t;   /* PSRAM */
 
 static SemaphoreHandle_t s_lock;

@@ -6,6 +6,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.3] — 2026-10-28
+
 ### Added
 
 - Separate power-on (blackout recovery) and other-restart notification choices
@@ -19,7 +21,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
-- Telegram/email connectivity warnings wait for a continuous 60-second
+- Telegram/email connectivity warnings default to a continuous 60-second
   Wi-Fi or Tailnet outage. Brief recoveries remain eligible for enabled local history without a
   delayed warning; repeated disconnect events do not restart the window.
   A queued long-outage warning becomes a recovery summary if connectivity
