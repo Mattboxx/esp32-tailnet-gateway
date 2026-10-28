@@ -350,16 +350,20 @@ EXT_RAM_BSS_ATTR static notify_runtime_config_t s_runtime_cfg;
 #define s_link_grace_s (s_runtime_cfg.grace_s)
 #define s_startup_channels (s_runtime_cfg.startup_channels)
 static note_t *s_queue;            /* PSRAM, QUEUE_MAX; exists only while a channel is on */
-static unsigned s_head, s_count, s_dropped;
+/* The queue has eight slots; narrow bounded indices without losing counters. */
+static uint8_t s_head, s_count;
+static unsigned s_dropped;
 static bool s_worker;
 EXT_RAM_BSS_ATTR static channel_status_t s_tg, s_mail;
-static uint32_t s_tokens = 6, s_refill;
+static uint8_t s_tokens = 6;
+static uint32_t s_refill;
 /* Zero means an ordinary event. Links have independent bounded episodes. */
 enum {LINK_NONE, LINK_WIFI, LINK_TAILNET, LINK_END};
 #define LINK_GRACE_DEFAULT_S 60u
 typedef struct {uint32_t since, episode; uint8_t delivered; bool down, announced, suppress_up;} link_state_t;
 EXT_RAM_BSS_ATTR static link_state_t s_links[LINK_END];
-static uint32_t s_note_id, s_worker_retry, s_worker_backoff = 30;
+static uint32_t s_note_id, s_worker_retry;
+static uint16_t s_worker_backoff = 30; /* capped at 300 seconds */
 extern volatile int ap_connect;
 
 /* --- notify store (begin) --- */
