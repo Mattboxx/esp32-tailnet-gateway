@@ -69,6 +69,10 @@ static void up(void){ap_connect=1;offer(HIST_EV_UPLINK,HIST_INFO,0,"Wi-Fi uplink
 static void fill_while_sending(void){for(int i=0;i<QUEUE_MAX;i++)enqueue_locked(HIST_EV_SERVICE,HIST_INFO,CH_TG,0,"new result");}
 static void recover_while_sending(void){clock_s=65;up();}
 int main(void){
+ /* The queue retains the entire maximum producer message. */
+ reset();char complete[HIST_TEXT_MAX+1];memset(complete,'X',HIST_TEXT_MAX);complete[HIST_TEXT_MAX]=0;
+ offer(HIST_EV_SERVICE,HIST_INFO,0,complete);assert(s_count==1&&!strcmp(s_queue[s_head].text,complete));
+ drain();assert(!strcmp(last_text,complete));
  /* Startup is immediate and independently selected even in Problems mode. */
  for(unsigned enabled=0;enabled<4;enabled++)for(unsigned startup=0;startup<16;startup++){
   for(unsigned power=0;power<2;power++){
