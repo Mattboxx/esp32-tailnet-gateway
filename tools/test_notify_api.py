@@ -78,23 +78,24 @@ int main(void){
  for(int failure=1;failure<=2;failure++){
   setup();fail_allocation=failure;assert(post("{}",true)==500&&!applied&&!s_startup_channels);
  }
- /* Actual independent timing endpoint: range/types/auth and durable failure. */
+ fail_allocation=0;allocations=0;
+ /* Actual independent timing operation: range/types/auth and durable failure. */
  const char *timings[]={"{\"connectivity_grace_seconds\":15}","{\"connectivity_grace_seconds\":3600}"};
  for(unsigned i=0;i<2;i++){
   httpd_req_t r={.body=timings[i],.content_len=(int)strlen(timings[i]),.authorized=true};
-  assert(post_timing(&r)==ESP_OK&&r.status==200&&persisted_grace==s_link_grace_s);
+  assert(post_notify(&r)==ESP_OK&&r.status==200&&persisted_grace==s_link_grace_s);
  }
- const char *invalid[]={"{}","{\"connectivity_grace_seconds\":14}","{\"connectivity_grace_seconds\":3601}",
+ const char *invalid[]={"{\"connectivity_grace_seconds\":60,\"telegram\":{}}","{\"connectivity_grace_seconds\":14}","{\"connectivity_grace_seconds\":3601}",
  "{\"connectivity_grace_seconds\":1.5}","{\"connectivity_grace_seconds\":\"60\"}","{\"connectivity_grace_seconds\":null}",
  "{\"connectivity_grace_seconds\":60,\"connectivity_grace_seconds\":90}"};
  for(unsigned i=0;i<sizeof invalid/sizeof *invalid;i++){
   httpd_req_t r={.body=invalid[i],.content_len=(int)strlen(invalid[i]),.authorized=true};
-  assert(post_timing(&r)==ESP_OK&&r.status==400&&s_link_grace_s==3600);
+  assert(post_notify(&r)==ESP_OK&&r.status==400&&s_link_grace_s==3600);
  }
  httpd_req_t denied={.body=timings[0],.content_len=(int)strlen(timings[0])};
- assert(post_timing(&denied)==ESP_FAIL&&!denied.offset);
+ assert(post_notify(&denied)==ESP_FAIL&&!denied.offset);
  timing_error=1;httpd_req_t failure={.body=timings[0],.content_len=(int)strlen(timings[0]),.authorized=true};
- assert(post_timing(&failure)==ESP_OK&&failure.status==500&&s_link_grace_s==3600);
+ assert(post_notify(&failure)==ESP_OK&&failure.status==500&&s_link_grace_s==3600);
  puts("PASS actual notification POST: auth dispatch, independent startup choices, omitted-field preservation, type/duplicate refusal, persistence failures and OOM");
 }
 '''

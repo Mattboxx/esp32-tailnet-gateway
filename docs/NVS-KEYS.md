@@ -21,7 +21,7 @@ guessed configuration. Stable 1.13 does not read any of these keys.
 | `tsn_cfg` | tailnet_names.c, nvs_flags.c | tailnet names and LAN listener as one byte (after 3.0.1) | off |
 | `tsn_en`, `tsn_lan` | tailnet_names.c | 3.0.0/3.0.1 per-switch keys: read only while `tsn_cfg` is absent, written after it for a rollback | off |
 | `notify_cfg` | notify_channels.c | Telegram and email settings, write-only secrets (3.0); candidate adds separate power-on/other-start choices in the last padding byte, same record size/version/CRC range, legacy All-events behavior preserved on migration | both off |
-| `ntf_grace` | notify_channels.c | candidate: common Telegram/email continuous-disconnection threshold, u16, 15–3600 seconds; saved by the independent authenticated timing endpoint | 60 seconds |
+| `ntf_grace` | notify_channels.c | candidate: common Telegram/email continuous-disconnection threshold, u16, 15–3600 seconds; independent timing-only operation on the existing authenticated notify API | 60 seconds |
 | `ntf_mlv` | notify_channels.c | 3.0.1 email event choice; after 3.0.1 written only for a rollback, the `notify_cfg` record decides (choice kept in its former padding bytes, same size/version) | 3.0.1 record: shared choice |
 | `ddns_cfg` | ddns.c | dynamic DNS provider, name, zone, write-only token/URL (3.0.1) | off |
 | `tz` | first_boot.c, web_ui.c | POSIX time zone, set by the setup from the browser (3.0.1) or in System | UTC |

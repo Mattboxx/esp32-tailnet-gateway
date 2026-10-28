@@ -335,7 +335,20 @@ typedef struct {uint32_t sent, failed; bool last_ok; char last_error[192];} chan
 
 static SemaphoreHandle_t s_lock;
 static StaticSemaphore_t s_lock_storage;
-EXT_RAM_BSS_ATTR static notify_config_t s_cfg;   /* PSRAM: no internal RAM while off */
+/* Pack new preferences into the two bytes of alignment slack following the
+ * old 590-byte external-RAM config. No extra internal-RAM settings globals.
+ * This runtime wrapper is never serialized; the legacy NVS layout is intact. */
+typedef struct {
+    notify_config_t config;
+    uint16_t grace_s : 12;
+    uint16_t startup_channels : 4;
+} notify_runtime_config_t;
+_Static_assert(sizeof(notify_config_t) == 590 && sizeof(notify_runtime_config_t) == 592,
+               "Keep notification preferences inside the existing aligned config footprint");
+EXT_RAM_BSS_ATTR static notify_runtime_config_t s_runtime_cfg;
+#define s_cfg (s_runtime_cfg.config)
+#define s_link_grace_s (s_runtime_cfg.grace_s)
+#define s_startup_channels (s_runtime_cfg.startup_channels)
 static note_t *s_queue;            /* PSRAM, QUEUE_MAX; exists only while a channel is on */
 static unsigned s_head, s_count, s_dropped;
 static bool s_worker;
@@ -344,7 +357,6 @@ static uint32_t s_tokens = 6, s_refill;
 /* Zero means an ordinary event. Links have independent bounded episodes. */
 enum {LINK_NONE, LINK_WIFI, LINK_TAILNET, LINK_END};
 #define LINK_GRACE_DEFAULT_S 60u
-static uint16_t s_link_grace_s = LINK_GRACE_DEFAULT_S;
 typedef struct {uint32_t since, episode; uint8_t delivered; bool down, announced, suppress_up;} link_state_t;
 EXT_RAM_BSS_ATTR static link_state_t s_links[LINK_END];
 static uint32_t s_note_id, s_worker_retry, s_worker_backoff = 30;
@@ -647,7 +659,6 @@ static void enqueue_locked(uint8_t kind, uint8_t level, uint8_t channels, uint32
 /* Email has its own event selection since 3.0.1 (stored in the record; see
  * the notify store). */
 static uint8_t s_mail_level = NOTIFY_PROBLEMS;
-static uint8_t s_startup_channels;
 
 static uint8_t channels_locked(void) {return (s_cfg.tg_enabled ? CH_TG : 0) | (s_cfg.mail_enabled ? CH_MAIL : 0);}
 
@@ -788,7 +799,10 @@ void notify_channels_enabled(bool *telegram, bool *email)
 void notify_channels_init(void)
 {
     if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
-    store_load(&s_cfg, &s_mail_level, &s_startup_channels);
+    uint8_t startup = 0;
+    store_load(&s_cfg, &s_mail_level, &startup);
+    s_startup_channels = startup;
+    s_link_grace_s = LINK_GRACE_DEFAULT_S;
     uint16_t grace = 0;
     if (nvs_param_get_u16("ntf_grace", &grace) == ESP_OK && grace >= 15 && grace <= 3600) s_link_grace_s = grace;
     if (s_cfg.tg_enabled || s_cfg.mail_enabled) {xSemaphoreTake(s_lock, portMAX_DELAY); apply_locked(); xSemaphoreGive(s_lock);}
@@ -870,6 +884,8 @@ static int receive(httpd_req_t *req, char *body, size_t cap)
     return received;
 }
 
+static esp_err_t post_timing(httpd_req_t *req, const cJSON *root);
+
 static esp_err_t post_notify(httpd_req_t *req)
 {
     if (web_ui_require_auth(req) != ESP_OK) return ESP_FAIL;
@@ -880,6 +896,14 @@ static esp_err_t post_notify(httpd_req_t *req)
     bool ok = receive(req, body, 1536) > 0;
     cJSON *root = ok ? json_guard_parse(body) : NULL;
     memset(body, 0, 1536);
+    /* Timing-only operation shares the existing authenticated route: no
+     * additional HTTP handler allocation. Mixed saves are rejected below. */
+    if (cJSON_IsObject(root) && cJSON_GetArraySize(root) == 1 &&
+        cJSON_HasObjectItem(root, "connectivity_grace_seconds")) {
+        esp_err_t result = post_timing(req, root);
+        cJSON_Delete(root); memset(next, 0, sizeof *next); free(next); free(body);
+        return result;
+    }
     xSemaphoreTake(s_lock, portMAX_DELAY);
     *next = s_cfg;
     uint8_t mail_level = s_mail_level;
@@ -887,7 +911,8 @@ static esp_err_t post_notify(httpd_req_t *req)
     xSemaphoreGive(s_lock);
     const cJSON *tg = cJSON_GetObjectItemCaseSensitive(root, "telegram"), *mail = cJSON_GetObjectItemCaseSensitive(root, "email");
     const cJSON *events = cJSON_GetObjectItemCaseSensitive(root, "events");
-    ok = cJSON_IsObject(root) && (!tg || cJSON_IsObject(tg)) && (!mail || cJSON_IsObject(mail)) &&
+    ok = cJSON_IsObject(root) && !cJSON_HasObjectItem(root, "connectivity_grace_seconds") &&
+         (!tg || cJSON_IsObject(tg)) && (!mail || cJSON_IsObject(mail)) &&
          (!events || (cJSON_IsString(events) && (!strcmp(events->valuestring, "all") || !strcmp(events->valuestring, "problems"))));
     /* "events" at the top sets both channels (3.0.0 clients); per channel wins. */
     if (ok && events) next->level = mail_level = !strcmp(events->valuestring, "all") ? NOTIFY_ALL : NOTIFY_PROBLEMS;
@@ -970,16 +995,13 @@ static esp_err_t post_notify(httpd_req_t *req)
 
 /* Timing is a separate atomic setting, so saving it cannot partially save
  * credentials or another channel's card. Existing clients leave it untouched. */
-static esp_err_t post_timing(httpd_req_t *req)
+static esp_err_t post_timing(httpd_req_t *req, const cJSON *root)
 {
-    if (web_ui_require_auth(req) != ESP_OK) return ESP_FAIL;
-    char body[96];
-    cJSON *root = receive(req, body, sizeof body) > 0 ? json_guard_parse(body) : NULL;
+    /* Called only by the authenticated timing-only dispatch above. */
     const cJSON *v = cJSON_GetObjectItemCaseSensitive(root, "connectivity_grace_seconds");
     bool valid = cJSON_IsObject(root) && cJSON_IsNumber(v) && v->valuedouble >= 15 &&
                  v->valuedouble <= 3600 && v->valuedouble == (int)v->valuedouble;
     uint16_t grace = valid ? (uint16_t)v->valuedouble : 0;
-    cJSON_Delete(root);
     httpd_resp_set_type(req, "application/json");
     if (!valid) {
         httpd_resp_set_status(req, "400 Bad Request");
@@ -1016,7 +1038,6 @@ esp_err_t notify_channels_register_http(httpd_handle_t server)
     const httpd_uri_t routes[] = {
         {.uri = "/api/notify", .method = HTTP_GET, .handler = get_notify},
         {.uri = "/api/notify", .method = HTTP_POST, .handler = post_notify},
-        {.uri = "/api/notify/timing", .method = HTTP_POST, .handler = post_timing},
         {.uri = "/api/notify/test", .method = HTTP_POST, .handler = post_test}};
     for (unsigned i = 0; i < sizeof routes / sizeof routes[0]; i++) {
         esp_err_t err = httpd_register_uri_handler(server, &routes[i]);
