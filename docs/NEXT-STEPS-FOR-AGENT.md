@@ -5,7 +5,14 @@
 Local branch `fix/notification-ui-20261028`, based on public Main `72ef753`,
 contains unpublished **3.0.3-dev.1** fixes for short-outage notification noise,
 queue identity/task-allocation recovery, notification drafts/refresh and the
-firmware donor choice. Read ignored `build/notification-ui/CHECKPOINT.md` in
+firmware donor choice. A subsequent increment adds independent Telegram/email
+power-on/other-start switches and the same separation for ntfy. Startup bypasses
+connectivity grace and does not prove a mains outage. Telegram/email record size
+stays fixed; independent `ntf_grace` stores 15–3600 seconds (default 60). Local
+log allocation remains exactly unchanged (16 KiB live, 4 KiB RTC) per owner;
+only error context is expanded, without added diagnostic buffers/tasks.
+Telegram has a Destination user id guide. All of this is local candidate code.
+Read ignored `build/notification-ui/CHECKPOINT.md` in
 the isolated worktree for current commit, actual tests/build and remaining
 hardware qualification. Do not install/push/release this candidate without
 the applicable explicit authorization. The exact published 3.0.2 image below

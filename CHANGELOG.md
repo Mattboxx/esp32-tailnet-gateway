@@ -6,6 +6,17 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- Separate power-on (blackout recovery) and other-restart notification choices
+  for Telegram, email and ntfy. First power-up/cable reconnection can also
+  produce a power-on reset; crash and watchdog events remain distinct.
+- Configurable Telegram/email connectivity warning delay (15–3600 seconds,
+  default 60), independent of startup notifications.
+- Notification failures include bounded, credential-free memory and retry
+  diagnostics using existing logs, preserving log buffer sizes and allocation.
+- Destination user id label and expandable Telegram setup guide.
+
 ### Fixed
 
 - Telegram/email connectivity warnings wait for a continuous 60-second

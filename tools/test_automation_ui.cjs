@@ -1326,11 +1326,17 @@ async function main() {
     await f.page.fill('#nt-tg-token', '123456789:AAH4kq_ZXcvbnm-1234567890qwertyuiopASD');
     await f.page.fill('#nt-tg-chat', ' 42 ');
     await f.page.selectOption('#nt-tg-events', 'all');
+    await f.page.locator('#nt-tg-card label.feature-switch', {hasText:'Other restarts'}).click();
+    await f.page.locator('#nt-tg-card label.feature-switch', {hasText:'Blackout:'}).click();
     assert.ok(await f.page.locator('#nt-mail-save').isDisabled());
     await f.page.locator('#nt-tg-save').click();
     await f.page.waitForFunction(() => document.getElementById('nt-tg-badge').textContent === 'On');
     assert.equal(f.state.savedNotify.telegram.token, '123456789:AAH4kq_ZXcvbnm-1234567890qwertyuiopASD');
     assert.equal(f.state.savedNotify.telegram.chat, '42'); assert.equal(f.state.savedNotify.telegram.events, 'all');
+    assert.equal(f.state.savedNotify.telegram.notify_startup, true, 'startup can be saved independently');
+    assert.equal(f.state.savedNotify.telegram.notify_poweron, true);
+    await f.page.locator('#nt-tg-card summary').click();
+    assert.ok(await f.page.locator('#nt-tg-card details a[href="https://t.me/userinfobot"]').isVisible());
     assert.equal(f.state.savedNotify.email, undefined, 'saving Telegram sends nothing about email');
     assert.equal(await f.page.locator('#nt-mail-badge').textContent(), 'Off');
     assert.equal(await f.page.inputValue('#nt-tg-token'), '', 'token cleared from the form');
