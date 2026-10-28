@@ -330,7 +330,11 @@ static const char *TAG = "notify";
 #define CH_TG 1
 #define CH_MAIL 2
 
-typedef struct {uint8_t kind, level, channels, attempts; uint32_t wall, id, episode; uint8_t link; char text[NOTIFY_TEXT_MAX];} note_t;
+/* Producers are history_event (at most HIST_TEXT_MAX bytes) and the short
+ * explicit test. Preserve a complete history message without overallocating
+ * every queue slot for the delivery wrapper's larger formatting buffer. */
+typedef struct {uint8_t kind, level, channels, attempts; uint32_t wall, id, episode; uint8_t link; char text[HIST_TEXT_MAX + 1];} note_t;
+_Static_assert(HIST_TEXT_MAX + 1 <= NOTIFY_TEXT_MAX, "Delivery must fit a complete history event");
 typedef struct {uint32_t sent, failed; bool last_ok; char last_error[192];} channel_status_t;   /* PSRAM */
 
 static SemaphoreHandle_t s_lock;
@@ -352,17 +356,17 @@ EXT_RAM_BSS_ATTR static notify_runtime_config_t s_runtime_cfg;
 static note_t *s_queue;            /* PSRAM, QUEUE_MAX; exists only while a channel is on */
 /* The queue has eight slots; narrow bounded indices without losing counters. */
 static uint8_t s_head, s_count;
-static unsigned s_dropped;
+EXT_RAM_BSS_ATTR static unsigned s_dropped;
 static bool s_worker;
 EXT_RAM_BSS_ATTR static channel_status_t s_tg, s_mail;
 static uint8_t s_tokens = 6;
-static uint32_t s_refill;
+EXT_RAM_BSS_ATTR static uint32_t s_refill;
 /* Zero means an ordinary event. Links have independent bounded episodes. */
 enum {LINK_NONE, LINK_WIFI, LINK_TAILNET, LINK_END};
 #define LINK_GRACE_DEFAULT_S 60u
 typedef struct {uint32_t since, episode; uint8_t delivered; bool down, announced, suppress_up;} link_state_t;
 EXT_RAM_BSS_ATTR static link_state_t s_links[LINK_END];
-static uint32_t s_note_id, s_worker_retry;
+EXT_RAM_BSS_ATTR static uint32_t s_note_id, s_worker_retry;
 static uint16_t s_worker_backoff = 30; /* capped at 300 seconds */
 extern volatile int ap_connect;
 
