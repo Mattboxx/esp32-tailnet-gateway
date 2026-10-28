@@ -354,11 +354,11 @@ EXT_RAM_BSS_ATTR static notify_runtime_config_t s_runtime_cfg;
 #define s_cfg (s_runtime_cfg.config)
 #define s_link_grace_s (s_runtime_cfg.grace_s)
 #define s_startup_channels (s_runtime_cfg.startup_channels)
-static note_t *s_queue;            /* PSRAM, QUEUE_MAX; exists only while a channel is on */
+EXT_RAM_BSS_ATTR static note_t *s_queue; /* task-only state, like the existing config/status */
 /* The queue has eight slots; narrow bounded indices without losing counters. */
-static uint8_t s_head, s_count;
+EXT_RAM_BSS_ATTR static uint8_t s_head, s_count;
 EXT_RAM_BSS_ATTR static unsigned s_dropped;
-static bool s_worker;
+EXT_RAM_BSS_ATTR static bool s_worker;
 EXT_RAM_BSS_ATTR static channel_status_t s_tg, s_mail;
 static uint8_t s_tokens = 6;
 EXT_RAM_BSS_ATTR static uint32_t s_refill;
@@ -667,7 +667,7 @@ static void enqueue_locked(uint8_t kind, uint8_t level, uint8_t channels, uint32
 
 /* Email has its own event selection since 3.0.1 (stored in the record; see
  * the notify store). */
-static uint8_t s_mail_level = NOTIFY_PROBLEMS;
+EXT_RAM_BSS_ATTR static uint8_t s_mail_level = NOTIFY_PROBLEMS;
 
 static uint8_t channels_locked(void) {return (s_cfg.tg_enabled ? CH_TG : 0) | (s_cfg.mail_enabled ? CH_MAIL : 0);}
 
