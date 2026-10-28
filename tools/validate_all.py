@@ -28,8 +28,13 @@ DRIVERS+=['task_reaper']
 DRIVERS+=['first_boot']
 DRIVERS+=['socket_origin','first_boot_reboot','lan_name','lan_mdns','index_variants','resp_headers','notify_store','nvs_flags','nvs_txn','release_list']
 DRIVERS+=['ota_flash']
+DRIVERS+=['notify_delivery']
+DRIVERS+=['notify_ui']
+DRIVERS+=['notify_api']
+DRIVERS+=['log_capture']
 SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT TAILNET PEER_DNS OTA GATEWAY POLICY OPS LEASE HEALTH JSON TRANSFER RETRY CAP DISCOVERY WEB PROFILE SC MQTTSTATE ETH MQTTCMD TASKMEM REAPER FIRSTBOOT ORIGIN FBREBOOT LANNAME MDNS'.split()
 SANITIZERS+=['OTAFLASH','NOTIFY','NVS_FLAGS','NVS_TXN']
+SANITIZERS+=['LOG']
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

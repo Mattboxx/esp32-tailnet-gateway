@@ -46,6 +46,7 @@
 #include "history.h"
 
 static const char *TAG = "ntfy";
+_Static_assert(sizeof(ntfy_integration_config_t) == 428, "Keep the existing configuration RAM footprint");
 static ntfy_integration_config_t s_config;
 static ntfy_integration_status_t s_status;
 static SemaphoreHandle_t s_lock;
@@ -593,7 +594,7 @@ static bool config_equal(const ntfy_integration_config_t *a, const ntfy_integrat
            a->commands_only_when_tailscale_down == b->commands_only_when_tailscale_down &&
            a->allow_direct_mac == b->allow_direct_mac && a->info_enabled == b->info_enabled &&
            a->info_include_details == b->info_include_details &&
-           a->system_events == b->system_events &&
+           a->system_events == b->system_events && a->poweron_events == b->poweron_events &&
            a->failure_delay_seconds == b->failure_delay_seconds &&
            a->poll_interval_seconds == b->poll_interval_seconds &&
            strcmp(a->server, b->server) == 0 && strcmp(a->topic, b->topic) == 0 &&
@@ -714,9 +715,17 @@ static NTFY_NOINLINE esp_err_t send_system_event(const ntfy_integration_config_t
     const char *title = "ESP32 gateway event";
     if (event == NTFY_EVENT_BOOT) {
         const esp_app_desc_t *app = esp_app_get_description();
-        snprintf(message, sizeof message, "Gateway started: firmware %s, reset reason %d.",
-                 app ? app->version : "unknown", (int)esp_reset_reason());
-        title = "ESP32 gateway started";
+        esp_reset_reason_t reason = esp_reset_reason();
+        const char *start = "Gateway started";
+        if (reason == ESP_RST_POWERON) start = "Gateway powered on";
+        else if (reason == ESP_RST_SW) start = "Gateway restarted by software";
+        else if (reason == ESP_RST_BROWNOUT) start = "Gateway restarted after a supply voltage drop";
+        else if (reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT ||
+                 reason == ESP_RST_TASK_WDT || reason == ESP_RST_WDT) start = "Gateway restarted after a fault";
+        /* A power-on is not proof of a mains outage or its duration. */
+        snprintf(message, sizeof message, "%s: firmware %s, reset reason %d.",
+                 start, app ? app->version : "unknown", (int)reason);
+        title = reason == ESP_RST_POWERON ? "ESP32 power-on detected" : "ESP32 gateway restarted";
     } else if (event == NTFY_EVENT_RESTORED) {
         snprintf(message, sizeof message, "Tailscale control connection restored after about %lu s. "
                  "This does not prove every peer or service is reachable.", (unsigned long)outage_seconds);
@@ -746,7 +755,9 @@ static void task_main(void *arg)
         vTaskDelay(pdMS_TO_TICKS(1000));
         ntfy_integration_config_t c;
         snapshot(&c);
-        if (!c.enabled || !c.system_events) ntfy_events_tick(&events, false, false, 0);
+        bool boot_enabled = esp_reset_reason() == ESP_RST_POWERON ? c.poweron_events : c.system_events;
+        ntfy_events_select(&events, c.enabled, boot_enabled, c.system_events);
+        if (!c.enabled || (!boot_enabled && !c.system_events)) ntfy_events_tick(&events, false, false, 0);
         if (!c.enabled || !uplink_connected()) {
             down_seconds = retry_seconds = 0;
             service_retry_reset(&polling);
@@ -764,8 +775,8 @@ static void task_main(void *arg)
         bool restored = alerted && !ts_down;
         if (restored) restored_after = down_seconds;
         if (ts_down) down_seconds++; else { down_seconds = 0; alerted = false; }
-        if (c.system_events) {
-            ntfy_events_tick(&events, true, restored, available_update_id());
+        if (boot_enabled || c.system_events) {
+            ntfy_events_tick(&events, true, c.system_events && restored, c.system_events ? available_update_id() : 0);
             unsigned due = ntfy_events_due(&events);
             if (due) ntfy_events_result(&events, due, send_system_event(&c, due, restored_after) == ESP_OK);
         }
@@ -809,7 +820,11 @@ void ntfy_integration_init(void)
     if (!s_lock) return;
     load_state(&s_config);
     uint8_t system_events = 0;
-    s_config.system_events = nvs_param_get_u8("ntfy_sysev", &system_events) == ESP_OK && system_events == 1;
+    if (nvs_param_get_u8("ntfy_sysev", &system_events) == ESP_OK) {
+        bool other, poweron;
+        ntfy_events_decode(system_events, &other, &poweron);
+        s_config.system_events = other; s_config.poweron_events = poweron;
+    }
     if (xTaskCreate(task_main, "ntfy", NTFY_TASK_STACK_BYTES, NULL, 3, &s_task) != pdPASS) {
         s_task = NULL;
         ESP_LOGE(TAG, "Cannot allocate ntfy worker stack");
@@ -842,12 +857,17 @@ esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *c)
     xSemaphoreTake(s_lock, portMAX_DELAY);
     bool endpoint_changed = strcmp(s_config.server, c->server) != 0
                          || strcmp(s_config.topic, c->topic) != 0;
-    /* Separate key: older firmware ignores it and keeps the main record valid. */
-    bool events_changed = c->system_events != s_config.system_events;
-    esp_err_t e = events_changed ? nvs_param_set_u8("ntfy_sysev", c->system_events ? 1 : 0) : ESP_OK;
+    /* Separate key keeps the main record compatible on rollback. */
+    /* 0=neither, 1=both (legacy system-events), 2=power only, 3=other only.
+     * Old firmware still accepts its core record; 2/3 require reselecting the
+     * optional event choice after a rollback. No endpoint or replay changes. */
+    uint8_t flags = ntfy_events_options(c->system_events, c->poweron_events);
+    uint8_t old_flags = ntfy_events_options(s_config.system_events, s_config.poweron_events);
+    bool events_changed = flags != old_flags;
+    esp_err_t e = events_changed ? nvs_param_set_u8("ntfy_sysev", flags) : ESP_OK;
     if (e != ESP_OK) {xSemaphoreGive(s_lock); return e;}
     e = save_state(c, endpoint_changed ? "" : s_last_event_id);
-    if (e != ESP_OK && events_changed) (void)nvs_param_set_u8("ntfy_sysev", s_config.system_events ? 1 : 0);
+    if (e != ESP_OK && events_changed) (void)nvs_param_set_u8("ntfy_sysev", old_flags);
     if (e == ESP_OK) {
         memcpy(&s_config, c, sizeof *c);
         s_config_generation++;

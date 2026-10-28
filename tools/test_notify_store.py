@@ -57,7 +57,7 @@ static esp_err_t nvs_get_u8(nvs_handle_t h,const char *k,uint8_t *v){(void)h;ass
 static esp_err_t nvs_set_u8(nvs_handle_t h,const char *k,uint8_t v){(void)h;assert(!strcmp(k,"ntf_mlv"));if(fail_set_u8)return ESP_FAIL;legacy=v;has_legacy=1;return ESP_OK;}
 static esp_err_t nvs_commit(nvs_handle_t h){(void)h;return ++commits==fail_commit_at?ESP_FAIL:ESP_OK;}
 static uint32_t esp_rom_crc32_le(uint32_t crc,const uint8_t *p,size_t n){crc=~crc;while(n--){crc^=*p++;for(int i=0;i<8;i++)crc=crc>>1^(0xEDB88320u&-(crc&1));}return ~crc;}
-''' + magic + '\n' + store + r'''
+''' + magic + '\n#define CH_TG 1\n#define CH_MAIL 2\n' + store + r'''
 /* The record exactly as 3.0.0/3.0.1 declared and read it. */
 typedef struct {uint32_t magic, version; notify_config_t config; uint32_t checksum;} old_record_t;
 static int old_reader_accepts(notify_config_t *out){
@@ -73,45 +73,65 @@ static notify_config_t sample(void){notify_config_t c;memset(&c,0,sizeof c);c.tg
     strcpy(c.mail_from,"gw@example.com");strcpy(c.mail_to,"me@example.com");c.level=NOTIFY_PROBLEMS;return c;}
 static void reset(void){has_blob=has_legacy=0;blob_len=0;fail_open=fail_set_blob=fail_set_u8=0;fail_commit_at=0;commits=0;}
 int main(void){
-    notify_config_t c,a=sample(),b=sample();uint8_t lv;
+    notify_config_t c,a=sample(),b=sample();uint8_t lv, startup;
     _Static_assert(sizeof(cfg_record_t)==sizeof(old_record_t),"record size changed: a rollback would read it as damaged");
     _Static_assert(offsetof(cfg_record_t,checksum)==offsetof(old_record_t,checksum),"checksum moved");
     _Static_assert(offsetof(cfg_record_t,mail_level_plus1)>=offsetof(old_record_t,config)+sizeof(notify_config_t),"email choice overlaps the settings");
     /* Nothing stored: everything off. */
-    reset();store_load(&c,&lv);assert(!c.tg_enabled&&!c.mail_enabled&&c.mail_port==465&&lv==NOTIFY_PROBLEMS);
+    reset();store_load(&c,&lv,&startup);assert(!c.tg_enabled&&!c.mail_enabled&&c.mail_port==465&&lv==NOTIFY_PROBLEMS&&startup==0);
     /* One record round trip, both choices. */
-    a.level=NOTIFY_ALL;assert(store_save(&a,NOTIFY_PROBLEMS)==ESP_OK);store_load(&c,&lv);
-    assert(!memcmp(&c,&a,sizeof c)&&c.level==NOTIFY_ALL&&lv==NOTIFY_PROBLEMS);
+    a.level=NOTIFY_ALL;assert(store_save(&a,NOTIFY_PROBLEMS,CH_TG)==ESP_OK);store_load(&c,&lv,&startup);
+    assert(!memcmp(&c,&a,sizeof c)&&c.level==NOTIFY_ALL&&lv==NOTIFY_PROBLEMS&&startup==CH_TG);
     /* A 3.0.0/3.0.1 image after a rollback still reads the same settings. */
     assert(old_reader_accepts(&c)&&!memcmp(&c,&a,sizeof c));
     /* The rollback-only key follows, but never decides: changed by hand, ignored. */
-    assert(has_legacy&&legacy==NOTIFY_PROBLEMS);legacy=NOTIFY_ALL;store_load(&c,&lv);assert(lv==NOTIFY_PROBLEMS);
+    assert(has_legacy&&legacy==NOTIFY_PROBLEMS);legacy=NOTIFY_ALL;store_load(&c,&lv,&startup);assert(lv==NOTIFY_PROBLEMS);
     /* Failed write, commit or open: the previous record stays, the error is reported. */
     b.tg_enabled=false;b.level=NOTIFY_PROBLEMS;
-    fail_set_blob=1;assert(store_save(&b,NOTIFY_ALL)!=ESP_OK);fail_set_blob=0;store_load(&c,&lv);assert(c.tg_enabled&&lv==NOTIFY_PROBLEMS);
-    commits=0;fail_commit_at=1;assert(store_save(&b,NOTIFY_ALL)!=ESP_OK);fail_commit_at=0;
-    fail_open=1;assert(store_save(&b,NOTIFY_ALL)!=ESP_OK);store_load(&c,&lv);assert(!c.tg_enabled&&!c.mail_enabled&&lv==NOTIFY_PROBLEMS);fail_open=0;
+    fail_set_blob=1;assert(store_save(&b,NOTIFY_ALL,CH_TG)!=ESP_OK);fail_set_blob=0;store_load(&c,&lv,&startup);assert(c.tg_enabled&&lv==NOTIFY_PROBLEMS);
+    commits=0;fail_commit_at=1;assert(store_save(&b,NOTIFY_ALL,CH_TG)!=ESP_OK);fail_commit_at=0;
+    fail_open=1;assert(store_save(&b,NOTIFY_ALL,CH_TG)!=ESP_OK);store_load(&c,&lv,&startup);assert(!c.tg_enabled&&!c.mail_enabled&&lv==NOTIFY_PROBLEMS);fail_open=0;
     /* (A failed commit after a completed write is the NVS library's own atomic
      * entry: either record is whole; the checksum decides on load.) */
-    store_load(&c,&lv);assert(lv<=NOTIFY_ALL);
+    store_load(&c,&lv,&startup);assert(lv<=NOTIFY_ALL);
     /* The rollback-only key failing does not fail the save or change the result. */
-    reset();fail_set_u8=1;assert(store_save(&a,NOTIFY_ALL)==ESP_OK);fail_set_u8=0;assert(!has_legacy);
-    store_load(&c,&lv);assert(c.tg_enabled&&lv==NOTIFY_ALL);
-    reset();fail_set_u8=1;commits=0;fail_commit_at=2;assert(store_save(&a,NOTIFY_ALL)==ESP_OK);fail_set_u8=0;fail_commit_at=0;
+    reset();fail_set_u8=1;assert(store_save(&a,NOTIFY_ALL,CH_TG)==ESP_OK);fail_set_u8=0;assert(!has_legacy);
+    store_load(&c,&lv,&startup);assert(c.tg_enabled&&lv==NOTIFY_ALL);
+    reset();fail_set_u8=1;commits=0;fail_commit_at=2;assert(store_save(&a,NOTIFY_ALL,CH_TG)==ESP_OK);fail_set_u8=0;fail_commit_at=0;
     /* Migration: 3.0.0 record (one shared choice), 3.0.1 record + ntf_mlv. */
-    reset();a.level=NOTIFY_ALL;old_writer(&a);store_load(&c,&lv);assert(c.tg_enabled&&lv==NOTIFY_ALL);
-    has_legacy=1;legacy=NOTIFY_PROBLEMS;store_load(&c,&lv);assert(lv==NOTIFY_PROBLEMS);
-    legacy=7;store_load(&c,&lv);assert(lv==NOTIFY_ALL);                 /* invalid legacy value: shared choice */
+    reset();a.level=NOTIFY_ALL;old_writer(&a);store_load(&c,&lv,&startup);assert(c.tg_enabled&&lv==NOTIFY_ALL&&startup==15);
+    has_legacy=1;legacy=NOTIFY_PROBLEMS;store_load(&c,&lv,&startup);assert(lv==NOTIFY_PROBLEMS&&startup==(CH_TG|(CH_TG<<2)));
+    legacy=7;store_load(&c,&lv,&startup);assert(lv==NOTIFY_ALL);                 /* invalid legacy value: shared choice */
     /* Damaged records mean off. */
-    reset();assert(store_save(&a,NOTIFY_ALL)==ESP_OK);blob[20]^=1;store_load(&c,&lv);assert(!c.tg_enabled&&!c.mail_enabled&&lv==NOTIFY_PROBLEMS);
-    reset();assert(store_save(&a,NOTIFY_ALL)==ESP_OK);blob_len-=4;store_load(&c,&lv);assert(!c.tg_enabled);
-    reset();assert(store_save(&a,NOTIFY_ALL)==ESP_OK);{cfg_record_t r;memcpy(&r,blob,sizeof r);r.mail_level_plus1=9;
-        r.checksum=record_checksum(&r);memcpy(blob,&r,sizeof r);}store_load(&c,&lv);assert(!c.tg_enabled);
-    reset();assert(store_save(&a,NOTIFY_ALL)==ESP_OK);{cfg_record_t r;memcpy(&r,blob,sizeof r);r.version=2;
-        r.checksum=record_checksum(&r);memcpy(blob,&r,sizeof r);}store_load(&c,&lv);assert(!c.tg_enabled);
-    reset();notify_config_t bad=sample();strcpy(bad.mail_host,"no host");old_writer(&bad);store_load(&c,&lv);assert(!c.mail_enabled&&!c.tg_enabled);
-    reset();assert(store_save(&a,NOTIFY_ALL+1)==ESP_ERR_INVALID_ARG&&!has_blob);
-    puts("notify store: ok");return 0;
+    reset();assert(store_save(&a,NOTIFY_ALL,CH_TG)==ESP_OK);blob[20]^=1;store_load(&c,&lv,&startup);assert(!c.tg_enabled&&!c.mail_enabled&&lv==NOTIFY_PROBLEMS);
+    reset();assert(store_save(&a,NOTIFY_ALL,CH_TG)==ESP_OK);blob_len-=4;store_load(&c,&lv,&startup);assert(!c.tg_enabled);
+    reset();assert(store_save(&a,NOTIFY_ALL,CH_TG)==ESP_OK);{cfg_record_t r;memcpy(&r,blob,sizeof r);r.mail_level_plus1=9;
+        r.checksum=record_checksum(&r);memcpy(blob,&r,sizeof r);}store_load(&c,&lv,&startup);assert(!c.tg_enabled);
+    reset();assert(store_save(&a,NOTIFY_ALL,CH_TG)==ESP_OK);{cfg_record_t r;memcpy(&r,blob,sizeof r);r.version=2;
+        r.checksum=record_checksum(&r);memcpy(blob,&r,sizeof r);}store_load(&c,&lv,&startup);assert(!c.tg_enabled);
+    reset();notify_config_t bad=sample();strcpy(bad.mail_host,"no host");old_writer(&bad);store_load(&c,&lv,&startup);assert(!c.mail_enabled&&!c.tg_enabled);
+    reset();assert(store_save(&a,NOTIFY_ALL+1,CH_TG)==ESP_ERR_INVALID_ARG&&!has_blob);
+    /* Independent startup choices include explicit opt-out with All events. */
+    for(unsigned mask=0;mask<=15;mask++){
+        reset();assert(store_save(&a,NOTIFY_ALL,(uint8_t)mask)==ESP_OK);
+        store_load(&c,&lv,&startup);assert(startup==mask&&lv==NOTIFY_ALL);
+        assert(old_reader_accepts(&c));
+    }
+    /* 3.0.2 record: mail level present, startup byte still zero. */
+    reset();assert(store_save(&a,NOTIFY_PROBLEMS,0)==ESP_OK);
+    {cfg_record_t r;memcpy(&r,blob,sizeof r);r.startup_flags=0;
+     r.checksum=record_checksum(&r);memcpy(blob,&r,sizeof r);}
+    store_load(&c,&lv,&startup);assert(c.tg_enabled&&startup==(CH_TG|(CH_TG<<2)));
+    /* Nonzero unknown bits, or bits without the presence marker, fail closed. */
+    const uint8_t invalid[]={1,2,3,4,0x90,0xff};
+    for(unsigned i=0;i<sizeof invalid;i++){
+        reset();assert(store_save(&a,NOTIFY_ALL,0)==ESP_OK);
+        cfg_record_t r;memcpy(&r,blob,sizeof r);r.startup_flags=invalid[i];
+        r.checksum=record_checksum(&r);memcpy(blob,&r,sizeof r);
+        store_load(&c,&lv,&startup);assert(!c.tg_enabled&&!c.mail_enabled&&!startup);
+    }
+    reset();assert(store_save(&a,NOTIFY_ALL,16)==ESP_ERR_INVALID_ARG&&!has_blob);
+    puts("notify store: ok (startup masks, migration and rollback included)");return 0;
 }
 '''
 

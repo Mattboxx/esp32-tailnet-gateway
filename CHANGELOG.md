@@ -4,6 +4,42 @@ All notable changes to this project are documented here. The format is
 based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [3.0.3] — 2026-10-28
+
+### Added
+
+- Separate power-on (blackout recovery) and other-restart notification choices
+  for Telegram, email and ntfy. First power-up/cable reconnection can also
+  produce a power-on reset; crash and watchdog events remain distinct.
+- Configurable Telegram/email connectivity warning delay (15–3600 seconds,
+  default 60), independent of startup notifications.
+- Notification failures include bounded, credential-free memory and retry
+  diagnostics using existing logs, preserving log buffer sizes and allocation.
+- Destination user id label and expandable Telegram setup guide.
+
+### Fixed
+
+- Telegram/email connectivity warnings default to a continuous 60-second
+  Wi-Fi or Tailnet outage. Brief recoveries remain eligible for enabled local history without a
+  delayed warning; repeated disconnect events do not restart the window.
+  A queued long-outage warning becomes a recovery summary if connectivity
+  returns before delivery. Other warnings, security events and tests keep
+  their existing event selection.
+- Notification queue completion cannot remove a newer message after the
+  in-flight head was evicted. A failed delivery-task allocation is retried
+  with bounded backoff without requiring another message.
+- Notification status refresh preserves unsaved Telegram/email edits, ignores
+  stale responses and prevents concurrent saves of the same channel. The
+  Automation Refresh button also refreshes these notification cards.
+
+### Changed
+
+- Firmware support buttons open one local choice between Ko-fi and GitHub
+  Sponsors, with both icons and keyboard/mobile support. The separate
+  upstream donation card is removed; original attribution and licenses remain.
+
 ## [3.0.2] — 2026-10-25
 
 A reliability fix, no new features. Settings and the partition layout are
