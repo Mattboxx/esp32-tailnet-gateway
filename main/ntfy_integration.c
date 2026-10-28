@@ -857,7 +857,7 @@ esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *c)
     xSemaphoreTake(s_lock, portMAX_DELAY);
     bool endpoint_changed = strcmp(s_config.server, c->server) != 0
                          || strcmp(s_config.topic, c->topic) != 0;
-    /* Separate key: older firmware ignores it and keeps the main record valid. */
+    /* Separate key keeps the main record compatible on rollback. */
     /* 0=neither, 1=both (legacy system-events), 2=power only, 3=other only.
      * Old firmware still accepts its core record; 2/3 require reselecting the
      * optional event choice after a rollback. No endpoint or replay changes. */
