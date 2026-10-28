@@ -298,6 +298,7 @@ done:
 #include "json_guard.h"
 #include "esp_rom_crc.h"
 #include "lan_name.h"
+#include "tailscale_config.h"
 #include "web_ui.h"
 #include "task_reaper.h"
 #include "esp_attr.h"
@@ -328,7 +329,7 @@ static const char *TAG = "notify";
 #define CH_TG 1
 #define CH_MAIL 2
 
-typedef struct {uint8_t kind, level, channels, attempts; uint32_t wall; char text[NOTIFY_TEXT_MAX];} note_t;
+typedef struct {uint8_t kind, level, channels, attempts; uint32_t wall, id, episode; uint8_t link; char text[NOTIFY_TEXT_MAX];} note_t;
 typedef struct {uint32_t sent, failed; bool last_ok; char last_error[192];} channel_status_t;   /* PSRAM */
 
 static SemaphoreHandle_t s_lock;
@@ -339,6 +340,13 @@ static unsigned s_head, s_count, s_dropped;
 static bool s_worker;
 EXT_RAM_BSS_ATTR static channel_status_t s_tg, s_mail;
 static uint32_t s_tokens = 6, s_refill;
+/* Zero means an ordinary event. Links have independent bounded episodes. */
+enum {LINK_NONE, LINK_WIFI, LINK_TAILNET, LINK_END};
+#define LINK_GRACE_S 60u
+typedef struct {uint32_t since, episode; uint8_t delivered; bool down, announced, suppress_up;} link_state_t;
+EXT_RAM_BSS_ATTR static link_state_t s_links[LINK_END];
+static uint32_t s_note_id, s_worker_retry, s_worker_backoff = 30;
+extern volatile int ap_connect;
 
 /* --- notify store (begin) --- */
 /* One NVS record holds everything, so a save is all or nothing. The email
@@ -562,22 +570,44 @@ static void worker(void *arg)
         when_text(note.wall, when, sizeof when);
         static const char *const mark[] = {"", "\xE2\x9A\xA0\xEF\xB8\x8F ", "\xE2\x9D\x97 "};   /* warning, error */
         snprintf(text, sizeof text, "%s%s%s%s", note.level < 3 ? mark[note.level] : "", when, when[0] ? " " : "", note.text);
-        uint8_t done = 0;
+        uint8_t done = 0, delivered = 0;
         if ((note.channels & CH_TG) && c.tg_enabled) {
             why[0] = 0; esp_err_t err = telegram(&c, text, why, sizeof why); record(&s_tg, err, why);
-            if (!err) done |= CH_TG;
+            if (!err) {done |= CH_TG; delivered |= CH_TG;}
         } else done |= CH_TG;
         if ((note.channels & CH_MAIL) && c.mail_enabled) {
             why[0] = 0; esp_err_t err = email(&c, text, why, sizeof why); record(&s_mail, err, why);
-            if (!err) done |= CH_MAIL;
+            if (!err) {done |= CH_MAIL; delivered |= CH_MAIL;}
         } else done |= CH_MAIL;
         memset(&c, 0, sizeof c);                          /* secrets off the stack */
         xSemaphoreTake(s_lock, portMAX_DELAY);
-        bool pop = (done & note.channels) == note.channels || ++s_queue[s_head].attempts >= MAX_ATTEMPTS;
-        if (!pop) s_queue[s_head].channels &= (uint8_t)~done;
-        if (pop) {s_head = (s_head + 1) % QUEUE_MAX; s_count--;}
+        if (note.link > LINK_NONE && note.link < LINK_END && s_links[note.link].episode == note.episode)
+            s_links[note.link].delivered |= delivered;
+        /* A producer may have evicted the in-flight head while HTTPS/SMTP
+         * ran without the lock. Never complete or retry a different message. */
+        bool same = s_count && s_queue[s_head].id == note.id;
+        bool pop = !same;
+        if (same) {
+            pop = (done & note.channels) == note.channels || ++s_queue[s_head].attempts >= MAX_ATTEMPTS;
+            if (!pop) s_queue[s_head].channels &= (uint8_t)~done;
+            if (pop) {s_head = (s_head + 1) % QUEUE_MAX; s_count--;}
+        }
         xSemaphoreGive(s_lock);
         if (!pop) vTaskDelay(pdMS_TO_TICKS(RETRY_S * 1000));   /* uplink down or server busy */
+    }
+}
+
+/* Caller holds s_lock. Retry a failed task allocation without requiring a
+ * new event, using the already running history poll and bounded backoff. */
+static void start_worker_locked(uint32_t now)
+{
+    if (s_worker || !s_count || (int32_t)(now - s_worker_retry) < 0) return;
+    s_worker = xTaskCreateWithCaps(worker, "notify", 12288, NULL, 2, NULL, MALLOC_CAP_SPIRAM) == pdPASS;
+    if (s_worker) {s_worker_retry = 0; s_worker_backoff = 30;}
+    else {
+        s_worker_retry = now + s_worker_backoff;
+        s_worker_backoff = s_worker_backoff < 150 ? s_worker_backoff * 2 : 300;
+        ESP_LOGW(TAG, "no memory for the delivery worker; retry in %lu seconds", (unsigned long)(s_worker_retry - now));
     }
 }
 
@@ -589,12 +619,11 @@ static void enqueue_locked(uint8_t kind, uint8_t level, uint8_t channels, uint32
     note_t *n = &s_queue[(s_head + s_count) % QUEUE_MAX];
     memset(n, 0, sizeof *n);
     n->kind = kind; n->level = level; n->channels = channels; n->wall = wall;
+    if (++s_note_id == 0) ++s_note_id;
+    n->id = s_note_id;
     snprintf(n->text, sizeof n->text, "%s", text);
     s_count++;
-    if (!s_worker) {
-        s_worker = xTaskCreateWithCaps(worker, "notify", 12288, NULL, 2, NULL, MALLOC_CAP_SPIRAM) == pdPASS;
-        if (!s_worker) ESP_LOGW(TAG, "no memory for the delivery worker; retried with the next message");
-    }
+    start_worker_locked((uint32_t)(esp_timer_get_time() / 1000000));
 }
 
 /* Email has its own event selection since 3.0.1 (stored in the record; see
@@ -609,18 +638,110 @@ static uint8_t wanted_channels_locked(unsigned kind, unsigned level)
            (s_cfg.mail_enabled && notify_wanted(s_mail_level, kind, level) ? CH_MAIL : 0);
 }
 
+/* Caller holds s_lock. Only delivery is coalesced; local history's own
+ * configuration and bounded event recording remain unchanged. */
+static note_t *limited_locked(uint8_t kind, uint8_t level, uint8_t channels, uint32_t wall,
+                              const char *text, bool count_drop)
+{
+    uint32_t now = (uint32_t)(esp_timer_get_time() / 1000000);
+    if (now - s_refill >= 120) {
+        uint32_t add = (now - s_refill) / 120;
+        s_tokens = s_tokens + add > 6 ? 6 : s_tokens + add;
+        s_refill += add * 120;
+    }
+    if (!channels || !s_queue) return NULL;
+    if (!s_tokens) {if (count_drop) s_dropped++; return NULL;}
+    s_tokens--;
+    enqueue_locked(kind, level, channels, wall, text);
+    return &s_queue[(s_head + s_count - 1) % QUEUE_MAX];
+}
+
+static uint32_t notify_wall(void) {time_t t = time(NULL); return t > 1700000000 ? (uint32_t)t : 0;}
+static unsigned link_kind(unsigned link) {return link == LINK_WIFI ? HIST_EV_UPLINK : HIST_EV_TAILNET;}
+static const char *link_name(unsigned link) {return link == LINK_WIFI ? "Wi-Fi uplink" : "Tailnet connection";}
+
+static void link_recovered_locked(unsigned link, uint32_t now)
+{
+    link_state_t *s = &s_links[link];
+    if (!s->down) return;
+    uint32_t duration = now - s->since;
+    if (duration >= LINK_GRACE_S) {
+        char text[NOTIFY_TEXT_MAX];
+        snprintf(text, sizeof text, "%s recovered after %lu seconds.", link_name(link), (unsigned long)duration);
+        uint8_t queued = 0;
+        for (unsigned i = 0; i < s_count; ++i) {
+            note_t *n = &s_queue[(s_head + i) % QUEUE_MAX];
+            if (n->link == link && n->episode == s->episode) {
+                snprintf(n->text, sizeof n->text, "%s", text);
+                n->wall = notify_wall(); n->attempts = 0;
+                if (++s_note_id == 0) ++s_note_id;
+                n->id = s_note_id;   /* an in-flight old warning cannot discard the new summary */
+                queued |= n->channels;
+            }
+        }
+        /* If retries expired while the uplink was absent, send a useful
+         * recovery summary instead of replaying a stale "still down" alert. */
+        uint8_t missing = wanted_channels_locked(link_kind(link), HIST_WARN) & (uint8_t)~(s->delivered | queued);
+        note_t *n = limited_locked((uint8_t)link_kind(link), HIST_WARN, missing, notify_wall(), text, false);
+        if (n) {n->link = (uint8_t)link; n->episode = s->episode;}
+    }
+    s->down = false; s->suppress_up = true;
+}
+
+/* Match only structured messages produced by main.c/history.c. Other uplink
+ * events (DDNS failures, throughput results) must never cancel an outage. */
+static bool connectivity_offer_locked(unsigned kind, unsigned level, const char *text, uint32_t now)
+{
+    unsigned link = LINK_NONE; bool up = false;
+    if (kind == HIST_EV_UPLINK && level == HIST_WARN && !strncmp(text, "Wi-Fi uplink lost (", sizeof("Wi-Fi uplink lost (") - 1)) link = LINK_WIFI;
+    else if (kind == HIST_EV_UPLINK && level == HIST_INFO && !strncmp(text, "Wi-Fi uplink connected, ", sizeof("Wi-Fi uplink connected, ") - 1)) {link = LINK_WIFI; up = true;}
+    else if (kind == HIST_EV_TAILNET && level == HIST_WARN && !strcmp(text, "Tailnet connection lost")) link = LINK_TAILNET;
+    else if (kind == HIST_EV_TAILNET && level == HIST_INFO && !strcmp(text, "Tailnet connected")) {link = LINK_TAILNET; up = true;}
+    if (!link) return false;
+    link_state_t *s = &s_links[link];
+    if (up) {
+        bool had_outage = s->down || s->suppress_up;
+        link_recovered_locked(link, now); s->suppress_up = false;
+        return had_outage;   /* initial connected info still follows All events */
+    }
+    if (!s->down) {
+        s->down = true; s->announced = false; s->suppress_up = false;
+        s->since = now; s->delivered = 0;
+        if (++s->episode == 0) ++s->episode;
+    }
+    return true;
+}
+
+static void notify_poll(void)
+{
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    uint32_t now = (uint32_t)(esp_timer_get_time() / 1000000);
+    for (unsigned link = LINK_WIFI; link < LINK_END; ++link) {
+        link_state_t *s = &s_links[link];
+        if (!s->down) continue;
+        /* A dropped history line cannot leave a stale down alert pending. */
+        if ((link == LINK_WIFI && ap_connect) || (link == LINK_TAILNET && tailscale_is_connected())) {
+            link_recovered_locked(link, now); continue;
+        }
+        if (!s->announced && now - s->since >= LINK_GRACE_S) {
+            char text[NOTIFY_TEXT_MAX];
+            snprintf(text, sizeof text, "%s unavailable for at least %u seconds.", link_name(link), LINK_GRACE_S);
+            note_t *n = limited_locked((uint8_t)link_kind(link), HIST_WARN,
+                wanted_channels_locked(link_kind(link), HIST_WARN), notify_wall(), text, false);
+            if (n) {n->link = (uint8_t)link; n->episode = s->episode; s->announced = true;}
+        }
+    }
+    start_worker_locked(now);
+    xSemaphoreGive(s_lock);
+}
+
 /* History sink: runs on the history task. */
 static void offer(unsigned kind, unsigned level, uint32_t wall, const char *text)
 {
     xSemaphoreTake(s_lock, portMAX_DELAY);
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000000);
-    /* At most 6 at once, then one every 2 minutes: an outage storm stays short. */
-    if (now - s_refill >= 120) {uint32_t add = (now - s_refill) / 120; s_tokens = s_tokens + add > 6 ? 6 : s_tokens + add; s_refill += add * 120;}
-    uint8_t channels = wanted_channels_locked(kind, level);
-    if (channels) {
-        if (s_tokens) {s_tokens--; enqueue_locked((uint8_t)kind, (uint8_t)level, channels, wall, text);}
-        else s_dropped++;
-    }
+    if (!connectivity_offer_locked(kind, level, text, now))
+        (void)limited_locked((uint8_t)kind, (uint8_t)level, wanted_channels_locked(kind, level), wall, text, true);
     xSemaphoreGive(s_lock);
 }
 
@@ -629,7 +750,8 @@ static void apply_locked(void)
     bool on = s_cfg.tg_enabled || s_cfg.mail_enabled;
     if (on && !s_queue) s_queue = heap_caps_calloc(QUEUE_MAX, sizeof *s_queue, MALLOC_CAP_SPIRAM);
     if (!on && s_queue && !s_worker) {memset(s_queue, 0, QUEUE_MAX * sizeof *s_queue); free(s_queue); s_queue = NULL; s_head = s_count = 0;}
-    history_set_sink(on && s_queue ? offer : NULL);
+    if (!on) memset(s_links, 0, sizeof s_links);
+    history_set_sink_poller(on && s_queue ? offer : NULL, on && s_queue ? notify_poll : NULL);
 }
 
 void notify_channels_enabled(bool *telegram, bool *email)
@@ -656,11 +778,16 @@ static esp_err_t get_notify(httpd_req_t *req)
     notify_config_t c = s_cfg;
     uint8_t mail_level = s_mail_level;
     channel_status_t a = s_tg, b = s_mail;
-    unsigned waiting = s_count, dropped = s_dropped;
+    unsigned waiting = s_count, dropped = s_dropped, pending = 0;
+    for (unsigned i = LINK_WIFI; i < LINK_END; ++i) if (s_links[i].down && !s_links[i].announced) pending++;
+    bool worker_running = s_worker;
     xSemaphoreGive(s_lock);
     cJSON_AddStringToObject(root, "events", c.level == NOTIFY_ALL ? "all" : "problems");
     cJSON_AddNumberToObject(root, "waiting", waiting);
     cJSON_AddNumberToObject(root, "dropped", dropped);
+    cJSON_AddNumberToObject(root, "connectivity_grace_seconds", LINK_GRACE_S);
+    cJSON_AddNumberToObject(root, "pending_connectivity", pending);
+    cJSON_AddBoolToObject(root, "worker_running", worker_running);
     cJSON_AddBoolToObject(tg, "enabled", c.tg_enabled);
     cJSON_AddStringToObject(tg, "events", c.level == NOTIFY_ALL ? "all" : "problems");
     cJSON_AddBoolToObject(tg, "has_token", c.tg_token[0] != 0);

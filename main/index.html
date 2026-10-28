@@ -750,6 +750,17 @@
     }
     .mod-support-button svg { color: #7cb1ff; flex-shrink: 0; }
     .mod-support-provider { color: var(--fg-secondary); font-size: var(--text-xs); }
+
+    .modal.support-dialog { width: min(500px, calc(100vw - 32px)); max-width: 500px; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 0; margin: auto; color: var(--fg-primary); }
+    .support-dialog::backdrop { background: rgba(0,0,0,.65); }
+    .support-dialog .modal-header { justify-content: space-between; }
+    .support-dialog h2 { margin: 0; }
+    .support-dialog .form-hint { color: var(--fg-secondary); }
+    .support-choices { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: var(--sp-3); margin: var(--sp-4) 0; }
+    .support-choice { min-height: 92px; flex-direction: column; gap: var(--sp-2); white-space: normal; text-align: center; }
+    .support-choice svg { flex-shrink: 0; color: var(--accent); }
+    @media(max-width:480px) { .support-choices { grid-template-columns: 1fr; } }
+
     .nav-support { min-height: 40px; padding: 8px 10px; }
     .nav-support-compact { display: none; }
     @media (max-width: 1023px) {
@@ -1888,9 +1899,9 @@
       <a id="nav-support-link" class="btn btn-md mod-support-button nav-support" href="https://ko-fi.com/mattboxx"
          target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"
          title="Optional tips support the Mattboxx mod — all features stay free"
-         aria-label="Support the Mattboxx firmware mod on Ko-fi (opens in a new tab or payment window)">
+         aria-label="Choose how to support Mattboxx Edition" aria-haspopup="dialog" aria-controls="supportDialog">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>
-        <span class="nav-support-label">Support mod</span><span class="nav-support-compact">Ko-fi</span>
+        <span class="nav-support-label">Support project</span><span class="nav-support-compact">Tip</span>
       </a>
       <button class="btn btn-ghost btn-icon" id="refreshBtn" title="Refresh" aria-label="Refresh status">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -4179,43 +4190,45 @@
         </div>
       </div>
 
-      <!-- ===== Original upstream support (separate from the mod) ===== -->
-      <div class="card mt-4">
-        <div class="card-header">
-          <div class="card-header-left">
-            <span class="card-title">Support the original project</span>
-          </div>
-        </div>
-        <div class="card-body">
-          <p style="margin:0 0 0.75rem 0; color:var(--text-secondary); text-align:center;">These contributions support Csontikka, the original upstream author, separately from the Mattboxx mod.</p>
-          <div style="display:flex; align-items:center; justify-content:center; gap:1rem;">
-          <img alt="Csontikka bunny" title="Csontikka" style="width:27px; height:46px; flex:0 0 auto;" src="data:image/png;base64,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">
-          <a href="https://www.buymeacoffee.com/csontikka" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" class="btn btn-secondary btn-md" style="text-decoration:none; flex:0 0 auto;">
-            ☕ Support Csontikka
-          </a>
-          </div>
-        </div>
-      </div>
       </div>
     </div>
 
     <footer class="mod-support" id="mod-support" aria-label="Optional support for the Mattboxx edition">
       <div class="mod-support-copy">
-        <p class="mod-support-title">Enjoying the Mattboxx edition?</p>
-        <p>A small tip helps keep this mod moving — fixes, new features and testing.</p>
+        <p class="mod-support-title">Support Mattboxx Edition</p>
+        <p>Optional tips help maintain and test this firmware.</p>
         <p class="mod-support-note">Always optional. The firmware and all features stay free.</p>
       </div>
       <a id="mod-support-link" class="btn btn-md mod-support-button" href="https://ko-fi.com/mattboxx"
          target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"
-         aria-label="Support the Mattboxx firmware mod on Ko-fi (opens in a new tab or payment window)">
+         aria-label="Choose how to support Mattboxx Edition" aria-haspopup="dialog" aria-controls="supportDialog">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>
-        <span>Leave a small tip</span><span class="mod-support-provider">Ko-fi ↗</span>
+        <span>Choose how to support</span>
       </a>
       <span id="mod-support-fallback" class="form-hint" hidden>
-        Didn't open? <a href="https://ko-fi.com/mattboxx" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Open Ko-fi in a new tab</a>.
+        Open directly: <a href="https://ko-fi.com/mattboxx" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Ko-fi</a>
+        or <a href="https://github.com/sponsors/Mattboxx" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">GitHub Sponsors</a>.
       </span>
     </footer>
   </div><!-- /page-container -->
+
+
+  <dialog id="supportDialog" class="modal support-dialog" aria-labelledby="support-title" aria-describedby="support-description">
+    <div class="modal-header"><h2 class="modal-title" id="support-title">Support Mattboxx Edition</h2>
+      <button class="btn btn-ghost btn-icon" type="button" id="support-close" aria-label="Close support choices">✕</button></div>
+    <div class="modal-body">
+      <p id="support-description">Choose where to support the Mattboxx Edition.</p>
+      <div class="support-choices">
+        <a class="btn btn-secondary support-choice" href="https://ko-fi.com/mattboxx" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer" autofocus>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 5h14v9a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5V5Zm14 1h2a3 3 0 0 1 0 6h-2M2 21h17"/><path d="m10 9-1-1a2 2 0 0 0-3 3l4 4 4-4a2 2 0 0 0-3-3Z" fill="currentColor" stroke="none"/></svg>
+          <span>Ko-fi</span></a>
+        <a class="btn btn-secondary support-choice" href="https://github.com/sponsors/Mattboxx" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">
+          <svg width="28" height="28" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          <span>GitHub Sponsors</span></a>
+      </div>
+      <p class="form-hint">Always optional. The firmware and all features stay free.</p>
+    </div>
+  </dialog>
 
   <!-- ===================================================================
        TOAST CONTAINER
@@ -4354,23 +4367,23 @@
       };
     })();
     I18N.start();
-    // One explicit click, no intermediate prompt or third-party embed.
-    // A top-level HTTPS page keeps provider wallets/browser authentication
-    // available. Never collect card details or report an assumed payment.
+    // Local provider choice. No third-party widget, payment collection or
+    // provider request until an explicit click. Keep direct-link fallback.
     (function () {
+      var dialog = document.getElementById('supportDialog'), opener = null;
+      if (!dialog || typeof dialog.showModal !== 'function') { document.getElementById('mod-support-fallback').hidden = false; return; }
       ['nav-support-link', 'mod-support-link'].forEach(function (id) {
         document.getElementById(id).addEventListener('click', function (event) {
-          if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
-              || window.matchMedia('(max-width: 640px)').matches) return;
-          event.preventDefault();
-          var height = Math.min(760, window.screen.availHeight || 760);
-          window.open('https://ko-fi.com/mattboxx', '_blank',
-                      'popup=yes,width=540,height=' + height + ',noopener,noreferrer');
-          // noopener can return null even for a successful popup, so do not
-          // automatically open a second window. Offer a quiet fallback link.
-          document.getElementById('mod-support-fallback').hidden = false;
+          if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+          event.preventDefault(); opener = this; if (!dialog.open) dialog.showModal();
         });
       });
+      document.getElementById('support-close').addEventListener('click', function () { dialog.close(); });
+      dialog.addEventListener('click', function (event) {
+        var r = dialog.getBoundingClientRect();
+        if (event.target === dialog && (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom)) dialog.close();
+      });
+      dialog.addEventListener('close', function () { if (opener) opener.focus(); });
     })();
     var s_ui_authenticated = false;
     var s_automation_loads = {};
@@ -7083,36 +7096,44 @@
     /* Telegram and email notifications: one card each, saved separately. */
     var ntUi = (function () {
       function el(id) { return document.getElementById(id); }
-      var poll = null;
+      var poll = null, dirty = {tg:false, mail:false}, edits = {tg:0, mail:0}, saving = {tg:false, mail:false}, loadSerial = 0;
       function channelText(c) { return c.sent || c.failed ? 'Sent ' + c.sent + ', failed ' + c.failed + (c.last_error ? ' — last error: ' + c.last_error : '') : 'Nothing sent yet.'; }
       function badge(id, on) { var b = el(id); b.textContent = on ? 'On' : 'Off'; b.className = 'badge ' + (on ? 'badge-success' : 'badge-neutral'); }
       function load() {
+        var serial = ++loadSerial;
         clearTimeout(poll);
         return apiFetch('/api/notify', {cache: 'no-store'}).then(function (r) {
           if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
         }).then(function (d) {
+          if (serial !== loadSerial) return;
           if (!d) { el('nt-tg-card').hidden = el('nt-mail-card').hidden = true; return; }
           var t = d.telegram, m = d.email;
+          if (!t || !m || typeof t.enabled !== 'boolean' || typeof m.enabled !== 'boolean') throw new Error('Invalid notification settings response');
+          if (!dirty.tg) {
           el('nt-tg-enabled').checked = t.enabled; el('nt-tg-chat').value = t.chat; el('nt-tg-events').value = t.events || d.events;
           el('nt-tg-token').value = ''; el('nt-tg-clear').checked = false;
           el('nt-tg-token').placeholder = t.has_token ? 'Saved — leave empty to keep' : '123456789:AA…';
+          }
+          if (!dirty.mail) {
           el('nt-mail-enabled').checked = m.enabled; el('nt-mail-host').value = m.host; el('nt-mail-events').value = m.events || d.events;
           el('nt-mail-port').value = m.port; el('nt-mail-security').value = m.security;
           el('nt-mail-user').value = m.user; el('nt-mail-from').value = m.from; el('nt-mail-to').value = m.to;
           el('nt-mail-pass').value = ''; el('nt-mail-pass').placeholder = m.has_password ? 'Saved — leave empty to keep' : 'Password or app password';
+          }
           el('nt-tg-status').textContent = channelText(t);
           el('nt-mail-status').textContent = channelText(m);
           badge('nt-tg-badge', t.enabled); badge('nt-mail-badge', m.enabled);
-          var waiting = d.waiting ? d.waiting + ' message(s) waiting to be sent.' : null;
+          var waiting = d.waiting ? d.waiting + ' message(s) waiting to be sent.' : d.pending_connectivity ? 'Checking connectivity: alerts wait 60 seconds.' : null;
+          if (d.waiting && d.worker_running === false) waiting += ' Delivery is waiting for resources and retries automatically.';
           el('nt-tg-note').textContent = waiting && t.enabled ? waiting : t.enabled ? 'Ready.' : 'Off.';
           el('nt-mail-note').textContent = waiting && m.enabled ? waiting : m.enabled ? 'Ready.' : 'Off.';
-          el('nt-tg-save').disabled = el('nt-mail-save').disabled = true;
-          if (d.waiting && onPage('automation')) poll = setTimeout(load, 5000);
-        }).catch(function (e) { el('nt-tg-note').textContent = el('nt-mail-note').textContent = 'Unavailable: ' + e.message; });
+          el('nt-tg-save').disabled = saving.tg || !dirty.tg; el('nt-mail-save').disabled = saving.mail || !dirty.mail;
+          if ((d.waiting || d.pending_connectivity) && onPage('automation')) poll = setTimeout(load, 5000);
+        }).catch(function (e) { if (serial === loadSerial) el('nt-tg-note').textContent = el('nt-mail-note').textContent = 'Unavailable: ' + e.message; });
       }
       ['tg', 'mail'].forEach(function (ch) {
         document.querySelectorAll('#nt-' + ch + '-card input, #nt-' + ch + '-card select').forEach(function (i) {
-          i.addEventListener(i.tagName === 'SELECT' || i.type === 'checkbox' ? 'change' : 'input', function () { el('nt-' + ch + '-save').disabled = false; });
+          i.addEventListener(i.tagName === 'SELECT' || i.type === 'checkbox' ? 'change' : 'input', function () { dirty[ch] = true; edits[ch]++; el('nt-' + ch + '-save').disabled = saving[ch]; });
         });
       });
       el('nt-mail-security').addEventListener('change', function () {
@@ -7121,6 +7142,9 @@
         if (this.value === 'tls' && port.value === '587') port.value = '465';
       });
       async function save(ch) {
+        if (saving[ch]) return;
+        saving[ch] = true;
+        var revision = edits[ch];
         var btn = el('nt-' + ch + '-save'); btn.disabled = true;
         var body = ch === 'tg'
           ? {telegram: {enabled: el('nt-tg-enabled').checked, chat: el('nt-tg-chat').value.trim(), token: el('nt-tg-token').value.trim(),
@@ -7132,10 +7156,11 @@
           var r = await apiFetch('/api/notify', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
           var d = await r.json().catch(function () { return {}; });
           if (!r.ok || !d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+          if (revision === edits[ch]) dirty[ch] = false;
           showToast('success', ch === 'tg' ? 'Telegram settings saved' : 'Email settings saved', '', 3000);
           await load();
         } catch (e) { el('nt-' + ch + '-note').textContent = 'Not saved: ' + e.message; btn.disabled = false; }
-        finally { if (ch === 'tg') el('nt-tg-token').value = ''; else el('nt-mail-pass').value = ''; }
+        finally { saving[ch] = false; btn.disabled = !dirty[ch]; if (revision === edits[ch]) { if (ch === 'tg') el('nt-tg-token').value = ''; else el('nt-mail-pass').value = ''; } }
       }
       el('nt-tg-save').addEventListener('click', function () { save('tg'); });
       el('nt-mail-save').addEventListener('click', function () { save('mail'); });
@@ -10893,6 +10918,7 @@
       loadWol();
       loadMqtt();
       loadNtfy();
+      ntUi.load();
     });
 
     document.getElementById('sys-reload').addEventListener('click', loadSystem);
