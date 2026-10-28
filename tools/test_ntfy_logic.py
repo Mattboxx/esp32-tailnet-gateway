@@ -10,6 +10,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/ntfy_integration.c').read_text()
 command = 'static NTFY_NOINLINE void handle_command' + source.split('static NTFY_NOINLINE void handle_command', 1)[1].split('static void collect_line', 1)[0]
+boot = 'static NTFY_NOINLINE esp_err_t send_system_event' + source.split('static NTFY_NOINLINE esp_err_t send_system_event',1)[1].split('static void task_main',1)[0]
 alert = 'static NTFY_NOINLINE esp_err_t send_tailscale_alert' + source.split('static NTFY_NOINLINE esp_err_t send_tailscale_alert', 1)[1].split('static NTFY_NOINLINE uint32_t available_update_id', 1)[0]
 fixture = r'''
 #include <assert.h>
@@ -63,6 +64,16 @@ static void wol_format_mac(const uint8_t mac[6],char out[18]){(void)mac;strcpy(o
 static int homelab_ops_command(const char *s,bool wake){(void)s;(void)wake;return ESP_FAIL;}
 static const char *esp_err_to_name(esp_err_t e) { (void)e; return "fixture error"; }
 '''
+boot_fixture = r'''
+#include "ntfy_events.h"
+typedef enum {ESP_RST_UNKNOWN,ESP_RST_POWERON,ESP_RST_SW,ESP_RST_BROWNOUT,ESP_RST_PANIC,ESP_RST_INT_WDT,ESP_RST_TASK_WDT,ESP_RST_WDT} esp_reset_reason_t;
+typedef struct {const char *version;} esp_app_desc_t;
+typedef struct {char latest_version[32];} ota_remote_state_t;
+static esp_reset_reason_t reset_reason;
+static esp_reset_reason_t esp_reset_reason(void){return reset_reason;}
+static const esp_app_desc_t *esp_app_get_description(void){static const esp_app_desc_t app={"fixture"};return &app;}
+static void ota_remote_get_state(ota_remote_state_t *s){strcpy(s->latest_version,"fixture-next");}
+'''
 tests = r'''
 int main(void) {
     ntfy_integration_config_t c={.info_enabled=true};
@@ -86,13 +97,20 @@ int main(void) {
     assert(s_status.alerts_sent==2&&live==0&&log_reads==0&&allocations==0);
     publish_result=ESP_OK;fail_at=1;assert(send_tailscale_alert(&c)==ESP_OK);
     assert(s_status.alerts_sent==3&&live==0&&log_reads==0&&allocations==0);
+    fail_at=0;publish_result=ESP_OK;
+    const char *descriptions[]={"Gateway started","powered on","restarted by software","supply voltage drop","after a fault","after a fault","after a fault","after a fault"};
+    for(unsigned reason=0;reason<sizeof descriptions/sizeof *descriptions;reason++){
+        reset_reason=(esp_reset_reason_t)reason;
+        assert(send_system_event(&c,NTFY_EVENT_BOOT,0)==ESP_OK&&strstr(published,descriptions[reason]));
+        assert(!strstr(published,"outage lasted")&&!strstr(published,"PRIVATE_LOCAL_LOG_FIXTURE"));
+    }
     puts("PASS: ntfy info failure accounting, alert privacy (no local-log reads/uploads), allocation-free builder and transport failure accounting");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='ntfy-logic-') as directory:
     path = Path(directory)
-    (path / 'test.c').write_text(fixture + command + alert + tests)
-    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror']
+    (path / 'test.c').write_text(fixture + boot_fixture + command + alert + boot + tests)
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-I', str(ROOT/'main')]
     if os.environ.get('NTFY_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     binary = path / ('test.exe' if os.name == 'nt' else 'test')
@@ -105,6 +123,18 @@ EVENTS = r'''
 #include <stdio.h>
 #include "ntfy_events.h"
 int main(void){
+    bool other,power;
+    for(unsigned v=0;v<256;v++){
+      ntfy_events_decode((uint8_t)v,&other,&power);
+      assert(other==(v==1||v==3)&&power==(v==1||v==2));
+      if(v<4)assert(ntfy_events_options(other,power)==v);
+    }
+    for(int boot=0;boot<2;boot++)for(int rest=0;rest<2;rest++){
+      ntfy_events_t selected;ntfy_events_init(&selected);
+      ntfy_events_select(&selected,true,boot,rest);assert(ntfy_events_due(&selected)==(boot?NTFY_EVENT_BOOT:0));
+      ntfy_events_tick(&selected,true,rest,rest?123:0);
+      ntfy_events_select(&selected,false,boot,rest);assert(!ntfy_events_due(&selected));
+    }
     ntfy_events_t s;ntfy_events_init(&s);
     assert(ntfy_events_due(&s)==NTFY_EVENT_BOOT);
     ntfy_events_tick(&s,true,false,0);assert(ntfy_events_due(&s)==NTFY_EVENT_BOOT);

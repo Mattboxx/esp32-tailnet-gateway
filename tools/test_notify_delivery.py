@@ -60,7 +60,7 @@ static int email(const notify_config_t*c,const char*t,char*w,size_t n){(void)c;(
 '''+types+code+r'''
 volatile int ap_connect;
 static void reset(void){free(s_queue);s_queue=calloc(QUEUE_MAX,sizeof *s_queue);s_head=s_count=s_dropped=0;s_worker=false;
- memset(&s_cfg,0,sizeof s_cfg);s_cfg.tg_enabled=true;s_cfg.level=NOTIFY_PROBLEMS;s_mail_level=NOTIFY_PROBLEMS;
+ memset(&s_cfg,0,sizeof s_cfg);s_cfg.tg_enabled=true;s_cfg.level=NOTIFY_PROBLEMS;s_mail_level=NOTIFY_PROBLEMS;s_startup_channels=0;s_link_grace_s=60;
  memset(s_links,0,sizeof s_links);memset(&s_tg,0,sizeof s_tg);memset(&s_mail,0,sizeof s_mail);
  s_tokens=6;s_refill=0;s_worker_retry=0;s_worker_backoff=30;clock_s=0;creates=sends=0;task_ok=1;tg_result=mail_result=0;ap_connect=0;tailnet_up=false;during_send=NULL;}
 static void drain(void){if(!setjmp(exit_worker))worker(NULL);}
@@ -69,6 +69,22 @@ static void up(void){ap_connect=1;offer(HIST_EV_UPLINK,HIST_INFO,0,"Wi-Fi uplink
 static void fill_while_sending(void){for(int i=0;i<QUEUE_MAX;i++)enqueue_locked(HIST_EV_SERVICE,HIST_INFO,CH_TG,0,"new result");}
 static void recover_while_sending(void){clock_s=65;up();}
 int main(void){
+ /* Startup is immediate and independently selected even in Problems mode. */
+ for(unsigned enabled=0;enabled<4;enabled++)for(unsigned startup=0;startup<16;startup++){
+  for(unsigned power=0;power<2;power++){
+  reset();s_cfg.tg_enabled=enabled&CH_TG;s_cfg.mail_enabled=enabled&CH_MAIL;s_startup_channels=startup;
+  offer(HIST_EV_BOOT,HIST_INFO,0,power?"Power-on start fixture, reset POWERON":"Started fixture, reset SW");
+  unsigned expected=enabled&(power?startup>>2:startup);assert(s_count==(expected?1:0));
+  if(expected)assert(s_queue[s_head].channels==expected&&clock_s==0);
+ }}
+ reset();s_cfg.level=NOTIFY_ALL;offer(HIST_EV_BOOT,HIST_INFO,0,"Started fixture");assert(!s_count);
+ reset();offer(HIST_EV_BOOT,HIST_ERROR,0,"Started fixture, reset WDT");assert(s_count==1);
+ reset();offer(HIST_EV_CRASH,HIST_ERROR,0,"Crash fixture");assert(s_count==1);
+ reset();s_startup_channels=CH_TG;lost();clock_s=1;offer(HIST_EV_BOOT,HIST_INFO,0,"Started fixture");
+ assert(s_count==1&&s_queue[s_head].kind==HIST_EV_BOOT&&!s_links[LINK_WIFI].announced);
+ reset();s_link_grace_s=300;lost();clock_s=299;notify_poll();assert(!s_count);clock_s=300;notify_poll();assert(s_count==1);
+ s_link_grace_s=600;clock_s=310;up();assert(s_count==1&&strstr(s_queue[s_head].text,"recovered after 310"));
+ reset();s_link_grace_s=15;lost();clock_s=14;notify_poll();assert(!s_count);clock_s=15;notify_poll();assert(s_count==1);
  reset();lost();clock_s=59;notify_poll();assert(!s_count&&!creates);up();notify_poll();assert(!s_count&&!sends);
  reset();for(int day=0;day<10;day++){clock_s=(uint32_t)day*86400;ap_connect=0;lost();clock_s+=3;up();notify_poll();}assert(!s_count&&!creates);
  reset();lost();clock_s=60;notify_poll();assert(s_count==1&&s_links[LINK_WIFI].announced);notify_poll();lost();notify_poll();assert(s_count==1);drain();assert(s_tg.sent==1);clock_s=300;notify_poll();assert(!s_count);
@@ -85,7 +101,7 @@ int main(void){
  reset();enqueue_locked(HIST_EV_SERVICE,HIST_INFO,CH_TG,0,"old head");during_send=fill_while_sending;drain();assert(s_tg.sent==QUEUE_MAX+1&&s_count==0&&s_dropped==1);
  reset();lost();clock_s=60;notify_poll();during_send=recover_while_sending;drain();assert(strstr(last_text,"recovered after 65")&&s_count==0);
  reset();lost();clock_s=10;s_cfg.tg_enabled=false;apply_locked();assert(!s_queue&&!registered_poll&&!s_links[LINK_WIFI].down);
- free(s_queue);puts("PASS actual notify delivery: short/daily drops, long outage/recovery, expired retries, lost recovery event, DDNS separation, independent Tailnet grace, critical bypass, task OOM retry, queue overflow and in-flight recovery");
+ free(s_queue);puts("PASS actual notify delivery: independent boot masks, crash bypass, short/daily drops, long outage/recovery, expired retries, lost recovery event, DDNS separation, independent Tailnet grace, critical bypass, task OOM retry, queue overflow and in-flight recovery");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='notify-delivery-') as directory:

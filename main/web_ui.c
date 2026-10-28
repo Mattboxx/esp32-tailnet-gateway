@@ -2186,6 +2186,7 @@ static esp_err_t ntfy_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "info_enabled", c.info_enabled);
     cJSON_AddBoolToObject(root, "info_include_details", c.info_include_details);
     cJSON_AddBoolToObject(root, "system_events", c.system_events);
+    cJSON_AddBoolToObject(root, "poweron_events", c.poweron_events);
     cJSON_AddNumberToObject(root, "failure_delay_seconds", c.failure_delay_seconds);
     cJSON_AddNumberToObject(root, "poll_interval_seconds", c.poll_interval_seconds);
     cJSON_AddBoolToObject(root, "last_publish_ok", st.last_publish_ok);
@@ -2227,7 +2228,7 @@ static esp_err_t ntfy_save_handler(httpd_req_t *req)
     NTFY_BOOL("commands_enabled", c.commands_enabled);
     NTFY_BOOL("commands_only_when_tailscale_down", c.commands_only_when_tailscale_down);
     NTFY_BOOL("allow_direct_mac", c.allow_direct_mac); NTFY_BOOL("info_enabled", c.info_enabled);
-    NTFY_BOOL("system_events", c.system_events);
+    NTFY_BOOL("system_events", c.system_events); NTFY_BOOL("poweron_events", c.poweron_events);
     NTFY_BOOL("info_include_details", c.info_include_details);
 #undef NTFY_STRING
 #undef NTFY_BOOL

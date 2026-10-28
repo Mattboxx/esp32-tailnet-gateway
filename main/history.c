@@ -406,7 +406,8 @@ void history_init(void)
     const esp_partition_t *running = esp_ota_get_running_partition();
     const char *reason = have ? entry.reason : "?";
     bool bad = !strcmp(reason, "PANIC") || strstr(reason, "WDT") || !strcmp(reason, "BROWNOUT");
-    history_event(HIST_EV_BOOT, bad ? HIST_ERROR : HIST_INFO, "Started %s from %s, reset %s%s%s",
+    const char *start = !strcmp(reason, "POWERON") ? "Power-on start" : "Started";
+    history_event(HIST_EV_BOOT, bad ? HIST_ERROR : HIST_INFO, "%s %s from %s, reset %s%s%s", start,
                   app->version, running ? running->label : "?", reason,
                   have && entry.who[0] ? ": " : "", have ? entry.who : "");
     esp_ota_img_states_t state;

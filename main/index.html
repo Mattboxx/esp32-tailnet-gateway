@@ -3651,7 +3651,8 @@
           <div class="alert alert-warning" id="ntfy-transport-warning" style="display:none; margin-bottom:var(--sp-4);">Plain HTTP exposes the ntfy token, notifications and remote commands in transit. Prefer <code class="mono">https://</code>.</div>
           <div class="form-group"><label class="form-label" for="ntfy-token">Access token</label><input class="input" type="password" id="ntfy-token" autocomplete="new-password" placeholder="Optional — leave empty to keep"><label class="form-hint" style="display:flex;gap:0.35rem;align-items:center;"><input type="checkbox" id="ntfy-token-clear"> Clear saved token</label></div>
           <div class="grid grid-cols-2">
-            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-system-events"><span class="feature-switch-track" aria-hidden="true"></span><span>System events: gateway started, Tailscale restored after an alert, firmware update available</span></label><span class="form-hint">Off by default. One message per event; updates are only announced, never installed by this option.</span></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-system-events"><span class="feature-switch-track" aria-hidden="true"></span><span>Other restarts, Tailscale restored after an alert, update available</span></label><span class="form-hint">Off by default. Separate from power-on alerts below. Updates are announced, never installed by this option.</span></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-poweron-events"><span class="feature-switch-track" aria-hidden="true"></span><span>Blackout: notify when power returns</span></label><span class="form-hint">Reports a power-on reset, not a crash or software restart. First power-up and reconnecting the cable can look the same. Sent when the uplink is available; outage duration is unknown.</span></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-alerts"><span class="feature-switch-track" aria-hidden="true"></span><span>Alert when internet works but Tailscale stays down</span></label><div class="feature-inline-dependent" id="ntfy-alert-settings"><label class="form-label" for="ntfy-delay" style="margin-top:0.5rem;">Failure delay (seconds)</label><input class="input mono" type="number" id="ntfy-delay" min="15" max="3600" value="120"></div></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-commands"><span class="feature-switch-track" aria-hidden="true"></span><span>Receive remote commands</span></label><div class="feature-inline-dependent" id="ntfy-command-settings"><label class="form-label" for="ntfy-poll" style="margin-top:0.5rem;">Poll interval (seconds)</label><input class="input mono" type="number" id="ntfy-poll" min="5" max="300" value="15"></div></div>
           </div>
@@ -3667,6 +3668,12 @@
         </div>
       </div>
 
+      <div class="card mt-4" id="nt-timing-card">
+        <div class="card-header"><span class="card-title">Telegram &amp; email: connectivity alerts</span></div>
+        <div class="card-body"><div class="form-group"><label class="form-label" for="nt-grace">Continuous disconnection before warning (seconds)</label><input class="input mono" id="nt-grace" type="number" min="15" max="3600" step="1" value="60"><span class="form-hint">15–3600 seconds, default 60. Short Wi-Fi/Tailnet drops and their recoveries are silent. Power-on, other restarts and crash alerts do not wait for this timer. ntfy uses its own failure delay above.</span></div><p class="form-hint" id="nt-timing-note" role="status"></p></div>
+        <div class="form-footer"><button class="btn btn-primary btn-md" id="nt-timing-save" type="button" disabled>Save timing</button></div>
+      </div>
+
       <!-- ===== Telegram ===== -->
       <div class="card mt-4" id="nt-tg-card">
         <div class="card-header">
@@ -3679,8 +3686,11 @@
             <span class="form-hint">Create a bot with @BotFather, send it any message, then use your chat id (for example from @userinfobot).</span></div>
           <div class="grid grid-cols-2">
             <div class="form-group"><label class="form-label" for="nt-tg-token">Bot token</label><input class="input mono" type="password" id="nt-tg-token" autocomplete="new-password" placeholder="123456789:AA… — leave empty to keep"><label class="form-hint" style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="nt-tg-clear"> Forget the saved token</label></div>
-            <div class="form-group"><label class="form-label" for="nt-tg-chat">Chat id</label><input class="input mono" id="nt-tg-chat" placeholder="123456789, -100… for a group, or @channel"></div>
+            <div class="form-group"><label class="form-label" for="nt-tg-chat">Destination user id</label><input class="input mono" id="nt-tg-chat" placeholder="Your numeric Telegram user id">
+              <details class="form-hint"><summary>How do I find my Telegram user id?</summary><ol><li>Open <a href="https://t.me/userinfobot" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">@userinfobot</a> in Telegram, press Start and copy your numeric Id. This is a third-party helper; never share your bot token with it.</li><li>Open your own notification bot and send /start so it can message you.</li><li>Paste your user id here, save and use Send test. Use your personal id, not the bot's id or @username.</li></ol><p>Groups and channels remain supported with their chat id or @channel. Advanced: obtain message.chat.id using your own bot's <a href="https://core.telegram.org/bots/api#getupdates" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">Telegram getUpdates API</a>.</p></details></div>
             <div class="form-group"><label class="form-label" for="nt-tg-events">Send</label><select class="input" id="nt-tg-events"><option value="problems">Warnings and errors (recommended)</option><option value="all">All events</option></select></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-startup"><span class="feature-switch-track" aria-hidden="true"></span><span>Other restarts</span></label><span class="form-hint">Software, update and other normal starts. Crash, watchdog and brownout errors keep their separate warning/error path.</span></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-poweron"><span class="feature-switch-track" aria-hidden="true"></span><span>Blackout: notify when power returns</span></label><span class="form-hint">Reports a power-on reset, separate from a crash. First power-up or reconnecting the cable can look the same. Sent after power returns and the network is available; outage duration is unknown.</span></div>
           </div>
           <p class="form-hint mono" id="nt-tg-status">—</p>
           <p class="form-hint" id="nt-tg-note" role="status">Loading…</p>
@@ -3710,6 +3720,8 @@
             <div class="form-group"><label class="form-label" for="nt-mail-from">From</label><input class="input mono" id="nt-mail-from" placeholder="gateway@example.com"></div>
             <div class="form-group"><label class="form-label" for="nt-mail-to">To</label><input class="input mono" id="nt-mail-to" placeholder="me@example.com"></div>
             <div class="form-group"><label class="form-label" for="nt-mail-events">Send</label><select class="input" id="nt-mail-events"><option value="problems">Warnings and errors (recommended)</option><option value="all">All events</option></select></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-mail-startup"><span class="feature-switch-track" aria-hidden="true"></span><span>Other restarts</span></label><span class="form-hint">Software, update and other normal starts. Crash, watchdog and brownout errors keep their separate warning/error path.</span></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-mail-poweron"><span class="feature-switch-track" aria-hidden="true"></span><span>Blackout: notify when power returns</span></label><span class="form-hint">Reports a power-on reset, separate from a crash. First power-up or reconnecting the cable can look the same. Sent after power returns and the network is available; outage duration is unknown.</span></div>
           </div>
           <p class="form-hint mono" id="nt-mail-status">—</p>
           <p class="form-hint" id="nt-mail-note" role="status">Loading…</p>
@@ -7096,6 +7108,7 @@
     /* Telegram and email notifications: one card each, saved separately. */
     var ntUi = (function () {
       function el(id) { return document.getElementById(id); }
+      var timingDirty = false, timingSaving = false, timingRevision = 0;
       var poll = null, dirty = {tg:false, mail:false}, edits = {tg:0, mail:0}, saving = {tg:false, mail:false}, loadSerial = 0;
       function channelText(c) { return c.sent || c.failed ? 'Sent ' + c.sent + ', failed ' + c.failed + (c.last_error ? ' — last error: ' + c.last_error : '') : 'Nothing sent yet.'; }
       function badge(id, on) { var b = el(id); b.textContent = on ? 'On' : 'Off'; b.className = 'badge ' + (on ? 'badge-success' : 'badge-neutral'); }
@@ -7106,16 +7119,21 @@
           if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
         }).then(function (d) {
           if (serial !== loadSerial) return;
-          if (!d) { el('nt-tg-card').hidden = el('nt-mail-card').hidden = true; return; }
+          if (!d) { el('nt-timing-card').hidden = el('nt-tg-card').hidden = el('nt-mail-card').hidden = true; return; }
+          if (!timingDirty) el('nt-grace').value = d.connectivity_grace_seconds || 60;
           var t = d.telegram, m = d.email;
           if (!t || !m || typeof t.enabled !== 'boolean' || typeof m.enabled !== 'boolean') throw new Error('Invalid notification settings response');
           if (!dirty.tg) {
           el('nt-tg-enabled').checked = t.enabled; el('nt-tg-chat').value = t.chat; el('nt-tg-events').value = t.events || d.events;
+          el('nt-tg-poweron').checked = t.notify_poweron === undefined ? (t.events || d.events) === 'all' : !!t.notify_poweron;
+          el('nt-tg-startup').checked = t.notify_startup === undefined ? (t.events || d.events) === 'all' : !!t.notify_startup;
           el('nt-tg-token').value = ''; el('nt-tg-clear').checked = false;
           el('nt-tg-token').placeholder = t.has_token ? 'Saved — leave empty to keep' : '123456789:AA…';
           }
           if (!dirty.mail) {
           el('nt-mail-enabled').checked = m.enabled; el('nt-mail-host').value = m.host; el('nt-mail-events').value = m.events || d.events;
+          el('nt-mail-poweron').checked = m.notify_poweron === undefined ? (m.events || d.events) === 'all' : !!m.notify_poweron;
+          el('nt-mail-startup').checked = m.notify_startup === undefined ? (m.events || d.events) === 'all' : !!m.notify_startup;
           el('nt-mail-port').value = m.port; el('nt-mail-security').value = m.security;
           el('nt-mail-user').value = m.user; el('nt-mail-from').value = m.from; el('nt-mail-to').value = m.to;
           el('nt-mail-pass').value = ''; el('nt-mail-pass').placeholder = m.has_password ? 'Saved — leave empty to keep' : 'Password or app password';
@@ -7123,7 +7141,7 @@
           el('nt-tg-status').textContent = channelText(t);
           el('nt-mail-status').textContent = channelText(m);
           badge('nt-tg-badge', t.enabled); badge('nt-mail-badge', m.enabled);
-          var waiting = d.waiting ? d.waiting + ' message(s) waiting to be sent.' : d.pending_connectivity ? 'Checking connectivity: alerts wait 60 seconds.' : null;
+          var waiting = d.waiting ? d.waiting + ' message(s) waiting to be sent.' : d.pending_connectivity ? 'Checking connectivity: alerts wait ' + (d.connectivity_grace_seconds || 60) + ' seconds.' : null;
           if (d.waiting && d.worker_running === false) waiting += ' Delivery is waiting for resources and retries automatically.';
           el('nt-tg-note').textContent = waiting && t.enabled ? waiting : t.enabled ? 'Ready.' : 'Off.';
           el('nt-mail-note').textContent = waiting && m.enabled ? waiting : m.enabled ? 'Ready.' : 'Off.';
@@ -7148,10 +7166,10 @@
         var btn = el('nt-' + ch + '-save'); btn.disabled = true;
         var body = ch === 'tg'
           ? {telegram: {enabled: el('nt-tg-enabled').checked, chat: el('nt-tg-chat').value.trim(), token: el('nt-tg-token').value.trim(),
-                        clear_token: el('nt-tg-clear').checked, events: el('nt-tg-events').value}}
+                        clear_token: el('nt-tg-clear').checked, events: el('nt-tg-events').value, notify_startup: el('nt-tg-startup').checked, notify_poweron: el('nt-tg-poweron').checked}}
           : {email: {enabled: el('nt-mail-enabled').checked, host: el('nt-mail-host').value.trim(), port: Number(el('nt-mail-port').value),
                      security: el('nt-mail-security').value, user: el('nt-mail-user').value.trim(), password: el('nt-mail-pass').value,
-                     from: el('nt-mail-from').value.trim(), to: el('nt-mail-to').value.trim(), events: el('nt-mail-events').value}};
+                     from: el('nt-mail-from').value.trim(), to: el('nt-mail-to').value.trim(), events: el('nt-mail-events').value, notify_startup: el('nt-mail-startup').checked, notify_poweron: el('nt-mail-poweron').checked}};
         try {
           var r = await apiFetch('/api/notify', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
           var d = await r.json().catch(function () { return {}; });
@@ -7162,6 +7180,23 @@
         } catch (e) { el('nt-' + ch + '-note').textContent = 'Not saved: ' + e.message; btn.disabled = false; }
         finally { saving[ch] = false; btn.disabled = !dirty[ch]; if (revision === edits[ch]) { if (ch === 'tg') el('nt-tg-token').value = ''; else el('nt-mail-pass').value = ''; } }
       }
+      el('nt-grace').addEventListener('input', function () {
+        timingDirty = true; timingRevision++; el('nt-timing-save').disabled = timingSaving;
+      });
+      el('nt-timing-save').addEventListener('click', async function () {
+        if (timingSaving) return;
+        var seconds = Number(el('nt-grace').value), revision = timingRevision;
+        if (!Number.isInteger(seconds) || seconds < 15 || seconds > 3600) { el('nt-timing-note').textContent = 'Use 15 to 3600 whole seconds.'; return; }
+        timingSaving = true; this.disabled = true;
+        try {
+          var r = await apiFetch('/api/notify/timing', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({connectivity_grace_seconds:seconds})});
+          var d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || 'Not saved');
+          if (revision === timingRevision) timingDirty = false;
+          el('nt-timing-note').textContent = 'Timing saved.';
+          await load();
+        } catch (e) { el('nt-timing-note').textContent = 'Not saved: ' + e.message; }
+        finally { timingSaving = false; this.disabled = !timingDirty; }
+      });
       el('nt-tg-save').addEventListener('click', function () { save('tg'); });
       el('nt-mail-save').addEventListener('click', function () { save('mail'); });
       async function test(channel, note) {
@@ -9748,6 +9783,7 @@
         document.getElementById('ntfy-token-clear').checked = false;
         document.getElementById('ntfy-alerts').checked = !!d.tailscale_alerts;
         document.getElementById('ntfy-system-events').checked = !!d.system_events;
+        document.getElementById('ntfy-poweron-events').checked = d.poweron_events === undefined ? !!d.system_events : !!d.poweron_events;
         document.getElementById('ntfy-commands').checked = !!d.commands_enabled;
         document.getElementById('ntfy-down-only').checked = !!d.commands_only_when_tailscale_down;
         document.getElementById('ntfy-direct-mac').checked = !!d.allow_direct_mac;
@@ -9764,7 +9800,7 @@
         document.getElementById('ntfy-save').disabled = true;
       });
     }
-    ['ntfy-enabled','ntfy-server','ntfy-topic','ntfy-token','ntfy-token-clear','ntfy-alerts','ntfy-system-events',
+    ['ntfy-enabled','ntfy-server','ntfy-topic','ntfy-token','ntfy-token-clear','ntfy-alerts','ntfy-system-events','ntfy-poweron-events',
      'ntfy-commands','ntfy-down-only','ntfy-direct-mac','ntfy-info','ntfy-info-details','ntfy-delay','ntfy-poll'].forEach(function(id) {
       var el=document.getElementById(id);
       el.addEventListener(el.type === 'checkbox' ? 'change' : 'input', function() {
@@ -9797,6 +9833,7 @@
         clear_token:document.getElementById('ntfy-token-clear').checked,
         tailscale_alerts:document.getElementById('ntfy-alerts').checked,
         system_events:document.getElementById('ntfy-system-events').checked,
+        poweron_events:document.getElementById('ntfy-poweron-events').checked,
         commands_enabled:document.getElementById('ntfy-commands').checked,
         commands_only_when_tailscale_down:document.getElementById('ntfy-down-only').checked,
         allow_direct_mac:document.getElementById('ntfy-direct-mac').checked,

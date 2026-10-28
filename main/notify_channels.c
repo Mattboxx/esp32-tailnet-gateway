@@ -318,6 +318,7 @@ done:
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 #include "nvs.h"
+#include "nvs_params.h"
 #include <stdlib.h>
 #include <time.h>
 
@@ -342,7 +343,8 @@ EXT_RAM_BSS_ATTR static channel_status_t s_tg, s_mail;
 static uint32_t s_tokens = 6, s_refill;
 /* Zero means an ordinary event. Links have independent bounded episodes. */
 enum {LINK_NONE, LINK_WIFI, LINK_TAILNET, LINK_END};
-#define LINK_GRACE_S 60u
+#define LINK_GRACE_DEFAULT_S 60u
+static uint16_t s_link_grace_s = LINK_GRACE_DEFAULT_S;
 typedef struct {uint32_t since, episode; uint8_t delivered; bool down, announced, suppress_up;} link_state_t;
 EXT_RAM_BSS_ATTR static link_state_t s_links[LINK_END];
 static uint32_t s_note_id, s_worker_retry, s_worker_backoff = 30;
@@ -355,45 +357,53 @@ extern volatile int ap_connect;
  * that comes back after a rollback still accepts the record. 0 there means
  * "written by 3.0.0/3.0.1": the separate key ntf_mlv of 3.0.1 is used if
  * present, else the shared choice of 3.0.0. ntf_mlv is still written after
- * the record, only for such a rollback; it never decides anything here. */
+ * the record, only for such a rollback; it never decides anything here.
+ * The remaining padding byte stores explicit startup choices (bit 7 marks
+ * presence, bits 0/1 select other starts and bits 2/3 power-on for Telegram/email). Legacy zero preserves the old
+ * All-events behavior. The record size, schema and checksum range stay fixed. */
 typedef struct {
     uint32_t magic, version;
     notify_config_t config;
     uint8_t mail_level_plus1;      /* 0: not stored in the record */
-    uint8_t reserved;
+    uint8_t startup_flags;
     uint32_t checksum;
 } cfg_record_t;
 
 static uint32_t record_checksum(const cfg_record_t *r) {return esp_rom_crc32_le(0, (const uint8_t *)r, offsetof(cfg_record_t, checksum));}
 
 /* Defaults (everything off) when the record is missing or damaged. */
-static void store_load(notify_config_t *c, uint8_t *mail_level)
+static void store_load(notify_config_t *c, uint8_t *mail_level, uint8_t *startup_channels)
 {
     memset(c, 0, sizeof *c);
     c->mail_port = 465;
     *mail_level = NOTIFY_PROBLEMS;
+    *startup_channels = 0;
     nvs_handle_t h;
     if (nvs_open("tsr", NVS_READONLY, &h) != ESP_OK) return;
     cfg_record_t *r = calloc(1, sizeof *r);
     size_t n = sizeof *r;
     /* Fail closed: a damaged record means off, never half-applied. */
     if (r && nvs_get_blob(h, "notify_cfg", r, &n) == ESP_OK && n == sizeof *r && r->magic == CFG_MAGIC && r->version == 1 &&
-        r->checksum == record_checksum(r) && notify_config_valid(&r->config, NULL, 0) && r->mail_level_plus1 <= NOTIFY_ALL + 1) {
+        r->checksum == record_checksum(r) && notify_config_valid(&r->config, NULL, 0) && r->mail_level_plus1 <= NOTIFY_ALL + 1 &&
+        (r->startup_flags == 0 || (r->startup_flags & (uint8_t)~0x0f) == 0x80)) {
         *c = r->config;
         uint8_t legacy = 0;
         *mail_level = r->mail_level_plus1 ? (uint8_t)(r->mail_level_plus1 - 1)
                     : nvs_get_u8(h, "ntf_mlv", &legacy) == ESP_OK && legacy <= NOTIFY_ALL ? legacy : c->level;
+        *startup_channels = r->startup_flags ? r->startup_flags & 0x0f
+                          : (c->level == NOTIFY_ALL ? CH_TG | (CH_TG << 2) : 0) | (*mail_level == NOTIFY_ALL ? CH_MAIL | (CH_MAIL << 2) : 0);
     }
     if (r) {memset(r, 0, sizeof *r); free(r);}
     nvs_close(h);
 }
 
-static esp_err_t store_save(const notify_config_t *c, uint8_t mail_level)
+static esp_err_t store_save(const notify_config_t *c, uint8_t mail_level, uint8_t startup_channels)
 {
-    if (mail_level > NOTIFY_ALL) return ESP_ERR_INVALID_ARG;
+    if (mail_level > NOTIFY_ALL || (startup_channels & (uint8_t)~0x0f)) return ESP_ERR_INVALID_ARG;
     cfg_record_t *r = calloc(1, sizeof *r);
     if (!r) return ESP_ERR_NO_MEM;
     r->magic = CFG_MAGIC; r->version = 1; r->config = *c; r->mail_level_plus1 = (uint8_t)(mail_level + 1);
+    r->startup_flags = (uint8_t)(0x80 | startup_channels);
     r->checksum = record_checksum(r);
     nvs_handle_t h;
     esp_err_t err = nvs_open("tsr", NVS_READWRITE, &h);
@@ -573,10 +583,18 @@ static void worker(void *arg)
         uint8_t done = 0, delivered = 0;
         if ((note.channels & CH_TG) && c.tg_enabled) {
             why[0] = 0; esp_err_t err = telegram(&c, text, why, sizeof why); record(&s_tg, err, why);
+            if (err) ESP_LOGW(TAG, "Telegram delivery failed: event=%u id=%lu attempt=%u/%u error=%s internal=%u largest=%u psram=%u",
+                note.kind, (unsigned long)note.id, (unsigned)note.attempts + 1, MAX_ATTEMPTS, esp_err_to_name(err),
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
             if (!err) {done |= CH_TG; delivered |= CH_TG;}
         } else done |= CH_TG;
         if ((note.channels & CH_MAIL) && c.mail_enabled) {
             why[0] = 0; esp_err_t err = email(&c, text, why, sizeof why); record(&s_mail, err, why);
+            if (err) ESP_LOGW(TAG, "Email delivery failed: event=%u id=%lu attempt=%u/%u error=%s internal=%u largest=%u psram=%u",
+                note.kind, (unsigned long)note.id, (unsigned)note.attempts + 1, MAX_ATTEMPTS, esp_err_to_name(err),
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+                (unsigned)heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
             if (!err) {done |= CH_MAIL; delivered |= CH_MAIL;}
         } else done |= CH_MAIL;
         memset(&c, 0, sizeof c);                          /* secrets off the stack */
@@ -629,11 +647,18 @@ static void enqueue_locked(uint8_t kind, uint8_t level, uint8_t channels, uint32
 /* Email has its own event selection since 3.0.1 (stored in the record; see
  * the notify store). */
 static uint8_t s_mail_level = NOTIFY_PROBLEMS;
+static uint8_t s_startup_channels;
 
 static uint8_t channels_locked(void) {return (s_cfg.tg_enabled ? CH_TG : 0) | (s_cfg.mail_enabled ? CH_MAIL : 0);}
 
-static uint8_t wanted_channels_locked(unsigned kind, unsigned level)
+static uint8_t wanted_channels_locked(unsigned kind, unsigned level, const char *text)
 {
+    /* Normal starts are independently selectable. Crash/WDT/brownout starts
+     * remain errors, so opting out here cannot silence the crash path. */
+    if (kind == HIST_EV_BOOT && level == HIST_INFO) {
+        bool poweron = text && !strncmp(text, "Power-on start ", 15);
+        return channels_locked() & (poweron ? s_startup_channels >> 2 : s_startup_channels);
+    }
     return (s_cfg.tg_enabled && notify_wanted(s_cfg.level, kind, level) ? CH_TG : 0) |
            (s_cfg.mail_enabled && notify_wanted(s_mail_level, kind, level) ? CH_MAIL : 0);
 }
@@ -665,7 +690,7 @@ static void link_recovered_locked(unsigned link, uint32_t now)
     link_state_t *s = &s_links[link];
     if (!s->down) return;
     uint32_t duration = now - s->since;
-    if (duration >= LINK_GRACE_S) {
+    if (s->announced || duration >= s_link_grace_s) {
         char text[NOTIFY_TEXT_MAX];
         snprintf(text, sizeof text, "%s recovered after %lu seconds.", link_name(link), (unsigned long)duration);
         uint8_t queued = 0;
@@ -681,7 +706,7 @@ static void link_recovered_locked(unsigned link, uint32_t now)
         }
         /* If retries expired while the uplink was absent, send a useful
          * recovery summary instead of replaying a stale "still down" alert. */
-        uint8_t missing = wanted_channels_locked(link_kind(link), HIST_WARN) & (uint8_t)~(s->delivered | queued);
+        uint8_t missing = wanted_channels_locked(link_kind(link), HIST_WARN, NULL) & (uint8_t)~(s->delivered | queued);
         note_t *n = limited_locked((uint8_t)link_kind(link), HIST_WARN, missing, notify_wall(), text, false);
         if (n) {n->link = (uint8_t)link; n->episode = s->episode;}
     }
@@ -723,11 +748,11 @@ static void notify_poll(void)
         if ((link == LINK_WIFI && ap_connect) || (link == LINK_TAILNET && tailscale_is_connected())) {
             link_recovered_locked(link, now); continue;
         }
-        if (!s->announced && now - s->since >= LINK_GRACE_S) {
+        if (!s->announced && now - s->since >= s_link_grace_s) {
             char text[NOTIFY_TEXT_MAX];
-            snprintf(text, sizeof text, "%s unavailable for at least %u seconds.", link_name(link), LINK_GRACE_S);
+            snprintf(text, sizeof text, "%s unavailable for at least %u seconds.", link_name(link), (unsigned)s_link_grace_s);
             note_t *n = limited_locked((uint8_t)link_kind(link), HIST_WARN,
-                wanted_channels_locked(link_kind(link), HIST_WARN), notify_wall(), text, false);
+                wanted_channels_locked(link_kind(link), HIST_WARN, NULL), notify_wall(), text, false);
             if (n) {n->link = (uint8_t)link; n->episode = s->episode; s->announced = true;}
         }
     }
@@ -741,7 +766,7 @@ static void offer(unsigned kind, unsigned level, uint32_t wall, const char *text
     xSemaphoreTake(s_lock, portMAX_DELAY);
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000000);
     if (!connectivity_offer_locked(kind, level, text, now))
-        (void)limited_locked((uint8_t)kind, (uint8_t)level, wanted_channels_locked(kind, level), wall, text, true);
+        (void)limited_locked((uint8_t)kind, (uint8_t)level, wanted_channels_locked(kind, level, text), wall, text, true);
     xSemaphoreGive(s_lock);
 }
 
@@ -763,7 +788,9 @@ void notify_channels_enabled(bool *telegram, bool *email)
 void notify_channels_init(void)
 {
     if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
-    store_load(&s_cfg, &s_mail_level);
+    store_load(&s_cfg, &s_mail_level, &s_startup_channels);
+    uint16_t grace = 0;
+    if (nvs_param_get_u16("ntf_grace", &grace) == ESP_OK && grace >= 15 && grace <= 3600) s_link_grace_s = grace;
     if (s_cfg.tg_enabled || s_cfg.mail_enabled) {xSemaphoreTake(s_lock, portMAX_DELAY); apply_locked(); xSemaphoreGive(s_lock);}
 }
 
@@ -777,6 +804,8 @@ static esp_err_t get_notify(httpd_req_t *req)
     xSemaphoreTake(s_lock, portMAX_DELAY);
     notify_config_t c = s_cfg;
     uint8_t mail_level = s_mail_level;
+    uint8_t startup_channels = s_startup_channels;
+    uint16_t grace = s_link_grace_s;
     channel_status_t a = s_tg, b = s_mail;
     unsigned waiting = s_count, dropped = s_dropped, pending = 0;
     for (unsigned i = LINK_WIFI; i < LINK_END; ++i) if (s_links[i].down && !s_links[i].announced) pending++;
@@ -785,16 +814,20 @@ static esp_err_t get_notify(httpd_req_t *req)
     cJSON_AddStringToObject(root, "events", c.level == NOTIFY_ALL ? "all" : "problems");
     cJSON_AddNumberToObject(root, "waiting", waiting);
     cJSON_AddNumberToObject(root, "dropped", dropped);
-    cJSON_AddNumberToObject(root, "connectivity_grace_seconds", LINK_GRACE_S);
+    cJSON_AddNumberToObject(root, "connectivity_grace_seconds", grace);
     cJSON_AddNumberToObject(root, "pending_connectivity", pending);
     cJSON_AddBoolToObject(root, "worker_running", worker_running);
     cJSON_AddBoolToObject(tg, "enabled", c.tg_enabled);
+    cJSON_AddBoolToObject(tg, "notify_startup", (startup_channels & CH_TG) != 0);
+    cJSON_AddBoolToObject(tg, "notify_poweron", (startup_channels & (CH_TG << 2)) != 0);
     cJSON_AddStringToObject(tg, "events", c.level == NOTIFY_ALL ? "all" : "problems");
     cJSON_AddBoolToObject(tg, "has_token", c.tg_token[0] != 0);
     add_string(tg, "chat", c.tg_chat);
     cJSON_AddNumberToObject(tg, "sent", a.sent); cJSON_AddNumberToObject(tg, "failed", a.failed);
     add_string(tg, "last_error", a.last_error);
     cJSON_AddBoolToObject(mail, "enabled", c.mail_enabled);
+    cJSON_AddBoolToObject(mail, "notify_startup", (startup_channels & CH_MAIL) != 0);
+    cJSON_AddBoolToObject(mail, "notify_poweron", (startup_channels & (CH_MAIL << 2)) != 0);
     cJSON_AddStringToObject(mail, "events", mail_level == NOTIFY_ALL ? "all" : "problems");
     add_string(mail, "host", c.mail_host);
     cJSON_AddNumberToObject(mail, "port", c.mail_port);
@@ -849,15 +882,29 @@ static esp_err_t post_notify(httpd_req_t *req)
     memset(body, 0, 1536);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     *next = s_cfg;
+    uint8_t mail_level = s_mail_level;
+    uint8_t startup_channels = s_startup_channels;
     xSemaphoreGive(s_lock);
     const cJSON *tg = cJSON_GetObjectItemCaseSensitive(root, "telegram"), *mail = cJSON_GetObjectItemCaseSensitive(root, "email");
     const cJSON *events = cJSON_GetObjectItemCaseSensitive(root, "events");
     ok = cJSON_IsObject(root) && (!tg || cJSON_IsObject(tg)) && (!mail || cJSON_IsObject(mail)) &&
          (!events || (cJSON_IsString(events) && (!strcmp(events->valuestring, "all") || !strcmp(events->valuestring, "problems"))));
     /* "events" at the top sets both channels (3.0.0 clients); per channel wins. */
-    uint8_t mail_level = s_mail_level;
     if (ok && events) next->level = mail_level = !strcmp(events->valuestring, "all") ? NOTIFY_ALL : NOTIFY_PROBLEMS;
     for (int i = 0; ok && i < 2; i++) {
+        const cJSON *startup = cJSON_GetObjectItemCaseSensitive(i ? mail : tg, "notify_startup");
+        if (startup && !cJSON_IsBool(startup)) {ok = false; break;}
+        uint8_t channel = i ? CH_MAIL : CH_TG;
+        if (startup) {
+            if (cJSON_IsTrue(startup)) startup_channels |= channel;
+            else startup_channels &= (uint8_t)~channel;
+        }
+        const cJSON *power = cJSON_GetObjectItemCaseSensitive(i ? mail : tg, "notify_poweron");
+        if (power && !cJSON_IsBool(power)) {ok = false; break;}
+        if (power) {
+            if (cJSON_IsTrue(power)) startup_channels |= (uint8_t)(channel << 2);
+            else startup_channels &= (uint8_t)~(channel << 2);
+        }
         const cJSON *e = cJSON_GetObjectItemCaseSensitive(i ? mail : tg, "events");
         if (!e) continue;
         if (!cJSON_IsString(e) || (strcmp(e->valuestring, "all") && strcmp(e->valuestring, "problems"))) {ok = false; break;}
@@ -896,11 +943,12 @@ static esp_err_t post_notify(httpd_req_t *req)
     }
     esp_err_t err = ESP_OK;
     if (ok && !notify_config_valid(next, why, sizeof why)) ok = false;
-    if (ok) err = store_save(next, mail_level);           /* one record, before publishing */
+    if (ok) err = store_save(next, mail_level, startup_channels); /* one record, before publishing */
     if (ok && !err) {
         xSemaphoreTake(s_lock, portMAX_DELAY);
         s_cfg = *next;
         s_mail_level = mail_level;
+        s_startup_channels = startup_channels;
         apply_locked();
         xSemaphoreGive(s_lock);
     }
@@ -917,6 +965,34 @@ static esp_err_t post_notify(httpd_req_t *req)
         cJSON_free(text);
         return e;
     }
+    return httpd_resp_sendstr(req, "{\"ok\":true}");
+}
+
+/* Timing is a separate atomic setting, so saving it cannot partially save
+ * credentials or another channel's card. Existing clients leave it untouched. */
+static esp_err_t post_timing(httpd_req_t *req)
+{
+    if (web_ui_require_auth(req) != ESP_OK) return ESP_FAIL;
+    char body[96];
+    cJSON *root = receive(req, body, sizeof body) > 0 ? json_guard_parse(body) : NULL;
+    const cJSON *v = cJSON_GetObjectItemCaseSensitive(root, "connectivity_grace_seconds");
+    bool valid = cJSON_IsObject(root) && cJSON_IsNumber(v) && v->valuedouble >= 15 &&
+                 v->valuedouble <= 3600 && v->valuedouble == (int)v->valuedouble;
+    uint16_t grace = valid ? (uint16_t)v->valuedouble : 0;
+    cJSON_Delete(root);
+    httpd_resp_set_type(req, "application/json");
+    if (!valid) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        return httpd_resp_sendstr(req, "{\"ok\":false,\"error\":\"Use 15 to 3600 whole seconds\"}");
+    }
+    esp_err_t err = nvs_param_set_u16("ntf_grace", grace);
+    if (err != ESP_OK) {
+        httpd_resp_set_status(req, "500 Internal Server Error");
+        return httpd_resp_sendstr(req, "{\"ok\":false,\"error\":\"Timing not saved\"}");
+    }
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    s_link_grace_s = grace;
+    xSemaphoreGive(s_lock);
     return httpd_resp_sendstr(req, "{\"ok\":true}");
 }
 
@@ -940,6 +1016,7 @@ esp_err_t notify_channels_register_http(httpd_handle_t server)
     const httpd_uri_t routes[] = {
         {.uri = "/api/notify", .method = HTTP_GET, .handler = get_notify},
         {.uri = "/api/notify", .method = HTTP_POST, .handler = post_notify},
+        {.uri = "/api/notify/timing", .method = HTTP_POST, .handler = post_timing},
         {.uri = "/api/notify/test", .method = HTTP_POST, .handler = post_test}};
     for (unsigned i = 0; i < sizeof routes / sizeof routes[0]; i++) {
         esp_err_t err = httpd_register_uri_handler(server, &routes[i]);
