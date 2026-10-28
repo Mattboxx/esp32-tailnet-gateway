@@ -13,7 +13,10 @@ typedef struct {
     bool allow_direct_mac;
     bool info_enabled;
     bool info_include_details;
-    bool system_events;  /* opt-in boot/restored/update-available messages */
+    /* Share the original flag byte; no growth of configuration snapshots.
+     * Disk storage is explicit and never serializes this native layout. */
+    bool system_events : 1;  /* opt-in other starts/restored/update-available */
+    bool poweron_events : 1; /* opt-in power-on notification, separate from faults */
     char server[160];
     char topic[96];
     char token[160];

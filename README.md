@@ -13,8 +13,8 @@ access, subnet routing, remote recovery and optional automation.
 ESP32-S3-DevKitC-1, ESP32-S3-WROOM-1/1U, Freenove ESP32-S3-WROOM, Seeed XIAO
 ESP32S3. [Supported boards](#8-supported-hardware)
 
-> **Firmware v3.0.2 is available** for ESP32-S3 **N8R8** and **N16R8**.
-> [Download the release](../../releases/tag/v3.0.2), use the
+> **Firmware v3.0.3** for ESP32-S3 **N8R8** and **N16R8**.
+> [Download the latest stable release](../../releases/latest), use the
 > [browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/),
 > or choose the Easy Install package below. **2.x gateways** move to 3.0
 > keeping every setting: over the network with the **2.1.0 bridge** (a normal
@@ -47,6 +47,25 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > of Cameron Malone's original stack. It is not an
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
+
+### New in Firmware 3.0.3
+
+- **Power-return alerts:** independently choose power-on and other-restart
+  notifications in Telegram, email and ntfy. Crash, watchdog and brownout
+  events remain distinct. A power-on reset can also be the first startup or
+  a cable reconnection; the ESP cannot report during a power cut or measure
+  its duration by itself.
+- **Quieter connectivity alerts:** Telegram/email wait for a configurable
+  15–3600-second continuous outage (60 by default). Short Wi-Fi/Tailnet drops
+  and their recoveries do not generate delayed warnings.
+- **More reliable notification delivery and editing:** bounded retries recover
+  after task-allocation failure; queue completion cannot discard a newer
+  message; refreshing the page preserves unsaved Telegram/email changes.
+- **Clearer setup and support:** an expandable Destination user id guide and
+  one firmware support dialog offering Ko-fi or GitHub Sponsors. Original
+  authorship, upstream links and licenses remain intact.
+
+See the [notification guide](docs/NOTIFICATIONS.md).
 
 ### New in Firmware 3.0.2
 
@@ -223,19 +242,20 @@ Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailnet-gateway
 | **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/) |
 | **Advanced downloads** | Web UI OTA or manual USB installation | [Downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/) with exact checksums, image roles and recovery notes |
 
-Firmware v3.0.2 release assets:
+Firmware v3.0.3 release assets:
 
 | Asset | Use |
 |---|---|
-| `ESP32-Tailnet-Gateway-v3.0.2-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip` | Guided USB install (new device) or update keeping settings |
+| `ESP32-Tailnet-Gateway-v3.0.3-EASY-INSTALL-Windows-macOS-Linux.zip` | Guided USB install (new device) or update keeping settings; third-party notices included |
 | `firmware.bin` | Application image for the Web UI updater on 3.x |
 | `bootloader.bin`, `partitions.bin` | 3.x bootloader and partition-table components; use the complete installer for migration |
-| `ESP32-Tailnet-Gateway-v3.0.2-factory.bin` | Full image for a new device at offset `0x0` (erases settings) |
+| `ESP32-Tailnet-Gateway-v3.0.3-factory.bin` | Full image for a new device at offset `0x0` (erases settings) |
 | `SHA256SUMS.txt`, `release-manifest.json`, `source-provenance.json`, `FIRMWARE-LICENSES.txt` | Checksums, build metadata, exact source revision and third-party notices |
 
-Verify the `WITH-NOTICES.zip` and esptool source download with
+Verify current images and archives with their release `SHA256SUMS.txt`.
+For the historical 3.0.2 `WITH-NOTICES.zip` and esptool source download, use
 [LICENSE-SHA256SUMS.txt](licenses/releases/v3.0.2/LICENSE-SHA256SUMS.txt).
-The original release `SHA256SUMS.txt` remains valid for the original images and archives.
+The historical release's original `SHA256SUMS.txt` remains valid for its original images and archives.
 
 The **2.1.0 bridge** release carries only a 2.x `firmware.bin` for the
 network migration. The [legacy 1.13 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v0.1.38-Mattboxx-1.13)

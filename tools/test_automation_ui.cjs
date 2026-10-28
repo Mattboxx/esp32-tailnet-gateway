@@ -176,7 +176,7 @@ async function fixture(browser, options = {}) {
       else body = {enabled: !!(state.savedNames && state.savedNames.enabled), lan: false, relay: true, lan_listening: false, peers: 5};
     } else if (url.pathname === '/api/notify') {
       if (route.request().method() === 'POST') { state.savedNotify = route.request().postDataJSON(); body = {ok: true}; }
-      else body = {events: 'problems', waiting: 0, dropped: 0,
+      else body = state.notifyBody || {events: 'problems', waiting: 0, dropped: 0,
         telegram: {enabled: !!state.savedNotify, has_token: !!state.savedNotify, chat: state.savedNotify ? state.savedNotify.telegram.chat : '', sent: 0, failed: 1, last_error: 'Telegram answered 401: Unauthorized'},
         email: {enabled: false, host: '', port: 465, security: 'tls', user: '', has_password: false, from: '', to: '', sent: 0, failed: 0, last_error: ''}};
     } else if (url.pathname === '/api/notify/test') {
@@ -208,19 +208,41 @@ async function main() {
   const browser = await chromium.launch({ channel: process.env.TEST_BROWSER_CHANNEL || 'chrome' });
   let count = 0;
   try {
-    // A single deliberate click opens the provider directly. Simulate a
-    // popup blocker/nullable noopener result: no duplicate window, no payment.
+    // Local provider choice, no automatic third-party request or duplicate window.
     let tip = await fixture(browser, {page: 'system'});
-    await tip.page.evaluate(() => {window.tipCalls = []; window.open = (...args) => {window.tipCalls.push(args); return null;};});
-    assert.deepEqual(tip.externalRequests, []);
-    assert.equal(await tip.page.locator('#mod-support-fallback').isVisible(), false);
     await tip.page.locator('#nav-support-link').click();
-    const tipCalls = await tip.page.evaluate(() => window.tipCalls);
-    assert.equal(tipCalls.length, 1);
-    assert.equal(tipCalls[0][0], 'https://ko-fi.com/mattboxx');
-    assert.match(tipCalls[0][2], /popup=yes.*noopener,noreferrer/);
-    assert.equal(await tip.page.locator('#mod-support-fallback').isVisible(), true);
-    assert.deepEqual(tip.errors, []); await tip.context.close(); count++;
+    await tip.page.locator('#supportDialog').waitFor({state:'visible'});
+    assert.equal(await tip.page.locator('#supportDialog .support-choice').count(),2);
+    for(const dest of ['https://ko-fi.com/mattboxx','https://github.com/sponsors/Mattboxx']) {
+      const a=tip.page.locator('#supportDialog a[href="'+dest+'"]');
+      assert.equal(await a.getAttribute('rel'),'noopener noreferrer');
+      assert.equal(await a.locator('svg').count(),1);
+    }
+    assert.deepEqual(tip.externalRequests,[]);
+    await tip.page.keyboard.press('Escape');
+    await tip.page.locator('#supportDialog').waitFor({state:'hidden'});
+    assert.equal(await tip.page.locator('#nav-support-link').evaluate(el=>el===document.activeElement),true);
+    assert.deepEqual(tip.errors,[]);await tip.context.close();count++;
+    // Retrying a message/status refresh must not erase either card's edits.
+    let draft = await fixture(browser,{page:'automation/notifications'});
+    await draft.page.locator('#nt-tg-card').waitFor({state:'visible'});
+    await draft.page.locator('#nt-tg-chat').fill('draft-chat');
+    await draft.page.locator('#nt-tg-token').fill('new-token-draft');
+    await draft.page.locator('#nt-mail-host').fill('mail.example');
+    await draft.page.locator('#nt-mail-pass').fill('unsaved-mail-draft');
+    draft.state.notifyBody={events:'problems',waiting:0,pending_connectivity:1,
+      telegram:{enabled:true,has_token:true,chat:'old-chat',sent:1,failed:0,last_error:''},
+      email:{enabled:true,host:'old.example',port:465,security:'tls',user:'',has_password:true,from:'',to:'',sent:0,failed:0,last_error:''}};
+    await draft.page.locator('#automation-reload').click();
+    await draft.page.waitForFunction(()=>document.getElementById('nt-tg-status').textContent.includes('Sent 1'));
+    assert.equal(await draft.page.locator('#nt-tg-chat').inputValue(),'draft-chat');
+    assert.equal(await draft.page.locator('#nt-tg-token').inputValue(),'new-token-draft');
+    assert.equal(await draft.page.locator('#nt-mail-host').inputValue(),'mail.example');
+    assert.equal(await draft.page.locator('#nt-mail-pass').inputValue(),'unsaved-mail-draft');
+    assert.equal(await draft.page.locator('#nt-tg-save').isDisabled(),false);
+    assert.equal(await draft.page.locator('#nt-mail-save').isDisabled(),false);
+    assert.match(await draft.page.locator('#nt-tg-note').textContent(),/60 seconds/);
+    assert.deepEqual(draft.errors,[]);await draft.context.close();count++;
     // Saved WiFi policy, driver state and failed reads must stay distinct.
     let wifi = await fixture(browser, {page: 'system'});
     await wifi.page.waitForFunction(() => !document.getElementById('sys-wifi-ps').disabled);
@@ -254,7 +276,7 @@ async function main() {
         assert.equal(await link.getAttribute('target'), '_blank');
         assert.equal(await link.getAttribute('rel'), 'noopener noreferrer');
         assert.equal(await link.getAttribute('referrerpolicy'), 'no-referrer');
-        assert.match(await link.getAttribute('aria-label'), /Mattboxx.*new tab/);
+        assert.match(await link.getAttribute('aria-label'), /support Mattboxx/i);
         await link.scrollIntoViewIfNeeded();
         const box = await link.boundingBox();
         assert(box && box.x >= 0 && box.x + box.width <= width && box.height >= 40);
@@ -262,8 +284,21 @@ async function main() {
         assert.equal(await link.evaluate(el => el === document.activeElement), true);
       }
       assert.equal(await f.page.locator('#mod-support').evaluate(el => getComputedStyle(el).position), 'static');
+      await f.page.locator('#mod-support-link').click();
+      await f.page.locator('#supportDialog').waitFor({state:'visible'});
+      await f.page.waitForTimeout(200);
+      const modalBox=await f.page.locator('#supportDialog').boundingBox();
+      assert(modalBox.x>=0&&modalBox.x+modalBox.width<=width,'donation chooser fits the viewport');
+      assert.equal(await f.page.locator('#supportDialog').evaluate(el=>el.scrollWidth>el.clientWidth),false);
+      if (process.env.TEST_SUPPORT_SCREENSHOTS && (width===390||width===1280)) {
+        fs.mkdirSync(process.env.TEST_SUPPORT_SCREENSHOTS,{recursive:true});
+        await f.page.locator('#supportDialog').screenshot({path:path.join(process.env.TEST_SUPPORT_SCREENSHOTS,`support-dialog-${width}.png`)});
+      }
+      await f.page.locator('#support-close').click();
+      await f.page.locator('#supportDialog').waitFor({state:'hidden'});
       assert.match(await f.page.locator('#mod-support').textContent(), /Always optional.*stay free/s);
-      assert.equal(await f.page.locator('a[href="https://www.buymeacoffee.com/csontikka"]').count(), 1);
+      assert.equal(await f.page.locator('a[href="https://www.buymeacoffee.com/csontikka"]').count(), 0);
+      assert.equal(await f.page.locator('a[href="https://github.com/Csontikka/esp32-tailscale-subnet-router"]').count() > 0, true);
       assert.equal(await f.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
       assert.deepEqual(f.externalRequests, []);
       assert.deepEqual(f.errors, []);
@@ -1291,11 +1326,17 @@ async function main() {
     await f.page.fill('#nt-tg-token', '123456789:AAH4kq_ZXcvbnm-1234567890qwertyuiopASD');
     await f.page.fill('#nt-tg-chat', ' 42 ');
     await f.page.selectOption('#nt-tg-events', 'all');
+    await f.page.locator('#nt-tg-card label.feature-switch', {hasText:'Other restarts'}).click();
+    await f.page.locator('#nt-tg-card label.feature-switch', {hasText:'Blackout:'}).click();
     assert.ok(await f.page.locator('#nt-mail-save').isDisabled());
     await f.page.locator('#nt-tg-save').click();
     await f.page.waitForFunction(() => document.getElementById('nt-tg-badge').textContent === 'On');
     assert.equal(f.state.savedNotify.telegram.token, '123456789:AAH4kq_ZXcvbnm-1234567890qwertyuiopASD');
     assert.equal(f.state.savedNotify.telegram.chat, '42'); assert.equal(f.state.savedNotify.telegram.events, 'all');
+    assert.equal(f.state.savedNotify.telegram.notify_startup, true, 'startup can be saved independently');
+    assert.equal(f.state.savedNotify.telegram.notify_poweron, true);
+    await f.page.locator('#nt-tg-card summary').click();
+    assert.ok(await f.page.locator('#nt-tg-card details a[href="https://t.me/userinfobot"]').isVisible());
     assert.equal(f.state.savedNotify.email, undefined, 'saving Telegram sends nothing about email');
     assert.equal(await f.page.locator('#nt-mail-badge').textContent(), 'Off');
     assert.equal(await f.page.inputValue('#nt-tg-token'), '', 'token cleared from the form');

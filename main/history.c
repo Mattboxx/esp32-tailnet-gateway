@@ -1,6 +1,7 @@
 /* Event and metrics history; see history.h.
  * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
 #include "history.h"
+#include "esp_system.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -168,6 +169,7 @@ static StaticSemaphore_t s_lock_storage;
 static hist_config_t s_cfg;
 static atomic_bool s_events_on;           /* events are accepted: stored or sunk */
 static volatile history_sink_t s_sink;
+static history_sink_poll_t s_sink_poll;
 static bool s_inited;
 static QueueHandle_t s_queue;               /* kept once created (producers may race a switch-off) */
 static atomic_uint s_dropped;
@@ -279,6 +281,7 @@ static void history_task(void *arg)
         hist_config_t cfg = s_cfg;
         if (!cfg.metrics && s_live) {free(s_live); s_live = NULL; s_live_count = s_live_head = 0;}
         history_sink_t sink = s_sink;
+        history_sink_poll_t poll = s_sink_poll;
         if (!cfg.events && !cfg.metrics && !sink) {
             s_task = NULL;
             xSemaphoreGive(s_lock);
@@ -293,6 +296,7 @@ static void history_task(void *arg)
             if (!history_rate_allow(&rate, now)) {s_limited++; continue;}
             write_event(&e);
         }
+        if (sink && poll) poll();
         unsigned dropped = atomic_exchange(&s_dropped, 0);
         if (cfg.events && (dropped || s_limited) && history_rate_allow(&rate, now)) {
             queued_t note = {.kind = HIST_EV_STORAGE, .level = HIST_WARN, .wall = wall_now(), .uptime = now};
@@ -402,8 +406,14 @@ void history_init(void)
     const esp_app_desc_t *app = esp_app_get_description();
     const esp_partition_t *running = esp_ota_get_running_partition();
     const char *reason = have ? entry.reason : "?";
-    bool bad = !strcmp(reason, "PANIC") || strstr(reason, "WDT") || !strcmp(reason, "BROWNOUT");
-    history_event(HIST_EV_BOOT, bad ? HIST_ERROR : HIST_INFO, "Started %s from %s, reset %s%s%s",
+    /* FLASH/ROLLBACK are useful history labels but can override a physical
+     * power-on. Select notification categories from the hardware reset cause. */
+    esp_reset_reason_t raw = esp_reset_reason();
+    bool bad = raw == ESP_RST_PANIC || raw == ESP_RST_INT_WDT || raw == ESP_RST_TASK_WDT ||
+               raw == ESP_RST_WDT || raw == ESP_RST_BROWNOUT || !strcmp(reason, "PANIC") ||
+               strstr(reason, "WDT") || !strcmp(reason, "BROWNOUT");
+    const char *start = raw == ESP_RST_POWERON ? "Power-on start" : "Started";
+    history_event(HIST_EV_BOOT, bad ? HIST_ERROR : HIST_INFO, "%s %s from %s, reset %s%s%s", start,
                   app->version, running ? running->label : "?", reason,
                   have && entry.who[0] ? ": " : "", have ? entry.who : "");
     esp_ota_img_states_t state;
@@ -438,9 +448,15 @@ esp_err_t history_set_config(bool events, bool metrics, bool snapshots)
 
 void history_set_sink(history_sink_t sink)
 {
+    history_set_sink_poller(sink, NULL);
+}
+
+void history_set_sink_poller(history_sink_t sink, history_sink_poll_t poll)
+{
     if (!s_lock) s_lock = xSemaphoreCreateMutexStatic(&s_lock_storage);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_sink = sink;
+    s_sink_poll = sink ? poll : NULL;
     /* Before history_init only the sink is noted; init applies it. */
     esp_err_t err = s_inited ? apply_config() : ESP_OK;
     xSemaphoreGive(s_lock);

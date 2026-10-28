@@ -92,4 +92,8 @@ uint16_t history_boot_number(void);
  * task. Setting one keeps the event bus running without the flash log. */
 typedef void (*history_sink_t)(unsigned kind, unsigned level, uint32_t wall, const char *text);
 void history_set_sink(history_sink_t sink);
+/* Optional bounded housekeeping on the existing history task, after queued
+ * events are drained. No additional task/timer is created. */
+typedef void (*history_sink_poll_t)(void);
+void history_set_sink_poller(history_sink_t sink, history_sink_poll_t poll);
 esp_err_t history_register_http(httpd_handle_t server);
