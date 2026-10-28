@@ -56,6 +56,8 @@ The unpublished 3.0.3-dev.1 candidate waits for **60 continuous seconds by defau
 queuing a Telegram or email warning about Wi-Fi or Tailnet connectivity.
 The common **Connectivity alerts** timer accepts 15–3600 whole seconds, saved
 independently of the channel credentials. ntfy retains its own failure delay.
+Timing-only saves use the existing authenticated `/api/notify` POST; mixed
+timing/credential saves are rejected, avoiding an additional HTTP handler.
 Short drops and their corresponding recoveries do not create a delayed
 notification. Local event history remains controlled by its existing enable
 switch and rate/queue limits. Wi-Fi and Tailnet have independent windows;
@@ -131,6 +133,9 @@ At the owner's request, live log, RTC and Web log read-buffer allocation
 remain unchanged: **16 KiB live** and **4 KiB RTC**, with the existing fallback.
 The proposed 64 KiB expansion was withdrawn before any build/install/publication.
 No additional diagnostic buffer, queue or task is introduced.
+The new runtime preferences share the old external configuration's alignment
+space (590-byte config, 592-byte aligned wrapper); the ntfy snapshot remains
+428 bytes. Compile-time size checks enforce these layouts on the supported SDK.
 Failure diagnostics record channel, event/message id,
 attempt, error code, free internal memory, largest block and free PSRAM,
 without message bodies, bot tokens, passwords or destination ids.

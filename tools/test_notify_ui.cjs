@@ -48,7 +48,7 @@ const turn=()=>new Promise(setImmediate);
   assert.match(el('nt-tg-note').textContent,/Invalid notification settings response/);
   assert.equal(el('nt-tg-token').value,'newer-draft');
   input('nt-grace','180');el('nt-timing-save').listeners.click.call(el('nt-timing-save'));
-  const timing=requests.shift();assert.equal(timing.url,'/api/notify/timing');
+  const timing=requests.shift();assert.equal(timing.url,'/api/notify');
   assert.deepEqual(JSON.parse(timing.opts.body),{connectivity_grace_seconds:180});
   input('nt-grace','240');timing.resolve(response({ok:true}));await turn();
   requests.shift().resolve(response(body()));await turn();

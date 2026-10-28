@@ -7189,7 +7189,7 @@
         if (!Number.isInteger(seconds) || seconds < 15 || seconds > 3600) { el('nt-timing-note').textContent = 'Use 15 to 3600 whole seconds.'; return; }
         timingSaving = true; this.disabled = true;
         try {
-          var r = await apiFetch('/api/notify/timing', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({connectivity_grace_seconds:seconds})});
+          var r = await apiFetch('/api/notify', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({connectivity_grace_seconds:seconds})});
           var d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || 'Not saved');
           if (revision === timingRevision) timingDirty = false;
           el('nt-timing-note').textContent = 'Timing saved.';
