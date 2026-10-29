@@ -1,32 +1,31 @@
 # Maintainer continuation
 
-## Local notification/UI candidate — 2026-10-28
+## Firmware 3.0.3 continuation
 
-Local branch `fix/notification-ui-20261028`, based on public Main `72ef753`,
-contains unpublished **3.0.3-dev.1** fixes for short-outage notification noise,
-queue identity/task-allocation recovery, notification drafts/refresh and the
-firmware donor choice. A subsequent increment adds independent Telegram/email
-power-on/other-start switches and the same separation for ntfy. Startup bypasses
-connectivity grace and does not prove a mains outage. Telegram/email record size
-stays fixed; independent `ntf_grace` stores 15–3600 seconds (default 60). Local
-log allocation remains exactly unchanged (16 KiB live, 4 KiB RTC) per owner;
-only error context is expanded, without added diagnostic buffers/tasks.
-Telegram has a Destination user id guide. All of this is local candidate code.
-Read ignored `build/notification-ui/CHECKPOINT.md` in
-the isolated worktree for current commit, actual tests/build and remaining
-hardware qualification. Do not install/push/release this candidate without
-the applicable explicit authorization. The exact published 3.0.2 image below
-remains the stable artifact; do not replace or relabel it.
+The notification/UI increment is implemented in qualified firmware source
+8b15ba6b02b2765b8de464c3b714be7180ef1ee2 (MicroLink unchanged at `fa3153b`).
+Exact application SHA-256:
+48db108970bc4b0c65c05966360a5d859703cd644eed64946662ec0facdea40e.
+Keep this image and its source record; do not substitute a rebuild from a
+later documentation/website commit. Source and presentation changes are
+separate from actual release and Pages deployment: inspect real GitHub state
+and the private `build/notification-ui/CHECKPOINT.md` before continuing.
+
+Power-on and other-restart choices, configurable connectivity timing,
+notification queue/resource recovery and draft-preserving forms are retained.
+Log buffer allocation remains unchanged (16 KiB live, 4 KiB RTC). All 42
+requirements, historical artifacts, private backups and user work remain.
+Detailed test and device records belong in the private handover.
 
 The owner merged presentation PR #1 and published Pages (workflow
 40565493169 succeeded); do not repeat that completed website work. Keep its
 Sponsors/Ko-fi choices when integrating this branch. All 42 requirements,
 private backups, COMMUNITY-POSTS and other dirty/unpushed work are preserved.
 
-Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v3.0.2**;
+Product: **ESP32 Tailnet Gateway — Mattboxx Edition**, Firmware **v3.0.3**;
 the 2.1.0 migration bridge remains available for 2.x installations.
 Follow [Release availability](PRESENTATION-STATUS.md) for public downloads.
-Exact stable image source/tag: `fcc6011bab4b2f1aa38d5fb49564f0cef3163378` /
+Previous stable image source/tag: `fcc6011bab4b2f1aa38d5fb49564f0cef3163378` /
 `v3.0.2` (firmware.bin `fdb763c1…85e0`). Do not rebuild or substitute its
 qualified image with the unpublished 3.0.2-beta.1 image or a new build from a
 later documentation commit. The previous stable 3.0.1 (`9e03f20`) stays

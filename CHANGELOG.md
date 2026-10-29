@@ -6,7 +6,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [3.0.3] — 2026-10-28
+## [3.0.3] — 2026-10-29
 
 ### Added
 
@@ -33,12 +33,6 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Notification status refresh preserves unsaved Telegram/email edits, ignores
   stale responses and prevents concurrent saves of the same channel. The
   Automation Refresh button also refreshes these notification cards.
-
-### Changed
-
-- Firmware support buttons open one local choice between Ko-fi and GitHub
-  Sponsors, with both icons and keyboard/mobile support. The separate
-  upstream donation card is removed; original attribution and licenses remain.
 
 ## [3.0.2] — 2026-10-25
 
