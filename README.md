@@ -13,7 +13,7 @@ access, subnet routing, remote recovery and optional automation.
 ESP32-S3-DevKitC-1, ESP32-S3-WROOM-1/1U, Freenove ESP32-S3-WROOM, Seeed XIAO
 ESP32S3. [Supported boards](#8-supported-hardware)
 
-> **Firmware v3.0.5** for ESP32-S3 **N8R8** and **N16R8**.
+> Firmware for ESP32-S3 **N8R8** and **N16R8**. The linked release shows its channel.
 > [Download the latest stable release](../../releases/latest), use the
 > [browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/),
 > or choose the Easy Install package below. **2.x gateways** move to 3.0
@@ -48,7 +48,21 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
-### New in Firmware 3.0.5
+### Firmware 3.0.6: more tolerant updates
+
+These changes require **3.0.6**. Check the release's channel before installing;
+the latest-stable links below exclude prereleases automatically.
+
+- GitHub downloads tolerate temporary read pauses within bounded inactivity
+  and total deadlines, retaining HTTPS, hash, board and version checks.
+- Browser uploads tolerate receive timeouts, erase only the declared image
+  size and prevent overlapping writes after an unacknowledged cleanup.
+- The upload bar distinguishes bytes sent from device verification. A lost
+  response prompts a running-version check instead of silently retrying.
+- Transfer buffers, allocated task stacks and log buffers keep their existing
+  sizes. See [Update guidance](docs/UPDATES.md).
+
+### Power-return automations (3.0.5)
 
 - **Possible-blackout automations in Home Assistant:** an optional MQTT event
   reports the ESP powering on. Discovery adds the event, a notification switch,
@@ -256,14 +270,14 @@ Full walk-through: [First boot](https://mattboxx.github.io/esp32-tailnet-gateway
 | **Easy Install** | Guided Windows, macOS or Linux setup | One ZIP, separate new-device and keep-settings scripts; [guide](https://mattboxx.github.io/esp32-tailnet-gateway/easy-install/) |
 | **Advanced downloads** | Web UI OTA or manual USB installation | [Downloads](https://mattboxx.github.io/esp32-tailnet-gateway/downloads/) with exact checksums, image roles and recovery notes |
 
-Firmware v3.0.5 release assets:
+Release assets (available from the selected release; a bootstrap prerelease may provide only the raw OTA image and notices):
 
 | Asset | Use |
 |---|---|
-| `ESP32-Tailnet-Gateway-v3.0.5-EASY-INSTALL-Windows-macOS-Linux.zip` | Guided USB install (new device) or update keeping settings; third-party notices included |
+| Easy Install ZIP attached to the release | Guided USB install (new device) or update keeping settings; third-party notices included |
 | `firmware.bin` | Application image for the Web UI updater on 3.x |
 | `bootloader.bin`, `partitions.bin` | 3.x bootloader and partition-table components; use the complete installer for migration |
-| `ESP32-Tailnet-Gateway-v3.0.5-factory.bin` | Full image for a new device at offset `0x0` (erases settings) |
+| Factory image attached to the release | Full image for a new device at offset `0x0` (erases settings) |
 | `SHA256SUMS.txt`, `release-manifest.json`, `source-provenance.json`, `FIRMWARE-LICENSES.txt` | Checksums, build metadata, exact source revision and third-party notices |
 
 Verify current images and archives with their release `SHA256SUMS.txt`.

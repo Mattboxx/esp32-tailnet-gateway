@@ -6,6 +6,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.6] — 2026-10-29
+
 ### Fixed
 
 - GitHub firmware downloads tolerate temporary TLS/HTTP read pauses within
