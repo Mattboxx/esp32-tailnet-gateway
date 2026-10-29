@@ -8,13 +8,17 @@ Read this before the older notification/release handovers.
 - Root branch: `perf/gateway-profile-20261029`; starting HEAD
   `c3234d9f058eb4de4fecac6d489abfc78688f057`. Uncommitted changes are intentional;
   inspect current HEAD/status instead of resetting to that starting point.
+- Exact prototype source commit: `f17f359e8f2c1167b6a364fdd6f2fccdb9615d1c`.
+  Later documentation checkpoints do not change or relabel its image.
 - MicroLink branch: `perf/owned-rx-pbuf-20261029`, local HEAD
   `c2acf70b4478c339ba4549d776148dc5a1bdf571`; based on published `fa3153b`.
   The first semantic commit is `9c0c34e`; two follow-ups preserve inherited
   line endings. Review the **combined** `fa3153b..HEAD` diff: 24 added/9 removed
   lines in `ml_wg_mgr.c`, not a deliberate whole-file refactor.
-- No push, flash or publication. Source parent gitlink is still an uncommitted
-  change. Do not publish a parent whose nested commit is unavailable remotely.
+- No push or publication. The root source commit records the new parent gitlink.
+  The exact prototype is now installed under fresh explicit owner authorization
+  recorded privately. Do not publish a parent whose nested commit is unavailable
+  remotely, and do not reuse this authority for a different image.
 - Original Documents/Claude workspaces, private backups and COMMUNITY-POSTS
   were not changed. Keep all pre-existing documentation changes.
 
@@ -51,11 +55,27 @@ Read this before the older notification/release handovers.
    uses disposable Git metadata from root/nested HEAD-ancestry bundles; private
    build/device data and host Git control/config directories are not mounted.
    Host all-ref history scans remain a separate scope.
+10. Exact source build/provenance PASS. App SHA-256:
+    `326c0d8eea71061c0b0199335b2ca139dda3b6bcfb0a4099d87d06b28a2d8b51`.
+    Static RAM 55,764 bytes versus reference 55,740 (+24); SDK config identical.
+11. USB device identity matched the live reference device. Standard bulk reads
+    truncated; an installed-esptool-5.6, 512-byte/window-1 read-only procedure
+    produced a full 16 MB backup with matching device MD5 before/after and host
+    SHA-256, with no corrupt chunks in the successful pass. Both slot backups
+    were extracted and checked. Do not weaken verification or repeat failed reads.
+12. Owner authorized that exact candidate, preserving data/recovery. Installed
+    only ota_0 over 3.0.6; ota_1 remains 3.0.5. MD5 of every region outside ota_0
+    was identical before/after. No NVS, otadata, partition or bootloader write.
+    Candidate booted with matching source ID, selected configuration unchanged,
+    Tailnet connected and authority ready. This is direct app-only USB flashing,
+    not an automatic OTA rollback qualification.
 
 ## Changes to preserve
 
-`CMakeLists.txt` identifies the **unbuilt/uninstalled** prototype as
-`3.0.7-dev.1`; stable 3.0.6 remains on the test device. New tools/tests above,
+`CMakeLists.txt` identifies the prototype as `3.0.7-dev.1`; that exact image is
+currently running on the reference test device. Public stable remains 3.0.6.
+The original 3.0.6 exact image is archived and matches its verified slot backup;
+3.0.5 remains untouched in the recovery slot. New tools/tests above,
 `test_gateway_benchmark.py`, `test_wg_rx_owned.py`, `test_wg_rx_sdk.py`, and their
 `validate_all.py` registrations are local. Roadmap/next-steps/matrix/validation
 documents are modified. The Linux runner now normalizes the Bash here-string
@@ -63,8 +83,16 @@ to LF; Windows CRLF otherwise broke its commands.
 
 ## Active/blocking work and exact next action
 
-**Next: review/commit the root, build one exact experimental image and record
-its source/config/binary/ELF hashes. No image has been built yet.**
+**Next: finish the active three-transfer candidate campaign, verify cleanup,
+then obtain a new 3.0.6 baseline at the current physical position using only
+ota_0. Do not reset/open a resetting serial monitor during the active campaign.**
+
+The board's observed RSSI changed materially after connection to USB. Old
+INFO/WARN baselines cannot establish a causal prototype speed gain. Candidate
+runs are in private `candidate-info-position2/`; active session/process details
+are in the private state/journal. Controlled restoration of archived exact 3.0.6
+and reinstallation of the same authorized candidate are part of the comparison;
+never touch ota_1. Stop if backup/identity/geometry/data checks fail.
 
 Docker Desktop was initially stopped and has now been started. The first
 Windows PowerShell invocation was blocked by execution policy; no policy was
@@ -80,9 +108,9 @@ Nested history scan flags nine old example placeholders, recorded privately;
 they predate this work. Do not rewrite history or weaken scanner rules silently.
 No publication is authorized by the performance task.
 
-After build success, record source/gitlink/config/binary/ELF hashes,
-review exact current OTA geometry and recovery, then request fresh explicit
-authorization for that candidate before any install. Hardware speed gains,
+Source/gitlink/config/binary/ELF hashes and recovery procedure are recorded.
+Do not request the same image authorization again; do request it for a new
+candidate. Hardware speed gains,
 concurrent-feature load resilience, forced DERP, real remote/wired comparisons,
 NVS/OTA and an uninterrupted 500 MB candidate test remain pending.
 
@@ -95,7 +123,8 @@ Linux container logs are under ignored `build/linux-validation-*`.
 The earlier completed 500 MB test is a separate private pointer and used two
 segments after a host interruption; never relabel it uninterrupted qualification.
 
-No benchmark/server/rule remains active after the six-run campaign. Before new
+The old six-run campaign is cleaned up. A **new candidate campaign is active**;
+read its private state before any USB/reset/cleanup operation. Before new
 experiments check processes and device settings again. If interrupted mid-test,
 use the benchmark's STOP file/recovery procedure and exact saved rule identity;
 never overwrite a stale whole table. Update this checkpoint after every material

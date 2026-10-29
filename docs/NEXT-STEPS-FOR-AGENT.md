@@ -4,9 +4,13 @@
 
 Read [Codex-to-Claude performance checkpoint](CODEX-TO-CLAUDE-PERFORMANCE-CHECKPOINT.md)
 first. PERF-01 harness and six INFO/WARN comparisons are complete for their
-scoped baseline; an RX buffer-adoption prototype has host/SDK tests but is not
-built or installed. Four targeted Linux ASan/UBSan checks now pass after the
-runner fixes; next review/commit root changes and build the exact candidate.
+scoped baseline. The exact RX buffer-adoption candidate source `f17f359`, image
+`326c0d8e…8a2d8b51`, is now built and installed under fresh owner authorization,
+with verified full backup, original configuration and protected 3.0.5 intact.
+Four targeted Linux ASan/UBSan checks pass. A three-transfer candidate campaign
+is active; finish/clean it before any USB/reset. RSSI changed after USB was
+connected, so next obtain a matching-position 3.0.6 baseline before claiming
+any speed improvement. Detailed recovery/authority/live state stays private.
 Preserve all dirty files and the local nested commits; no push/flash authority
 is implied. Update the checkpoint after every material step.
 
