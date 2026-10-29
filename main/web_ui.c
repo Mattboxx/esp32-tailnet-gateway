@@ -2045,6 +2045,7 @@ static esp_err_t mqtt_handler(httpd_req_t *req)
     cJSON_AddStringToObject(root, "base_topic", config.base_topic);
     cJSON_AddBoolToObject(root, "home_assistant_discovery",
                           config.home_assistant_discovery);
+    cJSON_AddBoolToObject(root, "poweron_events", config.poweron_events);
     cJSON_AddStringToObject(root, "discovery_prefix", config.discovery_prefix);
     cJSON_AddNumberToObject(root, "interval_seconds", config.interval_seconds);
     cJSON_AddBoolToObject(root, "broker_watchdog_enabled",
@@ -2102,6 +2103,13 @@ static esp_err_t mqtt_save_handler(httpd_req_t *req)
     if (cJSON_IsBool(item)) config.enabled = cJSON_IsTrue(item);
     item = cJSON_GetObjectItem(root, "home_assistant_discovery");
     if (cJSON_IsBool(item)) config.home_assistant_discovery = cJSON_IsTrue(item);
+    item = cJSON_GetObjectItemCaseSensitive(root, "poweron_events");
+    if (item && !cJSON_IsBool(item)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "poweron_events must be boolean");
+        return ESP_FAIL;
+    }
+    if (item) config.poweron_events = cJSON_IsTrue(item);
     item = cJSON_GetObjectItem(root, "interval_seconds");
     if (cJSON_IsNumber(item)) config.interval_seconds = (uint16_t)item->valueint;
     item = cJSON_GetObjectItem(root, "broker_watchdog_enabled");

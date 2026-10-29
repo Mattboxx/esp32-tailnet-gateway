@@ -3610,6 +3610,12 @@
             </label>
             <span class="form-hint">Creates full device diagnostics plus AP/Tailscale/routing switches, WiFi and Tailscale reconnect buttons, restart/status buttons, and one Wake button per saved WOL device.</span>
           </div>
+          <div class="form-group">
+            <label class="feature-switch">
+              <input type="checkbox" id="mqtt-poweron-events"><span class="feature-switch-track" aria-hidden="true"></span><span>Blackout: notify when power returns</span>
+            </label>
+            <span class="form-hint">Publishes a possible-blackout event for Home Assistant automations after power-on, once per boot. Enable before the next startup. Software restarts and brief WiFi/MQTT disconnects do not trigger it. First power-up or reconnecting a cable can produce the same event.</span>
+          </div>
           <div class="form-group" style="padding-top:0.75rem; border-top:1px solid var(--border);">
             <label class="feature-switch">
               <input type="checkbox" id="mqtt-watchdog-enabled"><span class="feature-switch-track" aria-hidden="true"></span><span>Wake the MQTT broker when it stays offline</span>
@@ -9655,6 +9661,7 @@
       document.getElementById('mqtt-password-clear').checked = false;
       document.getElementById('mqtt-interval').value = d.interval_seconds || 30;
       document.getElementById('mqtt-ha-enabled').checked = !!d.home_assistant_discovery;
+      document.getElementById('mqtt-poweron-events').checked = !!d.poweron_events;
       setFeatureDependentState('mqtt-ha-settings', !!d.enabled && !!d.home_assistant_discovery);
       document.getElementById('mqtt-ha-prefix').value = d.discovery_prefix || 'homeassistant';
       document.getElementById('mqtt-watchdog-enabled').checked = !!d.broker_watchdog_enabled;
@@ -9679,7 +9686,7 @@
     }
 
     ['mqtt-enabled', 'mqtt-uri', 'mqtt-topic', 'mqtt-user', 'mqtt-password',
-     'mqtt-password-clear', 'mqtt-interval', 'mqtt-ha-enabled', 'mqtt-ha-prefix',
+     'mqtt-password-clear', 'mqtt-interval', 'mqtt-ha-enabled', 'mqtt-ha-prefix', 'mqtt-poweron-events',
      'mqtt-watchdog-enabled', 'mqtt-watchdog-timeout', 'mqtt-watchdog-target'].forEach(function (id) {
       var element = document.getElementById(id);
       element.addEventListener(element.type === 'checkbox' ? 'change' : 'input', function () {
@@ -9716,6 +9723,7 @@
         base_topic: document.getElementById('mqtt-topic').value.trim().replace(/\/+$/, ''),
         interval_seconds: parseInt(document.getElementById('mqtt-interval').value, 10),
         home_assistant_discovery: document.getElementById('mqtt-ha-enabled').checked,
+        poweron_events: document.getElementById('mqtt-poweron-events').checked,
         discovery_prefix: document.getElementById('mqtt-ha-prefix').value.trim().replace(/\/+$/, ''),
         clear_password: document.getElementById('mqtt-password-clear').checked,
         broker_watchdog_enabled: document.getElementById('mqtt-watchdog-enabled').checked,

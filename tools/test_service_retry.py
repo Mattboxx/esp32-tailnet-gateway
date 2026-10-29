@@ -18,11 +18,16 @@ PROGRAM=r'''
 #include <string.h>
 #include "service_retry.h"
 #include "discovery_budget.h"
+#include "mqtt_power_event.h"
 typedef int esp_err_t;
 typedef void *esp_event_base_t;
 typedef struct {void *client; int retain,dup,current_data_offset,data_len,total_data_len,topic_len;char *topic,*data;} event_t;
 typedef event_t *esp_mqtt_event_handle_t;
-typedef struct {bool enabled,broker_watchdog_enabled;char uri[80],base_topic[80],broker_watchdog_wol_mac[18];int interval_seconds,broker_watchdog_timeout_seconds;} mqtt_integration_config_t;
+typedef struct {bool enabled,broker_watchdog_enabled,poweron_events,home_assistant_discovery;char uri[80],base_topic[80],broker_watchdog_wol_mac[18],discovery_prefix[48];int interval_seconds,broker_watchdog_timeout_seconds;} mqtt_integration_config_t;
+#define ESP_RST_POWERON 1
+static int raw_reset=ESP_RST_POWERON;static bool power_selected=true,ha_discovery;
+static int esp_reset_reason(void){return raw_reset;}
+static uint32_t esp_random(void){return 0x13579abc;}
 #define BROKER_CONNECTED 1u
 #define BROKER_DISCONNECTED 2u
 #define MQTT_EVENT_CONNECTED 1
@@ -47,14 +52,15 @@ typedef struct {bool configured,connected,connecting,discovery_pending;uint8_t r
 static mqtt_integration_status_t s_status;static int s_status_mux;
 static mqtt_integration_status_t seen[130];
 static unsigned tick,starts,reconnects,subscribes,states,discovery,wakes,stops;
+static unsigned power_events;
 static int64_t esp_timer_get_time(void){return now_us;}
 static int esp_mqtt_client_stop(void *p){assert(p);stops++;return 0;}
 static int esp_mqtt_client_destroy(void *p){assert(p);return 0;}
 static void handle_command(const char *a,const char *b){(void)a;(void)b;}
-static void mqtt_integration_get_config(mqtt_integration_config_t *c){*c=(mqtt_integration_config_t){.enabled=true,.broker_watchdog_enabled=true,.uri="mqtt://fixture",.base_topic="fixture",.broker_watchdog_wol_mac="00:00:00:00:00:01",.interval_seconds=30,.broker_watchdog_timeout_seconds=30};}
-static int publish(const char *a,const char *b,int c){(void)a;(void)b;(void)c;return 0;}
-static void publish_state(void){states++;}
-static void publish_discovery(void){discovery++;}
+static void mqtt_integration_get_config(mqtt_integration_config_t *c){*c=(mqtt_integration_config_t){.enabled=true,.broker_watchdog_enabled=true,.poweron_events=power_selected,.home_assistant_discovery=ha_discovery,.discovery_prefix="homeassistant",.uri="mqtt://fixture",.base_topic="fixture",.broker_watchdog_wol_mac="00:00:00:00:00:01",.interval_seconds=30,.broker_watchdog_timeout_seconds=30};}
+static int publish(const char *a,const char *b,int c){if(strstr(a,"/event/power")){assert(!c&&strstr(b,"possible_blackout")&&strstr(b,"13579abc"));power_events++;}return 0;}
+static void publish_state(const mqtt_power_event_t *power,bool selected){assert(power->boot_id==0x13579abc&&selected==power_selected);states++;}
+static void publish_discovery(void){discovery++;if(ha_discovery&&discovery_visit(&s_discovery))discovery_result(&s_discovery,true);}
 static int esp_mqtt_client_subscribe(void *p,const char *t,int qos){assert(p&&t&&qos==1);subscribes++;return 0;}
 static bool homelab_ops_admit(void){return true;}
 static bool start_client(void){starts++;if(starts<3)return false;s_client=&client_token;return true;}
@@ -77,7 +83,8 @@ static bool fixture_step(void){
     if(tick==20||tick==21||tick==25||tick==85||tick==86){assert(s_client);mqtt_event_handler(NULL,NULL,MQTT_EVENT_DISCONNECTED,&ev);}
     return true;
 }
-int main(void){
+int main(int argc,char **argv){
+    if(argc>1){raw_reset=!strcmp(argv[1],"software")?2:ESP_RST_POWERON;power_selected=strcmp(argv[1],"disabled")!=0;ha_discovery=!strcmp(argv[1],"ha");}
     service_retry_t r={0};assert(service_retry_due(&r,0));
     service_retry_begin(&r,0);assert(!service_retry_due(&r,30000));assert(!service_retry_timed_out(&r,29999));assert(service_retry_timed_out(&r,30000));
     uint64_t now=0;for(unsigned i=0;i<100;i++){service_retry_failed(&r,now);uint64_t delay=r.next_ms-now;assert(delay>=5000&&delay<=300000);assert(!service_retry_due(&r,r.next_ms-1));assert(service_retry_due(&r,r.next_ms));now=r.next_ms;}
@@ -89,6 +96,7 @@ int main(void){
     now_us=1;manager_task(NULL);
     assert(starts==3&&reconnects>0&&reconnects<12);
     assert(subscribes==2&&discovery==2&&states>=2);
+    assert(power_events==(unsigned)(raw_reset==ESP_RST_POWERON&&power_selected));
     assert(wakes==2&&s_watchdog_wake_count==2&&s_watchdog_triggered);
     /* Last failed reconnect did not reset the genuine second outage at 85 s. */
     assert(s_last_broker_ok_us==85000000);
@@ -122,6 +130,8 @@ with tempfile.TemporaryDirectory(prefix='service-retry-') as folder:
     if os.environ.get('RETRY_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run([os.environ.get('CC','gcc'),*flags,str(p/'test.c'),'-o',str(binary)],check=True)
     subprocess.run([str(binary)],check=True,timeout=30)
+    for mode in ('software','disabled','ha'):
+        subprocess.run([str(binary),mode],check=True,timeout=30)
 
 # Actual optional-module supervisor backoff (main/module_supervisor.h).
 SUPERVISOR = r'''

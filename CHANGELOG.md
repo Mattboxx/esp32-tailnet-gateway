@@ -6,6 +6,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.5] — 2026-10-29
+
+### Added
+
+- Optional MQTT power-return events for Home Assistant automations, with a
+  native event entity, notification switch and boot diagnostics. Events are
+  not retained; boot identifiers support duplicate suppression and retained
+  state supports catch-up when Home Assistant starts later. Software restarts
+  and Wi-Fi/MQTT reconnections do not generate a possible-blackout event.
+
 ## [3.0.4] — 2026-10-29
 
 ### Fixed

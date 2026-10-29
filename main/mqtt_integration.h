@@ -21,6 +21,7 @@ typedef struct {
     bool broker_watchdog_enabled;
     uint32_t broker_watchdog_timeout_seconds;
     char broker_watchdog_wol_mac[18];
+    bool poweron_events;       /* Uses existing tail padding; OFF by default. */
 } mqtt_integration_config_t;
 
 /* Worker-published snapshot, refreshed about once per second. No URI,
