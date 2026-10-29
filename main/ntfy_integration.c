@@ -15,6 +15,7 @@
 #include "snmp_agent.h"
 #include "dhcps_ext.h"
 #include "esp_app_desc.h"
+#include "esp_attr.h"
 #include "esp_crt_bundle.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
@@ -54,7 +55,9 @@ static TaskHandle_t s_task;
 static char s_last_event_id[48];
 /* Changes invalidate queued replies, including a disable/re-enable cycle. */
 static uint64_t s_config_generation;
-static char s_operational_event[160];
+/* Existing task-only text, never ISR/cache-disabled state. Reuse PSRAM as
+ * the notification queues do; keep internal RAM below the released budget. */
+EXT_RAM_BSS_ATTR static char s_operational_event[160];
 static uint64_t s_operational_generation;
 
 bool ntfy_integration_queue_event(const char *message)
