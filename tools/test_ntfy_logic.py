@@ -10,8 +10,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/ntfy_integration.c').read_text()
 command = 'static NTFY_NOINLINE void handle_command' + source.split('static NTFY_NOINLINE void handle_command', 1)[1].split('static void collect_line', 1)[0]
-reset_builder = source[source.index('static void appendf('):source.index('static NTFY_NOINLINE esp_err_t send_info(')]
-assert 'append_reset_reason(text, 8192, c);' in source
+reset_builder = source[source.index('static const char *reset_reason_description('):source.index('static NTFY_NOINLINE esp_err_t send_info(')]
+assert '(unsigned long)esp_get_minimum_free_heap_size(), reset_reason_description(c),' in source
 boot = 'static NTFY_NOINLINE esp_err_t send_system_event' + source.split('static NTFY_NOINLINE esp_err_t send_system_event',1)[1].split('static void task_main',1)[0]
 alert = 'static NTFY_NOINLINE esp_err_t send_tailscale_alert' + source.split('static NTFY_NOINLINE esp_err_t send_tailscale_alert', 1)[1].split('static NTFY_NOINLINE uint32_t available_update_id', 1)[0]
 fixture = r'''
@@ -111,12 +111,11 @@ int main(void) {
         assert((strstr(published,"(possible blackout)")!=NULL)==(enabled&&reason==ESP_RST_POWERON));
         assert(!strstr(published,"reset reason ")&&!strstr(published,"outage lasted")&&!strstr(published,"PRIVATE_LOCAL_LOG_FIXTURE"));
         assert(strlen(published)<192&&live==0&&log_reads==0&&allocations==0);
-        char info_line[192]="";
-        append_reset_reason(info_line,sizeof info_line,&c);
+        const char *info_line=reset_reason_description(&c);
         assert(strstr(info_line,descriptions[reason]));
         assert((strstr(info_line,"(possible blackout)")!=NULL)==(enabled&&reason==ESP_RST_POWERON));
         assert(strstr(published,info_line));
-        char tiny[8]="";append_reset_reason(tiny,sizeof tiny,&c);assert(tiny[7]==0);
+
       }
     }
     reset_reason=(esp_reset_reason_t)255;
