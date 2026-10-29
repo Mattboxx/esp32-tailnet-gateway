@@ -23,10 +23,12 @@ fixture = r'''
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <errno.h>
 #include "cJSON.h"
 #include "ota_validation.h"
 #define OTA_NOINLINE
 #define ESP_OK 0
+#define ESP_ERR_HTTP_EAGAIN 0x7007
 #define pdMS_TO_TICKS(x) (x)
 #define portMAX_DELAY 0
 #define ESP_IMAGE_HEADER_MAGIC 0xe9
@@ -58,6 +60,10 @@ static esp_partition_t partition={2048};
 static const esp_partition_t *ota_flash_next_partition(void) { return &partition; }
 static unsigned char image[1024];
 static int opens,reads,offset,begins,writes,aborts,ends,boots,restarts,releases;
+static int64_t clock_us;
+static int retry_logs,read_errors;
+#define ESP_LOGW(...) ((void)retry_logs++)
+#define ESP_LOGE(...) ((void)read_errors++)
 static int fault; /* 1 length,2 prefix EOF,3 hash,4 begin,5 write,6 end,7 boot,8 truncated,9 incomplete,10 redirect,11 allowed redirect,12 timeout,13 crypto */
 typedef struct { char *body; size_t used; bool overflow; char *location; } http_buffer_t;
 typedef http_buffer_t *esp_http_client_handle_t;
@@ -72,6 +78,20 @@ static void esp_http_client_close(esp_http_client_handle_t c) { (void)c; }
 static int esp_http_client_set_url(esp_http_client_handle_t c,const char *url) { (void)c; assert(ota_download_url_allowed(url)); return ESP_OK; }
 static int esp_http_client_read(esp_http_client_handle_t c,char *b,int length) {
     (void)c; reads++; if(fault==2 || (fault==8&&reads>1)) return 0;
+    /* Match the pinned SDK's transient read returns, including the real
+     * board's zero-byte return with errno EAGAIN after its TLS read stalls. */
+    if ((fault==17 && reads<=2) || (fault==18 && reads>4 && reads<=7)
+        || fault==21 || (fault==22 && reads>4)) {errno=EAGAIN;return 0;}
+    if ((fault==19 && reads<=2) || (fault==20 && reads>4 && reads<=7))
+        return -ESP_ERR_HTTP_EAGAIN;
+    if(fault==23 && reads%3) {clock_us+=1100000;errno=EAGAIN;return 0;}
+    if(fault==24 && reads<=3) {errno=EINTR;return -1;}
+    if(fault==25) {errno=ECONNRESET;return -1;}
+    if(fault==26) {errno=EAGAIN;return -0x7000;} /* fatal TLS code, never hidden */
+    if(fault==27)clock_us+=200000000; /* deadline crossed during a read */
+    if(fault==28&&reads==1){errno=EAGAIN;return 0;}
+    if(fault==28&&reads==2)return 0; /* stale errno must not turn EOF into a retry */
+    if(fault==29&&reads<=2){errno=EAGAIN;return -1;}
     if(length>73) length=73; /* exercise partial prefix and streaming reads */
     if(length>1024-offset) length=1024-offset;
     memcpy(b,image+offset,length); offset+=length; return length;
@@ -84,7 +104,6 @@ static void mbedtls_sha256_free(mbedtls_sha256_context *h) { (void)h; }
 static int mbedtls_sha256_starts(mbedtls_sha256_context *h,int n) { (void)h;(void)n; return 0; }
 static int mbedtls_sha256_update(mbedtls_sha256_context *h,const unsigned char *b,size_t n) { (void)b; h->used+=(int)n; return fault==13?-1:0; }
 static int mbedtls_sha256_finish(mbedtls_sha256_context *h,unsigned char out[32]) { assert(h->used==1024); memset(out,fault==3?2:1,32); return 0; }
-static int64_t clock_us;
 static int64_t esp_timer_get_time(void) { clock_us+=fault==12?200000000:100; return clock_us; }
 #define SNAP_UPDATE 2
 #define HIST_EV_UPDATE 3
@@ -98,7 +117,7 @@ static esp_err_t ota_flash_write(esp_ota_handle_t h,const void *p,size_t n) { as
 static esp_err_t ota_flash_end(esp_ota_handle_t *h) { assert(*h==1); if(fault==15)return -1; ends++; *h=0; return fault==6?-1:0; }
 static esp_err_t ota_flash_set_boot_partition(const esp_partition_t *p) { assert(p==&partition); boots++; return fault==7?-1:0; }
 static esp_err_t ota_flash_abort(esp_ota_handle_t h) { assert(h==1); aborts++; return fault==14?-1:0; }
-static void vTaskDelay(int t) { (void)t; }
+static void vTaskDelay(int t) { clock_us+=(int64_t)t*1000; }
 static void ota_flash_restart(void) { restarts++; }
 '''
 tests = r'''
@@ -113,7 +132,7 @@ static void reset(void) {
     strcpy(app.version,"0.1.31-Mattboxx-1.10");
     memcpy(image,&header,sizeof header); memcpy(image+32,&app,sizeof app);
     opens=reads=offset=begins=writes=aborts=ends=boots=restarts=releases=0;
-    fault=0; clock_us=0; s_writer_active=false;
+    fault=0; clock_us=0; retry_logs=read_errors=0; s_writer_active=false;
 }
 static void release_row(cJSON *rows,const char *tag,bool pre,bool draft,const char *file,const char *digest,int size) {
     cJSON *r=cJSON_CreateObject(),*assets=cJSON_AddArrayToObject(r,"assets"),*a=cJSON_CreateObject();
@@ -123,6 +142,12 @@ static void release_row(cJSON *rows,const char *tag,bool pre,bool draft,const ch
     cJSON_AddItemToArray(assets,a); cJSON_AddItemToArray(rows,r);
 }
 int main(void) {
+    char endpoint[OTA_RELEASES_API_BYTES];
+    for(unsigned i=0;i<OTA_REPO_COUNT;i++) {
+        int n=snprintf(endpoint,sizeof endpoint,OTA_RELEASES_API_PREFIX "%s" OTA_RELEASES_API_SUFFIX,ota_repo(i));
+        assert(n>0&&(size_t)n<sizeof endpoint);
+        assert(strlen(endpoint)==(size_t)n&&strstr(endpoint,ota_repo(i)));
+    }
     ota_version_t a,b; unsigned char digest[32];
     assert(ota_version_parse("v0.1.31-Mattboxx-1.10",&a));
     assert(ota_version_parse("0.1.31-Mattboxx-1.9",&b)); assert(ota_version_compare(&a,&b)>0);
@@ -241,7 +266,28 @@ int main(void) {
     fault=0; assert(!install_release()&&!ota_writer_try_acquire()&&aborts==1);
     for(int f=0;f<=11;f+=11) { reset(); fault=f; assert(install_release()); assert(boots==1&&restarts==1&&!aborts&&ends==1&&s_writer_active&&s_state.progress==100); }
     for(int f=0;f<3;f++) { reset(); if(f==0)image[12]=1; if(f==1)image[32+48]='!'; if(f==2)image[32+16]='!'; assert(!install_release()); assert(!begins&&!boots&&!restarts&&!s_writer_active); }
-    puts("PASS: real-C fork version/channel/release selection, digest/URL guards, partial reads, exclusive writer, redirects, download/hash/image/flash failure cleanup and commit-before-reboot");
+    for(int f=17;f<=24;f++) {
+        if(f==21||f==22)continue;
+        reset();fault=f;assert(install_release());
+        assert(boots==1&&restarts==1&&!aborts&&ends==1&&s_state.progress==100);
+        assert(retry_logs>0&&!read_errors);
+        if(f==23)assert(clock_us>30000000&&clock_us<180000000);
+    }
+    for(int f=21;f<=22;f++) {
+        reset();fault=f;assert(!install_release());
+        assert(!boots&&!restarts&&!s_writer_active&&retry_logs==1&&read_errors==1);
+        assert(clock_us>=30000000&&clock_us<31000000);
+        assert(strstr(s_state.status,"stalled"));
+        assert((f==21&&!begins&&!aborts)||(f==22&&begins==1&&aborts==1));
+    }
+    for(int f=25;f<=26;f++) {
+        reset();fault=f;assert(!install_release());
+        assert(reads==1&&!boots&&!begins&&!restarts&&!retry_logs&&read_errors==1&&!s_writer_active);
+    }
+    reset();fault=27;assert(!install_release());assert(!boots&&!begins&&read_errors==1&&!s_writer_active&&strstr(s_state.status,"total time"));
+    reset();fault=28;assert(!install_release());assert(reads==2&&!boots&&!begins&&retry_logs==1&&read_errors==1&&!s_writer_active);
+    reset();fault=29;assert(install_release());assert(boots==1&&restarts==1&&retry_logs==1&&!read_errors);
+    puts("PASS: real-C fork version/channel/release selection, digest/URL guards, transient TLS/HTTP pauses, idle/total deadlines, fatal/EOF rejection, exclusive writer, redirects, download/hash/image/flash failure cleanup and commit-before-reboot");
 }
 '''
 for variant in ([],):

@@ -6,6 +6,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.6] — 2026-10-29
+
+### Fixed
+
+- GitHub firmware downloads tolerate temporary TLS/HTTP read pauses within
+  bounded inactivity and total deadlines, while retaining HTTPS, checksum,
+  board/version and exclusive-writer checks.
+- Browser firmware uploads tolerate receive timeouts and erase only the
+  declared image size. Failure diagnostics distinguish stalls, closed
+  connections and flash errors; unacknowledged cleanup prevents another write.
+- Upload progress distinguishes bytes sent from device verification. Lost
+  responses are not treated as proof of a failed install or silently retried.
+
 ## [3.0.5] — 2026-10-29
 
 ### Added

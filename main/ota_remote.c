@@ -13,11 +13,13 @@
 #include <string.h>
 #include <strings.h>
 #include <time.h>
+#include <errno.h>
 #include "esp_app_desc.h"
 #include "esp_app_format.h"
 #include "esp_crt_bundle.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
+#include "esp_log.h"
 #include "esp_netif.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
@@ -158,11 +160,14 @@ static OTA_NOINLINE bool check_release(void)
     /* Only the worker task runs checks, so one static URL buffer is safe and
      * keeps the measured frame budget. Fall back to the previous repository
      * name only on 404 from the current one (before the GitHub rename). */
-    static char api[112];
+    static char api[OTA_RELEASES_API_BYTES];
     esp_err_t err = ESP_FAIL; int code = 0; unsigned repo = 0;
     for (; repo < OTA_REPO_COUNT; ++repo) {
         b.body[0] = 0; b.used = 0; b.overflow = false;
-        snprintf(api, sizeof api, "https://api.github.com/repos/%s/releases?per_page=10", ota_repo(repo));
+        int n = snprintf(api, sizeof api, OTA_RELEASES_API_PREFIX "%s" OTA_RELEASES_API_SUFFIX, ota_repo(repo));
+        if (n < 0 || (size_t)n >= sizeof api) {
+            free(b.body); status_set("Release API URL exceeds its fixed buffer"); return false;
+        }
         esp_http_client_handle_t client = http_client(api, &b);
         err = client ? esp_http_client_perform(client) : ESP_ERR_NO_MEM;
         code = client ? esp_http_client_get_status_code(client) : 0;
@@ -213,6 +218,54 @@ static bool image_matches(const unsigned char *data, size_t length, const char *
            !strcmp(app.project_name, running->project_name) && !strcmp(app.version, expected);
 }
 
+/* IDF may return zero with errno EAGAIN after a TLS read, as well as the
+ * documented negative HTTP EAGAIN. Neither means EOF. Keep the same buffer,
+ * connection and hash transaction; never reconnect/restart a partial image.
+ * Only this optional worker waits, bounded by inactivity and total deadlines. */
+static OTA_NOINLINE int download_read(esp_http_client_handle_t client,
+                                     unsigned char *buffer, size_t wanted,
+                                     int64_t deadline)
+{
+    int64_t idle_deadline = esp_timer_get_time() + 30LL * 1000000;
+    bool paused = false;
+    for (;;) {
+        int64_t now = esp_timer_get_time();
+        if (now >= deadline) goto timed_out;
+        if (now >= idle_deadline) {
+            status_set("Download stalled: no firmware data for 30 seconds");
+            ESP_LOGE("ota_fork", "Firmware download stopped after 30 s without data");
+            return -1;
+        }
+        errno = 0; /* Do not mistake stale errno from an earlier read for EOF. */
+        int n = esp_http_client_read(client, (char *)buffer, (int)wanted);
+        int read_errno = errno;
+        if (esp_timer_get_time() >= deadline) goto timed_out;
+        if (n > 0) {
+            if (paused) status_set("Downloading verified firmware");
+            return n;
+        }
+        bool again = n == -ESP_ERR_HTTP_EAGAIN ||
+            ((n == 0 || n == -1) && (read_errno == EAGAIN ||
+              read_errno == EWOULDBLOCK || read_errno == EINTR));
+        if (!again) {
+            status_set(n == 0 ? "Download stopped: connection ended early" :
+                               "Download failed: HTTPS read error");
+            ESP_LOGE("ota_fork", "Firmware read failed (rc=%d errno=%d)", n, read_errno);
+            return -1;
+        }
+        if (!paused) {
+            status_set("Download paused; waiting for firmware data");
+            ESP_LOGW("ota_fork", "Firmware read paused (rc=%d errno=%d); bounded retry", n, read_errno);
+            paused = true;
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+timed_out:
+    status_set("Download timed out: total time limit exceeded");
+    ESP_LOGE("ota_fork", "Firmware download reached its total time limit");
+    return -1;
+}
+
 static OTA_NOINLINE bool install_release(void)
 {
     ota_remote_state_t state; ota_remote_get_state(&state);
@@ -249,8 +302,8 @@ static OTA_NOINLINE bool install_release(void)
     size_t used = 0;
     const size_t prefix = sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t) + sizeof(esp_app_desc_t);
     int64_t deadline = esp_timer_get_time() + 180LL * 1000000;
-    while (used < prefix && esp_timer_get_time() < deadline) {
-        int n = esp_http_client_read(client, (char *)buffer + used, prefix - used);
+    while (used < prefix) {
+        int n = download_read(client, buffer + used, prefix - used, deadline);
         if (n <= 0) goto done;
         used += (size_t)n;
     }
@@ -258,10 +311,10 @@ static OTA_NOINLINE bool install_release(void)
     const esp_partition_t *target = ota_flash_next_partition();
     if (!target || state.asset_size > target->size || ota_flash_begin(target, state.asset_size, &writer) != ESP_OK) goto done;
     if (mbedtls_sha256_update(&hash, buffer, used) != 0 || ota_flash_write(writer, buffer, used) != ESP_OK) goto done;
-    while (used < state.asset_size && esp_timer_get_time() < deadline) {
+    while (used < state.asset_size) {
         size_t wanted = state.asset_size - used;
         if (wanted > 2048) wanted = 2048;
-        int n = esp_http_client_read(client, (char *)buffer, wanted);
+        int n = download_read(client, buffer, wanted, deadline);
         if (n <= 0 || mbedtls_sha256_update(&hash, buffer, n) != 0 || ota_flash_write(writer, buffer, n) != ESP_OK) goto done;
         used += (size_t)n;
         xSemaphoreTake(s_lock, portMAX_DELAY);

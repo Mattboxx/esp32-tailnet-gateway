@@ -27,6 +27,15 @@
 #define OTA_REPO_CURRENT "Mattboxx/esp32-tailnet-gateway"
 #define OTA_REPO_PREVIOUS "Mattboxx/esp32-tailscale-gateway-NAS-recovery"
 #define OTA_REPO_COUNT 2u
+#define OTA_RELEASES_API_PREFIX "https://api.github.com/repos/"
+#define OTA_RELEASES_API_SUFFIX "/releases?per_page=10"
+/* Exact longest permitted endpoint, including its NUL. Keep the legacy
+ * repository fallback without reserving unused internal-RAM headroom. */
+#define OTA_RELEASES_API_BYTES \
+    (sizeof(OTA_RELEASES_API_PREFIX OTA_REPO_CURRENT OTA_RELEASES_API_SUFFIX) > \
+     sizeof(OTA_RELEASES_API_PREFIX OTA_REPO_PREVIOUS OTA_RELEASES_API_SUFFIX) ? \
+     sizeof(OTA_RELEASES_API_PREFIX OTA_REPO_CURRENT OTA_RELEASES_API_SUFFIX) : \
+     sizeof(OTA_RELEASES_API_PREFIX OTA_REPO_PREVIOUS OTA_RELEASES_API_SUFFIX))
 #define OTA_FORK_REPO OTA_REPO_CURRENT
 #define OTA_FORK_URL "https://github.com/" OTA_FORK_REPO
 
