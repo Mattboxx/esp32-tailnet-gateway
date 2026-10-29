@@ -1,5 +1,16 @@
 # Validation records
 
+2026-10-29: [Performance/load exploration](PERFORMANCE-EXPLORATION-ROADMAP.md)
+is active. Twelve harness host tests, actual RX ownership tests, real SDK pbuf
+lifetime tests and existing authorization/SDK-forwarding targeted checks pass
+on Windows. Six real 32 MB transfers passed hashes and preserved original
+rule/lease/log settings, with no ESP reboot; INFO/WARN differences did not
+justify a default change. The owning-pbuf RX prototype is not hardware-qualified.
+Linux runner fixes and current sanitizer/build results are tracked in the
+[performance checkpoint](CODEX-TO-CLAUDE-PERFORMANCE-CHECKPOINT.md); do not infer
+their completion. Broader concurrent-load, remote/direct/DERP and uninterrupted
+500 MB candidate gates remain pending. RAM tradeoffs require measured reserves.
+
 The local 3.0.6 update-transfer fix has separate actual-handler regression and
 private transport evidence in `build/notification-ui/`. It does not replace
 the released 3.0.5 qualification or imply a new physical install.

@@ -1,5 +1,28 @@
 # Maintainer continuation
 
+## Active performance handover — 2026-10-29
+
+Read [Codex-to-Claude performance checkpoint](CODEX-TO-CLAUDE-PERFORMANCE-CHECKPOINT.md)
+first. PERF-01 harness and six INFO/WARN comparisons are complete for their
+scoped baseline; an RX buffer-adoption prototype has host/SDK tests but is not
+built or installed. Four targeted Linux ASan/UBSan checks now pass after the
+runner fixes; next review/commit root changes and build the exact candidate.
+Preserve all dirty files and the local nested commits; no push/flash authority
+is implied. Update the checkpoint after every material step.
+
+## Deferred performance investigation — owner request 2026-10-29
+
+Resume [Performance and load-resilience exploration](PERFORMANCE-EXPLORATION-ROADMAP.md)
+at PERF-01 when the owner allocates development budget. Planning only: no new
+optimization, tests or firmware builds were performed for this roadmap.
+The owner explicitly allows justified RAM changes; earlier fixed-RAM constraints
+are superseded for this investigation. Concurrent-service load stability is a
+blocking gate. No flash or publication authority is implied.
+Reuse the completed, explicitly two-segment 500 MB benchmark evidence via
+ignored `build/notification-ui/500mb-active-path.txt`. Temporary rule/server
+were removed; no benchmark is running. Read the private final 3.0.6 handover
+before acting on the older candidate/publication wording retained below.
+
 ## Local 3.0.6 candidate — bounded update transfer recovery
 
 The owner reported intermittent GitHub downloads and browser uploads. A real
