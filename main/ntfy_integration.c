@@ -15,6 +15,7 @@
 #include "snmp_agent.h"
 #include "dhcps_ext.h"
 #include "esp_app_desc.h"
+#include "esp_attr.h"
 #include "esp_crt_bundle.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
@@ -54,7 +55,9 @@ static TaskHandle_t s_task;
 static char s_last_event_id[48];
 /* Changes invalidate queued replies, including a disable/re-enable cycle. */
 static uint64_t s_config_generation;
-static char s_operational_event[160];
+/* Existing task-only text, never ISR/cache-disabled state. Reuse PSRAM as
+ * the notification queues do; keep internal RAM below the released budget. */
+EXT_RAM_BSS_ATTR static char s_operational_event[160];
 static uint64_t s_operational_generation;
 
 bool ntfy_integration_queue_event(const char *message)
@@ -333,6 +336,31 @@ static void appendf(char *out, size_t size, const char *fmt, ...)
     va_end(args);
 }
 
+/* Static text shared by info and boot messages; no extra buffer or state. */
+static const char *reset_reason_description(const ntfy_integration_config_t *c)
+{
+    switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return c->poweron_events
+        ? "power restored or first power-up (possible blackout)"
+        : "power restored or first power-up";
+    case ESP_RST_EXT: return "external reset pin";
+    case ESP_RST_SW: return "software-requested restart";
+    case ESP_RST_PANIC: return "firmware crash (panic/exception)";
+    case ESP_RST_INT_WDT: return "interrupt watchdog timeout";
+    case ESP_RST_TASK_WDT: return "task watchdog timeout";
+    case ESP_RST_WDT: return "watchdog timeout";
+    case ESP_RST_DEEPSLEEP: return "wake from deep sleep";
+    case ESP_RST_BROWNOUT: return "supply voltage drop (brownout)";
+    case ESP_RST_SDIO: return "SDIO reset";
+    case ESP_RST_USB: return "USB peripheral reset";
+    case ESP_RST_JTAG: return "JTAG/debugger reset";
+    case ESP_RST_EFUSE: return "eFuse error";
+    case ESP_RST_PWR_GLITCH: return "power glitch detected";
+    case ESP_RST_CPU_LOCKUP: return "CPU lockup (double exception)";
+    default: return "unknown reset cause";
+    }
+}
+
 static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
 {
     char *text = calloc(1, 8192);
@@ -344,10 +372,10 @@ static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
                 cpu.load_pct, cpu.core_pct[0], cpu.core_pct[1]);
     else
         appendf(text, 8192, "CPU: sample not available yet\n");
-    appendf(text, 8192, "Firmware: %s\nUptime: %llu s\nFree heap: %lu B (minimum %lu B)\nReset reason: %d\nWeb UI port: %u\n",
+    appendf(text, 8192, "Firmware: %s\nUptime: %llu s\nFree heap: %lu B (minimum %lu B)\nReset reason: %s\nWeb UI port: %u\n",
             app ? app->version : "unknown", esp_timer_get_time() / 1000000ULL,
             (unsigned long)esp_get_free_heap_size(),
-            (unsigned long)esp_get_minimum_free_heap_size(), (int)esp_reset_reason(),
+            (unsigned long)esp_get_minimum_free_heap_size(), reset_reason_description(c),
             (unsigned)web_ui_configured_port());
     appendf(text, 8192, "Socket limit: %d\nSNMP: %s (%s)\n",
             CONFIG_LWIP_MAX_SOCKETS, snmp_agent_is_enabled() ? "enabled" : "disabled",
@@ -716,15 +744,9 @@ static NTFY_NOINLINE esp_err_t send_system_event(const ntfy_integration_config_t
     if (event == NTFY_EVENT_BOOT) {
         const esp_app_desc_t *app = esp_app_get_description();
         esp_reset_reason_t reason = esp_reset_reason();
-        const char *start = "Gateway started";
-        if (reason == ESP_RST_POWERON) start = "Gateway powered on";
-        else if (reason == ESP_RST_SW) start = "Gateway restarted by software";
-        else if (reason == ESP_RST_BROWNOUT) start = "Gateway restarted after a supply voltage drop";
-        else if (reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT ||
-                 reason == ESP_RST_TASK_WDT || reason == ESP_RST_WDT) start = "Gateway restarted after a fault";
-        /* A power-on is not proof of a mains outage or its duration. */
-        snprintf(message, sizeof message, "%s: firmware %s, reset reason %d.",
-                 start, app ? app->version : "unknown", (int)reason);
+        snprintf(message, sizeof message, "Gateway %s: firmware %.31s; reset cause: %s.",
+                 reason == ESP_RST_POWERON ? "powered on" : "restarted",
+                 app ? app->version : "unknown", reset_reason_description(c));
         title = reason == ESP_RST_POWERON ? "ESP32 power-on detected" : "ESP32 gateway restarted";
     } else if (event == NTFY_EVENT_RESTORED) {
         snprintf(message, sizeof message, "Tailscale control connection restored after about %lu s. "

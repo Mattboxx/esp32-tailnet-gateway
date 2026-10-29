@@ -1,0 +1,29 @@
+{
+ "name": "ESP32 Tailnet Gateway",
+ "version": "3.0.4",
+ "new_install_prompt_erase": true,
+ "new_install_improv_wait_time": 0,
+ "builds": [
+  {
+   "chipFamily": "ESP32-S3",
+   "parts": [
+    {
+     "path": "bootloader.bin",
+     "offset": 0
+    },
+    {
+     "path": "partitions.bin",
+     "offset": 32768
+    },
+    {
+     "path": "ota_data_initial.bin",
+     "offset": 102400
+    },
+    {
+     "path": "firmware.bin",
+     "offset": 131072
+    }
+   ]
+  }
+ ]
+}

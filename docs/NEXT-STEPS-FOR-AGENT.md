@@ -1,5 +1,20 @@
 # Maintainer continuation
 
+## Firmware 3.0.4 continuation
+
+The ntfy wording increment replaces numeric reset reasons in startup alerts
+and `info` with explicit causes. `(possible blackout)` is conditional on a
+power-on reset and its enabled notification option; other restarts remain
+separate. The existing task-only event text uses PSRAM without adding a buffer,
+configuration key or task. Log-buffer sizes and persistent schema are unchanged.
+
+The exact candidate, installed device, retained recovery slot, backups and
+actual qualification/publication state are in ignored
+`build/notification-ui/CHECKPOINT.md`. Read it before any device write.
+Never infer the protected slot from an older handover. Package only the exact
+final-version image qualified there; never relabel a dev image. Preserve all
+42 requirements and all historical release artifacts.
+
 ## Firmware 3.0.3 continuation
 
 The notification/UI increment is implemented in qualified firmware source
