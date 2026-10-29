@@ -61,9 +61,7 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 - **More reliable notification delivery and editing:** bounded retries recover
   after task-allocation failure; queue completion cannot discard a newer
   message; refreshing the page preserves unsaved Telegram/email changes.
-- **Clearer setup and support:** an expandable Destination user id guide and
-  one firmware support dialog offering Ko-fi or GitHub Sponsors. Original
-  authorship, upstream links and licenses remain intact.
+- **Clearer setup:** an expandable Destination user id guide for Telegram.
 
 See the [notification guide](docs/NOTIFICATIONS.md).
 

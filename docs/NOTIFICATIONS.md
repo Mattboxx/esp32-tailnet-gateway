@@ -50,9 +50,9 @@ a failed second write could leave the record changed although the page
 reported an error. From the next release the record decides; `ntf_mlv` is
 still written after it, only so that a rollback to 3.0.1 keeps the choice, and
 3.0.0/3.0.1 records migrate. See [NVS keys](NVS-KEYS.md).
-# Candidate change: brief connectivity interruptions
+## Brief connectivity interruptions (3.0.3)
 
-The unpublished 3.0.3-dev.1 candidate waits for **60 continuous seconds by default** before
+Firmware 3.0.3 waits for **60 continuous seconds by default** before
 queuing a Telegram or email warning about Wi-Fi or Tailnet connectivity.
 The common **Connectivity alerts** timer accepts 15–3600 whole seconds, saved
 independently of the channel credentials. ntfy retains its own failure delay.
@@ -83,7 +83,7 @@ The Automation Refresh button updates Telegram/email delivery status too.
 Status polls preserve drafts and independently saved cards, and an older
 response cannot replace a newer one. The token/password remains write-only.
 
-## Candidate change: power-on and other restarts
+## Power-on and other restarts (3.0.3)
 
 Telegram, email and ntfy each have **Blackout: notify when power returns**.
 This selects a hardware POWERON reset, independently of other restarts.
@@ -127,11 +127,10 @@ guide. The Telegram API still calls the transport value `chat_id`; group ids
 and channel destinations remain supported. No helper bot or Telegram API is
 contacted by merely opening the guide.
 
-## Candidate change: local error context
+## Local error context
 
 At the owner's request, live log, RTC and Web log read-buffer allocation
 remain unchanged: **16 KiB live** and **4 KiB RTC**, with the existing fallback.
-The proposed 64 KiB expansion was withdrawn before any build/install/publication.
 No additional diagnostic buffer, queue or task is introduced.
 The new runtime preferences share the old external configuration's alignment
 space (590-byte config, 592-byte aligned wrapper); the ntfy snapshot remains
@@ -142,5 +141,4 @@ without message bodies, bot tokens, passwords or destination ids.
 
 Live logs are volatile; a cold
 power cut does not preserve them. This adds no automatic uploads or flash
-writes per log line. CPU/heap/stack behavior on real hardware still needs
-candidate qualification; host tests do not measure those runtime budgets.
+writes per log line. Larger log buffers are not required by these controls.

@@ -1,14 +1,15 @@
 # Feature implementation and validation matrix
 
-2026-10-28 source increment: unpublished 3.0.3-dev.1 normalizes Telegram/email
+Firmware 3.0.3 normalizes Telegram/email
 Wi-Fi/Tailnet incidents with a 60-second grace period, repairs queue/task
 recovery and notification-form refresh/draft handling, and adds the firmware
 donation provider chooser. Separate power-on/other-start choices cover Telegram,
 email and ntfy, with independent connectivity timing, unchanged log memory with richer local error context and a Telegram destination-id guide. All 42
-requirements remain. Scope is local source
-and offline/browser verification, not a new stable or device qualification.
+requirements remain. Execution records and scope-specific acceptance remain
+in the private maintainer handover; historical milestone evidence is not a
+blanket qualification of unrelated features or hardware.
 
-Current public product: **Firmware v3.0.2**, preserving the original 42 requirements
+Current public product: **Firmware v3.0.3**, preserving the original 42 requirements
 and the subsequently approved 3.x additions below. Historical milestone labels
 record their original evidence, not the current release's blanket acceptance.
 See [Release availability](PRESENTATION-STATUS.md); exact-image qualification,

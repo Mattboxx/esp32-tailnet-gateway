@@ -2,13 +2,13 @@
 slug: automation/
 title: Automation and integrations
 search_title: ESP32 Tailscale Gateway with MQTT & Home Assistant Discovery
-description: Optional MQTT, Home Assistant Discovery, ntfy and SNMP integration for the ESP32 Tailnet Gateway, isolated from routing and administration.
+description: Optional MQTT, Home Assistant, Telegram, email, ntfy and SNMP for ESP32, with power-return alerts and configurable connectivity warnings.
 nav: Automation
 group: Guides
 order: 5
 -->
 <h1>Automation and integrations</h1>
-<p>All integrations are optional, off by default and supervised: a broker or server outage never blocks routing, the Service Gateway or the Web UI.</p>
+<p>Integrations are optional, off by default and supervised. They are not prerequisites for routing, the Service Gateway or local administration.</p>
 
 <figure class="diagram">
   <img src="{{root}}assets/diagrams/home-assistant.svg" alt="The ESP32 publishes to an MQTT broker used by Home Assistant Discovery, and sends ntfy notifications to a phone." width="960" height="340">
@@ -26,6 +26,12 @@ order: 5
 
 <h2>ntfy</h2>
 <p>Outage and system-event alerts, Service watch changes, and replay-protected <code>info</code>, Wake-on-LAN and recovery commands. Local logs are never uploaded; private details stay hidden unless you enable them. Guide: <a href="{{repo}}/blob/Main/docs/NTFY.md">ntfy</a>.</p>
+
+<h2>Power-return and restart notifications</h2>
+<p>Firmware 3.0.3 gives <strong>Telegram, email and ntfy</strong> a separate <strong>Blackout: notify when power returns</strong> option. It reports the ESP32 powering on, independently of other restarts. Crash, watchdog and low-voltage resets remain distinguishable; Telegram and email keep their separate warning/error path.</p>
+<p>A power-on reset can also mean the first startup or a cable reconnection. The gateway cannot send while it is unpowered, prove a utility outage or measure its duration by itself. Delivery resumes when the network is available.</p>
+<p>For Telegram/email, choose a <strong>15–3600-second continuous-disconnection margin</strong> (60 seconds by default). Short Wi-Fi/Tailnet drops and their recoveries remain quiet; startup notifications do not wait for that timer. ntfy retains its own failure delay.</p>
+<p>The Telegram <strong>Destination user id</strong> field includes an expandable setup guide. Notification status refresh preserves unsaved edits. Read the <a href="{{repo}}/blob/Main/docs/NOTIFICATIONS.md">Telegram/email guide</a> for TLS, retry limits and settings compatibility.</p>
 
 <h2>SNMP</h2>
 <p>Read-only SNMP v1/v2c with an operational subtree for monitoring systems. Unencrypted: restrict UDP 161 with the firewall and use a private community.</p>
