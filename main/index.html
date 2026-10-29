@@ -4030,7 +4030,7 @@
           <div class="form-group">
             <label class="form-label" for="sys-ota-file">Manual upload (firmware.bin)</label>
             <input type="file" id="sys-ota-file" accept=".bin,application/octet-stream">
-            <span class="form-hint">Pick a built <code class="mono">firmware.bin</code> — the upload streams to flash, then the device reboots. Cancel takes effect only before the first byte goes out.</span>
+            <span class="form-hint">Pick a built <code class="mono">firmware.bin</code>. Flash preparation may briefly pause the transfer. Progress shows bytes sent, not completed verification. Keep the device powered until it confirms the upload and restarts. Cancel takes effect only before the first byte goes out.</span>
           </div>
           <div class="form-group" id="sys-ota-progress-wrap" style="display:none;">
             <div style="background:var(--bg-subtle); border-radius:var(--radius-sm); height:0.5rem; overflow:hidden;">
@@ -10129,25 +10129,30 @@
       var bar  = document.getElementById('sys-ota-progress');
       var txt  = document.getElementById('sys-ota-progress-text');
       wrap.style.display = '';
+      bar.style.width = '0%'; txt.textContent = 'Preparing flash and sending file…';
       var xhr = new XMLHttpRequest();
       xhr.open('POST', '/api/system/ota');
       xhr.setRequestHeader('Content-Type', 'application/octet-stream');
       xhr.upload.addEventListener('progress', function (e) {
         if (!e.lengthComputable) return;
         var pct = Math.floor(e.loaded * 100 / e.total);
-        bar.style.width = pct + '%'; txt.textContent = pct + '%  (' + e.loaded + ' / ' + e.total + ')';
+        bar.style.width = pct + '%';
+        txt.textContent = pct < 100 ? pct + '% sent  (' + e.loaded + ' / ' + e.total + ')' :
+          'File sent — waiting for device verification…';
       });
       xhr.onload  = function () {
         if (xhr.status === 200) {
-          txt.textContent = 'Uploaded — device rebooting…';
+          bar.style.width = '100%'; txt.textContent = 'Verified — device rebooting…';
           showToast('success', 'Flashed', 'Device is rebooting into the new partition.', 8000);
           kickToLoginAfterReboot(12000);
         } else {
+          txt.textContent = 'Upload not confirmed — check the running version before retrying.';
           btn.disabled = false; btn.textContent = 'Upload & reboot';
           showToast('error', 'Flash failed', 'HTTP ' + xhr.status + ' — ' + (xhr.responseText || ''), 8000);
         }
       };
       xhr.onerror = function () {
+        txt.textContent = 'Upload not confirmed — check the running version before retrying.';
         btn.disabled = false; btn.textContent = 'Upload & reboot';
         showToast('error', 'Flash failed', 'connection error', 6000);
       };

@@ -586,6 +586,43 @@ async function main() {
     assert.equal(await f.page.locator('#ts-advertise-exit').isChecked(), true);
     assert.deepEqual(f.errors, []);
     await f.context.close(); count++;
+    // Browser upload progress is transport evidence, not flash verification.
+    // An ambiguous response must never silently repeat a firmware upload.
+    f = await fixture(browser, { page: 'system/maintenance', viewport: { width: 390, height: 844 } });
+    await f.page.locator('#sys-ota-file').waitFor({state:'visible'});
+    await f.page.evaluate(() => {
+      window.XMLHttpRequest = class {
+        constructor() {window.__otaXhr=this;this.progress=null;this.upload={addEventListener:(name,fn)=>{if(name==='progress')this.progress=fn;}};}
+        open(method,url){this.method=method;this.url=url;}
+        setRequestHeader(){}
+        send(file){this.fileBytes=file.size;window.__otaSends=(window.__otaSends||0)+1;}
+      };
+    });
+    await f.page.locator('#sys-ota-file').setInputFiles({name:'firmware.bin',mimeType:'application/octet-stream',buffer:Buffer.alloc(1000)});
+    f.page.once('dialog', dialog=>dialog.accept());
+    await f.page.locator('#sys-ota-upload').click();
+    assert.match(await f.page.locator('#sys-ota-progress-text').textContent(),/Preparing flash/);
+    await f.page.evaluate(()=>window.__otaXhr.progress({lengthComputable:true,loaded:50,total:1000}));
+    assert.match(await f.page.locator('#sys-ota-progress-text').textContent(),/^5% sent/);
+    await f.page.evaluate(()=>window.__otaXhr.progress({lengthComputable:true,loaded:1000,total:1000}));
+    assert.match(await f.page.locator('#sys-ota-progress-text').textContent(),/waiting for device verification/);
+    await f.page.evaluate(()=>{window.__otaXhr.status=408;window.__otaXhr.responseText='upload stalled';window.__otaXhr.onload();});
+    assert.match(await f.page.locator('#sys-ota-progress-text').textContent(),/not confirmed.*check the running version/);
+    assert.equal(await f.page.locator('#sys-ota-upload').isDisabled(),false);
+    assert.equal(await f.page.evaluate(()=>window.__otaSends),1);
+    f.page.once('dialog', dialog=>dialog.accept());
+    await f.page.locator('#sys-ota-upload').click();
+    assert.equal(await f.page.locator('#sys-ota-progress').evaluate(el=>el.style.width),'0%');
+    await f.page.evaluate(()=>window.__otaXhr.onerror());
+    assert.match(await f.page.locator('#sys-ota-progress-text').textContent(),/not confirmed/);
+    assert.equal(await f.page.evaluate(()=>window.__otaSends),2);
+    f.page.once('dialog', dialog=>dialog.accept());
+    await f.page.locator('#sys-ota-upload').click();
+    await f.page.evaluate(()=>{window.__otaXhr.status=200;window.__otaXhr.onload();});
+    assert.match(await f.page.locator('#sys-ota-progress-text').textContent(),/Verified.*rebooting/);
+    assert.equal(await f.page.locator('#sys-ota-progress').evaluate(el=>el.style.width),'100%');
+    assert.equal(await f.page.evaluate(()=>window.__otaSends),3);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Manual GitHub installs remain usable while periodic checks are OFF;
     // channel changes must be saved and writes are never retried silently.
     f = await fixture(browser, { page: 'system/maintenance' });

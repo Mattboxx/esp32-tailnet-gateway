@@ -30,6 +30,7 @@ DRIVERS+=['task_reaper']
 DRIVERS+=['first_boot']
 DRIVERS+=['socket_origin','first_boot_reboot','lan_name','lan_mdns','index_variants','resp_headers','notify_store','nvs_flags','nvs_txn','release_list']
 DRIVERS+=['ota_flash']
+DRIVERS+=['ota_local']
 DRIVERS+=['notify_delivery']
 DRIVERS+=['notify_ui']
 DRIVERS+=['notify_api']
@@ -38,6 +39,7 @@ SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT T
 SANITIZERS+=['OTAFLASH','NOTIFY','NVS_FLAGS','NVS_TXN']
 SANITIZERS+=['LOG']
 SANITIZERS+=['MQTTPOWER']
+SANITIZERS+=['OTALOCAL']
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

@@ -1,5 +1,10 @@
 # Feature implementation and validation matrix
 
+Local 3.0.6 update-transfer recovery is implemented pending candidate
+qualification: bounded transient-read retries for GitHub and manual uploads,
+known-size erase and failure diagnostics. Resource limits and existing
+features remain; actual hardware evidence is separate from host fixtures.
+
 Firmware 3.0.5: MQTT native possible-blackout event, opt-in switch,
 per-boot identity and retained power-on diagnostics support HA automations.
 Reconnects do not rearm events. The implementation, host/broker/HA tests and
