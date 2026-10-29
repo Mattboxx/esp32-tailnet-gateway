@@ -165,3 +165,22 @@ Stable 1.13 ignores the settings added in 1.14 development builds. **Disable
 or delete temporary LAN → Tailnet rules before downgrading**: 1.13 has no
 expiry engine and would keep such a rule enabled permanently. Details per key:
 [NVS-KEYS.md](NVS-KEYS.md).
+
+## Transfer pauses (3.0.6 increment)
+
+GitHub downloads keep their 180-second total deadline and allow a temporary
+read pause within a 30-second inactivity budget. Certificate failures, early
+EOF, bad images and checksum mismatches still abort without selecting the
+inactive image. They never restart a partial download in a new connection.
+
+Manual uploads allow temporary receive timeouts, with a 30-second inactivity
+budget and ten-minute total reception limit, checked between SDK receive
+calls. Their unchanged 2048-byte buffer streams to the inactive slot; only
+the declared image size is erased. A flash preparation pause can briefly
+hold the browser progress bar at a low percentage. Progress measures bytes
+sent, not validated flash. Wait for the verified response and reboot. If a
+response is lost, check the running version before deciding whether to retry.
+
+An unacknowledged abort holds writer exclusion until an explicit restart;
+the failed path never forces a restart. Logs include bounded stage/byte/error
+diagnostics without firmware contents or credential-bearing download URLs.
