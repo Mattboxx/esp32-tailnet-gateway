@@ -333,32 +333,29 @@ static void appendf(char *out, size_t size, const char *fmt, ...)
     va_end(args);
 }
 
-/* Shared by the info reply and the startup event; reuse the caller's buffer. */
-static void append_reset_reason(char *out, size_t size, const ntfy_integration_config_t *c)
+/* Static text shared by info and boot messages; no extra buffer or state. */
+static const char *reset_reason_description(const ntfy_integration_config_t *c)
 {
-    esp_reset_reason_t reason = esp_reset_reason();
-    const char *cause;
-    switch (reason) {
-    case ESP_RST_POWERON: cause = "power restored or first power-up"; break;
-    case ESP_RST_EXT: cause = "external reset pin"; break;
-    case ESP_RST_SW: cause = "software-requested restart"; break;
-    case ESP_RST_PANIC: cause = "firmware crash (panic/exception)"; break;
-    case ESP_RST_INT_WDT: cause = "interrupt watchdog timeout"; break;
-    case ESP_RST_TASK_WDT: cause = "task watchdog timeout"; break;
-    case ESP_RST_WDT: cause = "watchdog timeout"; break;
-    case ESP_RST_DEEPSLEEP: cause = "wake from deep sleep"; break;
-    case ESP_RST_BROWNOUT: cause = "supply voltage drop (brownout)"; break;
-    case ESP_RST_SDIO: cause = "SDIO reset"; break;
-    case ESP_RST_USB: cause = "USB peripheral reset"; break;
-    case ESP_RST_JTAG: cause = "JTAG/debugger reset"; break;
-    case ESP_RST_EFUSE: cause = "eFuse error"; break;
-    case ESP_RST_PWR_GLITCH: cause = "power glitch detected"; break;
-    case ESP_RST_CPU_LOCKUP: cause = "CPU lockup (double exception)"; break;
-    default: cause = "unknown reset cause"; break;
+    switch (esp_reset_reason()) {
+    case ESP_RST_POWERON: return c->poweron_events
+        ? "power restored or first power-up (possible blackout)"
+        : "power restored or first power-up";
+    case ESP_RST_EXT: return "external reset pin";
+    case ESP_RST_SW: return "software-requested restart";
+    case ESP_RST_PANIC: return "firmware crash (panic/exception)";
+    case ESP_RST_INT_WDT: return "interrupt watchdog timeout";
+    case ESP_RST_TASK_WDT: return "task watchdog timeout";
+    case ESP_RST_WDT: return "watchdog timeout";
+    case ESP_RST_DEEPSLEEP: return "wake from deep sleep";
+    case ESP_RST_BROWNOUT: return "supply voltage drop (brownout)";
+    case ESP_RST_SDIO: return "SDIO reset";
+    case ESP_RST_USB: return "USB peripheral reset";
+    case ESP_RST_JTAG: return "JTAG/debugger reset";
+    case ESP_RST_EFUSE: return "eFuse error";
+    case ESP_RST_PWR_GLITCH: return "power glitch detected";
+    case ESP_RST_CPU_LOCKUP: return "CPU lockup (double exception)";
+    default: return "unknown reset cause";
     }
-    /* A power-on can be a cable connection, not proof of a utility outage. */
-    appendf(out, size, "Reset reason: %s%s.", cause,
-            reason == ESP_RST_POWERON && c->poweron_events ? " (possible blackout)" : "");
 }
 
 static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
@@ -372,12 +369,11 @@ static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
                 cpu.load_pct, cpu.core_pct[0], cpu.core_pct[1]);
     else
         appendf(text, 8192, "CPU: sample not available yet\n");
-    appendf(text, 8192, "Firmware: %s\nUptime: %llu s\nFree heap: %lu B (minimum %lu B)\n",
+    appendf(text, 8192, "Firmware: %s\nUptime: %llu s\nFree heap: %lu B (minimum %lu B)\nReset reason: %s\nWeb UI port: %u\n",
             app ? app->version : "unknown", esp_timer_get_time() / 1000000ULL,
             (unsigned long)esp_get_free_heap_size(),
-            (unsigned long)esp_get_minimum_free_heap_size());
-    append_reset_reason(text, 8192, c);
-    appendf(text, 8192, "\nWeb UI port: %u\n", (unsigned)web_ui_configured_port());
+            (unsigned long)esp_get_minimum_free_heap_size(), reset_reason_description(c),
+            (unsigned)web_ui_configured_port());
     appendf(text, 8192, "Socket limit: %d\nSNMP: %s (%s)\n",
             CONFIG_LWIP_MAX_SOCKETS, snmp_agent_is_enabled() ? "enabled" : "disabled",
             snmp_agent_is_running() ? "running" : "stopped");
@@ -745,10 +741,9 @@ static NTFY_NOINLINE esp_err_t send_system_event(const ntfy_integration_config_t
     if (event == NTFY_EVENT_BOOT) {
         const esp_app_desc_t *app = esp_app_get_description();
         esp_reset_reason_t reason = esp_reset_reason();
-        snprintf(message, sizeof message, "Gateway %s: firmware %.31s. ",
+        snprintf(message, sizeof message, "Gateway %s: firmware %.31s; reset cause: %s.",
                  reason == ESP_RST_POWERON ? "powered on" : "restarted",
-                 app ? app->version : "unknown");
-        append_reset_reason(message, sizeof message, c);
+                 app ? app->version : "unknown", reset_reason_description(c));
         title = reason == ESP_RST_POWERON ? "ESP32 power-on detected" : "ESP32 gateway restarted";
     } else if (event == NTFY_EVENT_RESTORED) {
         snprintf(message, sizeof message, "Tailscale control connection restored after about %lu s. "
