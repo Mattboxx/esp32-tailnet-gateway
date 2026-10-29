@@ -716,15 +716,32 @@ static NTFY_NOINLINE esp_err_t send_system_event(const ntfy_integration_config_t
     if (event == NTFY_EVENT_BOOT) {
         const esp_app_desc_t *app = esp_app_get_description();
         esp_reset_reason_t reason = esp_reset_reason();
-        const char *start = "Gateway started";
-        if (reason == ESP_RST_POWERON) start = "Gateway powered on";
-        else if (reason == ESP_RST_SW) start = "Gateway restarted by software";
-        else if (reason == ESP_RST_BROWNOUT) start = "Gateway restarted after a supply voltage drop";
-        else if (reason == ESP_RST_PANIC || reason == ESP_RST_INT_WDT ||
-                 reason == ESP_RST_TASK_WDT || reason == ESP_RST_WDT) start = "Gateway restarted after a fault";
-        /* A power-on is not proof of a mains outage or its duration. */
-        snprintf(message, sizeof message, "%s: firmware %s, reset reason %d.",
-                 start, app ? app->version : "unknown", (int)reason);
+        const char *cause;
+        switch (reason) {
+        case ESP_RST_POWERON: cause = "power restored or first power-up"; break;
+        case ESP_RST_EXT: cause = "external reset pin"; break;
+        case ESP_RST_SW: cause = "software-requested restart"; break;
+        case ESP_RST_PANIC: cause = "firmware crash (panic/exception)"; break;
+        case ESP_RST_INT_WDT: cause = "interrupt watchdog timeout"; break;
+        case ESP_RST_TASK_WDT: cause = "task watchdog timeout"; break;
+        case ESP_RST_WDT: cause = "watchdog timeout"; break;
+        case ESP_RST_DEEPSLEEP: cause = "wake from deep sleep"; break;
+        case ESP_RST_BROWNOUT: cause = "supply voltage drop (brownout)"; break;
+        case ESP_RST_SDIO: cause = "SDIO reset"; break;
+        case ESP_RST_USB: cause = "USB peripheral reset"; break;
+        case ESP_RST_JTAG: cause = "JTAG/debugger reset"; break;
+        case ESP_RST_EFUSE: cause = "eFuse error"; break;
+        case ESP_RST_PWR_GLITCH: cause = "power glitch detected"; break;
+        case ESP_RST_CPU_LOCKUP: cause = "CPU lockup (double exception)"; break;
+        default: cause = "unknown reset cause"; break;
+        }
+        /* Only the selected power-on category can suggest a blackout.
+         * Software/fault resets are never evidence of a utility outage. */
+        const char *possible_blackout = reason == ESP_RST_POWERON && c->poweron_events
+            ? " (possible blackout)" : "";
+        snprintf(message, sizeof message, "Gateway %s: firmware %.31s; reset cause: %s%s.",
+                 reason == ESP_RST_POWERON ? "powered on" : "restarted",
+                 app ? app->version : "unknown", cause, possible_blackout);
         title = reason == ESP_RST_POWERON ? "ESP32 power-on detected" : "ESP32 gateway restarted";
     } else if (event == NTFY_EVENT_RESTORED) {
         snprintf(message, sizeof message, "Tailscale control connection restored after about %lu s. "

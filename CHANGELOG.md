@@ -6,6 +6,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- ntfy restart messages describe the hardware reset cause in plain language
+  instead of a numeric reason. Selected power-on notifications add
+  `(possible blackout)`; software restarts and faults never receive that label.
+
 ## [3.0.3] — 2026-10-29
 
 ### Added
