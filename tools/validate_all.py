@@ -16,6 +16,9 @@ DRIVERS='release_packaging device_session feature_preservation upstream_033 upst
 DRIVERS+=['json_guard','service_transfer','service_retry','capabilities','mqtt_discovery','web_security','config_profiles','service_check','mqtt_state','eth_uplink','mqtt_commands','cell_uplink','layout_migration','storage_store','history_snapshot','tailnet_names','notify_channels','ddns','throughput']
 DRIVERS+=['soak_serial']
 DRIVERS+=['lab_echo']
+DRIVERS+=['gateway_benchmark']
+DRIVERS+=['wg_rx_owned']
+DRIVERS+=['wg_rx_sdk']
 DRIVERS+=['coord_recovery']
 DRIVERS+=['lab_cleanup']
 DRIVERS+=['candidate_ota_guard']
@@ -40,6 +43,7 @@ SANITIZERS+=['OTAFLASH','NOTIFY','NVS_FLAGS','NVS_TXN']
 SANITIZERS+=['LOG']
 SANITIZERS+=['MQTTPOWER']
 SANITIZERS+=['OTALOCAL']
+SANITIZERS+=['WG_RX']
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
