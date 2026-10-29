@@ -1,6 +1,6 @@
 # Validation records
 
-MQTT power-return work for the local 3.0.5 candidate has its own evidence under
+MQTT power-return work for firmware 3.0.5 has its own evidence under
 `build/notification-ui/`. Preserve the qualified 3.0.4 image and separate actual
 host/broker/HA/power-cycle outcomes; no new device result follows from unit tests.
 
