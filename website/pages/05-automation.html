@@ -24,6 +24,11 @@ order: 5
 </ul>
 <p>Guides: <a href="{{repo}}/blob/Main/docs/MQTT.md">MQTT</a>, <a href="{{repo}}/blob/Main/docs/HOME-ASSISTANT.md">Home Assistant</a>.</p>
 
+<h2>Possible-blackout automations in Home Assistant</h2>
+<p>Firmware 3.0.5 adds an optional <strong>Possible blackout</strong> MQTT event, a <strong>Blackout: notify when power returns</strong> switch, a boot-session sensor and power-on diagnostics. Enable the switch in <strong>Automation → MQTT</strong> before the next startup. Home Assistant Discovery adds the entities to your existing gateway device.</p>
+<p>Create an automation using the event's <code>possible_blackout</code> type. Only a hardware power-on reset qualifies: software restarts, updates, crashes and brief Wi-Fi/MQTT disconnections do not trigger it. First startup or reconnecting a cable can look the same; this is not proof of an electrical outage.</p>
+<p>Events are not retained. If Home Assistant starts later, retained boot metadata and a persistent helper can reconcile missed startups without repeating an action on every reconnect. See the <a href="{{repo}}/blob/Main/docs/MQTT-POWER-RETURN.md">setup and automation example</a> for delivery limits, duplicate suppression and catch-up.</p>
+
 <h2>ntfy</h2>
 <p>Outage and system-event alerts, Service watch changes, and replay-protected <code>info</code>, Wake-on-LAN and recovery commands. Local logs are never uploaded; private details stay hidden unless you enable them. Guide: <a href="{{repo}}/blob/Main/docs/NTFY.md">ntfy</a>.</p>
 

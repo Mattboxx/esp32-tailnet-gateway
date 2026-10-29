@@ -19,7 +19,7 @@ static discovery_budget_t s_discovery;
 static char s_device_id[24]="fixture",s_availability_topic[128]="fixture/availability";
 static unsigned accepted,allocations,fail_at,live;
 static int publish_result=1;
-static int publish(const char *t,const char *j,int retain){assert(t&&j&&retain);if(publish_result>=0)accepted++;return publish_result;}
+static int publish(const char *t,const char *j,int retain){assert(t&&j&&retain);if(strstr(t,"/event/")){assert(strstr(j,"\"event_types\":[\"possible_blackout\"]"));assert(strstr(j,"\"qos\":1"));}if(publish_result>=0)accepted++;return publish_result;}
 static void *allocate(size_t n){if(++allocations==fail_at)return NULL;void *p=malloc(n);if(p)live++;return p;}
 static void release(void *p){if(p)live--;free(p);}
 '''
@@ -30,6 +30,14 @@ int main(void){
     discovery_begin(&s_discovery);one();assert(accepted==1&&s_discovery.cursor==1&&discovery_finished(&s_discovery));assert(!live);
     unsigned total=allocations;
     for(unsigned i=1;i<=total;i++){discovery_reset(&s_discovery);discovery_begin(&s_discovery);allocations=0;fail_at=i;accepted=0;one();assert(!accepted&&s_discovery.failed&&!s_discovery.cursor&&!live);}
+    fail_at=0;allocations=0;accepted=0;discovery_reset(&s_discovery);discovery_begin(&s_discovery);
+    discovery_publish_entity("event","power","Power","fixture/event/power",NULL,NULL,NULL,NULL);
+    assert(accepted==1&&s_discovery.cursor==1&&!live);total=allocations;
+    for(unsigned i=1;i<=total;i++){
+      discovery_reset(&s_discovery);discovery_begin(&s_discovery);allocations=0;fail_at=i;accepted=0;
+      discovery_publish_entity("event","power","Power","fixture/event/power",NULL,NULL,NULL,NULL);
+      assert(!accepted&&s_discovery.failed&&!s_discovery.cursor&&!live);
+    }
     fail_at=0;accepted=0;discovery_reset(&s_discovery);
     unsigned passes=0;
     while(s_discovery.cursor<100){

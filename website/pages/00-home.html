@@ -64,8 +64,9 @@ schema: home
 <p><strong>Firmware v{{next_version}} is available</strong> for ESP32-S3 N8R8 and N16R8 boards, with the guided first start, the LAN address and the per-board <code>.local</code> name shown after setup. <a href="{{root}}changelog/">What's new</a> · <a href="{{root}}install-firmware/">Install the current firmware</a>.</p>
 
 <section class="note ok" aria-labelledby="latest-features">
-  <h2 id="latest-features">New in Firmware 3.0.4</h2>
-  <p><strong>Readable ntfy reset causes:</strong> startup alerts and <code>info</code> distinguish software restarts, crashes, watchdogs and voltage drops. <code>(possible blackout)</code> appears only for an opted-in power-on notification.</p>
+  <h2 id="latest-features">New in Firmware 3.0.5</h2>
+  <p><strong>Home Assistant possible-blackout automations:</strong> the new opt-in MQTT event, notification switch and boot diagnostics let you react when the ESP powers on. Retained boot metadata supports catch-up if Home Assistant starts later. <a href="{{root}}automation/">Set up power-return automations</a>.</p>
+  <p><strong>From 3.0.4, readable ntfy reset causes:</strong> startup alerts and <code>info</code> distinguish software restarts, crashes, watchdogs and voltage drops. <code>(possible blackout)</code> appears only for an opted-in power-on notification.</p>
   <p><strong>Power-return alerts without brief-disconnection noise:</strong> choose power-on and other-restart messages independently in Telegram, email and ntfy. Telegram/email connectivity warnings use a configurable margin, and refreshing their settings keeps unsaved edits.</p>
   <p>A power-on message reports the board starting; it cannot prove a utility outage or tell how long power was absent. <a href="{{root}}automation/">How the notification choices work</a>.</p>
   <p>Firmware 3.0.2 added all-or-nothing ordinary settings saves, keeping existing 3.x configuration.</p>

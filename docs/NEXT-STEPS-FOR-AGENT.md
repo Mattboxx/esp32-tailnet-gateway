@@ -1,5 +1,20 @@
 # Maintainer continuation
 
+## Firmware 3.0.5 — MQTT power-return automations
+
+The opt-in `mqtt_pwr` preference adds an MQTT/HA power-return event and switch,
+plus retained boot metadata. Configuration remains 496 bytes; state uses the
+existing manager stack and message budget, with no new worker or persistent
+queue. Read `docs/MQTT-POWER-RETURN.md` for automation, deduplication and catch-up
+semantics. Preserve the 3.0.4 recovery image and all historical artifacts.
+
+Exact source/image hashes, current device slots, owner authorization, encrypted
+Web export, broker/power-cycle results and publication status are recorded in
+ignored `build/notification-ui/CHECKPOINT.md` and
+`build/notification-ui/CURRENT-OPERATIONS.json`. Read those before further device
+writes. Publish only the exact qualified image; never substitute a rebuild.
+Do not infer real Home Assistant automation execution from broker delivery.
+
 ## Firmware 3.0.4 continuation
 
 The ntfy wording increment replaces numeric reset reasons in startup alerts
