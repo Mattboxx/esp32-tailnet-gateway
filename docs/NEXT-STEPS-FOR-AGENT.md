@@ -3,6 +3,12 @@
 ## Active performance handover — 2026-10-29
 
 Read [Codex-to-Claude performance checkpoint](CODEX-TO-CLAUDE-PERFORMANCE-CHECKPOINT.md)
+and its **Latest stage** section first: the dev.1 comparison is finished with no
+demonstrated speed gain; device is back on 3.0.6. A separate selective-IRAM
+dev.2 prototype has host crypto tests; next sanitizer/build/actual memory cost.
+No dev.2 install is authorized yet. Older details below are historical.
+
+Previous dev.1 stage: read the checkpoint
 first. PERF-01 harness and six INFO/WARN comparisons are complete for their
 scoped baseline. The exact RX buffer-adoption candidate source `f17f359`, image
 `326c0d8e…8a2d8b51`, is now built and installed under fresh owner authorization,

@@ -3,6 +3,28 @@
 Updated 2026-10-29. This is local experimental work, not a published release.
 Read this before the older notification/release handovers.
 
+## Latest stage — overrides older experiment descriptions below
+
+The first RX candidate comparison is complete: median 4.513 Mbit/s versus
+same-position 3.0.6 baseline 4.558, with overlapping ranges. **No demonstrated
+speed gain; do not promote it.** Device is deliberately back on 3.0.6 in ota_0;
+3.0.5 remains protected in ota_1. No benchmark or serial test is active.
+
+Root and nested branches are now `perf/crypto-hotloop-20261029`. Previous
+experiment branches and commits are preserved. The second prototype holds the
+RX path fixed and places only existing `INNER_BLOCK` and WG `poly1305_blocks`
+in IRAM on S3. It changes no cipher arithmetic, protocol, buffers or workers.
+Portable + ESP-attribute-fixture real-C RFC/independent AEAD tests pass, including
+zero/one/max 64-bit nonce cases; the Linux ASan/UBSan crypto driver now also
+passes. Nested selective-placement commit is
+`ac0e545c39b33e206ad0ee476535acb4bac0ae88` (on top of retained RX prototype).
+Next: exact build, actual ELF placement and measured IRAM/DRAM cost.
+`3.0.7-dev.2` is not yet built/installed and has **no flash authority**. The
+owner's exact-image authority applies only to dev.1 `326c0d8e…8a2d8b51`.
+
+Read ignored `build/notification-ui/PERFORMANCE-STATE.json` and the numbered
+private step journal for the latest result. No push/release is authorized.
+
 ## Current ownership and Git
 
 - Root branch: `perf/gateway-profile-20261029`; starting HEAD
@@ -83,7 +105,7 @@ to LF; Windows CRLF otherwise broke its commands.
 
 ## Active/blocking work and exact next action
 
-**Next: finish the active three-transfer candidate campaign, verify cleanup,
+**Historical dev.1 continuation (completed; use latest stage above): finish the active three-transfer candidate campaign, verify cleanup,
 then obtain a new 3.0.6 baseline at the current physical position using only
 ota_0. Do not reset/open a resetting serial monitor during the active campaign.**
 
@@ -123,8 +145,8 @@ Linux container logs are under ignored `build/linux-validation-*`.
 The earlier completed 500 MB test is a separate private pointer and used two
 segments after a host interruption; never relabel it uninterrupted qualification.
 
-The old six-run campaign is cleaned up. A **new candidate campaign is active**;
-read its private state before any USB/reset/cleanup operation. Before new
+All three completed campaigns are cleaned up; read the latest private state
+before any USB/reset/cleanup operation. Before new
 experiments check processes and device settings again. If interrupted mid-test,
 use the benchmark's STOP file/recovery procedure and exact saved rule identity;
 never overwrite a stale whole table. Update this checkpoint after every material

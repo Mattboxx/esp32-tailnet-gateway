@@ -63,9 +63,9 @@ The previous private performance note's fixed-RAM rule is superseded by this pla
 | PERF-01 | P0 | Reproducible benchmark and resource baseline | Safe harness, capacity/workload matrix, private measurements | Harness + 12 host tests + six scoped device transfers complete; wider concurrency pending |
 | PERF-02 | P0 | Locate the dominant bottleneck | Topology comparison, CPU/task/queue/copy/crypto evidence | CPU/control/TX-cost baseline collected; wired/remote/RX-cost attribution pending |
 | PERF-03 | P1 | Reduce logging overhead | Controlled INFO/WARN comparison and restore | Six paired runs complete; approximately 2% median difference inside variability; original INFO restored |
-| PERF-04 | P1 | Receive ownership and zero-copy investigation | Small audited receive-path experiment or justified rejection | Owning-pbuf prototype + actual-C and SDK pbuf host tests; hardware gain not measured; raw zero-copy remains OFF |
+| PERF-04 | P1 | Receive ownership and zero-copy investigation | Small audited receive-path experiment or justified rejection | Host/SDK/sanitizer + scoped device comparisons complete; no demonstrated speed gain, not promoted; raw zero-copy remains OFF |
 | PERF-05 | P1 | Bounded event-driven packet scheduling | Lower avoidable delay without starvation/watchdog regressions | Conditional on PERF-02 |
-| PERF-06 | P2 | Precision memory/cache/buffer allocation | Measured speed/headroom tradeoff under concurrent services | Conditional on PERF-02 |
+| PERF-06 | P2 | Precision memory/cache/buffer allocation | Measured speed/headroom tradeoff under concurrent services | Separate selective-IRAM loop prototype; host/ASan crypto PASS; actual build/placement/RAM and hardware comparison pending |
 | PERF-07 | P2 | Crypto hot-path improvements | Compatible, licensed, verified implementation improvement | Conditional on crypto cost |
 | PERF-08 | P2 | MTU/MSS/loss investigation | Correct packet sizing only when evidence supports it | Conditional on loss evidence |
 | PERF-09 | Blocking final gate | Integrated load/fault/regression qualification | Exact-image evidence and accept/reject decision | Not started |
