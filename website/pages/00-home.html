@@ -64,8 +64,10 @@ schema: home
 <p><strong>Firmware v{{next_version}} is available</strong> for ESP32-S3 N8R8 and N16R8 boards, with the guided first start, the LAN address and the per-board <code>.local</code> name shown after setup. <a href="{{root}}changelog/">What's new</a> · <a href="{{root}}install-firmware/">Install the current firmware</a>.</p>
 
 <section class="note ok" aria-labelledby="latest-features">
-  <h2 id="latest-features">New in Firmware 3.0.2</h2>
-  <p><strong>Reliable settings saves:</strong> every settings page now saves all or nothing — a failed write or a power cut in the middle keeps none of that change, and live changes apply only after the whole save succeeded. Existing 3.x settings are kept.</p>
+  <h2 id="latest-features">New in Firmware 3.0.3</h2>
+  <p><strong>Power-return alerts without brief-disconnection noise:</strong> choose power-on and other-restart messages independently in Telegram, email and ntfy. Telegram/email connectivity warnings use a configurable margin, and refreshing their settings keeps unsaved edits.</p>
+  <p>A power-on message reports the board starting; it cannot prove a utility outage or tell how long power was absent. <a href="{{root}}automation/">How the notification choices work</a>.</p>
+  <p>Firmware 3.0.2 added all-or-nothing ordinary settings saves, keeping existing 3.x configuration.</p>
   <p>Firmware 3.0.1 added <strong>optional Dynamic DNS</strong> with DuckDNS, Cloudflare or a custom HTTPS URL; <strong>six languages</strong> including French and German; translated Wi-Fi / Ethernet / cellular setup; faster cached pages and clearer Telegram/email controls.</p>
   <p><a href="{{root}}changelog/">See what's changed</a> · <a href="{{root}}features/">Explore all features</a>. Ethernet and cellular remain experimental and require additional hardware.</p>
 </section>
