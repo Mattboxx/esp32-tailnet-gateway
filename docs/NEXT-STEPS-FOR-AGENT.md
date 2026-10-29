@@ -7,6 +7,9 @@ Branch `fix/ntfy-reset-description-20261029` starts from released Main
 reasons with explicit cause text and appends `(possible blackout)` only for
 opted-in power-on events. Other restarts and faults stay distinct. No NVS,
 configuration layout, log-buffer or task change is required.
+The existing 160-byte task-only ntfy event text is placed in PSRAM to keep
+internal RAM within the released budget; its size and synchronization stay
+unchanged. No additional buffer is allocated.
 The public release, installer and installed image remain 3.0.3. Read the
 ignored `build/notification-ui/CHECKPOINT.md` for exact source, build, tests
 and any subsequent owner authorization; do not reuse the 3.0.3 qualification
