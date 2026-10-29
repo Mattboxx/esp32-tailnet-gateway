@@ -1,6 +1,6 @@
 # Validation records
 
-The local 3.0.6 update-transfer fix has separate actual-handler regression and
+The 3.0.6 update-transfer fix has separate actual-handler regression and
 private transport evidence in `build/notification-ui/`. It does not replace
 the released 3.0.5 qualification or imply a new physical install.
 

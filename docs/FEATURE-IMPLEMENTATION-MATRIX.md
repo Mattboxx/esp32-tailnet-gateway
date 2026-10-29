@@ -1,7 +1,6 @@
 # Feature implementation and validation matrix
 
-Local 3.0.6 update-transfer recovery is implemented pending candidate
-qualification: bounded transient-read retries for GitHub and manual uploads,
+Firmware 3.0.6 implements update-transfer recovery: bounded transient-read retries for GitHub and manual uploads,
 known-size erase and failure diagnostics. Resource limits and existing
 features remain; actual hardware evidence is separate from host fixtures.
 
@@ -25,7 +24,7 @@ requirements remain. Execution records and scope-specific acceptance remain
 in the private maintainer handover; historical milestone evidence is not a
 blanket qualification of unrelated features or hardware.
 
-Current product: **Firmware v3.0.5**, preserving the original 42 requirements
+Current product: **Firmware v3.0.6**, preserving the original 42 requirements
 and the subsequently approved 3.x additions below. Historical milestone labels
 record their original evidence, not the current release's blanket acceptance.
 See [Release availability](PRESENTATION-STATUS.md); exact-image qualification,
