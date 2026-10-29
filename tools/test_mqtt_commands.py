@@ -28,7 +28,7 @@ typedef int esp_err_t;
 #define TAILNET_FORWARD_MAX 8
 #define ESP_LOGW(...) ((void)0)
 #define ESP_LOGE(...) ((void)0)
-typedef struct {char base_topic[96];} mqtt_integration_config_t;
+typedef struct {char base_topic[96];bool poweron_events;} mqtt_integration_config_t;
 typedef struct {bool enabled, notify; uint32_t interval_s;} service_watch_config_t;
 typedef struct {bool enabled; char lan_cidr[20]; uint16_t site_id;} fourvia6_status_t;
 static bool s_publish_requested,s_discovery_requested,s_wifi_reconnect_requested;
@@ -37,6 +37,8 @@ static uint32_t tailscale_exit_node_ip;
 static int restarts,nvs_writes,nvs_fail,forward_calls,forward_index,test_calls,test_index,wol_calls,recover_calls,watch_sets,health_sets;
 static uint32_t forward_token,test_token;static bool forward_enabled,recover_remote,health_on,ap_auto_off=true,power_save;
 static char wol_mac[32],recover_mac[32];static service_watch_config_t watch={.interval_s=900};
+static int mqtt_sets;static bool saved_power;
+static esp_err_t mqtt_integration_set_config(const mqtt_integration_config_t *c){mqtt_sets++;if(nvs_fail)return ESP_FAIL;saved_power=c->poweron_events;return ESP_OK;}
 static void mqtt_integration_get_config(mqtt_integration_config_t *c){strcpy(c->base_topic,"home/gw");}
 static const char *esp_err_to_name(esp_err_t e){(void)e;return "ERR";}
 static esp_err_t nvs_param_set_int(const char *k,int32_t v){(void)k;(void)v;nvs_writes++;return nvs_fail?ESP_FAIL:ESP_OK;}
@@ -86,6 +88,10 @@ int main(void){
     watch=(service_watch_config_t){.enabled=false,.notify=true,.interval_s=300};
     CMD("service_watch_enabled","maybe");assert(!watch_sets);
     CMD("service_watch_enabled","ON");assert(watch_sets==1&&watch.enabled&&watch.notify&&watch.interval_s==300);
+    CMD("poweron_events","maybe");assert(!mqtt_sets);
+    CMD("poweron_events","ON");assert(mqtt_sets==1&&saved_power);
+    CMD("poweron_events","OFF");assert(mqtt_sets==2&&!saved_power);
+    nvs_fail=1;CMD("poweron_events","ON");assert(mqtt_sets==3&&!saved_power);nvs_fail=0;
     CMD("health_monitor_enabled","1");assert(health_on&&health_sets==1);
     CMD("ap_always_on","ON");assert(!ap_auto_off);
     CMD("reconnect_wifi","");assert(s_wifi_reconnect_requested);

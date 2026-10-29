@@ -13,7 +13,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/mqtt_integration.c').read_text(encoding='utf-8')
 start = '#define MQTT_STATE_BUDGET'
-helpers = start + source.split(start, 1)[1].split('static void publish_state(void)', 1)[0]
+helpers = start + source.split(start, 1)[1].split('static void publish_state(', 1)[0]
 
 PROGRAM = r'''
 #include <assert.h>
@@ -22,6 +22,7 @@ PROGRAM = r'''
 #include <string.h>
 #include "cJSON.h"
 #include "service_evidence.h"
+#include "mqtt_power_event.h"
 static int rows=8;static tailnet_forward_rule_t rules[TAILNET_FORWARD_MAX];static tailnet_forward_runtime_t rts[TAILNET_FORWARD_MAX];
 int tailnet_forward_count(void){return rows;}
 bool tailnet_forward_get(int i,tailnet_forward_rule_t *r,tailnet_forward_runtime_t *rt){if(i<0||i>=rows)return false;*r=rules[i];*rt=rts[i];return true;}
@@ -34,6 +35,7 @@ static unsigned allocations,fail_at;
 static void *allocate(size_t n){return ++allocations==fail_at?NULL:malloc(n);}
 static cJSON *state(size_t filler){
     cJSON *root=cJSON_CreateObject();assert(root);
+    mqtt_power_event_t boot;mqtt_power_event_init(&boot,123,true,true,true);assert(add_power_state(root,&boot,true));
     char *pad=malloc(filler+1);memset(pad,'x',filler);pad[filler]=0;cJSON_AddStringToObject(root,"filler",pad);free(pad);
     cJSON *ops=cJSON_AddObjectToObject(root,"operations"),*dev=cJSON_AddArrayToObject(ops,"devices");
     cJSON_AddStringToObject(ops,"recovery_state","waiting-for-host");cJSON_AddNumberToObject(ops,"internal_largest",123456);

@@ -57,7 +57,8 @@ async function fixture(browser, options = {}) {
     } else if (url.pathname === '/api/mqtt') {
       if (state.mqttDelay) await new Promise(resolve => setTimeout(resolve, state.mqttDelay));
       if (state.mqttFailures) { state.mqttFailures--; status = 503; }
-      body = state.mqttBody || mqtt;
+      if (route.request().method() === 'POST') { state.savedMqtt = route.request().postDataJSON(); state.mqttBody = {...(state.mqttBody || mqtt), ...state.savedMqtt}; body = {ok:true}; }
+      else body = state.mqttBody || mqtt;
     } else if (url.pathname === '/api/ntfy') {
       if (state.ntfyFailures) { state.ntfyFailures--; status = 503; }
       if (route.request().method() === 'POST') { state.savedNtfy = route.request().postDataJSON(); state.ntfyBody = {...(state.ntfyBody || ntfy), ...state.savedNtfy}; body = {ok: true}; }
@@ -434,6 +435,23 @@ async function main() {
     assert.equal(await drawer.isVisible(), false);
     assert.equal(await f.page.evaluate(() => location.hash), '#operations');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
+
+    // Power-return control: default OFF, dirty tracking, authenticated save/reload.
+    f = await fixture(browser, {viewport:{width:390,height:844}});
+    await loaded(f.page);
+    const powerChoice=f.page.locator('#mqtt-poweron-events');
+    assert.equal(await powerChoice.isChecked(),false);
+    await f.page.locator('label.feature-switch:has(#mqtt-poweron-events)').click();
+    assert.equal(await f.page.locator('#mqtt-save').isDisabled(),false);
+    await f.page.locator('#mqtt-save').click();
+    await f.page.waitForFunction(()=>document.getElementById('mqtt-save').textContent==='Save');
+    assert.equal(f.state.savedMqtt.poweron_events,true);
+    await f.page.evaluate(()=>window.loadMqtt());
+    assert.equal(await powerChoice.isChecked(),true);
+    await f.page.locator('label.feature-switch:has(#mqtt-poweron-events)').click();await f.page.locator('#mqtt-save').click();
+    await f.page.waitForFunction(()=>document.getElementById('mqtt-save').textContent==='Save');
+    assert.equal(f.state.savedMqtt.poweron_events,false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
 
     // Expired authentication opens login immediately and is never retried.
     f = await fixture(browser);

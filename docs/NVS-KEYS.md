@@ -38,3 +38,13 @@ closed.
 
 Physical NVS power-loss during these writes is not qualified; logical
 validate-then-commit behavior is covered by host tests.
+
+## MQTT power-return event
+
+`mqtt_pwr` is an optional u8 flag in the existing namespace: only `1` enables
+power-return events; absent or other values mean OFF. It is written in the
+same transaction as the other MQTT settings, before publishing RAM state.
+The config struct stays 496 bytes by using existing tail padding. Firmware
+3.0.4 and earlier ignore this key; a rollback does not change broker credentials
+or the old MQTT settings. Boot-session ids and event retry state are volatile
+on the existing MQTT manager stack and never add NVS writes per reconnect.

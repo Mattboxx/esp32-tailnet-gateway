@@ -17,6 +17,7 @@
 #include "esp_mac.h"
 #include "esp_netif.h"
 #include "esp_system.h"
+#include "esp_random.h"
 #include "esp_timer.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
@@ -41,8 +42,10 @@
 #include "health_monitor.h"
 #include "fourvia6.h"
 #include "tailnet_forward.h"
+#include "mqtt_power_event.h"
 
 static const char *TAG = "mqtt_bridge";
+_Static_assert(sizeof(mqtt_integration_config_t) == 496, "Keep the existing MQTT configuration RAM footprint");
 /* Synchronous SDK publish/error logging can exhaust a 6 KiB manager stack
  * during WiFi loss. Keep 3 KiB extra headroom in PSRAM, not internal RAM. */
 #define MQTT_MANAGER_STACK_BYTES 9216
@@ -121,6 +124,7 @@ static void load_config(void)
     uint8_t flag = 0;
     if (nvs_param_get_u8("mqtt_en", &flag) == ESP_OK) s_config.enabled = flag != 0;
     if (nvs_param_get_u8("mqtt_ha", &flag) == ESP_OK) s_config.home_assistant_discovery = flag != 0;
+    if (nvs_param_get_u8("mqtt_pwr", &flag) == ESP_OK) s_config.poweron_events = flag == 1;
     uint16_t interval = 0;
     if (nvs_param_get_u16("mqtt_int", &interval) == ESP_OK && interval >= 5)
         s_config.interval_seconds = interval;
@@ -179,6 +183,15 @@ static void discovery_publish_entity(const char *domain, const char *object_id,
     if (command_topic) complete=complete&&cJSON_AddStringToObject(root, "command_topic", command_topic);
     if (device_class) complete=complete&&cJSON_AddStringToObject(root, "device_class", device_class);
     if (unit) complete=complete&&cJSON_AddStringToObject(root, "unit_of_measurement", unit);
+    if (!strcmp(domain, "event")) {
+        complete = complete && cJSON_AddNumberToObject(root, "qos", 1);
+        cJSON *types = cJSON_AddArrayToObject(root, "event_types");
+        cJSON *type = cJSON_CreateString("possible_blackout");
+        if (!types || !type || !cJSON_AddItemToArray(types, type)) {
+            cJSON_Delete(type);
+            complete = false;
+        }
+    }
     if (strcmp(domain, "sensor") == 0 || strcmp(domain, "binary_sensor") == 0)
         complete=complete&&cJSON_AddStringToObject(root, "entity_category", "diagnostic");
     complete=complete&&cJSON_AddStringToObject(root,"availability_topic",s_availability_topic)
@@ -204,6 +217,17 @@ static void publish_discovery(void)
     char command[160];
     mqtt_integration_get_config(&cfg);
     if (!cfg.home_assistant_discovery || !cfg.discovery_prefix[0]) return;
+    /* Publish this entity early; the event waits for the paced discovery pass. */
+    snprintf(command, sizeof command, "%s/event/power", cfg.base_topic);
+    discovery_publish_entity("event", "possible_blackout", "Possible blackout", command,
+                             NULL, NULL, NULL, NULL);
+    discovery_publish_entity("sensor", "boot_id", "Boot session", s_state_topic,
+                             "{{ value_json.boot_id }}", NULL, NULL, NULL);
+    discovery_publish_entity("binary_sensor", "power_on_boot", "Last startup was power-on", s_state_topic,
+                             "{{ value_json.power_on_boot }}", NULL, NULL, NULL);
+    snprintf(command, sizeof command, "%s/command/poweron_events", cfg.base_topic);
+    discovery_publish_entity("switch", "poweron_events", "Blackout: notify when power returns", s_state_topic,
+                             "{{ value_json.poweron_events }}", command, NULL, NULL);
     discovery_publish_entity("sensor","recovery_state","Recovery state",s_state_topic,
         "{{ value_json.operations.recovery_state }}",NULL,NULL,NULL);
     snprintf(command,sizeof command,"%s/command/health_monitor_enabled",cfg.base_topic);
@@ -514,11 +538,22 @@ static char *state_print_fitted(cJSON *root, size_t budget, unsigned *level)
     return json;
 }
 
-static void publish_state(void)
+static bool add_power_state(cJSON *root, const mqtt_power_event_t *power, bool selected)
+{
+    char id[9];
+    snprintf(id, sizeof id, "%08" PRIx32, power->boot_id);
+    return cJSON_AddStringToObject(root, "boot_id", id)
+        && cJSON_AddStringToObject(root, "power_on_boot", power->power_on ? "ON" : "OFF")
+        && cJSON_AddStringToObject(root, "poweron_event_boot", power->selected_at_boot ? "ON" : "OFF")
+        && cJSON_AddStringToObject(root, "poweron_events", selected ? "ON" : "OFF");
+}
+
+static void publish_state(const mqtt_power_event_t *power, bool poweron_events)
 {
     if (!s_connected) return;
     cJSON *root = cJSON_CreateObject();
     if (!root) return;
+    if (!add_power_state(root, power, poweron_events)) {cJSON_Delete(root); return;}
 
     bool uplink = false;
     char uplink_ip[16] = "";
@@ -696,6 +731,7 @@ static void handle_command(const char *topic, const char *payload)
         || !strcmp(command, "wifi_power_save")
         || !strcmp(command, "health_monitor_enabled")
         || !strcmp(command, "service_watch_enabled")
+        || !strcmp(command, "poweron_events")
         || !strcmp(command, "tailscale_enabled") || !strcmp(command, "accept_routes")
         || !strcmp(command, "snat_subnet_routes") || !strcmp(command, "advertise_exit_node")
         || !strcmp(command, "advertise_ap")
@@ -723,6 +759,10 @@ static void handle_command(const char *topic, const char *payload)
             wifi_ap_policy_set_auto_off(!enabled);
             s_publish_requested = true;
         }
+    } else if (!strcmp(command, "poweron_events")) {
+        cfg.poweron_events = enabled;
+        (void)mqtt_integration_set_config(&cfg);
+        s_publish_requested = true;
     } else if (!strcmp(command, "wifi_power_save")) {
         esp_err_t err = wifi_power_save_set(enabled);
         if (err != ESP_OK) ESP_LOGW(TAG, "WiFi power-save change failed: %s", esp_err_to_name(err));
@@ -915,6 +955,19 @@ static void status_update(const mqtt_integration_config_t *cfg, const service_re
     portEXIT_CRITICAL(&s_status_mux);
 }
 
+/* Uses the existing manager stack, not a new worker, persistent buffer or
+ * outbox. QoS1 can redeliver; Home Assistant automations deduplicate boot_id. */
+static __attribute__((noinline)) bool publish_power_event(const mqtt_integration_config_t *cfg,
+                                                         const mqtt_power_event_t *power)
+{
+    char topic[128], payload[160];
+    int n = snprintf(topic, sizeof topic, "%s/event/power", cfg->base_topic);
+    if (n <= 0 || (size_t)n >= sizeof topic ||
+        !mqtt_power_event_json(payload, sizeof payload, power,
+                               (uint64_t)esp_timer_get_time() / 1000000)) return false;
+    return publish(topic, payload, 0) >= 0;
+}
+
 static void manager_task(void *arg)
 {
     (void)arg;
@@ -923,11 +976,16 @@ static void manager_task(void *arg)
     bool discovery_pending = false;
     broker_clock_set(false, true);
     int elapsed = 0;
+    mqtt_integration_config_t cfg;
+    mqtt_integration_get_config(&cfg);
+    mqtt_power_event_t power;
+    mqtt_power_event_init(&power, esp_random(), esp_reset_reason() == ESP_RST_POWERON,
+                          cfg.enabled, cfg.poweron_events);
     while (true) {
         uint32_t notified = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000));
         if (s_restart_requested) {
             ESP_LOGW(TAG, "Applying MQTT command with a controlled device restart");
-            publish_state();
+            publish_state(&power, cfg.poweron_events);
             vTaskDelay(pdMS_TO_TICKS(750));
             esp_restart();
         }
@@ -938,6 +996,7 @@ static void manager_task(void *arg)
             (void)esp_wifi_connect();
         }
         if (notified) {
+            mqtt_power_event_cancel(&power); /* No stale startup event after a settings edit. */
             stop_client();
             service_retry_reset(&retry);
             discovery_reset(&s_discovery);discovery_pending=false;service_retry_reset(&discovery_retry);
@@ -945,7 +1004,6 @@ static void manager_task(void *arg)
             s_watchdog_triggered = false;
             elapsed = 0;
         }
-        mqtt_integration_config_t cfg;
         mqtt_integration_get_config(&cfg);
         uint64_t now_ms = (uint64_t)esp_timer_get_time() / 1000;
         uint32_t events = __atomic_exchange_n(&s_connection_events, 0, __ATOMIC_ACQ_REL);
@@ -977,7 +1035,7 @@ static void manager_task(void *arg)
         if (s_connected && (s_publish_requested || elapsed >= cfg.interval_seconds)) {
             s_publish_requested = false;
             elapsed = 0;
-            publish_state();
+            publish_state(&power, cfg.poweron_events);
         }
         if (s_connected && s_discovery_requested) {
             s_discovery_requested = false;
@@ -994,6 +1052,12 @@ static void manager_task(void *arg)
             }
         }
         status_update(&cfg, &retry, discovery_pending, now_ms);
+        if (mqtt_power_event_due(&power, cfg.enabled, cfg.poweron_events, s_connected,
+                                 !(cfg.home_assistant_discovery && cfg.discovery_prefix[0])
+                                     || (!discovery_pending && !s_discovery_requested && s_discovery.cursor > 0),
+                                 now_ms)
+            && homelab_ops_admit())
+            mqtt_power_event_result(&power, publish_power_event(&cfg, &power), now_ms);
         if (!s_connected && cfg.enabled && cfg.broker_watchdog_enabled
             && cfg.broker_watchdog_wol_mac[0] && !s_watchdog_triggered) {
             int64_t silence_us = broker_silence_us();
@@ -1068,6 +1132,7 @@ esp_err_t mqtt_integration_set_config(const mqtt_integration_config_t *config)
     SAVE_STR("mqtt_wmac", config->broker_watchdog_wol_mac);
 #undef SAVE_STR
     if (err == ESP_OK) err = nvs_param_set_u8("mqtt_ha", config->home_assistant_discovery ? 1 : 0);
+    if (err == ESP_OK) err = nvs_param_set_u8("mqtt_pwr", config->poweron_events ? 1 : 0);
     if (err == ESP_OK) err = nvs_param_set_u16("mqtt_int", config->interval_seconds);
     if (err == ESP_OK) err = nvs_param_set_u8("mqtt_wdog", config->broker_watchdog_enabled ? 1 : 0);
     if (err == ESP_OK) err = nvs_param_set_u32("mqtt_wdto", config->broker_watchdog_timeout_seconds);

@@ -1,5 +1,11 @@
 # Feature implementation and validation matrix
 
+Local 3.0.5 candidate: MQTT native possible-blackout event, opt-in switch,
+per-boot identity and retained power-on diagnostics support HA automations.
+Reconnects do not rearm events. The implementation, host/broker/HA tests and
+physical power-cycle qualification are separate; see the private checkpoint.
+All 42 approved requirements remain.
+
 Firmware 3.0.4 adds descriptive ntfy reset causes and a conditional
 `(possible blackout)` annotation for opted-in power-on events. Source
 implementation and physical-device qualification remain separate; inspect the
