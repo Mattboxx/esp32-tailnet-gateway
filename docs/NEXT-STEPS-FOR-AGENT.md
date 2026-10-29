@@ -10,10 +10,14 @@ configuration layout, log-buffer or task change is required.
 The existing 160-byte task-only ntfy event text is placed in PSRAM to keep
 internal RAM within the released budget; its size and synchronization stay
 unchanged. No additional buffer is allocated.
-The public release, installer and installed image remain 3.0.3. Read the
-ignored `build/notification-ui/CHECKPOINT.md` for exact source, build, tests
-and any subsequent owner authorization; do not reuse the 3.0.3 qualification
-or overwrite its release assets.
+The public release and installer remain 3.0.3. Candidate image source is
+`6a0cf5f7c2f89d064d591aa99aa9c8e0cb846a07`, application SHA-256
+`5081641a50ae8a030e6de2656a629de7db7dedf4d9b53eeab236f29f5c007063`.
+Read ignored `build/notification-ui/CHECKPOINT.md` for current installation,
+recovery-slot strategy, backups, tests and exact owner authorization. A Web
+update preserves the currently running qualified stable in its own slot;
+do not infer the protected slot from an older USB handover. Never reuse the
+3.0.3 qualification for this image or overwrite its release assets.
 
 ## Firmware 3.0.3 continuation
 
