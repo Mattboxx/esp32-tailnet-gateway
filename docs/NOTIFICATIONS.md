@@ -85,7 +85,7 @@ response cannot replace a newer one. The token/password remains write-only.
 
 ## Power-on and other restarts (3.0.3)
 
-The next local increment also replaces ntfy's numeric reset reason with an
+Firmware 3.0.4 replaces ntfy's numeric reset reason with an
 explicit description (software restart, panic, watchdog, brownout and other
 hardware causes). Only a power-on event with its option enabled adds
 `(possible blackout)`. It remains a possibility, not proof of a utility outage.

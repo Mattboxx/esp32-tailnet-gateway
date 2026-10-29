@@ -1,6 +1,6 @@
 # Validation records
 
-The local 3.0.4-dev.1 ntfy wording increment has its own evidence under
+The 3.0.4 ntfy wording increment has its own evidence under
 `build/notification-ui/`; the published 3.0.3 image and its qualification
 remain unchanged. Inspect that private checkpoint before device operations.
 

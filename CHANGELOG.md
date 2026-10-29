@@ -6,6 +6,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.4] — 2026-10-29
+
 ### Fixed
 
 - ntfy restart messages describe the hardware reset cause in plain language

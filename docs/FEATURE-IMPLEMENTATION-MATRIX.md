@@ -1,6 +1,6 @@
 # Feature implementation and validation matrix
 
-Local 3.0.4-dev.1 adds descriptive ntfy reset causes and a conditional
+Firmware 3.0.4 adds descriptive ntfy reset causes and a conditional
 `(possible blackout)` annotation for opted-in power-on events. Source
 implementation and physical-device qualification remain separate; inspect the
 private checkpoint for the current status. All 42 requirements are retained.
@@ -14,7 +14,7 @@ requirements remain. Execution records and scope-specific acceptance remain
 in the private maintainer handover; historical milestone evidence is not a
 blanket qualification of unrelated features or hardware.
 
-Current public product: **Firmware v3.0.3**, preserving the original 42 requirements
+Current product: **Firmware v3.0.4**, preserving the original 42 requirements
 and the subsequently approved 3.x additions below. Historical milestone labels
 record their original evidence, not the current release's blanket acceptance.
 See [Release availability](PRESENTATION-STATUS.md); exact-image qualification,
