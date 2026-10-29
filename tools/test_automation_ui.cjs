@@ -622,6 +622,7 @@ async function main() {
     assert.match(await f.page.locator('#sys-ota-progress-text').textContent(),/Verified.*rebooting/);
     assert.equal(await f.page.locator('#sys-ota-progress').evaluate(el=>el.style.width),'100%');
     assert.equal(await f.page.evaluate(()=>window.__otaSends),3);
+    assert.equal(await f.page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // Manual GitHub installs remain usable while periodic checks are OFF;
     // channel changes must be saved and writes are never retried silently.

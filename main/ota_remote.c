@@ -160,11 +160,14 @@ static OTA_NOINLINE bool check_release(void)
     /* Only the worker task runs checks, so one static URL buffer is safe and
      * keeps the measured frame budget. Fall back to the previous repository
      * name only on 404 from the current one (before the GitHub rename). */
-    static char api[112];
+    static char api[OTA_RELEASES_API_BYTES];
     esp_err_t err = ESP_FAIL; int code = 0; unsigned repo = 0;
     for (; repo < OTA_REPO_COUNT; ++repo) {
         b.body[0] = 0; b.used = 0; b.overflow = false;
-        snprintf(api, sizeof api, "https://api.github.com/repos/%s/releases?per_page=10", ota_repo(repo));
+        int n = snprintf(api, sizeof api, OTA_RELEASES_API_PREFIX "%s" OTA_RELEASES_API_SUFFIX, ota_repo(repo));
+        if (n < 0 || (size_t)n >= sizeof api) {
+            free(b.body); status_set("Release API URL exceeds its fixed buffer"); return false;
+        }
         esp_http_client_handle_t client = http_client(api, &b);
         err = client ? esp_http_client_perform(client) : ESP_ERR_NO_MEM;
         code = client ? esp_http_client_get_status_code(client) : 0;

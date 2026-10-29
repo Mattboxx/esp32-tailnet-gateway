@@ -12,7 +12,7 @@ The local fix retries only transient reads, with a 30-second inactivity budget
 and the existing GitHub 180-second total limit. Local uploads retry server
 receive timeouts, cap total reception at ten minutes, erase only the declared
 image size, and retain writer exclusion after an unacknowledged abort. Buffer,
-task, stack and log allocations are unchanged. Browser progress distinguishes
+transfer-buffer, task, stack and log allocations are unchanged. Browser progress distinguishes
 bytes sent from device verification and ambiguous failures never auto-retry.
 Tests reproduce the former failures in actual handlers; host fixtures are not
 hardware transport qualification. Do not install or publish a new candidate

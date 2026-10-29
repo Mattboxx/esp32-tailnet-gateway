@@ -142,6 +142,12 @@ static void release_row(cJSON *rows,const char *tag,bool pre,bool draft,const ch
     cJSON_AddItemToArray(assets,a); cJSON_AddItemToArray(rows,r);
 }
 int main(void) {
+    char endpoint[OTA_RELEASES_API_BYTES];
+    for(unsigned i=0;i<OTA_REPO_COUNT;i++) {
+        int n=snprintf(endpoint,sizeof endpoint,OTA_RELEASES_API_PREFIX "%s" OTA_RELEASES_API_SUFFIX,ota_repo(i));
+        assert(n>0&&(size_t)n<sizeof endpoint);
+        assert(strlen(endpoint)==(size_t)n&&strstr(endpoint,ota_repo(i)));
+    }
     ota_version_t a,b; unsigned char digest[32];
     assert(ota_version_parse("v0.1.31-Mattboxx-1.10",&a));
     assert(ota_version_parse("0.1.31-Mattboxx-1.9",&b)); assert(ota_version_compare(&a,&b)>0);
