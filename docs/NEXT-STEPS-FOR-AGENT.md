@@ -1,5 +1,25 @@
 # Maintainer continuation
 
+## Local 3.0.6 candidate — bounded update transfer recovery
+
+The owner reported intermittent GitHub downloads and browser uploads. A real
+3.0.2 GitHub attempt stopped at 1% after TLS returned no data with EAGAIN;
+the protected running slot and settings survived. The owner subsequently
+updated manually and via GitHub. See ignored `build/notification-ui/` records
+for that board's current identity, fresh backup and exact authorization.
+
+The local fix retries only transient reads, with a 30-second inactivity budget
+and the existing GitHub 180-second total limit. Local uploads retry server
+receive timeouts, cap total reception at ten minutes, erase only the declared
+image size, and retain writer exclusion after an unacknowledged abort. Transfer buffers,
+task stacks and log allocations keep their existing sizes. Browser progress distinguishes
+bytes sent from device verification and ambiguous failures never auto-retry.
+Tests reproduce the former failures in actual handlers; host fixtures are not
+hardware transport qualification. Do not install or publish a new candidate
+using the former authorization for released 3.0.5. Owner bootstrap authorization
+and exact release/channel/device status are in the private checkpoint. The
+current public stable stays intact until the new image is qualified.
+
 ## Firmware 3.0.5 — MQTT power-return automations
 
 The opt-in `mqtt_pwr` preference adds an MQTT/HA power-return event and switch,
