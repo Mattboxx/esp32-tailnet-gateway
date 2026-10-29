@@ -53,3 +53,10 @@ credential.
 Optional: after the broker has been silent for the configured time, send one
 Wake-on-LAN burst per outage to a saved device (for a broker on a NAS). A sent
 packet is not proof the host powered on.
+
+## Power-return automations
+
+Firmware 3.0.5 adds an opt-in possible-blackout MQTT event, switch and boot
+diagnostics. See [Power-return automations](MQTT-POWER-RETURN.md) for setup,
+non-retained delivery, duplicate suppression and optional catch-up after HA
+starts later. Software restarts and broker reconnects do not create the event.

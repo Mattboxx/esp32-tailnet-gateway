@@ -1,17 +1,19 @@
 # Maintainer continuation
 
-## Local 3.0.5 candidate — MQTT power-return automations
+## Firmware 3.0.5 — MQTT power-return automations
 
-Branch `fix/mqtt-power-return-20261029` is based on public 3.0.4 Main
-`d5404fd9bc783fe3eef09d6bdbcedd0c979e4257`. It adds the optional `mqtt_pwr`
-preference, MQTT/HA power-return event and switch, plus retained boot metadata.
-Configuration remains 496 bytes; state uses the existing manager stack and
-existing message budget, with no new worker or persistent queue.
-Read `docs/MQTT-POWER-RETURN.md` for automation/deduplication/catch-up semantics.
-The exact new build and tests are in ignored
-`build/notification-ui/CHECKPOINT.md`. Public/installed 3.0.4, its exact image
-and all backups remain intact until a newer image is explicitly authorized.
-Do not relabel the new candidate as qualified or reuse a former flash approval.
+The opt-in `mqtt_pwr` preference adds an MQTT/HA power-return event and switch,
+plus retained boot metadata. Configuration remains 496 bytes; state uses the
+existing manager stack and message budget, with no new worker or persistent
+queue. Read `docs/MQTT-POWER-RETURN.md` for automation, deduplication and catch-up
+semantics. Preserve the 3.0.4 recovery image and all historical artifacts.
+
+Exact source/image hashes, current device slots, owner authorization, encrypted
+Web export, broker/power-cycle results and publication status are recorded in
+ignored `build/notification-ui/CHECKPOINT.md` and
+`build/notification-ui/CURRENT-OPERATIONS.json`. Read those before further device
+writes. Publish only the exact qualified image; never substitute a rebuild.
+Do not infer real Home Assistant automation execution from broker delivery.
 
 ## Firmware 3.0.4 continuation
 

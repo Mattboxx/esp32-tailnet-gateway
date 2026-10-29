@@ -6,6 +6,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.5] — 2026-10-29
+
 ### Added
 
 - Optional MQTT power-return events for Home Assistant automations, with a

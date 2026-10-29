@@ -1,6 +1,6 @@
 # Feature implementation and validation matrix
 
-Local 3.0.5 candidate: MQTT native possible-blackout event, opt-in switch,
+Firmware 3.0.5: MQTT native possible-blackout event, opt-in switch,
 per-boot identity and retained power-on diagnostics support HA automations.
 Reconnects do not rearm events. The implementation, host/broker/HA tests and
 physical power-cycle qualification are separate; see the private checkpoint.
@@ -20,7 +20,7 @@ requirements remain. Execution records and scope-specific acceptance remain
 in the private maintainer handover; historical milestone evidence is not a
 blanket qualification of unrelated features or hardware.
 
-Current product: **Firmware v3.0.4**, preserving the original 42 requirements
+Current product: **Firmware v3.0.5**, preserving the original 42 requirements
 and the subsequently approved 3.x additions below. Historical milestone labels
 record their original evidence, not the current release's blanket acceptance.
 See [Release availability](PRESENTATION-STATUS.md); exact-image qualification,
