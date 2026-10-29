@@ -28,6 +28,7 @@ order: 5
 <p>Outage and system-event alerts, Service watch changes, and replay-protected <code>info</code>, Wake-on-LAN and recovery commands. Local logs are never uploaded; private details stay hidden unless you enable them. Guide: <a href="{{repo}}/blob/Main/docs/NTFY.md">ntfy</a>.</p>
 
 <h2>Power-return and restart notifications</h2>
+<p>From Firmware 3.0.4, ntfy startup alerts and the <code>info</code> reply use readable reset causes instead of a numeric reason. <code>(possible blackout)</code> is added only for a power-on reset when its notification option is enabled. Software restarts, crashes, watchdogs and voltage drops have separate descriptions.</p>
 <p>Firmware 3.0.3 gives <strong>Telegram, email and ntfy</strong> a separate <strong>Blackout: notify when power returns</strong> option. It reports the ESP32 powering on, independently of other restarts. Crash, watchdog and low-voltage resets remain distinguishable; Telegram and email keep their separate warning/error path.</p>
 <p>A power-on reset can also mean the first startup or a cable reconnection. The gateway cannot send while it is unpowered, prove a utility outage or measure its duration by itself. Delivery resumes when the network is available.</p>
 <p>For Telegram/email, choose a <strong>15–3600-second continuous-disconnection margin</strong> (60 seconds by default). Short Wi-Fi/Tailnet drops and their recoveries remain quiet; startup notifications do not wait for that timer. ntfy retains its own failure delay.</p>
