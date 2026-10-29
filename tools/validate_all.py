@@ -19,6 +19,7 @@ DRIVERS+=['lab_echo']
 DRIVERS+=['gateway_benchmark']
 DRIVERS+=['wg_rx_owned']
 DRIVERS+=['wg_rx_sdk']
+DRIVERS+=['wg_crypto_hotloop']
 DRIVERS+=['coord_recovery']
 DRIVERS+=['lab_cleanup']
 DRIVERS+=['candidate_ota_guard']
@@ -44,6 +45,7 @@ SANITIZERS+=['LOG']
 SANITIZERS+=['MQTTPOWER']
 SANITIZERS+=['OTALOCAL']
 SANITIZERS+=['WG_RX']
+SANITIZERS+=['HOTLOOP']
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
