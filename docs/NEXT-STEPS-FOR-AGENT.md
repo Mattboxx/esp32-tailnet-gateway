@@ -1,5 +1,17 @@
 # Maintainer continuation
 
+## Local ntfy wording increment — 3.0.4-dev.1
+
+Branch `fix/ntfy-reset-description-20261029` starts from released Main
+`97f6bdb618e3238822749f2cabfce3a94bc75195`. It replaces numeric ntfy reset
+reasons with explicit cause text and appends `(possible blackout)` only for
+opted-in power-on events. Other restarts and faults stay distinct. No NVS,
+configuration layout, log-buffer or task change is required.
+The public release, installer and installed image remain 3.0.3. Read the
+ignored `build/notification-ui/CHECKPOINT.md` for exact source, build, tests
+and any subsequent owner authorization; do not reuse the 3.0.3 qualification
+or overwrite its release assets.
+
 ## Firmware 3.0.3 continuation
 
 The notification/UI increment is implemented in qualified firmware source

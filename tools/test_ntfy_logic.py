@@ -29,7 +29,7 @@ fixture = r'''
 #define HTTP_EVENT_ON_DATA 1
 #define portMAX_DELAY 0
 typedef int esp_err_t;
-typedef struct { bool info_enabled, info_include_details; } ntfy_integration_config_t;
+typedef struct { bool info_enabled, info_include_details, poweron_events; } ntfy_integration_config_t;
 typedef struct { int event_id, data_len; void *data, *user_data; } esp_http_client_event_t;
 static int s_lock;
 static struct { unsigned alerts_sent, commands_received, command_errors; } s_status;
@@ -66,7 +66,8 @@ static const char *esp_err_to_name(esp_err_t e) { (void)e; return "fixture error
 '''
 boot_fixture = r'''
 #include "ntfy_events.h"
-typedef enum {ESP_RST_UNKNOWN,ESP_RST_POWERON,ESP_RST_SW,ESP_RST_BROWNOUT,ESP_RST_PANIC,ESP_RST_INT_WDT,ESP_RST_TASK_WDT,ESP_RST_WDT} esp_reset_reason_t;
+/* ESP-IDF 5.5.3 esp_system.h order, including every reset cause. */
+typedef enum {ESP_RST_UNKNOWN,ESP_RST_POWERON,ESP_RST_EXT,ESP_RST_SW,ESP_RST_PANIC,ESP_RST_INT_WDT,ESP_RST_TASK_WDT,ESP_RST_WDT,ESP_RST_DEEPSLEEP,ESP_RST_BROWNOUT,ESP_RST_SDIO,ESP_RST_USB,ESP_RST_JTAG,ESP_RST_EFUSE,ESP_RST_PWR_GLITCH,ESP_RST_CPU_LOCKUP} esp_reset_reason_t;
 typedef struct {const char *version;} esp_app_desc_t;
 typedef struct {char latest_version[32];} ota_remote_state_t;
 static esp_reset_reason_t reset_reason;
@@ -98,13 +99,20 @@ int main(void) {
     publish_result=ESP_OK;fail_at=1;assert(send_tailscale_alert(&c)==ESP_OK);
     assert(s_status.alerts_sent==3&&live==0&&log_reads==0&&allocations==0);
     fail_at=0;publish_result=ESP_OK;
-    const char *descriptions[]={"Gateway started","powered on","restarted by software","supply voltage drop","after a fault","after a fault","after a fault","after a fault"};
-    for(unsigned reason=0;reason<sizeof descriptions/sizeof *descriptions;reason++){
+    const char *descriptions[]={"unknown reset cause","power restored or first power-up","external reset pin","software-requested restart","firmware crash (panic/exception)","interrupt watchdog timeout","task watchdog timeout","watchdog timeout","wake from deep sleep","supply voltage drop (brownout)","SDIO reset","USB peripheral reset","JTAG/debugger reset","eFuse error","power glitch detected","CPU lockup (double exception)"};
+    for(unsigned enabled=0;enabled<2;enabled++){
+      c.poweron_events=enabled!=0;
+      for(unsigned reason=0;reason<sizeof descriptions/sizeof *descriptions;reason++){
         reset_reason=(esp_reset_reason_t)reason;
         assert(send_system_event(&c,NTFY_EVENT_BOOT,0)==ESP_OK&&strstr(published,descriptions[reason]));
-        assert(!strstr(published,"outage lasted")&&!strstr(published,"PRIVATE_LOCAL_LOG_FIXTURE"));
+        assert((strstr(published,"(possible blackout)")!=NULL)==(enabled&&reason==ESP_RST_POWERON));
+        assert(!strstr(published,"reset reason ")&&!strstr(published,"outage lasted")&&!strstr(published,"PRIVATE_LOCAL_LOG_FIXTURE"));
+        assert(strlen(published)<192&&live==0&&log_reads==0&&allocations==0);
+      }
     }
-    puts("PASS: ntfy info failure accounting, alert privacy (no local-log reads/uploads), allocation-free builder and transport failure accounting");
+    reset_reason=(esp_reset_reason_t)255;
+    assert(send_system_event(&c,NTFY_EVENT_BOOT,0)==ESP_OK&&strstr(published,"unknown reset cause")&&!strstr(published,"possible blackout"));
+    puts("PASS: ntfy info/transport accounting and alert privacy; 16 explicit reset causes with power-on option ON/OFF, unknown-cause fallback, no allocations or blackout labels on faults");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='ntfy-logic-') as directory:

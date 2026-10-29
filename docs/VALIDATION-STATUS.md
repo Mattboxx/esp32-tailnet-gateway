@@ -1,5 +1,9 @@
 # Validation records
 
+The local 3.0.4-dev.1 ntfy wording increment has its own evidence under
+`build/notification-ui/`; the published 3.0.3 image and its qualification
+remain unchanged. Inspect that private checkpoint before device operations.
+
 Detailed execution summaries, device captures, remaining test cases, resource
 measurements and maintainer handovers are stored locally under ignored
 `build/private-device/` and `build/validation-*/` directories. They are not

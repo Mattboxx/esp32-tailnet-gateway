@@ -1,5 +1,10 @@
 # Feature implementation and validation matrix
 
+Local 3.0.4-dev.1 adds descriptive ntfy reset causes and a conditional
+`(possible blackout)` annotation for opted-in power-on events. Source
+implementation and physical-device qualification remain separate; inspect the
+private checkpoint for the current status. All 42 requirements are retained.
+
 Firmware 3.0.3 normalizes Telegram/email
 Wi-Fi/Tailnet incidents with a 60-second grace period, repairs queue/task
 recovery and notification-form refresh/draft handling, and adds the firmware
