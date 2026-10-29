@@ -1,23 +1,19 @@
 # Maintainer continuation
 
-## Local ntfy wording increment — 3.0.4-dev.1
+## Firmware 3.0.4 continuation
 
-Branch `fix/ntfy-reset-description-20261029` starts from released Main
-`97f6bdb618e3238822749f2cabfce3a94bc75195`. It replaces numeric ntfy reset
-reasons with explicit cause text and appends `(possible blackout)` only for
-opted-in power-on events. Other restarts and faults stay distinct. No NVS,
-configuration layout, log-buffer or task change is required.
-The existing 160-byte task-only ntfy event text is placed in PSRAM to keep
-internal RAM within the released budget; its size and synchronization stay
-unchanged. No additional buffer is allocated.
-The public release and installer remain 3.0.3. Candidate image source is
-`6a0cf5f7c2f89d064d591aa99aa9c8e0cb846a07`, application SHA-256
-`5081641a50ae8a030e6de2656a629de7db7dedf4d9b53eeab236f29f5c007063`.
-Read ignored `build/notification-ui/CHECKPOINT.md` for current installation,
-recovery-slot strategy, backups, tests and exact owner authorization. A Web
-update preserves the currently running qualified stable in its own slot;
-do not infer the protected slot from an older USB handover. Never reuse the
-3.0.3 qualification for this image or overwrite its release assets.
+The ntfy wording increment replaces numeric reset reasons in startup alerts
+and `info` with explicit causes. `(possible blackout)` is conditional on a
+power-on reset and its enabled notification option; other restarts remain
+separate. The existing task-only event text uses PSRAM without adding a buffer,
+configuration key or task. Log-buffer sizes and persistent schema are unchanged.
+
+The exact candidate, installed device, retained recovery slot, backups and
+actual qualification/publication state are in ignored
+`build/notification-ui/CHECKPOINT.md`. Read it before any device write.
+Never infer the protected slot from an older handover. Package only the exact
+final-version image qualified there; never relabel a dev image. Preserve all
+42 requirements and all historical release artifacts.
 
 ## Firmware 3.0.3 continuation
 
