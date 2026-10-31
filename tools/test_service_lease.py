@@ -63,9 +63,12 @@ static int tailnet_forward_count(void){return 2;}
 static bool tailnet_forward_get(int i,tailnet_forward_rule_t *r,void *runtime){(void)runtime;if(i<0||i>1)return false;*r=i==position?rule:other;return true;}
 '''
 tests=r'''
-static void reboot(void){loaded=ready=false;writer=0;last_wall=0;next_persist_retry=0;memset(deadlines,0,sizeof deadlines);memset(expired,0,sizeof expired);service_lease_init();}
+static void reboot(void){loaded=ready=false;writer=0;last_wall=0;next_persist_retry=0;memset(deadlines,0,sizeof deadlines);memset(expired,0,sizeof expired);
+    live_count=-1;memset(closed_tokens,0,sizeof closed_tokens);service_lease_init();}
+/* What tailnet_forward reports after loading and after every save. */
+static void live(void){tailnet_forward_rule_t r[2];assert(tailnet_forward_get(0,&r[0],NULL)&&tailnet_forward_get(1,&r[1],NULL));service_lease_rules_changed(r,2);}
 int main(void){
-    service_lease_init();assert(service_lease_allowed(0,&rule));uint32_t token=service_lease_token(&rule);
+    service_lease_init();live();assert(service_lease_allowed(0,&rule));uint32_t token=service_lease_token(&rule);
     assert(service_lease_set(0,token,120,false)==ESP_OK);assert(service_lease_allowed(0,&rule));
     assert(service_lease_allowed(1,&rule)); /* Active binding survives reindex. */
     assert(service_lease_allowed(1,&other)); /* Existing permanent binding retained. */
@@ -108,7 +111,26 @@ int main(void){
     legacy.entries[1]=legacy.entries[0];memcpy(image,&legacy,image_size);reboot();assert(!ready); /* Ambiguous identities. */
     legacy.entries[1]=(lease_t){0};memcpy(image,&legacy,image_size);reboot();assert(ready);
     image[0]^=1;reboot();assert(!service_lease_allowed(0,&rule)); /* Corrupt store never defaults open. */
-    puts("PASS: actual leases: persistence faults, expiry before tick, reboot, clock missing/rollback, changed rule and explicit permanent action (host fixtures)");
+    /* Announcements (2026-10-31): a rule deleted before its deadline closes silently. */
+    image_size=0;reboot();live();assert(ready);position=0;
+    unsigned before=closure_events;uint32_t t=service_lease_token(&rule);
+    assert(service_lease_set(0,t,120,false)==ESP_OK);
+    tailnet_forward_rule_t only_other[1]={other};service_lease_rules_changed(only_other,1);
+    milliseconds+=121000;wall+=121;assert(service_lease_tick());
+    assert(closure_events==before);assert(!service_lease_allowed(0,&rule)); /* still denied */
+    assert(!service_lease_tick()&&closure_events==before);
+    /* Expired while off, rule still present: announced once, after the rules are known. */
+    live();assert(service_lease_set(0,t,120,false)==ESP_OK);wall+=200;reboot();
+    assert(closure_events==before&&!service_lease_allowed(0,&rule));
+    (void)service_lease_tick();assert(closure_events==before); /* rule table not loaded yet */
+    live();(void)service_lease_tick();assert(closure_events==before+1);
+    (void)service_lease_tick();reboot();live();(void)service_lease_tick();assert(closure_events==before+1); /* tombstone */
+    /* Expired while off, rule deleted meanwhile: never announced. */
+    assert(service_lease_set(0,t,120,false)==ESP_OK);wall+=200;reboot();
+    service_lease_rules_changed(only_other,1);(void)service_lease_tick();
+    assert(closure_events==before+1&&!service_lease_allowed(0,&rule));
+    service_lease_rules_changed(NULL,5);(void)service_lease_tick();assert(closure_events==before+1); /* bad input: no rules */
+    puts("PASS: actual leases: persistence faults, expiry before tick, reboot, clock missing/rollback, changed rule, explicit permanent action and closure announcements only for existing rules (host fixtures)");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='service-lease-') as directory:
