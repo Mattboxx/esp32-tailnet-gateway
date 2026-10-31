@@ -42,6 +42,12 @@ endif()
 # Test-only packet-path profiling (docs/PERFORMANCE-EXPLORATION-ROADMAP.md):
 # only when the build environment sets TSR_PERF_PROFILE=1. Release builds never
 # define it, and such an image reports a version ending in "-prof".
+# Test-only placement experiment: TSR_CRYPTO_IN_FLASH=1 keeps the WireGuard
+# crypto loops out of IRAM; such an image reports a version with "-flash".
+if("$ENV{TSR_CRYPTO_IN_FLASH}" STREQUAL "1")
+    idf_build_set_property(COMPILE_DEFINITIONS "TSR_CRYPTO_IN_FLASH=1" APPEND)
+    set(PROJECT_VER "${PROJECT_VER}-flash")
+endif()
 if("$ENV{TSR_PERF_PROFILE}" STREQUAL "1")
     idf_build_set_property(COMPILE_DEFINITIONS "TSR_PERF_PROFILE=1" APPEND)
     set(PROJECT_VER "${PROJECT_VER}-prof")
