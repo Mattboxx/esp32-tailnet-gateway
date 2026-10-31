@@ -4557,6 +4557,8 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
         size_t n = microlink_perf_profile(st, sizeof st / sizeof st[0]);
         cJSON *pp = cJSON_CreateObject();
         cJSON_AddNumberToObject(pp, "cpu_hz", CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * 1000000.0);
+        extern int poly1305_asm_status(void);
+        cJSON_AddNumberToObject(pp, "poly1305_asm", poly1305_asm_status());
         for (size_t i = 0; i < n; i++) {
             cJSON *s = cJSON_CreateObject();
             cJSON_AddNumberToObject(s, "total", (double)st[i].total);

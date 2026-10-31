@@ -17,9 +17,10 @@ def main():
             raise ValueError('Expected ESP32-S3 IRAM section not found')
         start, end = iram['sh_addr'], iram['sh_addr']+iram['sh_size']
         symbols = elf.get_section_by_name('.symtab')
-        # The WG poly1305_blocks is in IRAM; chacha20 deliberately stays in flash
-        # since 2026-10-31 (measured trade-off, see the performance roadmap).
-        found = {name: [] for name in ('chacha20','poly1305_blocks')}
+        # The WG Poly1305 path is in IRAM (dispatcher plus the Xtensa assembly
+        # block function; its C fallback stays in flash); chacha20 deliberately
+        # stays in flash since 2026-10-31 (measured trade-off, see the roadmap).
+        found = {name: [] for name in ('chacha20','poly1305_blocks','poly1305_blocks_xtensa','poly1305_blocks_c')}
         for symbol in symbols.iter_symbols():
             if symbol.name in found:
                 found[symbol.name].append(dict(address=symbol['st_value'], bytes=symbol['st_size'],
@@ -30,6 +31,10 @@ def main():
         # static Poly1305 function in flash. Require the moved WG copy too.
         if not any(x['iram'] for x in found['poly1305_blocks']):
             raise ValueError('WG Poly1305 loop not placed in IRAM')
+        if not found['poly1305_blocks_xtensa'] or not all(x['iram'] for x in found['poly1305_blocks_xtensa']):
+            raise ValueError('Poly1305 assembly block function not placed in IRAM')
+        if any(x['iram'] for x in found['poly1305_blocks_c']):
+            raise ValueError('Poly1305 C fallback expected in flash')
         print(json.dumps(dict(placement_pass=True, iram_text_bytes=iram['sh_size'],symbols=found),indent=2))
 
 
