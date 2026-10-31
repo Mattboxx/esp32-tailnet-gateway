@@ -17,8 +17,8 @@ DRIVERS+=['json_guard','service_transfer','service_retry','capabilities','mqtt_d
 DRIVERS+=['soak_serial']
 DRIVERS+=['lab_echo']
 DRIVERS+=['gateway_benchmark']
-DRIVERS+=['wg_rx_owned']
-DRIVERS+=['wg_rx_sdk']
+# wg_rx_owned / wg_rx_sdk test the RX-ownership experiment (MicroLink branch
+# perf/owned-rx-pbuf-20261029); dev.3 leaves that change out (no measured gain).
 DRIVERS+=['wg_crypto_hotloop']
 DRIVERS+=['coord_recovery']
 DRIVERS+=['lab_cleanup']
