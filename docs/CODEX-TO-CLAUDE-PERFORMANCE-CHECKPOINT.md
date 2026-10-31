@@ -216,8 +216,9 @@ operation; detailed step journal and exact live paths belong in the private
 - dev.8 `ee56c1d` (MicroLink `4dcf00f`): Poly1305 block function in Xtensa
   assembly with on-device check and C fallback in flash; IRAM 110,435 B.
   Host: `test_poly1305_xtensa`, `wg_crypto_hotloop`, `wg_crypto_diff` PASS.
-- Owner run pending: `build/private-device/performance-20261031-ab8/run_ab.ps1`
-  (profiling, gate `poly1305_asm == 1`, then ABBA 3.0.6/dev.8 with tunnel ping);
-  analyse with `python prof_analyse.py prof-run` and `python ab_eff.py .`.
-  The ab7 session (dev.7 alone) is superseded by ab8 and was not run.
-- Remaining: ab8 analysis, concurrency probe, PERF-09. Nothing pushed.
+- ab8 completed (owner run): `poly1305_asm == 1` on the device; Poly1305 −10/−27 %
+  cycles per byte; dev.8 vs 3.0.6 CPU/Mbit −3.5/−10.5 %, throughput +8.4/+11.6 %,
+  tunnel ping median 8→5 ms idle and 21→14 ms under load (4/4 pairs), internal
+  min −0.6…−0.8 KB. Board A left on 3.0.6. ab7 (dev.7 alone) superseded, not run.
+- Remaining: concurrency/stability probe on dev.8 (1/2/4 streams + UI/MQTT),
+  then PERF-09 integrated qualification. Nothing pushed.
