@@ -184,6 +184,25 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    counters; S3 SIMD later), with RFC/independent known-answer, differential,
    tampering, alignment and in-place tests before any device image. Then
    revisit the RX queue depth/latency trade-off (PERF-05).
+   **dev.4 (PERF-07 step 1), 2026-10-31:** root `b7f12b3`, MicroLink `db6bcd2`.
+   ChaCha20 block function and XOR fused (state in locals, 32-bit word XOR for
+   aligned 64-byte blocks); Poly1305 reads each block as four words. Bit-identical
+   output: RFC/independent AEAD tests and a 6000-case differential test against
+   the previous code (`test_wg_crypto_diff.py`; injected mutants caught). Static
+   RAM as 3.0.6; `.iram0.text` +576 B over dev.3 (`chacha20` 1,074 B and
+   `poly1305_blocks` 1,060 B in IRAM). Measured with `3.0.7-dev.4-prof` under the
+   same conditions as dev.3-prof (`performance-20261031-prof4/`, board left on
+   3.0.6), cycles per byte, median of three runs:
+
+   | | dev.3 | dev.4 |
+   |---|---:|---:|
+   | ChaCha20 decrypt / encrypt | 66.6 / 50.9 | 43.8 / 35.4 (−34 / −30 %) |
+   | Poly1305 RX / TX | 54.9 / 26.6 | 47.0 / 26.5 |
+   | Whole RX / TX packet path | 250 / 126 | 209 / 112 (−16 / −11 %) |
+
+   The word-load change did not measurably help Poly1305 on TX; the remaining
+   cost is the 25 64-bit multiplications per block. Next: Poly1305 arithmetic
+   and ChaCha20 register pressure, judged by the same counters.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
