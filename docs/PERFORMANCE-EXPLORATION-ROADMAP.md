@@ -94,6 +94,12 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
 5. **Early stability probe.** Run a small concurrency subset (1/2/4 TCP streams
    + UI/API polling + MQTT) on the leading candidate before stacking further
    optimizations, so a load regression is found while the diff is small.
+   **Status 2026-10-31:** dev.3 built from root `1b0e79c` / MicroLink `b9e788c`
+   (`firmware.bin` SHA-256 `4ca7e1bc86bf393e90cb2a5c55d95951ec3da7d560e5287367e82e612f8e5729`,
+   ELF `eca7013b…`): placement checker PASS with the same IRAM addresses as
+   dev.2; `.iram0.text` +1,560 B and `.flash.text` −1,496 B versus 3.0.6;
+   static DRAM and `sdkconfig.h` identical to 3.0.6. Not installed; it needs
+   its own exact-image authority.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
@@ -103,7 +109,7 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
 
 | ID | Priority | Work | Required output | Status |
 |---|---|---|---|---|
-| PERF-01 | P0 | Reproducible benchmark and resource baseline | Safe harness, capacity/workload matrix, private measurements | Harness + 12 host tests + six scoped device transfers complete; wider concurrency pending |
+| PERF-01 | P0 | Reproducible benchmark and resource baseline | Safe harness, capacity/workload matrix, private measurements | Harness + 15 host tests + scoped device transfers; upload direction (`--direction upload\|both`, server-side SHA-256, ABBA order) added 2026-10-31, not yet run on hardware; wider concurrency pending |
 | PERF-02 | P0 | Locate the dominant bottleneck | Topology comparison, CPU/task/queue/copy/crypto evidence | CPU/control/TX-cost baseline collected; wired/remote/RX-cost attribution pending |
 | PERF-03 | P1 | Reduce logging overhead | Controlled INFO/WARN comparison and restore | Six paired runs complete; approximately 2% median difference inside variability; original INFO restored |
 | PERF-04 | P1 | Receive ownership and zero-copy investigation | Small audited receive-path experiment or justified rejection | Host/SDK/sanitizer + scoped device comparisons complete; no demonstrated speed gain, not promoted; raw zero-copy remains OFF |

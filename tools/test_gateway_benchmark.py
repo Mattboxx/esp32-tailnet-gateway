@@ -9,7 +9,7 @@ from unittest.mock import patch
 import urllib.error
 import urllib.request
 
-from gateway_benchmark import FileService, TemporaryRule, percentile, restore_console, transfer
+from gateway_benchmark import FileService, TemporaryRule, percentile, restore_console, transfer, upload
 
 
 def row(name='owner', port=12345):
@@ -168,6 +168,81 @@ class Transfers(unittest.TestCase):
             with patch('gateway_benchmark.time.monotonic', side_effect=[0, 200]):
                 with self.assertRaises(TimeoutError):
                     transfer(opener, 'http://unused/', Path(folder)/'timeout', 3, 'unused', total_timeout=180)
+            self.assertEqual(opener.calls, 2)
+
+    def test_loopback_upload_integrity_and_guards(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'source.bin'
+            data = bytes(range(256))*2048; source.write_bytes(data)
+            digest = hashlib.sha256(data).hexdigest()
+            service = FileService('127.0.0.1', '127.0.0.1', source)
+            service.start()
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            url = f'http://127.0.0.1:{service.port}'
+            try:
+                result = upload(opener, url+service.url_path, source, len(data), digest)
+                self.assertTrue(result['integrity_pass'])
+                self.assertEqual((result['direction'], result['retries'], result['resumed']), ('upload', 0, False))
+                self.assertEqual(service.records[-1]['bytes_read'], len(data))
+                self.assertEqual(service.records[-1]['sha256'], digest)
+                # A refusal happens before the body is read: depending on timing the
+                # client sees the status or the server closing mid-send.
+                def refused(code, send):
+                    with self.assertRaises((urllib.error.URLError, ConnectionError)) as error:
+                        send()
+                    if isinstance(error.exception, urllib.error.HTTPError):
+                        self.assertEqual(error.exception.code, code)
+                        error.exception.close()
+                for path, length, code in (('/wrong', len(data), 403), (service.url_path, len(data)-1, 413)):
+                    request = urllib.request.Request(url+path, data=data[:length], method='PUT')
+                    refused(code, lambda: opener.open(request, timeout=2))
+                service.allowed_source = '192.0.2.1'
+                refused(403, lambda: upload(opener, url+service.url_path, source, len(data), digest))
+                self.assertEqual(len(service.records), 1)   # refused uploads hold no slot
+            finally:
+                service.close()
+
+    def test_upload_rejects_server_mismatch_and_bad_status(self):
+        class Response(io.BytesIO):
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+        class Opener:
+            def __init__(self, reply, status=200): self.reply, self.status, self.calls = reply, status, 0
+            def open(self, request, timeout):
+                self.calls += 1
+                while request.data.read(8192): pass    # the body is really sent
+                response = Response(self.reply); response.status = self.status
+                return response
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'s.bin'; source.write_bytes(b'good')
+            good = hashlib.sha256(b'good').hexdigest()
+            for reply, status in ((b'{"bytes":4,"sha256":"%s"}' % hashlib.sha256(b'evil').hexdigest().encode(), 200),
+                                  (b'{"bytes":3,"sha256":"%s"}' % good.encode(), 200),
+                                  (b'{"bytes":4,"sha256":"%s"}' % good.encode(), 206)):
+                opener = Opener(reply, status)
+                with self.assertRaises(ValueError):
+                    upload(opener, 'http://unused/', source, 4, good)
+                self.assertEqual(opener.calls, 1)
+            with self.assertRaises(ValueError):          # local file differs from the expected hash
+                upload(Opener(b'{"bytes":4,"sha256":"%s"}' % good.encode()), 'http://unused/', source, 4,
+                       hashlib.sha256(b'other').hexdigest())
+
+    def test_upload_cancel_and_deadline_have_no_retry(self):
+        class Opener:
+            calls = 0
+            def open(self, request, timeout):
+                self.calls += 1
+                request.data.read(8192)
+                raise AssertionError('must stop while sending')
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'s.bin'; source.write_bytes(b'abc')
+            opener = Opener()
+            with self.assertRaises(RuntimeError):
+                upload(opener, 'http://unused/', source, 3, 'unused', cancelled=lambda: True)
+            with patch('gateway_benchmark.time.monotonic', side_effect=[0, 200, 200]):
+                with self.assertRaises(TimeoutError):
+                    upload(opener, 'http://unused/', source, 3, 'unused', total_timeout=180)
             self.assertEqual(opener.calls, 2)
 
     def test_percentile_empty_and_small_samples(self):

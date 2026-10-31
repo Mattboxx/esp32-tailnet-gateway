@@ -16,6 +16,13 @@ in the roadmap ("Plan amendments"). Next: interleaved 3.0.6/dev.2 (and dev.3 =
 placement only) A/B on a USB-connected board under existing exact-image
 authority for 3.0.6/dev.2; dev.3 needs new exact-image authority.
 
+Later the same day: root branch `perf/hotloop-only-20261031` (`1b0e79c`) with
+MicroLink `perf/hotloop-only-20261031` (`b9e788c` = `fa3153b` + the identical
+placement patch). dev.3 exact image archived in ignored
+`build/development-3.0.7-dev.3/` (`firmware.bin` `4ca7e1bc…5e8729`). The
+benchmark gained `--direction upload|both`; 15 host tests PASS. No device
+write, no push.
+
 ## Latest stage — overrides older experiment descriptions below
 
 The first RX candidate comparison is complete: median 4.513 Mbit/s versus

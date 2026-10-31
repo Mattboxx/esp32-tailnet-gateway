@@ -150,6 +150,53 @@ class FileService:
                     record['finished_epoch'] = time.time()
                     outer.slot.release()
 
+            def do_PUT(self):
+                # Upload direction (LAN client -> ESP -> Tailnet server): the
+                # server hashes what it received; nothing is stored on disk.
+                if self.client_address[0] != outer.allowed_source or self.path != outer.url_path:
+                    self.close_connection = True
+                    self.send_error(403)
+                    return
+                try:
+                    length = int(self.headers.get('Content-Length', ''))
+                except ValueError:
+                    length = -1
+                if length != outer.file.stat().st_size:
+                    self.close_connection = True
+                    self.send_error(411 if length < 0 else 413)
+                    return
+                if not outer.slot.acquire(blocking=False):
+                    self.close_connection = True
+                    self.send_error(429)
+                    return
+                record = dict(source=self.client_address[0], method='PUT', bytes_read=0,
+                              started_epoch=time.time())
+                with outer.record_lock:
+                    outer.records.append(record)
+                digest = hashlib.sha256()
+                try:
+                    self.connection.settimeout(15)
+                    while record['bytes_read'] < length:
+                        chunk = self.rfile.read(min(65536, length - record['bytes_read']))
+                        if not chunk:
+                            break
+                        digest.update(chunk)
+                        record['bytes_read'] += len(chunk)
+                    record['sha256'] = digest.hexdigest()
+                    body = ('{"bytes":%d,"sha256":"%s"}' % (record['bytes_read'], record['sha256'])).encode()
+                    self.send_response(200 if record['bytes_read'] == length else 400)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Content-Length', str(len(body)))
+                    self.send_header('Connection', 'close')
+                    self.end_headers()
+                    self.wfile.write(body)
+                except OSError as error:
+                    record['error'] = type(error).__name__
+                finally:
+                    self.close_connection = True
+                    record['finished_epoch'] = time.time()
+                    outer.slot.release()
+
         # Base server dispatch is serial: no unbounded per-connection threads.
         # A stalled client is bounded by the socket timeout; shutdown waits for it.
         self.server = http.server.HTTPServer((bind, port), Handler)
@@ -205,3 +252,62 @@ def transfer(opener, url, output, expected_size, expected_hash, *, timeout=15,
     return dict(bytes=count, elapsed_s=elapsed, mbps=count*8/elapsed/1e6,
                 sha256=digest.hexdigest(), integrity_pass=True, windows=windows,
                 retries=0, resumed=False)
+
+
+class _UploadBody:
+    """File-like PUT body: enforces cancel/deadline per read and records windows."""
+    def __init__(self, path, size, start, total_timeout, progress, cancelled):
+        self.stream, self.size, self.start = path.open('rb'), size, start
+        self.total_timeout, self.progress, self.cancelled = total_timeout, progress, cancelled
+        self.count, self.windows, self.digest = 0, [], hashlib.sha256()
+        self.last_time, self.last_count = start, 0
+
+    def read(self, amount=65536):
+        if self.cancelled():
+            raise RuntimeError('Cancelled or resource guard stopped transfer')
+        now = time.monotonic()
+        if now - self.start >= self.total_timeout:
+            raise TimeoutError('Total transfer deadline')
+        chunk = self.stream.read(min(amount if amount and amount > 0 else 65536, 65536))
+        self.digest.update(chunk)
+        self.count += len(chunk)
+        if self.count > self.size:
+            raise ValueError('Source grew beyond the expected size')
+        if now - self.last_time >= 5:
+            row = dict(bytes=self.count, elapsed_s=now-self.start,
+                       mbps=(self.count-self.last_count)*8/(now-self.last_time)/1e6)
+            self.windows.append(row)
+            self.progress(row)
+            self.last_time, self.last_count = now, self.count
+        return chunk
+
+    def close(self):
+        self.stream.close()
+
+
+def upload(opener, url, source, expected_size, expected_hash, *, timeout=15,
+           total_timeout=180, progress=lambda row: None, cancelled=lambda: False):
+    """One actual HTTP PUT of an on-disk file; the receiving server's SHA-256 must
+    match. Like transfer(), it never retries or resumes silently."""
+    import json
+    import urllib.request
+    start = time.monotonic()
+    body = _UploadBody(source, expected_size, start, total_timeout, progress, cancelled)
+    request = urllib.request.Request(url, data=body, method='PUT', headers={
+        'Content-Type': 'application/octet-stream', 'Content-Length': str(expected_size)})
+    try:
+        with opener.open(request, timeout=timeout) as response:
+            reply = response.read(4096)
+            status = response.status
+    finally:
+        body.close()
+    elapsed = time.monotonic() - start
+    if status != 200:
+        raise ValueError('Unexpected HTTP status')
+    received = json.loads(reply)
+    if (body.count != expected_size or body.digest.hexdigest() != expected_hash
+            or received.get('bytes') != expected_size or received.get('sha256') != expected_hash):
+        raise ValueError('Incomplete or corrupted upload')
+    return dict(bytes=body.count, elapsed_s=elapsed, mbps=body.count*8/elapsed/1e6,
+                sha256=expected_hash, integrity_pass=True, windows=body.windows,
+                retries=0, resumed=False, direction='upload')
