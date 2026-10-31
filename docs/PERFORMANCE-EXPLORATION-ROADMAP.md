@@ -7,6 +7,15 @@ Current continuation: [Codex-to-Claude checkpoint](CODEX-TO-CLAUDE-PERFORMANCE-C
 
 ## Objective and revised resource policy
 
+**Owner priorities, 2026-10-31:** crypto efficiency (CPU time per transferred
+byte), free internal RAM for every service the firmware offers, and lower
+latency matter more than peak throughput. Evaluate candidates first on CPU %
+per Mbit/s at comparable throughput, internal free/minimum/largest block under
+load, and control/forwarded latency (median and p95); a throughput gain alone
+is secondary, and an internal-RAM cost needs a matching efficiency or latency
+benefit. Example: dev.3 costs about 1.5 KB of internal RAM, so it must show a
+clear CPU-per-Mbit or latency improvement to be worth it.
+
 Improve sustained throughput, latency and efficiency while every supported
 enabled service remains reliable under concurrent load. Preserve the full
 product roadmap, capabilities, licenses and upstream attribution.
