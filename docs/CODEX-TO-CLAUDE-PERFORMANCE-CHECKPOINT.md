@@ -23,6 +23,14 @@ placement patch). dev.3 exact image archived in ignored
 benchmark gained `--direction upload|both`; 15 host tests PASS. No device
 write, no push.
 
+Then, with the owner's authority for exact dev.3 on board A: interleaved A/B
+(private `build/private-device/performance-20261031-ab/`). All checks PASS, board
+left on **3.0.6** (ota_1 3.0.5). RSSI −63 dBm, ~2 Mbit/s, CPU ~30 %: radio-bound;
+no difference between 3.0.6 and dev.3 (download −1.8 %, upload +1.9 % median
+pair gain, mixed signs). The CPU-bound regime (strong signal) remains untested
+for dev.3; prefer the cycle-counter profiling build (amendment 4), which does
+not depend on RF, or repeat the same campaign at the 2026-10-29 position.
+
 ## Latest stage — overrides older experiment descriptions below
 
 The first RX candidate comparison is complete: median 4.513 Mbit/s versus
