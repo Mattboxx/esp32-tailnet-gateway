@@ -225,6 +225,8 @@ def main():
             report['last_rule_state'] = api('/api/tailnet-forward')
             report['last_diag'] = api('/api/system/diag')
             result['diag_memory'] = report['last_diag']['memory']
+            # Cumulative stage counters, present only on a "-prof" test image.
+            result['diag_perf'] = report['last_diag'].get('perf_profile')
             if cancel.is_set() or errors:
                 raise RuntimeError('Control/resource monitor reported a failure')
             if len(service.records) != number or service.records[-1]['source'] != esp_ip:

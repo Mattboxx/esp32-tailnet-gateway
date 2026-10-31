@@ -200,7 +200,9 @@ with tempfile.TemporaryDirectory(prefix='policy-reassembly-') as directory:
     subprocess.run([os.environ.get('CC','gcc'),*flags,str(path/'test.c'),'-o',str(binary),*libs],check=True)
     subprocess.run([str(binary)],check=True,timeout=45)
     wg_source=(ML/'components/wireguard_lwip/src/wireguardif.c').read_text(encoding='utf-8')
-    receive='static void wireguardif_process_data_message'+wg_source.split('static void wireguardif_process_data_message',1)[1].split('\nstatic struct pbuf *wireguardif_initiate_handshake',1)[0]
+    # Test-only profiling macros in the receive path are empty unless TSR_PERF_PROFILE.
+    flags+=['-I',str(ML/'components/wireguard_lwip/src')]
+    receive='#include "ml_perf.h"\n'+'static void wireguardif_process_data_message'+wg_source.split('static void wireguardif_process_data_message',1)[1].split('\nstatic struct pbuf *wireguardif_initiate_handshake',1)[0]
     (path/'test.c').write_text('#define ML_POLICY_HOST_TEST 1\n#include "ml_policy.c"\n'+constant('HEAD')+constant('WG_FIXTURE')+WG_TEST+WG_MAIN+receive+WG_BODY)
     subprocess.run([os.environ.get('CC','gcc'),*flags,str(path/'test.c'),'-o',str(binary),*libs],check=True)
     subprocess.run([str(binary)],check=True,timeout=45)
