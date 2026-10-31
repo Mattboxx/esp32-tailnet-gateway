@@ -31,6 +31,13 @@ pair gain, mixed signs). The CPU-bound regime (strong signal) remains untested
 for dev.3; prefer the cycle-counter profiling build (amendment 4), which does
 not depend on RF, or repeat the same campaign at the 2026-10-29 position.
 
+Second A/B near the router (`performance-20261031-ab2/`, RSSI −49 dBm, CPU-bound):
+dev.3 −7.3 % CPU per Mbit on download (4/4 pairs), −3.1 % upload (3/4),
+throughput +2.9/+1.7 %, control latency median −1.9/−13.6 %, internal minimum
+−1.5 KB; upload causes 1.4–2.3 s control-latency spikes with both images. Board
+A on 3.0.6. Owner priorities (2026-10-31): crypto efficiency, internal RAM
+headroom and latency over peak speed. Next: cycle-counter profiling build.
+
 ## Latest stage — overrides older experiment descriptions below
 
 The first RX candidate comparison is complete: median 4.513 Mbit/s versus
