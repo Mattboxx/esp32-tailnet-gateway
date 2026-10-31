@@ -155,6 +155,35 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    shows two full-packet `memset` passes (RX plaintext buffer, TX output buffer)
    and two RX allocations plus a copy per packet: candidates if the counters
    confirm their cost.
+   **Profiling results, board A, 2026-10-31** (`3.0.7-dev.3-prof`, RSSI about
+   −50 dBm, 3 downloads + 3 uploads of 32 MB, ~5.2 / ~6.0 Mbit/s, CPU 70–74 %;
+   private `performance-20261031-prof/`). Cycles are wall cycles of the core,
+   so they include interrupts and preemption by higher-priority tasks.
+
+   | Per ~1.3 KB packet | Download (RX: decrypt) | Upload (TX: encrypt) |
+   |---|---:|---:|
+   | ChaCha20 | 83k cycles, 66 cyc/B | 63k, 51 cyc/B |
+   | Poly1305 (+key) | 69k, 55 cyc/B | 33k, 27 cyc/B |
+   | Copy / alloc / memset | 12k / 2.5k / 1.8k | 4k / 4k / 1.2k |
+   | UDP hand-off (`tx_output`) | — | 49k, 39 cyc/B |
+   | Whole packet path | 320k (`rx_total`, includes `tcpip_input` hand-off and preemption) | 157k (`tx_total`) |
+   | WG RX queue wait | mean 12–13 ms, max 83–97 ms | — |
+
+   Crypto is the largest attributable cost: about 17 % of the two-core cycle
+   budget during download and 13 % during upload (roughly a quarter of the busy
+   CPU). The reference C ChaCha20/Poly1305 run at 51–66 / 27–55 cycles per byte.
+   Copies, allocations and both `memset` passes together cost only about 2–3 %,
+   so removing them is a small CPU win (it may still help RAM). Under load each
+   received packet waits about 12 ms in the WG RX queue: per-packet CPU cost
+   directly becomes latency. Verified while profiling: `netif->input` is
+   `tcpip_input` (`ml_wg_mgr.c:515`), so decrypted packets are queued to the
+   TCPIP thread; the "direct input" comment in `wireguardif.c` is outdated.
+
+   **Next (PERF-07, owner priority on crypto efficiency):** a faster ChaCha20
+   core and Poly1305 for the ESP32-S3 (portable C first, measured with the same
+   counters; S3 SIMD later), with RFC/independent known-answer, differential,
+   tampering, alignment and in-place tests before any device image. Then
+   revisit the RX queue depth/latency trade-off (PERF-05).
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
