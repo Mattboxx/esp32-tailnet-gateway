@@ -193,3 +193,17 @@ use the benchmark's STOP file/recovery procedure and exact saved rule identity;
 never overwrite a stale whole table. Update this checkpoint after every material
 operation; detailed step journal and exact live paths belong in the private
 `build/notification-ui/PERFORMANCE-CHECKPOINT.md`.
+
+## Claude checkpoint, 2026-10-31 evening
+
+- Crypto work on root `perf/crypto-fast-20261031` (`9298d99`, dev.6), MicroLink same branch.
+  dev.5 IRAM vs flash measured: flash costs ChaCha20 +7/+15 %, Poly1305 +16/+29 %,
+  whole path +7/+8 %, saves ~1.8 KB internal RAM. dev.6 = ChaCha20 in flash,
+  Poly1305 in IRAM (+1,068 B IRAM vs 3.0.6), image `512d57d1…16b5`.
+- Interleaved A/B 3.0.6 vs dev.6 prepared in private `performance-20261031-ab6/`
+  (run_ab.ps1 asks the owner for the password; analyse with `python ab_eff.py .`
+  inside that folder). Board A ends on 3.0.6.
+- Lease-notification fix: branch `fix/lease-orphan-notify-20261031` (`d768ef0`) from
+  3.0.6 in worktree `tailnet-lease-fix-20261031`; tests PASS, builds.
+- Remaining: analyse ab6, then PERF-05 (RX queue latency), concurrency probe,
+  Poly1305 assembly option, PERF-09 integrated qualification. Nothing pushed.
