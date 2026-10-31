@@ -19,7 +19,7 @@ DRIVERS+=['lab_echo']
 DRIVERS+=['gateway_benchmark']
 # wg_rx_owned / wg_rx_sdk test the RX-ownership experiment (MicroLink branch
 # perf/owned-rx-pbuf-20261029); dev.3 leaves that change out (no measured gain).
-DRIVERS+=['wg_crypto_hotloop','ml_perf']
+DRIVERS+=['wg_crypto_hotloop','ml_perf','wg_crypto_diff']
 DRIVERS+=['coord_recovery']
 DRIVERS+=['lab_cleanup']
 DRIVERS+=['candidate_ota_guard']
@@ -42,6 +42,7 @@ DRIVERS+=['log_capture']
 SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT TAILNET PEER_DNS OTA GATEWAY POLICY OPS LEASE HEALTH JSON TRANSFER RETRY CAP DISCOVERY WEB PROFILE SC MQTTSTATE ETH MQTTCMD TASKMEM REAPER FIRSTBOOT ORIGIN FBREBOOT LANNAME MDNS'.split()
 SANITIZERS+=['OTAFLASH','NOTIFY','NVS_FLAGS','NVS_TXN']
 SANITIZERS+=['LOG']
+SANITIZERS+=['ML_PERF','WG_CRYPTO_DIFF']
 SANITIZERS+=['MQTTPOWER']
 SANITIZERS+=['OTALOCAL']
 SANITIZERS+=['WG_RX']
