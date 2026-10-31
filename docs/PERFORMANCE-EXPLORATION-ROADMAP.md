@@ -218,6 +218,27 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    (48.5 / 26.5). A test-only `TSR_CRYPTO_IN_FLASH=1` build keeps both loops in
    flash (`.iram0.text` equal to 3.0.6, −2,092 B internal RAM) to price the
    IRAM placement.
+   **dev.6 placement choice:** with dev.5 code, keeping both loops in flash
+   cost +7/+15 % (ChaCha20) and +16/+29 % (Poly1305) cycles per byte, +7/+8 % on
+   the whole path, and saved ~1.8 KB internal RAM (`performance-20261031-prof5f/`).
+   dev.6 (`9298d99`) keeps ChaCha20 in flash and only Poly1305 in IRAM
+   (+1,068 B `.iram0.text` vs 3.0.6; static DRAM and sdkconfig equal).
+
+   **Interleaved A/B 3.0.6 vs dev.6 (release images), board A, 2026-10-31**
+   (`performance-20261031-ab6/`, RSSI −53 dBm, 4 ABBA pairs, 32 MB down + up;
+   16/16 hashes PASS, no reboot, switches verified, board left on 3.0.6):
+
+   | Median | 3.0.6 | dev.6 | pairs better |
+   |---|---:|---:|---|
+   | CPU % per Mbit/s, download / upload | 14.33 / 11.79 | 13.31 / 10.79 (−5.8 / −9.0 %) | 4/4, 4/4 |
+   | Throughput, download / upload | 4.82 / 5.66 | 5.14 / 6.26 (+6.5 / +8.5 %) | 4/4, 4/4 |
+   | Control latency median, download / upload | 205 / 403 ms | 210 / 369 ms | 1/4, 2/4 (no clear change) |
+   | Internal free minimum | 45,727 B | 44,803 B (−0.9 KB) | — |
+
+   Against the owner priorities: a repeatable crypto-efficiency gain in every
+   pair for about 1 KB of internal RAM; latency under load is unchanged, so
+   the RX queue (PERF-05) is the next lever. Below the 10 % speed threshold as a
+   speed claim; accepted as an efficiency candidate for the integrated gate.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
