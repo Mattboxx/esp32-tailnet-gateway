@@ -100,6 +100,17 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    dev.2; `.iram0.text` +1,560 B and `.flash.text` −1,496 B versus 3.0.6;
    static DRAM and `sdkconfig.h` identical to 3.0.6. Not installed; it needs
    its own exact-image authority.
+   **Interleaved A/B, board A, 2026-10-31 (4 ABBA pairs, 32 MB down + up per
+   phase):** all 16 transfers hash PASS, no reboot, every switch verified
+   (outside-ota_0 MD5 unchanged, 3.0.5 intact, configuration preserved), rules
+   and leases restored, board left on 3.0.6. RSSI was about −63 dBm (−27 dBm on
+   2026-10-29) and throughput about 2 Mbit/s with CPU only 26–32 %: the radio,
+   not the CPU, limited this run. Download 3.0.6 median 1.994 vs dev.3 1.912
+   (pair gains −1.2/+6.4/−7.0/−2.3 %); upload 1.893 vs 1.928 (−6.7/+11.1/+3.1/
+   +0.7 %). **No gain at weak signal; the decision rule is not met.** This does
+   not test the CPU-bound case where dev.2 showed +14.7 %; internal minimum was
+   about 1.5 KB lower with dev.3 (IRAM placement), control p95 exceeded 1 s once
+   for each image at this signal level.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
