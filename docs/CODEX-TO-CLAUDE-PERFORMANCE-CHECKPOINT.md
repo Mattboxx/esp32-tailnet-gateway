@@ -3,6 +3,19 @@
 Updated 2026-10-29. This is local experimental work, not a published release.
 Read this before the older notification/release handovers.
 
+## Claude update, 2026-10-31 — overrides the stage below
+
+The dev.2 same-position campaign finished after the last Codex entry: 3×32 MB,
+median 5.227 Mbit/s (4.693–5.303) versus 3.0.6 4.558 and dev.1 4.513; hashes,
+control and cleanup PASS, no reboot; internal minimum about 1.2 KB lower. Not
+interleaved, so not qualified. No benchmark/esptool/PlatformIO process is
+running and no serial port is present. The primary gateway answers with its web
+password on; per the records it still runs **3.0.7-dev.2** in ota_0 (3.0.5 in
+ota_1) — not re-verified, needs the owner's sign-in or USB. Plan amendments are
+in the roadmap ("Plan amendments"). Next: interleaved 3.0.6/dev.2 (and dev.3 =
+placement only) A/B on a USB-connected board under existing exact-image
+authority for 3.0.6/dev.2; dev.3 needs new exact-image authority.
+
 ## Latest stage — overrides older experiment descriptions below
 
 The first RX candidate comparison is complete: median 4.513 Mbit/s versus

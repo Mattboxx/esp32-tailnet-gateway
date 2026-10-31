@@ -1,7 +1,8 @@
 # Performance and load-resilience exploration roadmap
 
 ESP32 Tailnet Gateway — Mattboxx Edition. Owner-approved planning direction,
-2026-10-29. **Investigation active; RX prototype implemented, not qualified.**
+2026-10-29. **Investigation active. RX prototype rejected (no gain); IRAM
+crypto-loop prototype promising (+14.7 % sequential), confirmation pending.**
 Current continuation: [Codex-to-Claude checkpoint](CODEX-TO-CLAUDE-PERFORMANCE-CHECKPOINT.md).
 
 ## Objective and revised resource policy
@@ -56,6 +57,48 @@ Private evidence: follow `build/notification-ui/500mb-active-path.txt` to
 removed; owner rules and leases were preserved. No benchmark remains active.
 The previous private performance note's fixed-RAM rule is superseded by this plan.
 
+## Results so far (same physical position, INFO, 3×32 MB each, 2026-10-29)
+
+| Image | Runs (Mbit/s) | Median | Internal min | Control p95 |
+|---|---|---:|---:|---:|
+| 3.0.6 `c371c177…` | 4.639 / 4.183 / 4.558 | 4.558 | 45,703 B | 0.305–0.403 s |
+| 3.0.7-dev.1 RX ownership `326c0d8e…` | 4.553 / 4.513 / 4.353 | 4.513 (−1.0 %) | 45,723 B | 0.238–0.282 s |
+| 3.0.7-dev.2 dev.1 + IRAM loops `762eedce…` | 4.693 / 5.227 / 5.303 | 5.227 (+14.7 %) | 44,463 B | 0.295–0.405 s |
+
+All 9 files matched their SHA-256, no retries/resumes/reboots, largest internal
+block 25,600 B throughout, owner rules/leases/console restored. The three
+series ran one after another, not interleaved, so RF/host drift is not
+excluded; dev.2 is a candidate, not a qualified improvement. The dev.2 runs
+were recorded after the last Codex checkpoint (Claude, 2026-10-31).
+
+## Plan amendments (Claude, 2026-10-31)
+
+1. **Interleaved confirmation before more development.** Decision rule frozen
+   now: at least four 3.0.6/candidate pairs in ABBA order at a fixed position,
+   RSSI/channel recorded per run (repeat a run whose RSSI differs by more than
+   6 dB from its pair); accept a speed gain only if the median paired gain is
+   at least 10 % and every pair is positive.
+2. **Smallest releasable change.** The RX ownership change showed no gain, so
+   build dev.3 = 3.0.6 + IRAM loop placement only (no RX adoption) and confirm
+   the gain without it. Ship the smaller diff unless dev.2 is measurably better.
+3. **Both directions.** The harness measures LAN client download (Tailnet → LAN:
+   decrypt on the ESP). Add the upload direction (encrypt path) before
+   attributing the gain or claiming a general speedup.
+4. **Profile instead of guessing the next step.** The placement gain points to
+   instruction-fetch (flash cache) cost in the packet path. Add a bounded,
+   test-only cycle-counter build (compiled out of releases) that attributes
+   time to decrypt/encrypt, Poly1305, copies, lwIP forwarding and queueing;
+   then rank: further IRAM placement of measured hot functions; the 32 KB
+   instruction cache (about 26 KB internal RAM, now allowed by the revised
+   policy if headroom is measured); ESP32-S3 SIMD (PIE) ChaCha20 later (PERF-07).
+5. **Early stability probe.** Run a small concurrency subset (1/2/4 TCP streams
+   + UI/API polling + MQTT) on the leading candidate before stacking further
+   optimizations, so a load regression is found while the diff is small.
+6. **Lab device.** Do A/B swaps on the test-only board B where possible and
+   keep the owner's primary gateway for final exact-image qualification; the
+   primary gateway should not keep running an unpublished dev image between
+   campaigns without the owner knowing.
+
 ## Work packages and execution order
 
 | ID | Priority | Work | Required output | Status |
@@ -65,7 +108,7 @@ The previous private performance note's fixed-RAM rule is superseded by this pla
 | PERF-03 | P1 | Reduce logging overhead | Controlled INFO/WARN comparison and restore | Six paired runs complete; approximately 2% median difference inside variability; original INFO restored |
 | PERF-04 | P1 | Receive ownership and zero-copy investigation | Small audited receive-path experiment or justified rejection | Host/SDK/sanitizer + scoped device comparisons complete; no demonstrated speed gain, not promoted; raw zero-copy remains OFF |
 | PERF-05 | P1 | Bounded event-driven packet scheduling | Lower avoidable delay without starvation/watchdog regressions | Conditional on PERF-02 |
-| PERF-06 | P2 | Precision memory/cache/buffer allocation | Measured speed/headroom tradeoff under concurrent services | Separate selective-IRAM loop prototype; host/ASan crypto PASS; actual build/placement/RAM and hardware comparison pending |
+| PERF-06 | P2 | Precision memory/cache/buffer allocation | Measured speed/headroom tradeoff under concurrent services | dev.2 (IRAM placement of `INNER_BLOCK` + WG `poly1305_blocks`) built, placement verified, installed; same-position 3×32 MB median 5.23 vs 4.56 Mbit/s for 3.0.6 (+14.7 %), every run above the baseline maximum; interleaved A/B, isolation from the RX change and concurrency pending |
 | PERF-07 | P2 | Crypto hot-path improvements | Compatible, licensed, verified implementation improvement | Conditional on crypto cost |
 | PERF-08 | P2 | MTU/MSS/loss investigation | Correct packet sizing only when evidence supports it | Conditional on loss evidence |
 | PERF-09 | Blocking final gate | Integrated load/fault/regression qualification | Exact-image evidence and accept/reject decision | Not started |
