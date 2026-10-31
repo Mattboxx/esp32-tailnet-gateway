@@ -239,6 +239,29 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    pair for about 1 KB of internal RAM; latency under load is unchanged, so
    the RX queue (PERF-05) is the next lever. Below the 10 % speed threshold as a
    speed claim; accepted as an efficiency candidate for the integrated gate.
+
+   **dev.7 (`d2f4af1`), PERF-05 first step:** the WireGuard manager polled its
+   RX queue every 10 ms (`vTaskDelay`), adding up to one tick to every tunnelled
+   packet. net_io/DERP now give a binary semaphore per queued WG frame and the
+   manager waits on it; the 10 ms rest is still taken while frames remain
+   queued or after 40 ms of work without a real rest (#46 protection). Host
+   policy simulation: `tools/test_wg_mgr_wake.py`. Not measured on its own; the
+   dev.8 campaign below measures tunnel ping (idle and under load) too.
+
+   **dev.8 (`ee56c1d`, MicroLink `4dcf00f`), Poly1305 in Xtensa assembly:**
+   `poly1305_xtensa.S` keeps the five limbs in registers and completes one
+   64-bit accumulator at a time: 232 instructions per 16-byte block instead of
+   368 (of which ~133 were spill loads/stores). `poly1305_blocks()` compares it
+   with the C code on 64 fixed inputs before first use and otherwise keeps C;
+   unaligned input is copied one aligned block at a time. The C loop moves to
+   flash as the fallback, so `.iram0.text` is 110,435 B (−304 B vs dev.7,
+   +764 B vs 3.0.6). Host gate `tools/test_poly1305_xtensa.py` interprets the
+   actual `.S` against the actual C (808 cases incl. full-range limbs, a carry
+   mutant caught) and drives the dispatcher with correct/wrong stubs; the ISA
+   reading itself is confirmed only by the on-device check. Images
+   `1566d8a0…58c4` and test-only `-prof` `427f2cf9…5087`. Pending: profiling
+   run (requires `poly1305_asm == 1` on the device) and interleaved A/B with
+   tunnel ping in `performance-20261031-ab8/`.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between

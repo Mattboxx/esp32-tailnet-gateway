@@ -207,3 +207,17 @@ operation; detailed step journal and exact live paths belong in the private
   3.0.6 in worktree `tailnet-lease-fix-20261031`; tests PASS, builds.
 - Remaining: analyse ab6, then PERF-05 (RX queue latency), concurrency probe,
   Poly1305 assembly option, PERF-09 integrated qualification. Nothing pushed.
+
+## Claude checkpoint, 2026-10-31 night
+
+- ab6 recorded (dev.6: CPU/Mbit −5.8/−9.0 %, 4/4 pairs, −0.9 KB internal).
+- dev.7 `d2f4af1`: wg_mgr waits on a per-frame semaphore instead of 10 ms polling
+  (rest kept when frames remain queued or after 40 ms busy).
+- dev.8 `ee56c1d` (MicroLink `4dcf00f`): Poly1305 block function in Xtensa
+  assembly with on-device check and C fallback in flash; IRAM 110,435 B.
+  Host: `test_poly1305_xtensa`, `wg_crypto_hotloop`, `wg_crypto_diff` PASS.
+- Owner run pending: `build/private-device/performance-20261031-ab8/run_ab.ps1`
+  (profiling, gate `poly1305_asm == 1`, then ABBA 3.0.6/dev.8 with tunnel ping);
+  analyse with `python prof_analyse.py prof-run` and `python ab_eff.py .`.
+  The ab7 session (dev.7 alone) is superseded by ab8 and was not run.
+- Remaining: ab8 analysis, concurrency probe, PERF-09. Nothing pushed.
