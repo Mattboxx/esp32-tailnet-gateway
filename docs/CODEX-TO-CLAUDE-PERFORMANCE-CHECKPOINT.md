@@ -38,6 +38,12 @@ throughput +2.9/+1.7 %, control latency median −1.9/−13.6 %, internal minimu
 A on 3.0.6. Owner priorities (2026-10-31): crypto efficiency, internal RAM
 headroom and latency over peak speed. Next: cycle-counter profiling build.
 
+Profiling done (root `3426b33`/MicroLink `403e596`, image `3.0.7-dev.3-prof`,
+board A back on 3.0.6, all switches verified): crypto ≈ 17 %/13 % of the
+two-core budget (download/upload), ChaCha20 51–66 cyc/B, Poly1305 27–55 cyc/B;
+copies/memset/alloc ≈ 2–3 %; WG RX queue wait ≈ 12 ms mean under load. Next:
+PERF-07 faster ChaCha20/Poly1305 (host-tested first). Details in the roadmap.
+
 ## Latest stage — overrides older experiment descriptions below
 
 The first RX candidate comparison is complete: median 4.513 Mbit/s versus
