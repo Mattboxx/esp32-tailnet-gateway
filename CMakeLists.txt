@@ -39,6 +39,14 @@ if(DEFINED SDKCONFIG AND EXISTS "${SDKCONFIG}")
     endif()
 endif()
 
+# Test-only packet-path profiling (docs/PERFORMANCE-EXPLORATION-ROADMAP.md):
+# only when the build environment sets TSR_PERF_PROFILE=1. Release builds never
+# define it, and such an image reports a version ending in "-prof".
+if("$ENV{TSR_PERF_PROFILE}" STREQUAL "1")
+    idf_build_set_property(COMPILE_DEFINITIONS "TSR_PERF_PROFILE=1" APPEND)
+    set(PROJECT_VER "${PROJECT_VER}-prof")
+endif()
+
 project(esp32_tsr)
 
 # esp-mqtt has no task-memory capabilities option in the pinned SDK. Adapt

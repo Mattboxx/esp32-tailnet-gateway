@@ -4551,6 +4551,24 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
                              microlink_get_wg_tx_copyfree(tailscale_get_microlink()));
         cJSON_AddItemToObject(root, "memory", m);
     }
+#if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
+    {   /* Test-only profiling image ("-prof" version): packet-path stage counters. */
+        microlink_perf_stage_t st[16];
+        size_t n = microlink_perf_profile(st, sizeof st / sizeof st[0]);
+        cJSON *pp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(pp, "cpu_hz", CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * 1000000.0);
+        for (size_t i = 0; i < n; i++) {
+            cJSON *s = cJSON_CreateObject();
+            cJSON_AddNumberToObject(s, "total", (double)st[i].total);
+            cJSON_AddNumberToObject(s, "bytes", (double)st[i].bytes);
+            cJSON_AddNumberToObject(s, "count", st[i].count);
+            cJSON_AddNumberToObject(s, "max", st[i].max);
+            cJSON_AddNumberToObject(s, "migrated", st[i].migrated);
+            cJSON_AddItemToObject(pp, st[i].name, s);
+        }
+        cJSON_AddItemToObject(root, "perf_profile", pp);
+    }
+#endif
 
     /* --- B) Partitions --------------------------------------------------- */
     {
