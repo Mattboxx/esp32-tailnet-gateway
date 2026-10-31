@@ -19,7 +19,8 @@ import threading
 import time
 import urllib.request
 
-from gateway_benchmark import FileService, TemporaryRule, configs, percentile, restore_console, transfer, upload
+from gateway_benchmark import (FileService, TemporaryRule, combine, configs, parallel, percentile,
+                               restore_console, transfer, upload)
 from test_snmp_device import bound_http_handler, login
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +39,11 @@ def arguments():
     parser.add_argument('--direction', choices=('download', 'upload', 'both'), default='download',
                         help='download: Tailnet server -> ESP -> LAN client (ESP decrypts); upload: LAN client -> '
                              'ESP -> Tailnet server (ESP encrypts); both: alternate the order per run')
+    parser.add_argument('--streams', type=int, default=1, choices=range(1, 5),
+                        help='Concurrent transfers per run (each the whole file, each hash-checked)')
+    parser.add_argument('--ui-load', action='store_true',
+                        help='During transfers, read status/operations/forwarding/MQTT state once a second '
+                             '(read-only) and record latency, failures and MQTT connection')
     parser.add_argument('--allow-temporary-rule', required=True, action='store_true')
     parser.add_argument('--output', type=Path, help='New directory under ignored build/private-device/')
     parser.add_argument('--recover-only', type=Path, help='Existing private result folder; remove exact rule/restore owned console change only')
@@ -67,14 +73,18 @@ def main():
     api = login(str(a.host), source_ip=str(a.lan_source), interface_index=a.interface_index)
     os.environ.pop('TEST_DEVICE_PASSWORD', None)
     state_file = a.output/'state-private.json'
-    report = {'state': 'preflight', 'runs': [], 'sampling_interval_s': 5,
+    report = {'state': 'preflight', 'runs': [], 'sampling_interval_s': 5, 'streams': a.streams,
+              'ui_load': a.ui_load,
               'topology': 'Same owned PC file source on Tailnet and LAN-bound receiver',
               'forced_derp': False, 'all_features_qualification': False}
 
+    persist_lock = threading.Lock()   # concurrent streams report progress
+
     def persist():
-        temporary = state_file.with_suffix('.tmp')
-        temporary.write_text(json.dumps(report, indent=2), encoding='utf-8')
-        temporary.replace(state_file)
+        with persist_lock:
+            temporary = state_file.with_suffix('.tmp')
+            temporary.write_text(json.dumps(report, indent=2), encoding='utf-8')
+            temporary.replace(state_file)
 
     system = api('/api/system')
     if system['version'] != a.expected_version:
@@ -120,7 +130,7 @@ def main():
             stream.write(data)
             digest.update(data)
             left -= len(data)
-    service = FileService(str(a.peer_bind), esp_ip, payload)
+    service = FileService(str(a.peer_bind), esp_ip, payload, streams=a.streams)
     rows = configs(api('/api/tailnet-forward')['rules'])
     listen = secrets.randbelow(10000)+22000
     while any(r['listen_port'] == listen for r in rows) or listen == system.get('web_port', 80):
@@ -140,7 +150,8 @@ def main():
         service.start()
         # Conservative upper bound includes slow transfers and pauses. Expiry is
         # a fallback after a process kill; normal cleanup removes the exact rule.
-        rule.install(min(604800, (a.runs*(2 if a.compare_console else 1)*(2 if a.direction == 'both' else 1))*185+180))
+        rule.install(min(604800, (a.runs*(2 if a.compare_console else 1)*(2 if a.direction == 'both' else 1))
+                         * 185 * a.streams + 180))
         levels = [log['console_level']]*a.runs
         if a.compare_console:
             levels = [v for i in range(a.runs) for v in ((3, 2) if i % 2 == 0 else (2, 3))]
@@ -194,8 +205,30 @@ def main():
                             cancel.set()
                             return
 
+            ui_rows = []
+
+            def ui_poll():
+                # Read-only administrator-like load; failures are measured, not fatal.
+                paths = ('/api/status', '/api/operations', '/api/tailnet-forward', '/api/mqtt')
+                i = 0
+                while not monitor_stop.wait(1):
+                    path = paths[i % len(paths)]
+                    i += 1
+                    started = time.monotonic()
+                    try:
+                        reply = api(path, timeout=5)
+                        row = dict(path=path, ok=True, latency_s=time.monotonic()-started)
+                        if path == '/api/mqtt':
+                            row.update(mqtt_enabled=reply.get('enabled'), mqtt_connected=reply.get('connected'))
+                    except Exception as error:
+                        row = dict(path=path, ok=False, latency_s=time.monotonic()-started, error=type(error).__name__)
+                    ui_rows.append(row)
+
             monitor = threading.Thread(target=observe, daemon=True)
             monitor.start()
+            ui_thread = threading.Thread(target=ui_poll, daemon=True) if a.ui_load else None
+            if ui_thread:
+                ui_thread.start()
             report.update(state='transferring', active_run=number, console_level=level, direction=direction)
             persist()
 
@@ -205,22 +238,46 @@ def main():
 
             try:
                 stop = lambda: cancel.is_set() or (a.output/'STOP').exists()
-                if direction == 'upload':
-                    result = upload(opener, url, payload, a.size_mb*1_000_000, digest.hexdigest(),
+                size, deadline = a.size_mb*1_000_000, 180*a.streams
+                if a.streams == 1 and direction == 'upload':
+                    result = upload(opener, url, payload, size, digest.hexdigest(),
                                     progress=progress, cancelled=stop)
-                else:
-                    result = transfer(opener, url, a.output/f'download-{number}.bin', a.size_mb*1_000_000,
+                elif a.streams == 1:
+                    result = transfer(opener, url, a.output/f'download-{number}.bin', size,
                                       digest.hexdigest(), progress=progress, cancelled=stop)
+                else:
+                    outputs = [a.output/f'download-{number}-{k}.bin' for k in range(a.streams)]
+                    if direction == 'upload':
+                        jobs = [lambda: upload(opener, url, payload, size, digest.hexdigest(),
+                                               total_timeout=deadline, cancelled=stop) for _ in outputs]
+                    else:
+                        jobs = [lambda out=out: transfer(opener, url, out, size, digest.hexdigest(),
+                                                         total_timeout=deadline, cancelled=stop) for out in outputs]
+                    started = time.monotonic()
+                    result = combine(parallel(jobs, cancel), time.monotonic()-started)
+                    for out in outputs:     # each was hash-checked while streaming
+                        out.unlink(missing_ok=True)
             finally:
                 monitor_stop.set()
                 monitor.join(timeout=40)
-                if monitor.is_alive():
+                if ui_thread:
+                    ui_thread.join(timeout=20)
+                if monitor.is_alive() or (ui_thread and ui_thread.is_alive()):
                     raise RuntimeError('Monitor did not stop; refusing concurrent control writes')
             result.update(run=number, console_level=level, direction=direction, samples=len(samples), errors=errors,
                 observed_internal_min=min((s['operations']['internal_free'] for s in samples), default=None),
                 largest_block_min=min((s['operations']['internal_largest'] for s in samples), default=None),
                 cpu_median=statistics.median([s['status']['cpu_load_pct'] for s in samples]) if samples else None,
                 control_pair_p95_s=percentile([s['control_pair_latency_s'] for s in samples], .95))
+            if a.ui_load:
+                good = [r['latency_s'] for r in ui_rows if r['ok']]
+                mqtt = [r for r in ui_rows if r['path'] == '/api/mqtt' and r['ok']]
+                result.update(ui_requests=len(ui_rows), ui_failures=sum(not r['ok'] for r in ui_rows),
+                              ui_p50_s=percentile(good, .5), ui_p95_s=percentile(good, .95),
+                              ui_max_s=max(good, default=None),
+                              mqtt_enabled=any(r['mqtt_enabled'] for r in mqtt) if mqtt else None,
+                              mqtt_connected_samples=sum(bool(r['mqtt_connected']) for r in mqtt),
+                              mqtt_samples=len(mqtt))
             report['runs'].append(result)
             report['last_rule_state'] = api('/api/tailnet-forward')
             report['last_diag'] = api('/api/system/diag')
@@ -229,7 +286,8 @@ def main():
             result['diag_perf'] = report['last_diag'].get('perf_profile')
             if cancel.is_set() or errors:
                 raise RuntimeError('Control/resource monitor reported a failure')
-            if len(service.records) != number or service.records[-1]['source'] != esp_ip:
+            if (len(service.records) != number*a.streams or
+                    any(r['source'] != esp_ip for r in service.records[-a.streams:])):
                 raise RuntimeError('Server route evidence mismatch')
             persist()
             print(f'Run {number}/{len(schedule)} {direction}: {result["mbps"]:.3f} Mbit/s, hash PASS, control p95 {result["control_pair_p95_s"]}', flush=True)
