@@ -19,7 +19,7 @@ import threading
 import time
 import urllib.request
 
-from gateway_benchmark import FileService, TemporaryRule, configs, percentile, restore_console, transfer
+from gateway_benchmark import FileService, TemporaryRule, configs, percentile, restore_console, transfer, upload
 from test_snmp_device import bound_http_handler, login
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +35,9 @@ def arguments():
     parser.add_argument('--size-mb', type=int, default=32, choices=range(1, 513), metavar='1..512')
     parser.add_argument('--runs', type=int, default=3, choices=range(1, 10))
     parser.add_argument('--compare-console', action='store_true', help='Explicit temporary INFO/WARN setting changes')
+    parser.add_argument('--direction', choices=('download', 'upload', 'both'), default='download',
+                        help='download: Tailnet server -> ESP -> LAN client (ESP decrypts); upload: LAN client -> '
+                             'ESP -> Tailnet server (ESP encrypts); both: alternate the order per run')
     parser.add_argument('--allow-temporary-rule', required=True, action='store_true')
     parser.add_argument('--output', type=Path, help='New directory under ignored build/private-device/')
     parser.add_argument('--recover-only', type=Path, help='Existing private result folder; remove exact rule/restore owned console change only')
@@ -137,12 +140,18 @@ def main():
         service.start()
         # Conservative upper bound includes slow transfers and pauses. Expiry is
         # a fallback after a process kill; normal cleanup removes the exact rule.
-        rule.install(min(604800, (a.runs*(2 if a.compare_console else 1))*185+180))
-        schedule = [log['console_level']]*a.runs
+        rule.install(min(604800, (a.runs*(2 if a.compare_console else 1)*(2 if a.direction == 'both' else 1))*185+180))
+        levels = [log['console_level']]*a.runs
         if a.compare_console:
-            schedule = [v for i in range(a.runs) for v in ((3, 2) if i % 2 == 0 else (2, 3))]
+            levels = [v for i in range(a.runs) for v in ((3, 2) if i % 2 == 0 else (2, 3))]
+        if a.direction == 'both':
+            # Alternate which direction goes first so slow drift does not favour one.
+            schedule = [(level, d) for i, level in enumerate(levels)
+                        for d in (('download', 'upload') if i % 2 == 0 else ('upload', 'download'))]
+        else:
+            schedule = [(level, a.direction) for level in levels]
         time.sleep(2)
-        for number, level in enumerate(schedule, 1):
+        for number, (level, direction) in enumerate(schedule, 1):
             if cancel.is_set() or (a.output/'STOP').exists():
                 raise RuntimeError('Owner stopped benchmark')
             current = api('/api/sdlog')['console_level']
@@ -187,7 +196,7 @@ def main():
 
             monitor = threading.Thread(target=observe, daemon=True)
             monitor.start()
-            report.update(state='transferring', active_run=number, console_level=level)
+            report.update(state='transferring', active_run=number, console_level=level, direction=direction)
             persist()
 
             def progress(window):
@@ -195,15 +204,19 @@ def main():
                 persist()
 
             try:
-                result = transfer(opener, url, a.output/f'download-{number}.bin', a.size_mb*1_000_000,
-                    digest.hexdigest(), progress=progress,
-                    cancelled=lambda: cancel.is_set() or (a.output/'STOP').exists())
+                stop = lambda: cancel.is_set() or (a.output/'STOP').exists()
+                if direction == 'upload':
+                    result = upload(opener, url, payload, a.size_mb*1_000_000, digest.hexdigest(),
+                                    progress=progress, cancelled=stop)
+                else:
+                    result = transfer(opener, url, a.output/f'download-{number}.bin', a.size_mb*1_000_000,
+                                      digest.hexdigest(), progress=progress, cancelled=stop)
             finally:
                 monitor_stop.set()
                 monitor.join(timeout=40)
                 if monitor.is_alive():
                     raise RuntimeError('Monitor did not stop; refusing concurrent control writes')
-            result.update(run=number, console_level=level, samples=len(samples), errors=errors,
+            result.update(run=number, console_level=level, direction=direction, samples=len(samples), errors=errors,
                 observed_internal_min=min((s['operations']['internal_free'] for s in samples), default=None),
                 largest_block_min=min((s['operations']['internal_largest'] for s in samples), default=None),
                 cpu_median=statistics.median([s['status']['cpu_load_pct'] for s in samples]) if samples else None,
@@ -217,11 +230,14 @@ def main():
             if len(service.records) != number or service.records[-1]['source'] != esp_ip:
                 raise RuntimeError('Server route evidence mismatch')
             persist()
-            print(f'Run {number}/{len(schedule)}: {result["mbps"]:.3f} Mbit/s, hash PASS, control p95 {result["control_pair_p95_s"]}', flush=True)
+            print(f'Run {number}/{len(schedule)} {direction}: {result["mbps"]:.3f} Mbit/s, hash PASS, control p95 {result["control_pair_p95_s"]}', flush=True)
             time.sleep(2)
         report['state'] = 'completed'
-        report['summary'] = {str(level): dict(median_mbps=statistics.median(values), min_mbps=min(values), max_mbps=max(values))
-            for level in set(schedule) if (values := [r['mbps'] for r in report['runs'] if r['console_level'] == level])}
+        # Download-only keeps the historical key (console level) for comparison.
+        key = (lambda level, d: str(level)) if a.direction == 'download' else (lambda level, d: f'{d}:{level}')
+        report['summary'] = {key(level, d): dict(median_mbps=statistics.median(values), min_mbps=min(values), max_mbps=max(values))
+            for level, d in set(schedule) if (values := [r['mbps'] for r in report['runs']
+                                                         if r['console_level'] == level and r['direction'] == d])}
     except BaseException as error:
         report.update(state='failed', error=type(error).__name__+': '+str(error))
     finally:
