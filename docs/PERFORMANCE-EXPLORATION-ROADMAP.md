@@ -140,6 +140,21 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    latency spiky with both images: a latency target for PERF-05, not a dev.3
    regression. dev.3 is a valid efficiency candidate, not yet a release: decide
    after the profiling build shows where the remaining crypto/copy time goes.
+   **Profiling build (amendment 4), 2026-10-31:** root `3426b33`, MicroLink
+   `403e596`. Building with `TSR_PERF_PROFILE=1` in the environment links
+   `ml_perf` cycle counters per RX/TX stage (queue residence, copy, allocation,
+   memset, Poly1305, ChaCha20, output) and reports them in `/api/system/diag`
+   `perf_profile`; the benchmark stores them per run (`diag_perf`). Image
+   `3.0.7-dev.3-prof` (`firmware.bin` `9cf43414…acf55`), +456 B static RAM.
+   Release builds are unchanged: the object code of every touched MicroLink
+   file compiled with the exact build command is identical to dev.3 (only
+   `__FILE__` text differed in the test), all 3,231 data/BSS symbols have the
+   same size, and no profiling symbol or string is present. Final ELF section
+   sizes still move by a few bytes between links (`-mlongcalls` relaxation and
+   alignment), so compare objects, not linked sizes. Code reading already
+   shows two full-packet `memset` passes (RX plaintext buffer, TX output buffer)
+   and two RX allocations plus a copy per packet: candidates if the counters
+   confirm their cost.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
