@@ -259,9 +259,40 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    actual `.S` against the actual C (808 cases incl. full-range limbs, a carry
    mutant caught) and drives the dispatcher with correct/wrong stubs; the ISA
    reading itself is confirmed only by the on-device check. Images
-   `1566d8a0…58c4` and test-only `-prof` `427f2cf9…5087`. Pending: profiling
-   run (requires `poly1305_asm == 1` on the device) and interleaved A/B with
-   tunnel ping in `performance-20261031-ab8/`.
+   `1566d8a0…58c4` and test-only `-prof` `427f2cf9…5087`.
+
+   **Board A campaign, 2026-10-31** (`performance-20261031-ab8/`, RSSI −51…−54
+   dBm; profiling then 4 ABBA pairs, 32 MB down + up; every transfer's hash
+   PASS, temporary rules removed, no reboot, board left on 3.0.6). The device
+   reported `poly1305_asm == 1` in all six profiling samples: the assembly
+   passed its on-device check and was in use.
+
+   | Profiling, cycles per byte (median of 3) | dev.5-prof | dev.8-prof |
+   |---|---:|---:|
+   | Poly1305 decrypt (download) / encrypt (upload) | 48.5 / 26.5 | 43.7 / 19.3 (−10 / −27 %) |
+   | ChaCha20 decrypt / encrypt (dev.5 in IRAM, dev.8 in flash) | 40.1 / 33.0 | 51.0 / 38.1 |
+   | Whole RX / TX packet path | 211 / 110 | 221 / 107 |
+
+   The encrypt side reads data it has just written (cached); the decrypt side
+   reads each received packet for the first time from its SPIRAM buffer, so it
+   is bounded by memory misses rather than instructions: that is why the
+   decrypt gain is smaller than the instruction count suggests.
+
+   | A/B median | 3.0.6 | dev.8 | pairs better |
+   |---|---:|---:|---|
+   | CPU % per Mbit/s, download / upload | 13.89 / 11.61 | 13.23 / 10.38 (−3.5 / −10.5 %) | 4/4, 3/4 |
+   | Throughput, download / upload | 5.17 / 5.71 | 5.61 / 6.44 (+8.4 / +11.6 %) | 4/4, 4/4 |
+   | Tunnel ping, idle: median / p90 / p99 | 8 / 14 / 94 ms | 5 / 10 / 75 ms | 4/4 (median) |
+   | Tunnel ping during transfers: median / p90 / p99 | 21 / 48 / 117 ms | 14 / 50 / 113 ms | 4/4 (median, −6…−8 ms) |
+   | Control latency median, download / upload | 227 / 398 ms | 230 / 369 ms | 1/4, 4/4 |
+   | Internal free minimum, download / upload | 45,747 / 45,603 B | 44,899 / 44,971 B (−0.6…−0.8 KB) | — |
+
+   Against the owner priorities: the latency target is met (the wake removes
+   the polling tick: −3 ms idle and −7 ms median under load, every pair);
+   crypto efficiency improves in both directions; internal RAM costs under
+   1 KB. Upload throughput crosses the 10 % threshold (+11.6 %, 4/4); download
+   is below it. dev.8 is the leading candidate for the concurrency probe and
+   PERF-09.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
