@@ -120,6 +120,26 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    not test the CPU-bound case where dev.2 showed +14.7 %; internal minimum was
    about 1.5 KB lower with dev.3 (IRAM placement), control p95 exceeded 1 s once
    for each image at this signal level.
+   **Second interleaved A/B, board A near the router, 2026-10-31** (RSSI about
+   −49 dBm, CPU 62–81 %: CPU-bound; private `performance-20261031-ab2/`). All 16
+   transfers hash PASS, no reboot, all switches verified, board left on 3.0.6.
+
+   | Median, 4 ABBA pairs | 3.0.6 | dev.3 | pairs better |
+   |---|---:|---:|---|
+   | CPU % per Mbit/s, download | 15.03 | 13.72 (−7.3 %) | 4/4 |
+   | CPU % per Mbit/s, upload | 11.62 | 11.26 (−3.1 %) | 3/4 |
+   | Throughput, download / upload | 5.065 / 5.901 | 5.246 / 5.906 (+2.9 / +1.7 %) | 3/4, 3/4 |
+   | Control latency median, download / upload | 238 / 393 ms | 225 / 370 ms (−1.9 / −13.6 %) | 4/4, 3/4 |
+   | Control latency p95, upload | 765 ms | 937 ms | single spikes 1.4–2.3 s with both images |
+   | Internal free minimum | 45,739 B | 44,203 B (−1.5 KB) | — |
+
+   Reading against the owner priorities: a repeatable crypto-efficiency gain
+   (decrypt path −7 % CPU per Mbit in every pair, encrypt path −3 %) for about
+   1.5 KB of internal RAM; throughput effect small (+2–3 %, below the 10 % speed
+   threshold; dev.2's sequential +14.7 % was mostly drift). Upload makes control
+   latency spiky with both images: a latency target for PERF-05, not a dev.3
+   regression. dev.3 is a valid efficiency candidate, not yet a release: decide
+   after the profiling build shows where the remaining crypto/copy time goes.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
