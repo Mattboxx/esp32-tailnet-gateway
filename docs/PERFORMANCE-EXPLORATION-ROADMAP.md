@@ -203,6 +203,21 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    The word-load change did not measurably help Poly1305 on TX; the remaining
    cost is the 25 64-bit multiplications per block. Next: Poly1305 arithmetic
    and ChaCha20 register pressure, judged by the same counters.
+
+   **dev.5, 2026-10-31:** root `9223c0b`, MicroLink `d2bcd0c`. Xtensa has no
+   rotate: GCC emitted SSAI + SRC per rotation (32 SSAI per double round). The
+   four quarter rounds now advance together and one SSAI (same `32 − n`
+   encoding as GCC) serves four SRC funnel shifts: 145 instead of 170
+   instructions per double round (static count, `xtensa-esp32s3-elf` -O2);
+   portable C on other targets, so host tests cover the C path and the device
+   path is exercised by authenticated tunnel traffic. Poly1305 completes each
+   limb in turn (same arithmetic; 368 vs 374 instructions per 16-byte block,
+   still dominated by register spills — hand-written assembly is the remaining
+   option). Measured (`performance-20261031-prof5/`): ChaCha20 40.1 / 33.0 cyc/B
+   (decrypt/encrypt, −8 / −7 % vs dev.4, −40 / −35 % vs dev.3), Poly1305 unchanged
+   (48.5 / 26.5). A test-only `TSR_CRYPTO_IN_FLASH=1` build keeps both loops in
+   flash (`.iram0.text` equal to 3.0.6, −2,092 B internal RAM) to price the
+   IRAM placement.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
