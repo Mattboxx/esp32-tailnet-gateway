@@ -10,6 +10,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Deleting a temporary Service Gateway rule before its deadline no longer
+  produces a later "temporary service rule(s) closed" notification for a rule
+  that no longer exists. The lease is still closed (traffic stays denied); only
+  the announcement is limited to rules that are still configured. A lease that
+  expired while the gateway was off is announced once the rules are loaded.
+
+## [3.0.6] — 2026-10-29
+
+### Fixed
+
 - GitHub firmware downloads tolerate temporary TLS/HTTP read pauses within
   bounded inactivity and total deadlines, while retaining HTTPS, checksum,
   board/version and exclusive-writer checks.

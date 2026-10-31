@@ -9,4 +9,7 @@ uint32_t service_lease_token(const tailnet_forward_rule_t *rule);
 esp_err_t service_lease_set(int slot,uint32_t expected_rule,uint32_t seconds,bool permanent);
 esp_err_t service_lease_set_mode(int slot,uint32_t expected_rule,uint32_t seconds,bool permanent,bool delete_on_expiry);
 bool service_lease_delete_requested(const tailnet_forward_rule_t *rule);
+/* The current rule table (after load and after every save). Expiry of a lease
+ * whose rule no longer exists is still applied but not announced. */
+void service_lease_rules_changed(const tailnet_forward_rule_t *rules,int count);
 cJSON *service_lease_snapshot(void);
