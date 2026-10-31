@@ -99,12 +99,17 @@ def restore_console(api, original, last_owned, attempted):
 
 
 class FileService:
-    """Bound owned-peer file server: one path, one source, bounded concurrency."""
-    def __init__(self, bind, allowed_source, path, port=0):
+    """Bound owned-peer file server: one path, one source, bounded concurrency.
+
+    streams (1..4) is the number of transfers served at the same time; further
+    requests get 429 at once."""
+    def __init__(self, bind, allowed_source, path, port=0, streams=1):
+        if type(streams) is not int or not 1 <= streams <= 4:
+            raise ValueError('streams must be 1..4')
         self.file, self.allowed_source = path, allowed_source
         self.url_path = '/' + secrets.token_urlsafe(24) + '/payload.bin'
         self.records, self.record_lock = [], threading.Lock()
-        self.slot = threading.BoundedSemaphore(1)
+        self.slot = threading.BoundedSemaphore(streams)
         outer = self
 
         class Handler(http.server.BaseHTTPRequestHandler):
@@ -197,9 +202,12 @@ class FileService:
                     record['finished_epoch'] = time.time()
                     outer.slot.release()
 
-        # Base server dispatch is serial: no unbounded per-connection threads.
-        # A stalled client is bounded by the socket timeout; shutdown waits for it.
-        self.server = http.server.HTTPServer((bind, port), Handler)
+        # One stream: serial dispatch, no per-connection threads. Several: one
+        # thread per connection, but only `streams` hold a slot; the rest are
+        # answered 429 immediately. A stalled client is bounded by the socket
+        # timeout; shutdown waits for it.
+        server_class = http.server.HTTPServer if streams == 1 else http.server.ThreadingHTTPServer
+        self.server = server_class((bind, port), Handler)
         self.port = self.server.server_address[1]
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
 
@@ -210,6 +218,40 @@ class FileService:
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=17)
+
+
+def parallel(jobs, cancel):
+    """Run transfer/upload callables at the same time; the first failure sets
+    `cancel` (so the others stop at their next read) and is raised after all
+    have finished. Returns the results in job order."""
+    results, errors = [None] * len(jobs), []
+
+    def run(index, job):
+        try:
+            results[index] = job()
+        except BaseException as error:
+            errors.append(error)
+            cancel.set()
+
+    threads = [threading.Thread(target=run, args=(i, job), daemon=True) for i, job in enumerate(jobs)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    if errors:
+        raise errors[0]
+    return results
+
+
+def combine(results, elapsed):
+    """Aggregate of concurrent stream results: total bytes over wall time."""
+    total = sum(r['bytes'] for r in results)
+    rates = [r['mbps'] for r in results]
+    return dict(bytes=total, elapsed_s=elapsed, mbps=total * 8 / elapsed / 1e6,
+                integrity_pass=all(r['integrity_pass'] for r in results), windows=[],
+                retries=0, resumed=False, streams=len(results),
+                stream_mbps=rates, stream_fairness=min(rates) / max(rates),
+                per_stream=[{k: r[k] for k in ('bytes', 'elapsed_s', 'mbps', 'sha256', 'windows')} for r in results])
 
 
 def transfer(opener, url, output, expected_size, expected_hash, *, timeout=15,

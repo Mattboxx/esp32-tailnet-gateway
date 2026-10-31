@@ -9,7 +9,12 @@ from unittest.mock import patch
 import urllib.error
 import urllib.request
 
-from gateway_benchmark import FileService, TemporaryRule, percentile, restore_console, transfer, upload
+import http.server
+import threading
+import time
+
+from gateway_benchmark import (FileService, TemporaryRule, combine, parallel, percentile, restore_console,
+                               transfer, upload)
 
 
 def row(name='owner', port=12345):
@@ -244,6 +249,94 @@ class Transfers(unittest.TestCase):
                 with self.assertRaises(TimeoutError):
                     upload(opener, 'http://unused/', source, 3, 'unused', total_timeout=180)
             self.assertEqual(opener.calls, 2)
+
+    def test_concurrent_streams_loopback_integrity_and_slot_limit(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'source.bin'
+            data = bytes(range(256))*16384; source.write_bytes(data)   # 4 MB: more than socket buffers
+            digest = hashlib.sha256(data).hexdigest()
+            service = FileService('127.0.0.1', '127.0.0.1', source, streams=3)
+            self.assertIsInstance(service.server, http.server.ThreadingHTTPServer)
+            service.start()
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            url = f'http://127.0.0.1:{service.port}'+service.url_path
+            try:
+                cancel = threading.Event()
+                outs = [Path(folder)/f'd{k}.bin' for k in range(3)]
+                # Each client waits, after its response has started, until all three
+                # are streaming: a serial server cannot pass this barrier.
+                barrier, waited = threading.Barrier(3, timeout=10), set()
+
+                def together():
+                    if threading.get_ident() not in waited:
+                        waited.add(threading.get_ident())
+                        barrier.wait()
+                    return False
+                started = time.monotonic()
+                results = parallel([lambda out=out: transfer(opener, url, out, len(data), digest, cancelled=together)
+                                    for out in outs], cancel)
+                down = combine(results, time.monotonic()-started)
+                self.assertTrue(all(out.read_bytes() == data for out in outs))
+                self.assertEqual((down['streams'], down['bytes'], down['integrity_pass']), (3, 3*len(data), True))
+                self.assertTrue(0 < down['stream_fairness'] <= 1 and len(down['per_stream']) == 3)
+                up = parallel([lambda: upload(opener, url, source, len(data), digest) for _ in range(3)], cancel)
+                self.assertTrue(all(r['integrity_pass'] for r in up) and not cancel.is_set())
+                self.assertEqual([r.get('sha256') for r in service.records[3:]], [digest]*3)
+                # Concurrent transfers overlapped: every one started before any finished.
+                first = service.records[:3]
+                self.assertLess(max(r['started_epoch'] for r in first), min(r['finished_epoch'] for r in first))
+                # All slots held: a further request is refused at once, nothing recorded.
+                for _ in range(3):
+                    self.assertTrue(service.slot.acquire(blocking=False))
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    opener.open(url, timeout=2)
+                self.assertEqual(error.exception.code, 429)
+                error.exception.close()
+                for _ in range(3):
+                    service.slot.release()
+                self.assertEqual(len(service.records), 6)
+            finally:
+                service.close()
+
+    def test_stream_count_bounds_and_serial_default(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'s.bin'; source.write_bytes(b'x')
+            for bad in (0, 5, 2.0, True):
+                with self.assertRaises(ValueError):
+                    FileService('127.0.0.1', '127.0.0.1', source, streams=bad)
+            service = FileService('127.0.0.1', '127.0.0.1', source)
+            try:
+                self.assertIs(type(service.server), http.server.HTTPServer)
+            finally:
+                service.server.server_close()
+
+    def test_parallel_first_failure_cancels_the_others(self):
+        cancel, seen = threading.Event(), []
+
+        def fails():
+            raise ValueError('corrupted stream')
+
+        def waits():
+            deadline = time.monotonic() + 5
+            while not cancel.is_set():
+                if time.monotonic() > deadline:
+                    return 'not cancelled'
+                time.sleep(0.01)
+            seen.append('cancelled')
+            raise RuntimeError('Cancelled or resource guard stopped transfer')
+
+        with self.assertRaises(ValueError):
+            parallel([fails, waits], cancel)
+        self.assertEqual(seen, ['cancelled'])
+        self.assertEqual(parallel([lambda: 1, lambda: 2], threading.Event()), [1, 2])
+
+    def test_combine_reports_total_over_wall_time(self):
+        rows = [dict(bytes=1_000_000, elapsed_s=2, mbps=4.0, sha256='a', windows=[], integrity_pass=True),
+                dict(bytes=1_000_000, elapsed_s=4, mbps=2.0, sha256='a', windows=[], integrity_pass=True)]
+        result = combine(rows, 4.0)
+        self.assertEqual((result['bytes'], result['mbps'], result['stream_fairness']), (2_000_000, 4.0, 0.5))
+        rows[1]['integrity_pass'] = False
+        self.assertFalse(combine(rows, 4.0)['integrity_pass'])
 
     def test_percentile_empty_and_small_samples(self):
         self.assertIsNone(percentile([], .95))

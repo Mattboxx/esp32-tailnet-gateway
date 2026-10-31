@@ -222,3 +222,9 @@ operation; detailed step journal and exact live paths belong in the private
   min −0.6…−0.8 KB. Board A left on 3.0.6. ab7 (dev.7 alone) superseded, not run.
 - Remaining: concurrency/stability probe on dev.8 (1/2/4 streams + UI/MQTT),
   then PERF-09 integrated qualification. Nothing pushed.
+- Concurrency probe prepared: `benchmark_gateway_device.py --streams 1..4` (each
+  stream the whole file, hash-checked; server slots bounded, extra requests 429)
+  and `--ui-load` (read-only status/operations/forwarding/MQTT polling once a
+  second; latency, failures, MQTT connection recorded). Private session
+  `performance-20261031-conc8/`: ABBA 3.0.6/dev.8, per phase 1/2/4 streams both
+  directions, 16 MB per stream, tunnel ping alongside; `python conc_analyse.py .`.
