@@ -17,16 +17,21 @@ def main():
             raise ValueError('Expected ESP32-S3 IRAM section not found')
         start, end = iram['sh_addr'], iram['sh_addr']+iram['sh_size']
         symbols = elf.get_section_by_name('.symtab')
-        # The WG data path is in IRAM: chacha20 (again since 2026-11-01, speed
-        # first) and the Poly1305 dispatcher plus its Xtensa assembly block
-        # function; the Poly1305 C fallback stays in flash.
-        found = {name: [] for name in ('chacha20','poly1305_blocks','poly1305_blocks_xtensa','poly1305_blocks_c')}
+        # The WG data path is in IRAM (speed first, 2026-11-01): the ChaCha20
+        # and Poly1305 dispatchers plus their Xtensa assembly block functions;
+        # both C fallbacks stay in flash.
+        found = {name: [] for name in ('chacha20','chacha20_blocks_xtensa','chacha20_c',
+                                       'poly1305_blocks','poly1305_blocks_xtensa','poly1305_blocks_c')}
         for symbol in symbols.iter_symbols():
             if symbol.name in found:
                 found[symbol.name].append(dict(address=symbol['st_value'], bytes=symbol['st_size'],
                     iram=start <= symbol['st_value'] < end))
         if not any(x['iram'] for x in found['chacha20']):
-            raise ValueError('WG ChaCha20 loop not placed in IRAM')
+            raise ValueError('WG ChaCha20 dispatcher not placed in IRAM')
+        if not found['chacha20_blocks_xtensa'] or not all(x['iram'] for x in found['chacha20_blocks_xtensa']):
+            raise ValueError('ChaCha20 assembly block function not placed in IRAM')
+        if any(x['iram'] for x in found['chacha20_c']):
+            raise ValueError('ChaCha20 C fallback expected in flash')
         # A separate unrelated crypto implementation can retain a same-named
         # static Poly1305 function in flash. Require the moved WG copy too.
         if not any(x['iram'] for x in found['poly1305_blocks']):
