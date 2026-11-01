@@ -19,6 +19,7 @@ metrics only: build/private-device/qualify-<version>-<time>.json.
 import argparse
 import getpass
 import json
+import os
 from pathlib import Path
 import time
 
@@ -102,7 +103,8 @@ def main():
     a = p.parse_args()
     if not 0 <= a.observe_minutes <= 240 or not 0 <= a.wifi_reconnect <= 5:
         p.error('observe 0..240 minutes, Wi-Fi cycles 0..5')
-    password = getpass.getpass('Device password (not saved): ')
+    # An orchestrating launcher may pass the password in this process's environment only.
+    password = os.environ.get('TEST_DEVICE_PASSWORD') or getpass.getpass('Device password (not saved): ')
     api = login(a.host, password=password)
     password = None
     stamp = time.strftime('%Y%m%d-%H%M%S')

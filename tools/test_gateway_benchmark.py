@@ -13,8 +13,10 @@ import http.server
 import threading
 import time
 
-from gateway_benchmark import (FileService, TemporaryRule, combine, parallel, percentile, restore_console,
-                               transfer, upload)
+import socket
+
+from gateway_benchmark import (FileService, TemporaryRule, admin_burst, combine, connection_burst, parallel,
+                               percentile, restore_console, transfer, transfer_deadline, upload)
 
 
 def row(name='owner', port=12345):
@@ -337,6 +339,75 @@ class Transfers(unittest.TestCase):
         self.assertEqual((result['bytes'], result['mbps'], result['stream_fairness']), (2_000_000, 4.0, 0.5))
         rows[1]['integrity_pass'] = False
         self.assertFalse(combine(rows, 4.0)['integrity_pass'])
+
+    def test_transfer_deadline_scales_with_size_and_streams(self):
+        self.assertEqual([transfer_deadline(s, 1) for s in (1, 16, 32)], [180, 180, 180])
+        self.assertEqual(transfer_deadline(33, 1), 360)
+        self.assertEqual(transfer_deadline(500, 1), 180 * 16)
+        self.assertEqual(transfer_deadline(16, 4), 720)
+
+    def test_threaded_flag_for_single_stream(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'s.bin'; source.write_bytes(b'x')
+            service = FileService('127.0.0.1', '127.0.0.1', source, threaded=True)
+            try:
+                self.assertIsInstance(service.server, http.server.ThreadingHTTPServer)
+                self.assertTrue(service.slot.acquire(blocking=False))
+                self.assertFalse(service.slot.acquire(blocking=False))   # still one transfer slot
+            finally:
+                service.server.server_close()
+
+    def test_connection_burst_counts_holds_and_closes(self):
+        def plain(timeout):
+            s = socket.socket(); s.settimeout(timeout); return s
+        listener = socket.socket(); listener.bind(('127.0.0.1', 0)); listener.listen(64)
+        port, accepted, stop = listener.getsockname()[1], [], threading.Event()
+
+        def accept():
+            listener.settimeout(0.2)
+            while not stop.is_set():
+                try:
+                    accepted.append(listener.accept()[0])
+                except OSError:
+                    pass
+        thread = threading.Thread(target=accept, daemon=True); thread.start()
+        try:
+            started = time.monotonic()
+            result = connection_burst('127.0.0.1', port, 20, plain, hold_s=0.5, timeout=2)
+            self.assertGreaterEqual(time.monotonic() - started, 0.5)
+            self.assertEqual((result['count'], result['connected']), (20, 20))
+            self.assertEqual(result['refused'] + result['timeout'] + result['other'], 0)
+            time.sleep(0.3)
+            # The burst closed every connection: each accepted peer now reads EOF.
+            for peer in accepted:
+                peer.settimeout(2)
+                self.assertEqual(peer.recv(1), b'')
+        finally:
+            stop.set(); thread.join(2); listener.close()
+            for peer in accepted:
+                peer.close()
+        closed = socket.socket(); closed.bind(('127.0.0.1', 0)); free = closed.getsockname()[1]; closed.close()
+        refused = connection_burst('127.0.0.1', free, 3, plain, hold_s=0, timeout=2)
+        # Windows retries a refused loopback SYN for ~2 s, so a timeout is possible too.
+        self.assertEqual((refused['connected'], refused['refused'] + refused['timeout'] + refused['other']), (0, 3))
+        self.assertIsNone(refused['connect_max_s'])
+        for bad in (0, 65, 1.5):
+            with self.assertRaises(ValueError):
+                connection_burst('127.0.0.1', free, bad, plain)
+
+    def test_admin_burst_counts_failures(self):
+        calls = []
+
+        def api(path, timeout):
+            calls.append(path)
+            if len(calls) % 4 == 0:
+                raise TimeoutError('slow')
+            return {}
+        result = admin_burst(api, 8)
+        self.assertEqual((result['count'], result['ok'], result['failed']), (8, 6, 2))
+        self.assertEqual(set(calls), {'/api/status'})
+        with self.assertRaises(ValueError):
+            admin_burst(api, 33)
 
     def test_percentile_empty_and_small_samples(self):
         self.assertIsNone(percentile([], .95))

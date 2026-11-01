@@ -8,6 +8,7 @@ policy or credentials. Not a two-client identity/ACL or forced-DERP test.
 import argparse
 import contextlib
 import getpass
+import os
 import ipaddress
 import json
 from pathlib import Path
@@ -35,7 +36,8 @@ def main():
         p.error('Use a new report under ignored build/private-device/')
     if a.destination not in ipaddress.ip_network('100.64.0.0/10') or not 1 <= a.port <= 65535:
         p.error('Provide the owned echo peer Tailnet IP and port')
-    password = getpass.getpass('Device password (not saved): ')
+    # An orchestrating launcher may pass the password in this process's environment only.
+    password = os.environ.get('TEST_DEVICE_PASSWORD') or getpass.getpass('Device password (not saved): ')
     api = login(a.host, password=password, source_ip=str(a.source), interface_index=a.interface_index)
     password = None
     def rules():

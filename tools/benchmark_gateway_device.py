@@ -19,8 +19,9 @@ import threading
 import time
 import urllib.request
 
-from gateway_benchmark import (FileService, TemporaryRule, combine, configs, parallel, percentile,
-                               restore_console, transfer, upload)
+from gateway_benchmark import (FileService, TemporaryRule, admin_burst, combine, configs, connection_burst,
+                               parallel, percentile, restore_console, transfer, transfer_deadline, upload)
+from lab_echo import client_socket
 from test_snmp_device import bound_http_handler, login
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,6 +45,9 @@ def arguments():
     parser.add_argument('--ui-load', action='store_true',
                         help='During transfers, read status/operations/forwarding/MQTT state once a second '
                              '(read-only) and record latency, failures and MQTT connection')
+    parser.add_argument('--burst', type=int, default=0, choices=range(0, 65), metavar='0..64',
+                        help='15 s into each transfer, open this many idle TCP connections to the rule port '
+                             '(held 10 s) plus 16 parallel status reads: bounded overload while traffic runs')
     parser.add_argument('--allow-temporary-rule', required=True, action='store_true')
     parser.add_argument('--output', type=Path, help='New directory under ignored build/private-device/')
     parser.add_argument('--recover-only', type=Path, help='Existing private result folder; remove exact rule/restore owned console change only')
@@ -74,7 +78,7 @@ def main():
     os.environ.pop('TEST_DEVICE_PASSWORD', None)
     state_file = a.output/'state-private.json'
     report = {'state': 'preflight', 'runs': [], 'sampling_interval_s': 5, 'streams': a.streams,
-              'ui_load': a.ui_load,
+              'ui_load': a.ui_load, 'burst': a.burst,
               'topology': 'Same owned PC file source on Tailnet and LAN-bound receiver',
               'forced_derp': False, 'all_features_qualification': False}
 
@@ -130,7 +134,7 @@ def main():
             stream.write(data)
             digest.update(data)
             left -= len(data)
-    service = FileService(str(a.peer_bind), esp_ip, payload, streams=a.streams)
+    service = FileService(str(a.peer_bind), esp_ip, payload, streams=a.streams, threaded=a.burst > 0)
     rows = configs(api('/api/tailnet-forward')['rules'])
     listen = secrets.randbelow(10000)+22000
     while any(r['listen_port'] == listen for r in rows) or listen == system.get('web_port', 80):
@@ -150,8 +154,9 @@ def main():
         service.start()
         # Conservative upper bound includes slow transfers and pauses. Expiry is
         # a fallback after a process kill; normal cleanup removes the exact rule.
+        deadline = transfer_deadline(a.size_mb, a.streams)
         rule.install(min(604800, (a.runs*(2 if a.compare_console else 1)*(2 if a.direction == 'both' else 1))
-                         * 185 * a.streams + 180))
+                         * (deadline + 5) + 180))
         levels = [log['console_level']]*a.runs
         if a.compare_console:
             levels = [v for i in range(a.runs) for v in ((3, 2) if i % 2 == 0 else (2, 3))]
@@ -229,6 +234,19 @@ def main():
             ui_thread = threading.Thread(target=ui_poll, daemon=True) if a.ui_load else None
             if ui_thread:
                 ui_thread.start()
+            burst_result = {}
+
+            def burst():
+                if monitor_stop.wait(15):
+                    return
+                connect = lambda timeout: client_socket('tcp', str(a.lan_source), a.interface_index, timeout)
+                burst_result['admin'] = admin_burst(api)
+                burst_result['forward'] = connection_burst(str(a.host), listen, a.burst, connect)
+                burst_result['admin_after'] = admin_burst(api)
+
+            burst_thread = threading.Thread(target=burst, daemon=True) if a.burst else None
+            if burst_thread:
+                burst_thread.start()
             report.update(state='transferring', active_run=number, console_level=level, direction=direction)
             persist()
 
@@ -238,13 +256,13 @@ def main():
 
             try:
                 stop = lambda: cancel.is_set() or (a.output/'STOP').exists()
-                size, deadline = a.size_mb*1_000_000, 180*a.streams
+                size = a.size_mb*1_000_000
                 if a.streams == 1 and direction == 'upload':
-                    result = upload(opener, url, payload, size, digest.hexdigest(),
+                    result = upload(opener, url, payload, size, digest.hexdigest(), total_timeout=deadline,
                                     progress=progress, cancelled=stop)
                 elif a.streams == 1:
-                    result = transfer(opener, url, a.output/f'download-{number}.bin', size,
-                                      digest.hexdigest(), progress=progress, cancelled=stop)
+                    result = transfer(opener, url, a.output/f'download-{number}.bin', size, digest.hexdigest(),
+                                      total_timeout=deadline, progress=progress, cancelled=stop)
                 else:
                     outputs = [a.output/f'download-{number}-{k}.bin' for k in range(a.streams)]
                     if direction == 'upload':
@@ -262,13 +280,17 @@ def main():
                 monitor.join(timeout=40)
                 if ui_thread:
                     ui_thread.join(timeout=20)
-                if monitor.is_alive() or (ui_thread and ui_thread.is_alive()):
+                if burst_thread:
+                    burst_thread.join(timeout=120)
+                if monitor.is_alive() or (ui_thread and ui_thread.is_alive()) or (burst_thread and burst_thread.is_alive()):
                     raise RuntimeError('Monitor did not stop; refusing concurrent control writes')
             result.update(run=number, console_level=level, direction=direction, samples=len(samples), errors=errors,
                 observed_internal_min=min((s['operations']['internal_free'] for s in samples), default=None),
                 largest_block_min=min((s['operations']['internal_largest'] for s in samples), default=None),
                 cpu_median=statistics.median([s['status']['cpu_load_pct'] for s in samples]) if samples else None,
                 control_pair_p95_s=percentile([s['control_pair_latency_s'] for s in samples], .95))
+            if a.burst:
+                result['burst'] = burst_result or None   # None: the transfer ended before 15 s
             if a.ui_load:
                 good = [r['latency_s'] for r in ui_rows if r['ok']]
                 mqtt = [r for r in ui_rows if r['path'] == '/api/mqtt' and r['ok']]
