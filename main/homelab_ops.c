@@ -430,6 +430,13 @@ cJSON *homelab_ops_snapshot(bool detailed) {
         cJSON_AddNumberToObject(drops,"sta_output_refused",netif_hooks_get_sta_output_refused());
         cJSON_AddNumberToObject(drops,"wg_tx_send_failed",wg_send_failed);
         cJSON_AddNumberToObject(drops,"wg_tx_alloc_failed",wg_alloc_failed);
+        extern void wireguard_rx_seq_stats(uint32_t *gap, uint32_t *late);
+        extern uint32_t microlink_wg_rx_queue_drops(void);
+        uint32_t wg_rx_gap=0,wg_rx_late=0;
+        wireguard_rx_seq_stats(&wg_rx_gap,&wg_rx_late);
+        cJSON_AddNumberToObject(drops,"wg_rx_queue_full",microlink_wg_rx_queue_drops());
+        cJSON_AddNumberToObject(drops,"wg_rx_seq_gap",wg_rx_gap);
+        cJSON_AddNumberToObject(drops,"wg_rx_seq_late",wg_rx_late);
     }
     cJSON_AddNumberToObject(root,"task_reaper_pending",task_reaper_pending());cJSON_AddNumberToObject(root,"task_reaper_fallbacks",task_reaper_fallbacks());cJSON_AddNumberToObject(root,"task_reaper_reaped",task_reaper_reaped());
     cJSON_AddNumberToObject(root,"minimum_internal",s.minimum_internal);cJSON_AddNumberToObject(root,"minimum_largest",s.minimum_largest);

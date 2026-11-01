@@ -54,7 +54,10 @@ def run(name, program, *, sources=(), includes=(), flags=(), libraries=()):
 
 
 wg = (WG / 'wireguard.c').read_text(encoding='utf-8')
-replay = function(wg, 'bool wireguard_check_replay(')
+# The replay check updates the loss counters declared just above it.
+_decl = 's_wg_rx_seq_gap, s_wg_rx_seq_late;'
+replay = wg[wg.index('#define WG_RX_GAP_MAX'):wg.index(_decl) + len(_decl)] + '\n' \
+    + function(wg, 'bool wireguard_check_replay(')
 run('actual 64-bit replay window: duplicates, reordering, large jumps and rejection limit', r'''
 #define REJECT_AFTER_MESSAGES (UINT64_MAX - 8192)
 struct wireguard_keypair { uint64_t replay_counter; uint32_t replay_bitmap; };
