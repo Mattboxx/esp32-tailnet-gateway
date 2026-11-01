@@ -428,6 +428,7 @@ cJSON *homelab_ops_snapshot(bool detailed) {
         cJSON *drops=cJSON_AddObjectToObject(root,"forward_drops");
         cJSON_AddNumberToObject(drops,"sta_input_refused",netif_hooks_get_sta_input_refused());
         cJSON_AddNumberToObject(drops,"sta_output_refused",netif_hooks_get_sta_output_refused());
+        cJSON_AddNumberToObject(drops,"sta_input_shed",netif_hooks_get_sta_input_shed());
         cJSON_AddNumberToObject(drops,"wg_tx_send_failed",wg_send_failed);
         cJSON_AddNumberToObject(drops,"wg_tx_alloc_failed",wg_alloc_failed);
         extern void wireguard_rx_seq_stats(uint32_t *gap, uint32_t *late);

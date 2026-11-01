@@ -51,6 +51,12 @@ uint64_t netif_hooks_get_ap_bytes_out (void);
  * driver (saturation evidence, counts since boot). */
 uint32_t netif_hooks_get_sta_input_refused (void);
 uint32_t netif_hooks_get_sta_output_refused(void);
+/* Bulk STA frames dropped first while the TCPIP mailbox was nearly full
+ * (overload shedding, see netif_hooks.c), counts since boot. */
+uint32_t netif_hooks_get_sta_input_shed(void);
+/* True for frames never shed: the gateway's own control and return traffic. */
+struct pbuf;
+bool netif_hooks_sta_frame_priority(const struct pbuf *p, uint32_t own_ip, uint16_t web_port);
 
 /* TTL hop-limit override on the STA upstream. When non-zero, every
  * outgoing IPv4 frame on the STA interface gets its TTL field rewritten
