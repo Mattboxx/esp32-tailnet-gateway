@@ -115,7 +115,38 @@ Next: an interleaved 3.0.6/dev.8 repetition of the 4-stream upload and of the
 burst, to classify both failures as regression or pre-existing before any
 release decision.
 
-## Follow-up A/B (prepared 2026-11-01, not yet run)
+## Follow-up A/B result (run 2026-11-01, 75 min, board A back on 3.0.6)
+
+The campaign completed. All 24 benchmarks ran and 23 exited 0. Every phase
+started from a fresh boot, every hash passed and there was no reboot.
+
+| Per image (8 U + 4 B runs) | 3.0.6 | dev.8 |
+|---|---:|---:|
+| U events (flow wait ≥ 5 s or failure) | 2 | 5 (1 timeout) |
+| Longest flow wait per U run, median / max | 2.88 / 9.46 s | 5.21 / 11.76 s |
+| 4-stream upload Mbit/s, median | 5.97 | 6.64 (+11 %) |
+| Fairness, median | 0.89 | 0.85 |
+| B events (status read failed after burst) | 1 | 1 (2 reads) |
+| UI failures during traffic | 0 | 1 |
+| Internal minimum during traffic | 44,351 B | 42,327 B |
+| Tunnel ping under load, median / lost | 43 ms / 633 | 30 ms / 675 |
+
+**Classification** (fixed rule):
+
+- **4-stream upload stall:** *pre-existing, more frequent on dev.8.* 3.0.6
+  also leaves single flows waiting 8.8–9.5 s. dev.8 moves about 11 % more data
+  through the same path and stalls more often.
+- **Status read after burst:** *pre-existing.*
+
+Under saturating 4-flow upload, both images lose about 22 % of the tunnel
+pings. The likely cause is drops in the forwarding/encryption path when the
+offered load exceeds it: TCP backs off on the flow that lost its
+retransmissions. This is not yet proven.
+
+The fix target is therefore the saturation behaviour shared by both images,
+not a dev.8 code error.
+
+## Follow-up A/B (prepared 2026-11-01)
 
 This follow-up classifies both failures as regression or pre-existing. It does
 not re-qualify dev.8: the REJECT above stands until the PERF-09 gate is rerun.
