@@ -435,6 +435,25 @@ runtime peaks, stack and socket use; record the tradeoff explicitly. Establish
 headroom thresholds from measured worst-case operations plus a justified margin,
 not arbitrary percentages or a single idle snapshot.
 
+**Deferred: low-RAM crypto placement option (owner, 2026-11-01).** The default
+keeps ChaCha20 and Poly1305 in IRAM, because the owner prefers speed and about
+1 KB of internal RAM is not significant today. The flash placement
+(`TSR_CRYPTO_IN_FLASH`, measured as costing 7–29 % cycles per byte and
+saving about 1–2 KB of internal RAM) is kept as a candidate *advanced* option
+for when RAM becomes tight.
+
+- **It is a build-time choice.** A runtime switch would need both copies of the
+  code in the image, which removes the saving. So it would ship as a separate
+  "low-RAM" image variant, not as a toggle in the web UI.
+- **It does not wear the board.** Code placed in flash is only read through the
+  cache, and reads cause no flash wear. Wear comes from erase/write cycles: NVS
+  writes, OTA writes and log/coredump storage. The option does not touch NVS
+  and adds no write.
+- **Standing rule: the firmware must not degrade the board.** Any feature that
+  persists data must bound its write rate, for example by batching writes,
+  writing only on change, or keeping counters in RAM. The `forward_drops`
+  counters are RAM-only and reset at boot.
+
 ### PERF-07 — Crypto only when profiling warrants it
 
 The stack uses reference C ChaCha20/Poly1305. Consider compatible compiler/code
