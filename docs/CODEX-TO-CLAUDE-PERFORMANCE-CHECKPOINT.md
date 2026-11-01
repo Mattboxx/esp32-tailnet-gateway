@@ -228,3 +228,9 @@ operation; detailed step journal and exact live paths belong in the private
   second; latency, failures, MQTT connection recorded). Private session
   `performance-20261031-conc8/`: ABBA 3.0.6/dev.8, per phase 1/2/4 streams both
   directions, 16 MB per stream, tunnel ping alongside; `python conc_analyse.py .`.
+- conc8 completed 2026-11-01: dev.8 faster and lower CPU/Mbit at 1/2/4 streams in
+  both directions, lower tunnel ping, 0 UI failures, MQTT always connected, no
+  reboot, internal cost ~0.85 KB constant. Board A on 3.0.6.
+- Next: PERF-09. Offline consolidated validation can run now; its hardware part
+  (500 MB transfer, faults/overload, integrations, DERP/authorization) needs
+  fresh explicit owner authority, a verified backup and a recovery procedure.
