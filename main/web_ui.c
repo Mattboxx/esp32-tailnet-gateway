@@ -5909,6 +5909,13 @@ void web_ui_init(void)
      * hardware). Room for downloads that add Content-Disposition too. */
     conf.max_resp_headers         = 12;
     conf.stack_size               = 12288;
+    /* Same priority as the TCPIP thread and the MicroLink receive tasks (18).
+     * At the default 5 the UI waited behind the data plane: with the receive
+     * tasks at 18 (3.0.7-dev.12) the status p95 under a single stream rose
+     * from ~0.3 to ~0.55 s. Equal priorities share the CPU in 10 ms slices,
+     * so a long handler cannot starve forwarding and traffic cannot starve
+     * the UI. */
+    conf.task_priority            = 18;
     /* Local uploads and queued GitHub OTA work freeze flash caches. */
     conf.task_caps                = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
     /* The HTTP server needs three lwIP sockets internally. Four client slots
