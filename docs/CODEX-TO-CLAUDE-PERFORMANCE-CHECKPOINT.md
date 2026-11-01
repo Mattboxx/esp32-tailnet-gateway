@@ -271,3 +271,26 @@ operation; detailed step journal and exact live paths belong in the private
   (A B B A, fresh boot per phase, U B U U B U, 8 U + 4 B runs per image), launcher
   `run_ab.ps1`, fixed classification in `ab_analyse.py` (rule also in
   PERF-09-QUALIFICATION.md), dry-run on synthetic data for all four outcomes.
+
+## Claude checkpoint, 2026-11-01 midday
+
+- ab9 completed (lab runner, board A back on 3.0.6). dev.9 (ChaCha20 in IRAM)
+  is the fastest image:
+  - one stream: +9.7 / +10.8 % against 3.0.6 and +4.3 / +1.1 % against dev.8;
+  - 4-stream upload: +9.5 % against 3.0.6;
+  - tunnel ping under load: 25 ms against 31.5 ms on 3.0.6;
+  - internal minimum: 43,675 B.
+  Details are in the roadmap.
+- dev.10 (`a52701a`, MicroLink `ccc93a2`) adds:
+  - **ChaCha20 block function in Xtensa assembly.** It runs 116 instructions
+    per double round against about 140 from GCC.
+    - The device compares it with the C code before first use.
+    - The C fallback is in flash.
+    - Host test: `tools/test_chacha20_xtensa.py`, which interprets the actual
+      `.S` file against the RFC 8439 vector and the C code, and rejects 5
+      mutants.
+  - **`forward_drops` counters** in `/api/operations`. The benchmark now records
+    their increase per run.
+- Next: build dev.10, run the placement and provenance gates, then a lab-runner
+  A/B (3.0.6 / dev.10 / dev.9). That measures the speed and shows where packets
+  are dropped under the 4-stream upload.

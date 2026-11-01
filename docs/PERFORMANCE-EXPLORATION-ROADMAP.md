@@ -315,6 +315,33 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    with 2–4 upload streams (upload saturates the Wi-Fi transmit side). No
    regression found; this is a bounded probe, not the PERF-09 qualification
    (no 500 MB transfer, faults, overload, DERP or authorization matrix).
+
+   **dev.9 (`33e1ffa`, MicroLink `6a9309b`): ChaCha20 back in IRAM (owner: speed
+   first).** A/B 3.0.6 / dev.9 / dev.8, board A, 2026-11-01 (`perf-ab9/`):
+   - Order 3.0.6, dev.9, dev.8, dev.8, dev.9, 3.0.6; fresh boot and 240 s
+     warm-up per phase.
+   - Each phase ran S U B U S: S = 1 stream each way, U = 4-stream upload,
+     B = 2-stream download plus the 48-connection burst. 32 MB per stream.
+   - 30 benchmarks, 28 exited 0; the 2 failures were 3.0.6 U timeouts. Every
+     hash passed, there was no reboot and the board ended on 3.0.6.
+
+   | Median per image | 3.0.6 | dev.9 | dev.8 |
+   |---|---:|---:|---:|
+   | 1 stream download / upload, Mbit/s | 5.11 / 5.73 | 5.60 / 6.35 | 5.37 / 6.28 |
+   | 4-stream upload, Mbit/s | 5.81 | 6.37 | 6.12 |
+   | U events (flow wait ≥ 5 s or failure) / runs | 3 / 4 | 2 / 4 | 3 / 4 |
+   | Longest flow wait per U run, median | 8.49 s | 5.27 s | 6.19 s |
+   | Status reads failed after burst | 0 | 0 | 0 |
+   | Tunnel ping idle / under load | 7 / 31.5 ms | 5 / 25 ms | 4 / 26 ms |
+   | Internal minimum during traffic | 44,775 B | 43,675 B | 44,671 B |
+
+   - **Against 3.0.6:** dev.9 is +9.7 / +10.8 % on one stream and +9.5 % on the
+     4-stream upload.
+   - **Against dev.8:** dev.9 is +4.3 / +1.1 % on one stream and +4.1 % on the
+     4-stream upload, for about 1 KB of internal RAM. The minimum stays above
+     the 40,000 B floor.
+   - **Upload stalls are reduced but not removed.** They remain the target of the
+     forward-drop counters in dev.10.
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
