@@ -5935,6 +5935,13 @@ void web_ui_init(void)
                           ? available_http_clients
                           : desired_http_clients;
     conf.lru_purge_enable         = true;
+    /* Connections waiting for one of the client slots. With the default 5
+     * (and a 6-entry lwIP accept queue) a burst of 16 parallel status reads
+     * had SYNs dropped; the client retried after 3 s and 6 s and one read
+     * exceeded 10 s (PERF-09 on 3.0.7-beta.1; also seen on 3.0.6). 12 waiting
+     * plus 4 served covers that burst. Waiting connections hold only a TCP
+     * PCB, never an HTTP worker. */
+    conf.backlog_conn             = 12;
     conf.server_port              = web_ui_configured_port();
     web_ui_set_active_port(conf.server_port);
 

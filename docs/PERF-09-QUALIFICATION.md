@@ -216,3 +216,35 @@ rule present: `benchmark_gateway_device.py --recover-only <folder>` with the
 same host arguments. Application-only rewrite of the archived 3.0.6 image at
 0x20000 if ota_0 does not boot; data partitions from the step-0 backup only by
 the owner's decision.
+
+## Run on 3.0.7-beta.1 (2026-11-01, lab runner, board A, RSSI about −51 dBm)
+
+Image `1331cf48…0f03`, source `9d90b8f`, MicroLink `77eb8a4`: the contents
+of 3.0.7-dev.15 with only the version changed. The run took 86.8 min, every
+step exited 0, there was no unexpected reboot and the board ended on 3.0.6.
+
+**Verdict: REJECT (48/49).** Thresholds were not changed.
+
+Passed:
+
+| Criterion | Result |
+|---|---|
+| 500 MB transfers | 7.825 Mbit/s download, 6.362 Mbit/s upload (dev.8: 5.31 / 6.25) |
+| UI during traffic | p95 ≤ 0.52 s and max ≤ 0.90 s in every step (dev.8: p95 ≤ 1.26 s) |
+| Burst | 48/48 forwarded connections connected, none refused or timed out |
+| Status reads | 0/16 failed during either burst |
+| Sockets and reaper | sockets back to 9 after every step; reaper fallbacks 0 |
+| Internal RAM | minimum ≥ 43,475 B |
+| Integrations and tools | all exited 0 |
+
+**Failed:** after the upload-direction burst, 1 of 16 parallel status reads
+exceeded 10 s (p50 1.16 s, maximum of the others 7.2 s). The same criterion
+failed on dev.8 and on 3.0.6 in the morning A/B (pre-existing).
+
+**Cause** (configuration reading, not separately measured): the HTTP server
+serves 4 clients with `backlog_conn` 5, and the lwIP accept queue holds 6.
+Further SYNs are dropped and the client retries after 3 s and 6 s.
+
+**Fix in 3.0.7-beta.2:** `backlog_conn` 12 and
+`CONFIG_LWIP_TCP_ACCEPTMBOX_SIZE` 12. beta.1 is not published; PERF-09 is
+rerun on the exact beta.2 image.
