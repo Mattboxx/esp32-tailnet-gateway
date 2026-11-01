@@ -434,7 +434,9 @@ cJSON *homelab_ops_snapshot(bool detailed) {
         extern uint32_t microlink_wg_rx_queue_drops(void);
         uint32_t wg_rx_gap=0,wg_rx_late=0;
         wireguard_rx_seq_stats(&wg_rx_gap,&wg_rx_late);
+        extern uint32_t wireguardif_rx_input_refused(void);
         cJSON_AddNumberToObject(drops,"wg_rx_queue_full",microlink_wg_rx_queue_drops());
+        cJSON_AddNumberToObject(drops,"wg_rx_input_refused",wireguardif_rx_input_refused());
         cJSON_AddNumberToObject(drops,"wg_rx_seq_gap",wg_rx_gap);
         cJSON_AddNumberToObject(drops,"wg_rx_seq_late",wg_rx_late);
     }

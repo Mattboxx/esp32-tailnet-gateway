@@ -192,6 +192,12 @@ CONFIG_ESPTOOLPY_FLASHMODE="dio"
 # negotiate it; no-op against a peer that doesn't.
 CONFIG_LWIP_TCP_RCV_SCALE=2
 CONFIG_LWIP_TCP_RECVMBOX_SIZE=12
+# TCPIP thread input mailbox. Measured on 3.0.7-dev.10 with a 4-stream upload:
+# with 32 entries the STA input hook saw 3,600-4,200 refused frames per
+# 128 MB run. Wi-Fi delivers A-MPDU bursts of up to 32 frames, and decrypted
+# WireGuard packets share the same mailbox. Refused TCP segments caused the
+# 8-12 s flow stalls and the ~22 % tunnel ping loss. Each entry is one pointer.
+CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
 # UDP sockets queue at most this many datagrams; lwIP drops the rest without
 # a counter. The MicroLink DISCO socket carries the WireGuard data plane, so
 # 6 (the default) lost incoming packets whenever the net I/O task was busy for
