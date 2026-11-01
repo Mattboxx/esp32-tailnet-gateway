@@ -243,3 +243,9 @@ operation; detailed step journal and exact live paths belong in the private
   nothing pins the file's own hash). Not a performance-branch regression.
   Fixing it means replacing that one release asset with the LF version
   (sha256 `5cfe3436…85cc`): an external write that needs owner authorization.
+- 2026-11-01, owner authorized ("Yes, replace it"): the v3.0.6 `SHA256SUMS.txt`
+  asset was replaced with the LF version (853 B, `5cfe3436…85cc`; every listed
+  hash re-checked against the published asset digests, all 9 match; the
+  re-downloaded file is byte-identical). No other asset changed (10 assets).
+  The private staged copy was synced (old CRLF copy kept beside it as
+  `.crlf-published-20261029.bak`); `--only easy_install` now PASS.
