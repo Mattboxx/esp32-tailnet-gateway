@@ -315,3 +315,16 @@ operation; detailed step journal and exact live paths belong in the private
     decryption).
   - sdkconfig.h differs from dev.10 only in the two mailbox sizes.
   - Queued on the lab runner as `ab11-1` (dev.11 vs dev.10, A B B A).
+- **perf-ab10f completed** (45 min instead of ~95, same runs per image). dev.10
+  against dev.9:
+  - 1 stream: 5.53 / 6.38 against 5.44 / 6.37 Mbit/s;
+  - CPU: 73 / 67.5 % against 75 / 69.5 %, about −4 / −3 % CPU per Mbit/s;
+  - 4-stream upload: 6.73 against 6.44 Mbit/s (+4.6 %);
+  - internal minimum: 43,903 B;
+  - 0 failures, board back on 3.0.6.
+
+  The ChaCha20 assembly gain is consistent with the lower CPU. Its on-device
+  check is not visible in this image (status was profile-only; dev.12+
+  reports `crypto_asm` in diag). `sta_input_refused` was identical on both
+  dev.10 phases: 181–261 per 1-stream upload and 3,609–4,179 per 4-stream
+  upload.
