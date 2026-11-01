@@ -9,7 +9,10 @@ a behaviour test). The RX side compiles the actual replay check with its
 sequence-gap counters and the wg_rx_queue drop accessor. The replay cases
 are: in order, gaps, late fills, duplicates, rekey-size jumps and the
 counting limit. The socket drain loop in the net I/O task is checked
-structurally only. NETIF_SANITIZE=1 on Linux adds ASan/UBSan.
+structurally only. STA overload shedding is compiled with a 64-slot TCPIP
+mailbox model: frame classification on real header bytes, the 48-slot
+threshold, priority frames in the last 16 slots, a full mailbox and recovery
+after draining. NETIF_SANITIZE=1 on Linux adds ASan/UBSan.
 """
 from pathlib import Path
 import os
@@ -28,6 +31,7 @@ def between(text, start, end):
 
 
 counters = between(hooks, '/* Saturation counters for the STA path', 'return s_sta_output_refused; }')
+shed = between(hooks, '/* Overload shedding on the STA input path', 'return ethernet_input(p, netif);\n}\n')
 sta_in = between(hooks, 'static err_t sta_input_hook', '\n}\n')
 sta_out = between(hooks, 'static err_t sta_linkoutput_hook', '\n}\n')
 wg_counters = between(wg, '/* Transport-data packets lost on the way out',
@@ -72,8 +76,14 @@ typedef int err_t;
 #define ERR_VAL -6
 #define ACL_TO_ESP 1
 #define ACL_FROM_ESP 2
-struct pbuf { uint16_t tot_len; int freed; };
-struct netif { int id; };
+#include <string.h>
+struct pbuf { uint16_t tot_len; int freed; void *payload; uint16_t len; };
+struct netif { int id; uint8_t flags; uint32_t ip; };
+#define NETIF_FLAG_ETHARP 0x08U
+#define NETIF_FLAG_ETHERNET 0x40U
+#define netif_ip4_addr(n) (&(n)->ip)
+#define ip4_addr_get_u32(a) (*(a))
+#define CONFIG_LWIP_TCPIP_RECVMBOX_SIZE 64
 typedef err_t (*netif_input_fn)(struct pbuf *, struct netif *);
 typedef err_t (*netif_linkoutput_fn)(struct netif *, struct pbuf *);
 static netif_input_fn original_sta_input;
@@ -88,6 +98,20 @@ static inline bool acl_drops(uint8_t action) { return action != 0; }
 static inline void apply_sta_ttl_override(struct pbuf *p) { (void)p; ttl_calls++; }
 static err_t driver_input(struct pbuf *p, struct netif *n) { (void)p; (void)n; driver_in++; return driver_result; }
 static err_t driver_linkoutput(struct netif *n, struct pbuf *p) { (void)p; (void)n; driver_out++; return driver_result; }
+/* TCPIP thread model: a 64-slot mailbox of (frame, handler); tcpip_input is only an identity. */
+static err_t tcpip_input(struct pbuf *p, struct netif *n) { (void)p; (void)n; return ERR_VAL; }
+static unsigned eth_calls;
+static err_t ethernet_input(struct pbuf *p, struct netif *n) { (void)p; (void)n; eth_calls++; return ERR_OK; }
+static uint16_t web_port_now = 8080;
+static uint16_t web_ui_active_port(void) { return web_port_now; }
+static struct { struct pbuf *p; struct netif *n; netif_input_fn fn; } box[64];
+static unsigned box_n;
+static err_t tcpip_inpkt(struct pbuf *p, struct netif *n, netif_input_fn fn) {
+    if (box_n >= 64) return ERR_MEM;
+    box[box_n].p = p; box[box_n].n = n; box[box_n].fn = fn; box_n++;
+    return ERR_OK;
+}
+static void tcpip_drain(void) { for (unsigned i = 0; i < box_n; i++) box[i].fn(box[i].p, box[i].n); box_n = 0; }
 #include <limits.h>
 #include <stddef.h>
 #define REJECT_AFTER_MESSAGES (0xFFFFFFFFFFFFFFFFULL - (1ULL << 13))
@@ -96,7 +120,7 @@ struct wireguard_keypair { uint64_t replay_counter; uint32_t replay_bitmap; };
 
 tests = r'''
 int main(void) {
-    struct netif sta = {1};
+    struct netif sta = {.id = 1};
     struct pbuf p = {.tot_len = 1400};
     /* Initial state and a missing original: no saturation counted. */
     assert(netif_hooks_get_sta_input_refused() == 0 && netif_hooks_get_sta_output_refused() == 0);
@@ -133,6 +157,67 @@ int main(void) {
     assert(sent == 5 && alloc == 1);
     wireguardif_tx_drops(NULL, &alloc); wireguardif_tx_drops(&sent, NULL); wireguardif_tx_drops(NULL, NULL);
     assert(sent == 5 && alloc == 1);
+    /* Overload shedding: classification of actual frame bytes. */
+    {
+        const uint32_t own = 0x0201a8c0u;           /* 192.168.1.2, network byte order */
+        static uint8_t fr[64][80];
+        static struct pbuf pb[64];
+        #define FRAME(i, type, dst, proto, dport, frag) do { \
+            memset(fr[i], 0, sizeof fr[i]); fr[i][12] = (uint8_t)((type) >> 8); fr[i][13] = (uint8_t)(type); \
+            fr[i][14] = 0x45; fr[i][14 + 6] = (uint8_t)(frag); fr[i][14 + 9] = (proto); \
+            uint32_t d_ = (dst); memcpy(fr[i] + 14 + 16, &d_, 4); \
+            fr[i][14 + 20 + 2] = (uint8_t)((dport) >> 8); fr[i][14 + 20 + 3] = (uint8_t)(dport); \
+            pb[i] = (struct pbuf){ .tot_len = 80, .payload = fr[i], .len = 80 }; } while (0)
+        FRAME(0, 0x0806, 0, 0, 0, 0);             assert(netif_hooks_sta_frame_priority(&pb[0], own, 8080));  /* ARP */
+        FRAME(1, 0x86dd, 0, 0, 0, 0);             assert(netif_hooks_sta_frame_priority(&pb[1], own, 8080));  /* IPv6 */
+        FRAME(2, 0x0800, 0x0a0a0a0au, 6, 443, 0); assert(!netif_hooks_sta_frame_priority(&pb[2], own, 8080)); /* forwarded */
+        FRAME(3, 0x0800, 0xffffffffu, 17, 67, 0); assert(netif_hooks_sta_frame_priority(&pb[3], own, 8080));  /* broadcast */
+        FRAME(4, 0x0800, 0xfb0000e0u, 17, 5353, 0); assert(netif_hooks_sta_frame_priority(&pb[4], own, 8080)); /* multicast */
+        FRAME(5, 0x0800, own, 17, 41641, 0);      assert(netif_hooks_sta_frame_priority(&pb[5], own, 8080));  /* WireGuard */
+        FRAME(6, 0x0800, own, 1, 0, 0);           assert(netif_hooks_sta_frame_priority(&pb[6], own, 8080));  /* ICMP */
+        FRAME(7, 0x0800, own, 6, 8080, 0);        assert(netif_hooks_sta_frame_priority(&pb[7], own, 8080));  /* web UI */
+        FRAME(8, 0x0800, own, 6, 50000, 0);       assert(netif_hooks_sta_frame_priority(&pb[8], own, 8080));  /* own client */
+        FRAME(9, 0x0800, own, 6, 8443, 0);        assert(!netif_hooks_sta_frame_priority(&pb[9], own, 8080)); /* service port */
+        FRAME(10, 0x0800, own, 6, 8443, 0x01);    assert(netif_hooks_sta_frame_priority(&pb[10], own, 8080)); /* later fragment */
+        FRAME(13, 0x0800, own, 6, 8443, 0x20);    assert(!netif_hooks_sta_frame_priority(&pb[13], own, 8080)); /* first fragment: has the port */
+        assert(!netif_hooks_sta_frame_priority(&pb[7], own, 0));   /* web UI not listening */
+        pb[11] = pb[9]; pb[11].len = 20;          assert(netif_hooks_sta_frame_priority(&pb[11], own, 8080)); /* short */
+        fr[12][0] = 0; FRAME(12, 0x0800, own, 6, 8443, 0); fr[12][14] = 0x44;
+        assert(netif_hooks_sta_frame_priority(&pb[12], own, 8080));                                         /* bad IHL */
+        assert(netif_hooks_sta_frame_priority(NULL, own, 8080));
+        /* The counted path: 48 bulk frames queue, the 49th is shed; priority frames use
+         * the remaining 16 slots; a full mailbox still refuses; draining restores. */
+        original_sta_input = tcpip_input;
+        struct netif nif = { .id = 2, .flags = NETIF_FLAG_ETHARP, .ip = own };
+        uint32_t refused0 = netif_hooks_get_sta_input_refused();
+        for (int i = 0; i < 48; i++) { FRAME(i, 0x0800, 0x0a0a0a0au, 6, 443, 0); assert(sta_input_hook(&pb[i], &nif) == ERR_OK); }
+        assert(box_n == 48 && s_sta_queued == 48 && netif_hooks_get_sta_input_shed() == 0);
+        FRAME(48, 0x0800, 0x0a0a0a0au, 6, 443, 0);
+        assert(sta_input_hook(&pb[48], &nif) == ERR_OK && pb[48].freed == 1 && box_n == 48);
+        assert(netif_hooks_get_sta_input_shed() == 1 && s_sta_queued == 48);
+        FRAME(49, 0x0800, own, 6, 8443, 0);         /* service port: shed too */
+        assert(sta_input_hook(&pb[49], &nif) == ERR_OK && pb[49].freed == 1 && netif_hooks_get_sta_input_shed() == 2);
+        for (int i = 50; i < 64; i++) { FRAME(i, 0x0800, own, 17, 41641, 0); assert(sta_input_hook(&pb[i], &nif) == ERR_OK); }
+        FRAME(48, 0x0800, own, 6, 8080, 0);         /* web UI request still queues */
+        assert(sta_input_hook(&pb[48], &nif) == ERR_OK && box_n == 63);
+        FRAME(49, 0x0800, own, 1, 0, 0);
+        assert(sta_input_hook(&pb[49], &nif) == ERR_OK && box_n == 64 && s_sta_queued == 64);
+        FRAME(14, 0x0800, own, 17, 41641, 0);
+        assert(sta_input_hook(&pb[14], &nif) == ERR_MEM && s_sta_queued == 64 && !pb[14].freed); /* mailbox full */
+        assert(netif_hooks_get_sta_input_refused() == refused0 + 1 && netif_hooks_get_sta_input_shed() == 2);
+        tcpip_drain();
+        assert(eth_calls == 64 && s_sta_queued == 0);
+        FRAME(0, 0x0800, 0x0a0a0a0au, 6, 443, 0);   /* below the threshold bulk passes again */
+        assert(sta_input_hook(&pb[0], &nif) == ERR_OK && box_n == 1 && s_sta_queued == 1);
+        tcpip_drain();
+        assert(s_sta_queued == 0 && eth_calls == 65);
+        /* A netif without Ethernet framing keeps the original input. */
+        original_sta_input = driver_input; driver_result = ERR_OK;
+        struct netif raw = { .id = 3, .flags = 0, .ip = own };
+        unsigned before = driver_in;
+        assert(sta_input_hook(&pb[2], &raw) == ERR_OK && driver_in == before + 1 && box_n == 0);
+        #undef FRAME
+    }
     /* RX sequence gaps: in order, a gap of 5, a late fill, a duplicate, a rekey-size jump, the limit. */
     struct wireguard_keypair kp = {0};
     uint32_t gap = 9, late = 9;
@@ -167,13 +252,13 @@ int main(void) {
     assert(microlink_wg_rx_queue_drops() == 0);
     for (int i = 0; i < 7; i++) ml_count_wg_rx_queue_drop();
     assert(microlink_wg_rx_queue_drops() == 7);
-    puts("PASS: STA refused-input/output counters (success, ACL drop, missing original, 37 refusals), WireGuard TX drop counters and call-site placement, RX sequence gap/late counters (gap, late fill, duplicate, jump, limit), wg_rx_queue drop counter; drain loop structural");
+    puts("PASS: STA refused-input/output counters (success, ACL drop, missing original, 37 refusals), WireGuard TX drop counters and call-site placement, RX sequence gap/late counters (gap, late fill, duplicate, jump, limit), wg_rx_queue drop counter, STA overload shedding (frame classes, 48-slot threshold, priority slots, full mailbox, drain); drain loop structural");
 }
 '''
 
 with tempfile.TemporaryDirectory(prefix='drop-counters-') as directory:
     path = Path(directory)
-    (path / 'test.c').write_text(fixture + counters + '\n' + sta_in + '\n' + sta_out + '\n' + wg_counters + '\n'
+    (path / 'test.c').write_text(fixture + counters + '\n' + shed + '\n' + sta_in + '\n' + sta_out + '\n' + wg_counters + '\n'
                                  + replay + '\n' + queue_drops + '\n' + tests,
                                  encoding='utf-8')
     flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function']

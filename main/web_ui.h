@@ -34,6 +34,8 @@ uint16_t web_ui_configured_port(void);
 /* Reserve the running listener as well as the next-boot configured port. */
 bool web_ui_port_reserved(uint16_t port);
 void web_ui_set_active_port(uint16_t port);
+/* Port of the running web UI listener, 0 if none; safe on the packet path. */
+uint16_t web_ui_active_port(void);
 
 /* Transactional conflict check and save; changed is false on failure. */
 esp_err_t web_ui_save_port(uint16_t port, bool *changed);

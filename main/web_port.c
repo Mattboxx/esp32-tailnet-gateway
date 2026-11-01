@@ -26,6 +26,12 @@ bool web_ui_port_reserved(uint16_t port)
     return port && (port == active || port == web_ui_configured_port());
 }
 
+/* Lock-free read for the packet path (a 16-bit load is atomic on Xtensa). */
+uint16_t web_ui_active_port(void)
+{
+    return __atomic_load_n(&s_active_port, __ATOMIC_RELAXED);
+}
+
 void web_ui_set_active_port(uint16_t port)
 {
     forwarding_config_lock();
