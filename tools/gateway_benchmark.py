@@ -282,20 +282,21 @@ def admin_burst(api, count=16, path='/api/status'):
         started = time.monotonic()
         try:
             api(path, timeout=10)
-            ok = True
-        except Exception:
-            ok = False
+            ok, error = True, None
+        except Exception as exc:       # recorded by type: timeout vs closed connection
+            ok, error = False, type(exc).__name__ + ': ' + str(exc)[:80]
         with lock:
-            rows.append((ok, time.monotonic() - started))
+            rows.append((ok, time.monotonic() - started, error))
 
     threads = [threading.Thread(target=one, daemon=True) for _ in range(count)]
     for thread in threads:
         thread.start()
     for thread in threads:
         thread.join(15)
-    good = [t for ok, t in rows if ok]
+    good = [t for ok, t, _ in rows if ok]
+    failures = [dict(after_s=round(t, 3), error=e) for ok, t, e in rows if not ok]
     return dict(count=count, ok=len(good), failed=count - len(good), p50_s=percentile(good, .5),
-                max_s=max(good, default=None))
+                max_s=max(good, default=None), failures=failures)
 
 
 def parallel(jobs, cancel):

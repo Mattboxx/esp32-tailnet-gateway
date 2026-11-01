@@ -425,6 +425,8 @@ class Transfers(unittest.TestCase):
             return {}
         result = admin_burst(api, 8)
         self.assertEqual((result['count'], result['ok'], result['failed']), (8, 6, 2))
+        self.assertEqual([f['error'] for f in result['failures']], ['TimeoutError: slow'] * 2)
+        self.assertTrue(all(f['after_s'] >= 0 for f in result['failures']))
         self.assertEqual(set(calls), {'/api/status'})
         with self.assertRaises(ValueError):
             admin_burst(api, 33)
