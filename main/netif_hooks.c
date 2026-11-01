@@ -63,6 +63,16 @@ uint64_t netif_hooks_get_sta_bytes_out(void) { return s_sta_bytes_out; }
 uint64_t netif_hooks_get_ap_bytes_in  (void) { return s_ap_bytes_in;   }
 uint64_t netif_hooks_get_ap_bytes_out (void) { return s_ap_bytes_out;  }
 
+/* Saturation counters for the STA path: frames the next stage refused after
+ * the ACL let them through (input: TCP/IP mailbox full or no memory; output:
+ * Wi-Fi driver without TX buffers). The refusing caller frees the frame;
+ * these only count. Single writer each; read for /api/operations. */
+static volatile uint32_t s_sta_input_refused  = 0;
+static volatile uint32_t s_sta_output_refused = 0;
+
+uint32_t netif_hooks_get_sta_input_refused (void) { return s_sta_input_refused;  }
+uint32_t netif_hooks_get_sta_output_refused(void) { return s_sta_output_refused; }
+
 /* TTL override (0 = pass through). Read on every STA-out packet, set
  * by the /api/network POST handler + the boot-time NVS load. Single
  * byte → atomic on Xtensa, no lock needed. */
@@ -243,7 +253,10 @@ static err_t sta_input_hook(struct pbuf *p, struct netif *netif)
 {
     if (p) s_sta_bytes_in += p->tot_len;
     if (acl_drops(acl_check_and_tap(ACL_TO_ESP, p, false))) { pbuf_free(p); return ERR_OK; }
-    return original_sta_input ? original_sta_input(p, netif) : ERR_VAL;
+    if (!original_sta_input) return ERR_VAL;
+    err_t err = original_sta_input(p, netif);
+    if (err != ERR_OK) s_sta_input_refused++;
+    return err;
 }
 
 static err_t sta_linkoutput_hook(struct netif *netif, struct pbuf *p)
@@ -253,7 +266,10 @@ static err_t sta_linkoutput_hook(struct netif *netif, struct pbuf *p)
      * the value that actually goes out the wire. */
     apply_sta_ttl_override(p);
     if (acl_drops(acl_check_and_tap(ACL_FROM_ESP, p, false))) { return ERR_OK; }
-    return original_sta_linkoutput ? original_sta_linkoutput(netif, p) : ERR_VAL;
+    if (!original_sta_linkoutput) return ERR_VAL;
+    err_t err = original_sta_linkoutput(netif, p);
+    if (err != ERR_OK) s_sta_output_refused++;
+    return err;
 }
 
 static err_t eth_input_hook(struct pbuf *p, struct netif *netif)

@@ -47,6 +47,11 @@ uint64_t netif_hooks_get_sta_bytes_out(void);
 uint64_t netif_hooks_get_ap_bytes_in  (void);
 uint64_t netif_hooks_get_ap_bytes_out (void);
 
+/* STA frames refused after the ACL by the TCP/IP input queue or the Wi-Fi
+ * driver (saturation evidence, counts since boot). */
+uint32_t netif_hooks_get_sta_input_refused (void);
+uint32_t netif_hooks_get_sta_output_refused(void);
+
 /* TTL hop-limit override on the STA upstream. When non-zero, every
  * outgoing IPv4 frame on the STA interface gets its TTL field rewritten
  * to this value (with an RFC 1624 incremental checksum update) before

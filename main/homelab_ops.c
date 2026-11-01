@@ -25,6 +25,7 @@
 #include "config_profiles.h"
 #include "module_supervisor.h"
 #include "task_reaper.h"
+#include "netif_hooks.h"
 #include "dns_relay.h"
 #include "history.h"
 #include "notify_channels.h"
@@ -420,6 +421,16 @@ cJSON *homelab_ops_snapshot(bool detailed) {
     cJSON_AddBoolToObject(root,"lease_notifications",s.lease_notifications);
     cJSON_AddNumberToObject(root,"service_closures",service_closures);
     cJSON_AddNumberToObject(root,"module_restarts",supervisor.restarts);
+    {   /* Forwarding saturation evidence since boot; read-only counters. */
+        extern void wireguardif_tx_drops(uint32_t *send_failed, uint32_t *alloc_failed);
+        uint32_t wg_send_failed=0,wg_alloc_failed=0;
+        wireguardif_tx_drops(&wg_send_failed,&wg_alloc_failed);
+        cJSON *drops=cJSON_AddObjectToObject(root,"forward_drops");
+        cJSON_AddNumberToObject(drops,"sta_input_refused",netif_hooks_get_sta_input_refused());
+        cJSON_AddNumberToObject(drops,"sta_output_refused",netif_hooks_get_sta_output_refused());
+        cJSON_AddNumberToObject(drops,"wg_tx_send_failed",wg_send_failed);
+        cJSON_AddNumberToObject(drops,"wg_tx_alloc_failed",wg_alloc_failed);
+    }
     cJSON_AddNumberToObject(root,"task_reaper_pending",task_reaper_pending());cJSON_AddNumberToObject(root,"task_reaper_fallbacks",task_reaper_fallbacks());cJSON_AddNumberToObject(root,"task_reaper_reaped",task_reaper_reaped());
     cJSON_AddNumberToObject(root,"minimum_internal",s.minimum_internal);cJSON_AddNumberToObject(root,"minimum_largest",s.minimum_largest);
     cJSON_AddNumberToObject(root,"socket_reserve",s.socket_reserve);cJSON_AddNumberToObject(root,"interval_s",s.interval_s);
