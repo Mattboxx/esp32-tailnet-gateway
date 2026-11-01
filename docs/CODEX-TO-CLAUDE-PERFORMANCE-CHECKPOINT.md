@@ -234,3 +234,12 @@ operation; detailed step journal and exact live paths belong in the private
 - Next: PERF-09. Offline consolidated validation can run now; its hardware part
   (500 MB transfer, faults/overload, integrations, DERP/authorization) needs
   fresh explicit owner authority, a verified backup and a recovery procedure.
+- Offline consolidated validation at `e3de27f` (`validate_all.py --build --browser`,
+  `build/validation-20261101-010353-426379`): 107/108 PASS incl. firmware build,
+  browser and site checks. The one FAIL is `easy_install`'s LF regression guard
+  on the private `build/release-v3.0.6-staged/assets/SHA256SUMS.txt`, which is
+  byte-identical to the **published** v3.0.6 release asset: that asset has CRLF
+  line endings (v3.0.2/v3.0.4/v3.0.5 are LF; the listed hashes are correct and
+  nothing pins the file's own hash). Not a performance-branch regression.
+  Fixing it means replacing that one release asset with the LF version
+  (sha256 `5cfe3436…85cc`): an external write that needs owner authorization.
