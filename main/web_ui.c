@@ -4551,6 +4551,16 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
                              microlink_get_wg_tx_copyfree(tailscale_get_microlink()));
         cJSON_AddItemToObject(root, "memory", m);
     }
+    {   /* ESP32-S3 assembly crypto: 1 in use, -1 rejected by its check (C fallback), 0 not checked yet. */
+        extern int poly1305_asm_status(void);
+        extern int chacha20_asm_status(void);
+        cJSON *ca = cJSON_CreateObject();
+        if (ca) {
+            cJSON_AddNumberToObject(ca, "chacha20", chacha20_asm_status());
+            cJSON_AddNumberToObject(ca, "poly1305", poly1305_asm_status());
+            cJSON_AddItemToObject(root, "crypto_asm", ca);
+        }
+    }
 #if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
     {   /* Test-only profiling image ("-prof" version): packet-path stage counters. */
         microlink_perf_stage_t st[16];
