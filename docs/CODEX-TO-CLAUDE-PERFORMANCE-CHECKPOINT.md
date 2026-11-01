@@ -328,3 +328,17 @@ operation; detailed step journal and exact live paths belong in the private
   reports `crypto_asm` in diag). `sta_input_refused` was identical on both
   dev.10 phases: 181–261 per 1-stream upload and 3,609–4,179 per 4-stream
   upload.
+- **dev.12 acceptance rule** (fixed 2026-11-01 before its results). The owner
+  requires that web UI responsiveness must not drop noticeably, or the
+  firmware feels slower than competitors. dev.12 (data-plane priority 18)
+  replaces dev.11 only if all of the following hold:
+  1. 4-stream upload: no failed run, and fewer U events (flow wait ≥ 5 s)
+     than dev.11.
+  2. UI p95 during traffic is at most dev.11's × 1.25 and at most 1.5 s, in
+     the worst run of each image.
+  3. 0 UI failures, MQTT connected in every sample, internal minimum
+     ≥ 40,000 B.
+  4. Single-stream throughput is not lower than dev.11 by more than 3 %.
+
+  If (2) fails, the alternative is a core split: the TCPIP thread on core 0,
+  the receive tasks on core 1 at their old priority.
