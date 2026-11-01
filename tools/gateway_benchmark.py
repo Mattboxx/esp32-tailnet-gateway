@@ -329,12 +329,16 @@ def combine(results, elapsed):
                 integrity_pass=all(r['integrity_pass'] for r in results), windows=[],
                 retries=0, resumed=False, streams=len(results),
                 stream_mbps=rates, stream_fairness=min(rates) / max(rates),
-                per_stream=[{k: r[k] for k in ('bytes', 'elapsed_s', 'mbps', 'sha256', 'windows')} for r in results])
+                max_stream_gap_s=max((r.get('max_gap_s') or 0 for r in results), default=0),
+                per_stream=[{k: r.get(k) for k in ('bytes', 'elapsed_s', 'mbps', 'sha256', 'windows', 'max_gap_s')}
+                            for r in results])
 
 
 def transfer(opener, url, output, expected_size, expected_hash, *, timeout=15,
              total_timeout=180, progress=lambda row: None, cancelled=lambda: False):
-    """One actual on-disk HTTP transfer; never retries or resumes silently."""
+    """One actual on-disk HTTP transfer; never retries or resumes silently.
+    max_gap_s is the longest wait for any single read: a stalled flow that
+    recovered before the socket timeout still shows up there."""
     import urllib.request
     start = time.monotonic()
     digest, count, windows = hashlib.sha256(), 0, []
@@ -343,6 +347,7 @@ def transfer(opener, url, output, expected_size, expected_hash, *, timeout=15,
     with opener.open(request, timeout=timeout) as response, output.open('wb') as stream:
         if response.status != 200 or int(response.headers.get('Content-Length', '-1')) != expected_size:
             raise ValueError('Unexpected HTTP status or file length')
+        previous, max_gap = start, 0.0
         while True:
             if cancelled():
                 raise RuntimeError('Cancelled or resource guard stopped transfer')
@@ -352,6 +357,8 @@ def transfer(opener, url, output, expected_size, expected_hash, *, timeout=15,
             # read1 returns after one underlying read. A trickling response must
             # not keep read(65536) inside a single iteration past the deadline.
             chunk = response.read1(min(65536, expected_size - count + 1))
+            arrived = time.monotonic()
+            max_gap, previous = max(max_gap, arrived - previous), arrived
             if not chunk:
                 break
             stream.write(chunk)
@@ -371,21 +378,27 @@ def transfer(opener, url, output, expected_size, expected_hash, *, timeout=15,
         raise ValueError('Incomplete or corrupted file')
     return dict(bytes=count, elapsed_s=elapsed, mbps=count*8/elapsed/1e6,
                 sha256=digest.hexdigest(), integrity_pass=True, windows=windows,
-                retries=0, resumed=False)
+                retries=0, resumed=False, max_gap_s=max_gap)
 
 
 class _UploadBody:
-    """File-like PUT body: enforces cancel/deadline per read and records windows."""
+    """File-like PUT body: enforces cancel/deadline per read and records windows.
+    The time between two reads is how long the previous chunk took to be sent;
+    max_gap_s keeps the longest one."""
     def __init__(self, path, size, start, total_timeout, progress, cancelled):
         self.stream, self.size, self.start = path.open('rb'), size, start
         self.total_timeout, self.progress, self.cancelled = total_timeout, progress, cancelled
         self.count, self.windows, self.digest = 0, [], hashlib.sha256()
         self.last_time, self.last_count = start, 0
+        self.previous, self.max_gap_s = None, 0.0
 
     def read(self, amount=65536):
         if self.cancelled():
             raise RuntimeError('Cancelled or resource guard stopped transfer')
         now = time.monotonic()
+        if self.previous is not None:
+            self.max_gap_s = max(self.max_gap_s, now - self.previous)
+        self.previous = now
         if now - self.start >= self.total_timeout:
             raise TimeoutError('Total transfer deadline')
         chunk = self.stream.read(min(amount if amount and amount > 0 else 65536, 65536))
@@ -429,5 +442,5 @@ def upload(opener, url, source, expected_size, expected_hash, *, timeout=15,
             or received.get('bytes') != expected_size or received.get('sha256') != expected_hash):
         raise ValueError('Incomplete or corrupted upload')
     return dict(bytes=body.count, elapsed_s=elapsed, mbps=body.count*8/elapsed/1e6,
-                sha256=expected_hash, integrity_pass=True, windows=body.windows,
+                sha256=expected_hash, integrity_pass=True, windows=body.windows, max_gap_s=body.max_gap_s,
                 retries=0, resumed=False, direction='upload')
