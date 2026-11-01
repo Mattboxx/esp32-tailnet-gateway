@@ -24,6 +24,7 @@
 #include "history.h"
 #include "storage_store.h"
 #include "web_ui.h"
+#include "web_idle.h"
 #include "lan_name.h"
 #include "json_guard.h"
 #include "web_origin.h"
@@ -5934,13 +5935,14 @@ void web_ui_init(void)
     conf.max_open_sockets = available_http_clients < desired_http_clients
                           ? available_http_clients
                           : desired_http_clients;
-    conf.lru_purge_enable         = true;
-    /* Connections waiting for one of the client slots. With the default 5
-     * (and a 6-entry lwIP accept queue) a burst of 16 parallel status reads
-     * had SYNs dropped; the client retried after 3 s and 6 s and one read
-     * exceeded 10 s (PERF-09 on 3.0.7-beta.1; also seen on 3.0.6). 12 waiting
-     * plus 4 served covers that burst. Waiting connections hold only a TCP
-     * PCB, never an HTTP worker. */
+    /* No LRU purge: it closed sessions accepted a moment earlier whose request
+     * had not arrived yet (connection resets in bursts of parallel requests,
+     * PERF-09 on 3.0.7-beta.2 and 3.0.6). New connections wait in the
+     * backlog for a free slot, and web_idle closes sessions idle for 5 s so
+     * keep-alive connections cannot hold every slot. 12 waiting plus 4
+     * served covers a burst of 16; waiting connections hold only a TCP PCB. */
+    conf.lru_purge_enable         = false;
+    conf.open_fn                  = web_idle_open;
     conf.backlog_conn             = 12;
     conf.server_port              = web_ui_configured_port();
     web_ui_set_active_port(conf.server_port);
@@ -5950,6 +5952,7 @@ void web_ui_init(void)
         ESP_LOGE(TAG, "httpd_start failed");
         return;
     }
+    web_idle_start(server);
     if (ota_flash_bind_httpd(server) != ESP_OK)
         ESP_LOGE(TAG, "Cannot bind internal-stack OTA work to admin server");
     /* Old stored rules may conflict with the boot listener. Keep their

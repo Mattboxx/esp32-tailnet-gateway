@@ -74,6 +74,7 @@ idf_component_register(SRCS "main.c" ${_tsr_optional}
                             "lwip_route_hook.c"
                             "web_ui.c"
                             "web_port.c"
+                            "web_idle.c"
                             "peer_dns.c"
                             "netif_hooks.c"
                             "wifi_networks.c"
