@@ -266,3 +266,8 @@ operation; detailed step journal and exact live paths belong in the private
   integrations/reconnects/30 min observation exit 0, no unexpected reboot.
   Next: interleaved 3.0.6/dev.8 repetition to classify regression vs
   pre-existing; no release decision before that.
+- Follow-up A/B prepared (not run): benchmark records per-flow `max_gap_s` /
+  `max_stream_gap_s` (tested); private session `build/private-device/perf09-ab-dev8/`
+  (A B B A, fresh boot per phase, U B U U B U, 8 U + 4 B runs per image), launcher
+  `run_ab.ps1`, fixed classification in `ab_analyse.py` (rule also in
+  PERF-09-QUALIFICATION.md), dry-run on synthetic data for all four outcomes.

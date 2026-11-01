@@ -115,6 +115,56 @@ Next: an interleaved 3.0.6/dev.8 repetition of the 4-stream upload and of the
 burst, to classify both failures as regression or pre-existing before any
 release decision.
 
+## Follow-up A/B (prepared 2026-11-01, not yet run)
+
+This follow-up classifies both failures as regression or pre-existing. It does
+not re-qualify dev.8: the REJECT above stands until the PERF-09 gate is rerun.
+
+**Setup**
+
+- Images: the same exact 3.0.6 and dev.8 images, on board A.
+- Order: A B B A, one cycle.
+- Each phase starts from a fresh boot. That is an app-only USB switch, or one
+  software restart when the image is already running. A 240 s warm-up follows.
+- Each phase runs six benchmarks in the order U B U U B U:
+  - **U:** 4 concurrent uploads × 32 MB.
+  - **B:** 2 concurrent downloads × 32 MB plus the 48-connection burst with
+    16 status reads before and after.
+- Every benchmark runs with read-only UI/MQTT polling and 120 tunnel pings.
+- Totals: 8 U runs and 4 B runs per image.
+
+**Handling of failures**
+
+- A failed benchmark is counted and the campaign continues.
+- The campaign stops on a reboot, a version change or an uncleared rule.
+- The campaign always ends on 3.0.6.
+
+**New measurement**
+
+The benchmark now records each flow's longest wait for a single read or send
+(`max_gap_s`; the longest across all streams is `max_stream_gap_s`). Stalls
+that recover before the 15 s socket timeout are therefore counted as well.
+
+**Classification rule** (fixed before the run, in the session's `ab_analyse.py`)
+
+An event is one of:
+
+- **U event:** a U benchmark failed, or any flow waited ≥ 5 s.
+- **B event:** a B benchmark failed, or at least one status read failed after
+  the burst.
+
+Classification:
+
+| Outcome | Condition |
+|---|---|
+| pre-existing | 3.0.6 shows at least one event. "More frequent on dev.8" is added when dev.8 shows at least 3 more. |
+| regression | dev.8 ≥ 3 events and 3.0.6 none |
+| inconclusive | dev.8 has 1–2 events and 3.0.6 none |
+| not reproduced | neither image shows an event |
+
+Throughput, fairness, gap distribution, UI, internal minimum and ping are
+reported per image as supporting data.
+
 ## Not covered by this run (stated, not claimed)
 
 - Two independent real Tailnet identities, ACL positive/negative between them,

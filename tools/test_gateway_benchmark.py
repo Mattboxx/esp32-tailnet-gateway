@@ -133,6 +133,7 @@ class Transfers(unittest.TestCase):
                 error.exception.close()
                 result = transfer(opener, url+service.url_path, dest, len(data), hashlib.sha256(data).hexdigest())
                 self.assertTrue(result['integrity_pass'])
+                self.assertTrue(0 <= result['max_gap_s'] < 5)
                 self.assertEqual(dest.read_bytes(), data)
                 self.assertEqual(result['retries'], 0)
                 service.allowed_source = '192.0.2.1'
@@ -189,6 +190,7 @@ class Transfers(unittest.TestCase):
             try:
                 result = upload(opener, url+service.url_path, source, len(data), digest)
                 self.assertTrue(result['integrity_pass'])
+                self.assertTrue(0 <= result['max_gap_s'] < 5)
                 self.assertEqual((result['direction'], result['retries'], result['resumed']), ('upload', 0, False))
                 self.assertEqual(service.records[-1]['bytes_read'], len(data))
                 self.assertEqual(service.records[-1]['sha256'], digest)
@@ -337,8 +339,26 @@ class Transfers(unittest.TestCase):
                 dict(bytes=1_000_000, elapsed_s=4, mbps=2.0, sha256='a', windows=[], integrity_pass=True)]
         result = combine(rows, 4.0)
         self.assertEqual((result['bytes'], result['mbps'], result['stream_fairness']), (2_000_000, 4.0, 0.5))
+        self.assertEqual(result['max_stream_gap_s'], 0)
+        rows[0]['max_gap_s'], rows[1]['max_gap_s'] = 0.2, 7.5
+        result = combine(rows, 4.0)
+        self.assertEqual((result['max_stream_gap_s'], result['per_stream'][0]['max_gap_s']), (7.5, 0.2))
         rows[1]['integrity_pass'] = False
         self.assertFalse(combine(rows, 4.0)['integrity_pass'])
+
+    def test_upload_body_records_longest_wait_between_reads(self):
+        from gateway_benchmark import _UploadBody
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'source.bin'; source.write_bytes(b'x'*300_000)
+            body = _UploadBody(source, 300_000, time.monotonic(), 60, lambda row: None, lambda: False)
+            try:
+                body.read(65536)
+                self.assertEqual(body.max_gap_s, 0.0)      # the first read has no predecessor
+                time.sleep(0.3)
+                body.read(65536); body.read(65536)
+                self.assertTrue(0.3 <= body.max_gap_s < 2.0, body.max_gap_s)
+            finally:
+                body.close()
 
     def test_transfer_deadline_scales_with_size_and_streams(self):
         self.assertEqual([transfer_deadline(s, 1) for s in (1, 16, 32)], [180, 180, 180])
