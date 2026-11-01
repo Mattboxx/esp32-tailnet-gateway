@@ -293,6 +293,28 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
    1 KB. Upload throughput crosses the 10 % threshold (+11.6 %, 4/4); download
    is below it. dev.8 is the leading candidate for the concurrency probe and
    PERF-09.
+
+   **Concurrency/stability probe, board A, 2026-11-01**
+   (`performance-20261031-conc8/`; ABBA 3.0.6/dev.8, per phase 1, 2 and 4
+   concurrent streams in both directions, 16 MB per stream, each hash-checked;
+   read-only UI/MQTT polling once a second and tunnel ping alongside; every
+   step completed, temporary rules removed, no reboot, board left on 3.0.6).
+   Medians of two phases per image:
+
+   | Streams, direction | Mbit/s 3.0.6 → dev.8 | CPU % per Mbit/s 3.0.6 → dev.8 | Tunnel ping median 3.0.6 → dev.8 |
+   |---|---|---|---|
+   | 1, download / upload | 5.02 → 5.27 / 5.72 → 5.86 | 15.18 → 14.22 / 12.04 → 11.77 | 18 → 13 ms |
+   | 2, download / upload | 5.08 → 5.36 / 6.12 → 6.41 | 15.46 → 14.36 / 11.54 → 10.68 | 31 → 18 ms |
+   | 4, download / upload | 5.01 → 5.40 / 5.84 → 6.41 | 16.08 → 15.50 / 11.81 → 11.20 | 44 → 34 ms |
+
+   Both images: 0 failed UI requests (1,111 in total), MQTT connected in every
+   sample, largest free internal block unchanged (28,672 B). dev.8 keeps its
+   ~0.85 KB lower internal minimum at every concurrency level (44,831…44,863 B
+   vs 45,675…45,875 B): the cost does not grow with load. Stream fairness 0.88…0.92
+   for dev.8 (0.78…0.94 for 3.0.6). UI p95 rises to ~1 s for both images only
+   with 2–4 upload streams (upload saturates the Wi-Fi transmit side). No
+   regression found; this is a bounded probe, not the PERF-09 qualification
+   (no 500 MB transfer, faults, overload, DERP or authorization matrix).
 6. **Lab device.** Do A/B swaps on the test-only board B where possible and
    keep the owner's primary gateway for final exact-image qualification; the
    primary gateway should not keep running an unpublished dev image between
