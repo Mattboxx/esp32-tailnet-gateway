@@ -17,16 +17,16 @@ def main():
             raise ValueError('Expected ESP32-S3 IRAM section not found')
         start, end = iram['sh_addr'], iram['sh_addr']+iram['sh_size']
         symbols = elf.get_section_by_name('.symtab')
-        # The WG Poly1305 path is in IRAM (dispatcher plus the Xtensa assembly
-        # block function; its C fallback stays in flash); chacha20 deliberately
-        # stays in flash since 2026-10-31 (measured trade-off, see the roadmap).
+        # The WG data path is in IRAM: chacha20 (again since 2026-11-01, speed
+        # first) and the Poly1305 dispatcher plus its Xtensa assembly block
+        # function; the Poly1305 C fallback stays in flash.
         found = {name: [] for name in ('chacha20','poly1305_blocks','poly1305_blocks_xtensa','poly1305_blocks_c')}
         for symbol in symbols.iter_symbols():
             if symbol.name in found:
                 found[symbol.name].append(dict(address=symbol['st_value'], bytes=symbol['st_size'],
                     iram=start <= symbol['st_value'] < end))
-        if not found['chacha20'] or any(x['iram'] for x in found['chacha20']):
-            raise ValueError('ChaCha20 data path expected in flash')
+        if not any(x['iram'] for x in found['chacha20']):
+            raise ValueError('WG ChaCha20 loop not placed in IRAM')
         # A separate unrelated crypto implementation can retain a same-named
         # static Poly1305 function in flash. Require the moved WG copy too.
         if not any(x['iram'] for x in found['poly1305_blocks']):
