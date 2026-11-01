@@ -312,3 +312,22 @@ are queued:
 1. an interleaved 3.0.6 / beta.3 A/B under the current radio (`perf-ab-b3`);
 2. a PERF-09 rerun on the same image that starts only when the uplink is
    back on channel 11 at ≥ −54 dBm (`perf09-beta3b`, radio gate, up to 10 h).
+
+**3.0.6 / beta.3 A/B under the channel-1 radio** (`perf-ab-b3`, 2026-11-02,
+49 min, A B B A, RSSI −52…−62 dBm, 16/16 benchmarks exited 0, board back
+on 3.0.6). Medians, 3.0.6 against beta.3:
+
+| Metric | 3.0.6 | beta.3 |
+|---|---:|---:|
+| One stream, download / upload | 4.52 / 5.10 Mbit/s | 6.26 / 5.65 Mbit/s |
+| Four-stream upload | 5.22 Mbit/s | 5.63 Mbit/s |
+| U events (flow wait ≥ 5 s) | 2/4 | 0/4 |
+| Tunnel ping during U | 89 ms | 47 ms |
+| UI p95, worst run | 1.52 s | 0.65 s |
+| UI p95, single-stream median | 0.27 s | 0.30 s |
+| Internal minimum | 45,423 B | 43,307 B |
+
+On the same radio beta.3 is ahead of 3.0.6 on every metric except
+single-stream UI p95, which is 25 ms higher. The 500 MB upload shortfall in
+the PERF-09 run comes from the link, not from a firmware regression. The
+radio-gated PERF-09 rerun is still required before publication.
