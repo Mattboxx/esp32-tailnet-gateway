@@ -49,6 +49,8 @@ drain = between(netio, 'if (ml->disco_sock4 >= 0 && FD_ISSET(ml->disco_sock4, &r
 assert 'ml_at_socket_is_at_fd(ml->disco_sock4) ? 1 : ML_NET_IO_DRAIN_MAX' in drain
 assert 'drained ? MSG_DONTWAIT : 0' in drain and 'if (n <= 0)\n                break;' in drain
 assert '#define ML_NET_IO_DRAIN_MAX 16' in netio
+rx_input = wg.index('if (device->netif->input(pbuf, device->netif) == ERR_OK) {')
+assert wg.index('wg_tx_count_drop(&s_wg_rx_input_refused);', rx_input) - rx_input < 200
 assert 'ml_count_wg_rx_queue_drop();' in between(netio, 'case PKT_WIREGUARD:', 'free(data);  /* Queue full, drop */')
 assert 'if (target == ml->wg_rx_queue)\n            ml_count_wg_rx_queue_drop();' in between(
     derp, 'if (xQueueSend(target, &pkt, 0) != pdTRUE) {', 'free(data);')
@@ -156,6 +158,10 @@ int main(void) {
     assert(gap == 5 + 1024 && late == 1);
     assert(!wireguard_check_replay(&kp, REJECT_AFTER_MESSAGES));
     wireguard_rx_seq_stats(NULL, &late); wireguard_rx_seq_stats(&gap, NULL); wireguard_rx_seq_stats(NULL, NULL);
+    /* Decrypted packets refused by netif->input */
+    assert(wireguardif_rx_input_refused() == 0);
+    for (int i = 0; i < 3; i++) wg_tx_count_drop(&s_wg_rx_input_refused);
+    assert(wireguardif_rx_input_refused() == 3);
     /* wg_rx_queue full drops */
     assert(microlink_wg_rx_queue_drops() == 0);
     for (int i = 0; i < 7; i++) ml_count_wg_rx_queue_drop();
