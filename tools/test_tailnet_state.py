@@ -35,6 +35,8 @@ static bool service_lease_tick(void){return false;}
 static bool service_lease_allowed(int i,const tailnet_forward_rule_t *r){(void)i;(void)r;return true;}
 /* Stable synthetic selectors; the real binding hash is tested in lease driver. */
 static uint32_t service_lease_token(const tailnet_forward_rule_t *r){return r->listen_port;}
+/* Rule-table notifications are tested in the lease driver. */
+static void service_lease_rules_changed(const tailnet_forward_rule_t *r,int c){(void)r;(void)c;}
 static void mqtt_integration_tailnet_forward_changed(void){}
 static uint16_t cleanup_port;
 static bool cleanup_oom;
