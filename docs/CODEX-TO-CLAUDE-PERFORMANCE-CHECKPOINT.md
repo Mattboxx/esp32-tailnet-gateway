@@ -294,3 +294,24 @@ operation; detailed step journal and exact live paths belong in the private
 - Next: build dev.10, run the placement and provenance gates, then a lab-runner
   A/B (3.0.6 / dev.10 / dev.9). That measures the speed and shows where packets
   are dropped under the 4-stream upload.
+- **Packet-loss root cause measured (dev.10, perf-ab10f phase 1, board A).**
+  `forward_drops` per run:
+  - 1-stream upload: `sta_input_refused` 183;
+  - 4-stream upload: 3,609–4,179;
+  - `sta_output_refused`, `wg_tx_send_failed` and `wg_tx_alloc_failed`: 0.
+
+  The TCPIP thread mailbox (`CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=32`) overflows.
+  Wi-Fi delivers A-MPDU bursts of up to 32 frames, and decrypted WireGuard
+  packets (`tcpip_input`) share the same mailbox. Refused TCP segments explain
+  the 8–12 s flow stalls (retransmission backoff), and refused tunnel packets
+  explain the ping loss. The Wi-Fi TX side and WireGuard TX never failed.
+- **dev.11** (`657561d`, MicroLink `91b5000`, firmware.bin `c2bddccf…4c42`):
+  - TCPIP mailbox 64 (+128 B);
+  - UDP mailbox 16;
+  - the WireGuard/DISCO socket is drained up to 16 datagrams per `select()`
+    instead of one;
+  - new counters: `wg_rx_queue_full`, `wg_rx_input_refused`, `wg_rx_seq_gap` /
+    `wg_rx_seq_late` (authenticated counter gaps = packets lost before
+    decryption).
+  - sdkconfig.h differs from dev.10 only in the two mailbox sizes.
+  - Queued on the lab runner as `ab11-1` (dev.11 vs dev.10, A B B A).
