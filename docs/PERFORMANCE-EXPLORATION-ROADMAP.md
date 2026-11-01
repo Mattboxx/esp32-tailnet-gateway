@@ -449,10 +449,14 @@ for when RAM becomes tight.
   cache, and reads cause no flash wear. Wear comes from erase/write cycles: NVS
   writes, OTA writes and log/coredump storage. The option does not touch NVS
   and adds no write.
-- **Standing rule: the firmware must not degrade the board.** Any feature that
-  persists data must bound its write rate, for example by batching writes,
-  writing only on change, or keeping counters in RAM. The `forward_drops`
-  counters are RAM-only and reset at boot.
+- **Owner priority order:** speed, then no packet loss, then each function
+  doing its job correctly, then avoiding flash wear. Flash longevity is never
+  bought with speed, packet loss or correctness.
+- **Writes the firmware makes on its own** must still be bounded: write on
+  change, batch writes, or keep the data in RAM. The `forward_drops` counters
+  are RAM-only and reset at boot.
+- **Wear the user chooses is the user's decision**, for example heavy
+  persistent logging. Such options are opt-in and state their cost.
 
 ### PERF-07 — Crypto only when profiling warrants it
 
