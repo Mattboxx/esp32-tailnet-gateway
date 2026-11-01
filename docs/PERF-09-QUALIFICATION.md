@@ -248,3 +248,23 @@ Further SYNs are dropped and the client retries after 3 s and 6 s.
 **Fix in 3.0.7-beta.2:** `backlog_conn` 12 and
 `CONFIG_LWIP_TCP_ACCEPTMBOX_SIZE` 12. beta.1 is not published; PERF-09 is
 rerun on the exact beta.2 image.
+
+## Run on 3.0.7-beta.2 (2026-11-01, image `7a7d2047…9878`, source `468c901`)
+
+**Verdict: REJECT (48/49).** 86.5 min, every step exited 0, no unexpected
+reboot, board back on 3.0.6.
+
+- 500 MB transfers: 7.789 / 6.453 Mbit/s.
+- UI p95 ≤ 0.53 s in every step.
+- 48/48 burst connections connected.
+- Internal minimum ≥ 42,763 B.
+
+The only failure this time came after the **download**-direction burst:
+2 of 16 parallel status reads failed. The upload burst passed (0/16). The
+backlog change alone did not remove the failure.
+
+Successful reads are served about 4 at a time and complete in up to about
+7.2 s. The benchmark did not record why the reads failed. It now records
+each failure's type and time, and a burst-only diagnosis run on beta.2
+(`perf-burst1`) separates timeouts from connections closed by the server's
+LRU purge.
