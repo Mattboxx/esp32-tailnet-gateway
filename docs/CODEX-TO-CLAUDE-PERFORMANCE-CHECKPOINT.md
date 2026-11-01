@@ -361,3 +361,17 @@ operation; detailed step journal and exact live paths belong in the private
   - The deeper mailbox adds queueing latency. **dev.11 alone is not a release
     candidate.** dev.12 (receive priority) and dev.13 (overload shedding)
     address the two remaining causes.
+- **perf-ab12 completed** (41.7 min, board back on 3.0.6). dev.12 against
+  dev.11:
+  - 1 stream: 7.45 / 6.75 against 6.90 / 6.71 Mbit/s;
+  - 4-stream upload: 6.96 against 7.49 Mbit/s;
+  - U events: 0 against 2; longest-wait median 1.0 s against 4.8 s;
+  - `wg_rx_queue_full`: ~300 against ~6,600 per U run;
+  - **UI p95, worst run: 1.74 s against 1.55 s**; single-stream UI p95 about
+    0.5 s against 0.3 s.
+
+  **Rejected by the fixed rule (criterion 2).** The HTTP server at priority 5
+  waited behind the receive tasks at priority 18. dev.13 (shedding) was
+  withdrawn before its run. dev.14 (`f5c2ed6`, firmware.bin `3fd773b0…ebd2`)
+  adds the HTTP server at priority 18 on top of dev.13 and is queued as
+  `ab14-1` against dev.11 under the same rule.
