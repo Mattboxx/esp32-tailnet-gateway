@@ -46,7 +46,8 @@ queue_drops = between(mlc, 'static volatile uint32_t s_wg_rx_queue_drops;',
 # sockets read once, and both full-queue paths count the drop.
 drain = between(netio, 'if (ml->disco_sock4 >= 0 && FD_ISSET(ml->disco_sock4, &read_fds)) {',
                 'route_udp_packet(ml, pkt_data, n, src_ip, src_port);')
-assert 'ml_at_socket_is_at_fd(ml->disco_sock4) ? 1 : ML_NET_IO_DRAIN_MAX' in drain
+assert 'int budget = ML_NET_IO_DRAIN_BUDGET(ml->disco_sock4);' in drain
+assert '#define ML_NET_IO_DRAIN_BUDGET(fd) (ml_at_socket_is_at_fd(fd) ? 1 : ML_NET_IO_DRAIN_MAX)' in netio
 assert 'drained ? MSG_DONTWAIT : 0' in drain and 'if (n <= 0)\n                break;' in drain
 assert '#define ML_NET_IO_DRAIN_MAX 16' in netio
 rx_input = wg.index('if (device->netif->input(pbuf, device->netif) == ERR_OK) {')
