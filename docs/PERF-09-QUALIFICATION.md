@@ -1,0 +1,80 @@
+# PERF-09 hardware qualification: 3.0.7-dev.8
+
+Procedure and acceptance thresholds for the integrated gate of
+[PERFORMANCE-EXPLORATION-ROADMAP.md](PERFORMANCE-EXPLORATION-ROADMAP.md),
+fixed on 2026-11-01 **before** the run, from the measured 3.0.6/dev.8 baselines
+(ab6, ab8, conc8). Candidate: `3.0.7-dev.8`, source `ee56c1d`, MicroLink
+`4dcf00f`, firmware.bin SHA-256 `1566d8a025eef08c99d15170a612a4663fdb014bdb0f15f7ca435587a94058c4`.
+
+## Preconditions
+
+- Fresh explicit owner authorization for this image and this step list
+  (recorded in the private performance state; the launcher refuses without it).
+- Offline consolidated validation of the candidate source: done 2026-11-01,
+  107/108 (`--build --browser`); the remaining `easy_install` check passed in a
+  targeted rerun after the v3.0.6 checksum asset was fixed.
+- Board A (production gateway, USB on the bench PC) on 3.0.6 in ota_0, 3.0.5 in
+  ota_1. Only ota_0 is ever written; every switch verifies the USB MAC, that
+  ota_1 still holds the verified 3.0.5 image and that every byte outside ota_0
+  is unchanged, then that the selected configuration survived the boot.
+
+## Steps (one launcher, one hidden password prompt)
+
+| # | Step | What it exercises | Changes, all restored |
+|---|---|---|---|
+| 0 | Data-partition backup over USB | NVS, otadata, phy, coredump, storage read twice, equal SHA-256 | none (one reset) |
+| 1 | Install dev.8 in ota_0, 240 s warm-up | verified switch procedure | ota_0 |
+| 2 | 500 MB download + 500 MB upload | uninterrupted transfer, full hash, read-only UI/MQTT polling | temporary /32 rule |
+| 3 | 4 concurrent streams × 32 MB, 2 rounds, both directions | sustained concurrent traffic, fairness, reserves | temporary rule |
+| 4 | 2 streams + burst of 48 idle connections to the rule port and 16 parallel status reads, both directions | bounded overload while traffic runs, recovery afterwards | temporary rule |
+| 5 | SNMP operational OIDs over LAN and Tailnet | SNMP agent | agent enabled temporarily |
+| 6 | ntfy info commands (3) | notifications/commands over HTTPS | command setting temporarily |
+| 7 | Web request screening; web sessions | administration security paths | none (invalid bodies only) |
+| 8 | Two software restarts | startup, policy, recovery-only setting | restarts |
+| 9 | Candidate qualification: identity, MQTT OFF→reboot→activation, lab broker MQTT/HA Discovery, strict commands, broker outage, WoL HTTP+MQTT (synthetic target), 2 Wi-Fi and DERP/control reconnect cycles, 30 min observation | integrations, reconnects, continuity | MQTT pointed at the lab broker, then exact settings restored |
+| 10 | Back to 3.0.6 | verified switch | ota_0 |
+
+After every step the launcher records status/operations, waits 60 s and records
+them again (sockets and heap must settle). It stops on an unexpected reboot, a
+different running version, an unreachable board or a benchmark that could not
+remove its temporary rule; otherwise a failed step is recorded and the next one
+runs. A `STOP` file stops before the next step.
+
+## Acceptance thresholds
+
+| Criterion | Threshold | Basis |
+|---|---|---|
+| 500 MB transfers | complete, hash PASS, ≥ 4.5 Mbit/s download, ≥ 5.0 Mbit/s upload | ~85 % of dev.8 single-stream medians at −52 dBm |
+| Every transfer in steps 2–4 | hash PASS | — |
+| Administration during traffic | 0 failed reads, p95 ≤ 2.0 s, max ≤ 5.0 s | conc8: p95 ≤ 1.25 s, max 2.2 s |
+| MQTT during traffic | connected in every sample | conc8 |
+| Internal RAM during traffic | minimum ≥ 40,000 B, largest block ≥ 16,384 B | conc8: ≥ 44,831 B, 28,672 B |
+| Overload burst | every connection accounted (connected/refused/timeout, none hung); ≤ 2/16 admin reads failed during, 0/16 after; the concurrent transfer hash PASS | bounded, explicit refusal allowed |
+| Settling | sockets ≤ baseline + 1 sixty seconds after each non-restart step; reaper fallbacks 0 | — |
+| Stability | no reboot except steps 8–9; module restarts not above baseline | — |
+| Integration tools | exit 0 | their own pass criteria |
+
+The verdict (ACCEPT/REJECT) is computed by the session's `perf09_analyse.py`. A
+REJECT is recorded with the failing criteria; thresholds are not loosened
+after the run.
+
+## Not covered by this run (stated, not claimed)
+
+- Two independent real Tailnet identities, ACL positive/negative between them,
+  forced DERP and official-client policy parity: only one real client.
+- Service Gateway source-refusal/expiry/reboot lab (`test_gateway_campaign_device.py`):
+  needs exactly one original rule, Service Watch OFF and an echo peer.
+- OTA upload/rollback through the updater: it would overwrite the 3.0.5
+  recovery image in ota_1. dev.8 does not change OTA, NVS or updater code; that
+  path keeps its offline tests.
+- Ethernet, N8R8, multi-day soak, low-memory/fragmentation injection, TLS peak
+  injection: separate gates.
+
+## Recovery
+
+Session folder `build/private-device/perf09-dev8/` (private): `RECOVERY.md`,
+`campaign.log`, per-step `state-private.json`. A benchmark interrupted with its
+rule present: `benchmark_gateway_device.py --recover-only <folder>` with the
+same host arguments. Application-only rewrite of the archived 3.0.6 image at
+0x20000 if ota_0 does not boot; data partitions from the step-0 backup only by
+the owner's decision.

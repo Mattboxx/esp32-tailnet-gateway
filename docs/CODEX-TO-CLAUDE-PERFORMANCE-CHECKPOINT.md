@@ -249,3 +249,11 @@ operation; detailed step journal and exact live paths belong in the private
   re-downloaded file is byte-identical). No other asset changed (10 assets).
   The private staged copy was synced (old CRLF copy kept beside it as
   `.crlf-published-20261029.bak`); `--only easy_install` now PASS.
+- PERF-09 hardware run prepared, not run: procedure and thresholds in
+  `docs/PERF-09-QUALIFICATION.md` (fixed before measuring). Benchmark gained
+  size-scaled deadlines (500 MB) and `--burst` (bounded idle-connection burst to
+  the rule port plus parallel status reads during a transfer); three device
+  tools accept the launcher's process-local password. Private session
+  `build/private-device/perf09-dev8/` (verified USB data backup first, then
+  dev.8, steps 2–9, back to 3.0.6; `python perf09_analyse.py .` gives the
+  verdict). The launcher refuses until `perf09_dev8_authorized` is recorded.

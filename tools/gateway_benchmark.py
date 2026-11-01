@@ -8,6 +8,7 @@ import hashlib
 import http.server
 import math
 import secrets
+import socket
 import threading
 import time
 
@@ -98,12 +99,19 @@ def restore_console(api, original, last_owned, attempted):
     return api('/api/sdlog')['console_level'] == original
 
 
+def transfer_deadline(size_mb, streams):
+    """Per-transfer deadline: 180 s per 32 MB per concurrent stream (a floor of
+    ~1.4 Mbit/s per stream); 32 MB and smaller keep the historical 180 s."""
+    return 180 * streams * max(1, math.ceil(size_mb / 32))
+
+
 class FileService:
     """Bound owned-peer file server: one path, one source, bounded concurrency.
 
     streams (1..4) is the number of transfers served at the same time; further
-    requests get 429 at once."""
-    def __init__(self, bind, allowed_source, path, port=0, streams=1):
+    requests get 429 at once. threaded=True dispatches connections in threads
+    even for one stream (connection bursts must not queue behind a transfer)."""
+    def __init__(self, bind, allowed_source, path, port=0, streams=1, threaded=False):
         if type(streams) is not int or not 1 <= streams <= 4:
             raise ValueError('streams must be 1..4')
         self.file, self.allowed_source = path, allowed_source
@@ -206,7 +214,7 @@ class FileService:
         # thread per connection, but only `streams` hold a slot; the rest are
         # answered 429 immediately. A stalled client is bounded by the socket
         # timeout; shutdown waits for it.
-        server_class = http.server.HTTPServer if streams == 1 else http.server.ThreadingHTTPServer
+        server_class = http.server.HTTPServer if streams == 1 and not threaded else http.server.ThreadingHTTPServer
         self.server = server_class((bind, port), Handler)
         self.port = self.server.server_address[1]
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
@@ -218,6 +226,76 @@ class FileService:
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=17)
+
+
+def connection_burst(host, port, count, connect, *, hold_s=10, timeout=6, workers=16):
+    """Open `count` (1..64) TCP connections to host:port at once through
+    `connect(timeout)` (a bound socket factory), hold them `hold_s` seconds idle,
+    then close all. Bounded: at most `workers` connects in flight. Returns counts
+    by outcome and connect-time percentiles; never retries."""
+    if type(count) is not int or not 1 <= count <= 64:
+        raise ValueError('burst count must be 1..64')
+    held, outcomes, times, lock = [], {'connected': 0, 'refused': 0, 'timeout': 0, 'other': 0}, [], threading.Lock()
+    gate = threading.BoundedSemaphore(workers)
+
+    def one():
+        with gate:
+            started = time.monotonic()
+            sock = None
+            try:
+                sock = connect(timeout)
+                sock.connect((host, port))
+                with lock:
+                    held.append(sock); outcomes['connected'] += 1; times.append(time.monotonic() - started)
+                sock = None
+            except ConnectionRefusedError:
+                with lock: outcomes['refused'] += 1
+            except (socket.timeout, TimeoutError):
+                with lock: outcomes['timeout'] += 1
+            except OSError:
+                with lock: outcomes['other'] += 1
+            finally:
+                if sock is not None:
+                    sock.close()
+
+    threads = [threading.Thread(target=one, daemon=True) for _ in range(count)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout + 5)
+    time.sleep(hold_s)
+    with lock:
+        for sock in held:
+            sock.close()
+        held.clear()
+    return dict(count=count, **outcomes, connect_p50_s=percentile(times, .5), connect_max_s=max(times, default=None))
+
+
+def admin_burst(api, count=16, path='/api/status'):
+    """`count` (1..32) parallel read-only administration requests; returns
+    successes, failures and latency percentiles."""
+    if type(count) is not int or not 1 <= count <= 32:
+        raise ValueError('admin burst count must be 1..32')
+    rows, lock = [], threading.Lock()
+
+    def one():
+        started = time.monotonic()
+        try:
+            api(path, timeout=10)
+            ok = True
+        except Exception:
+            ok = False
+        with lock:
+            rows.append((ok, time.monotonic() - started))
+
+    threads = [threading.Thread(target=one, daemon=True) for _ in range(count)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(15)
+    good = [t for ok, t in rows if ok]
+    return dict(count=count, ok=len(good), failed=count - len(good), p50_s=percentile(good, .5),
+                max_s=max(good, default=None))
 
 
 def parallel(jobs, cancel):
