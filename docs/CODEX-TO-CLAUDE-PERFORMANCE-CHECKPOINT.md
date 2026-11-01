@@ -342,3 +342,22 @@ operation; detailed step journal and exact live paths belong in the private
 
   If (2) fails, the alternative is a core split: the TCPIP thread on core 0,
   the receive tasks on core 1 at their old priority.
+- **perf-ab11 completed** (41.5 min, board back on 3.0.6). dev.11 against dev.10:
+
+  | Median | dev.10 | dev.11 |
+  |---|---:|---:|
+  | 1 stream, Mbit/s | 5.70 / 6.74 | 6.79 / 6.86 (+19 / +2 %) |
+  | 4-stream upload | 6.78 Mbit/s | 7.55 (+11 %) |
+  | Tunnel ping under load | 30.5 ms | 48 ms |
+  | U events (flow wait ≥ 5 s) | 1/4 | 4/4, plus 1 timeout |
+  | UI p95, worst run | 1.35 s | 1.57 s |
+
+  - 1-stream `sta_input_refused` dropped to 0.
+  - The 4-stream upload still refuses about 3,400–3,700 frames at the
+    mailbox.
+  - The receive side now shows `wg_rx_queue_full` about 8,500 and
+    `wg_rx_seq_gap` about 17,400 per run: returning ACKs are starved by the
+    priority-7 receive tasks.
+  - The deeper mailbox adds queueing latency. **dev.11 alone is not a release
+    candidate.** dev.12 (receive priority) and dev.13 (overload shedding)
+    address the two remaining causes.
