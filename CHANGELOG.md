@@ -6,7 +6,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [3.0.7-beta.2] — 2026-11-01 (pre-release)
+## [3.0.7-beta.3] — 2026-11-01 (pre-release)
 
 ### Changed
 
@@ -31,7 +31,7 @@ session (Wi-Fi uplink at about −53 dBm, LAN client to a Tailnet peer through
 the gateway, medians; measured on the same code before the web UI backlog
 change below):
 
-| | 3.0.6 | 3.0.7-beta.2 |
+| | 3.0.6 | 3.0.7 beta |
 |---|---:|---:|
 | One stream, download | 5.1 Mbit/s | 7.7 Mbit/s (+51 %) |
 | One stream, upload | 5.7 Mbit/s | 6.3 Mbit/s (+10 %) |
@@ -51,10 +51,13 @@ change below):
 - Under sustained upload a TCP flow could stall for 8–12 s or time out: full
   network queues dropped the returning acknowledgements. Tunnel pings were
   lost the same way.
-- A burst of parallel web UI requests could leave one waiting more than 10 s.
-  Connection attempts beyond the five-entry wait queue were dropped and
-  retried by the browser after 3 and 6 s. The queue now holds 12, which
-  together with the 4 served slots covers 16 parallel requests.
+- In a burst of parallel web UI requests some were reset or waited more than
+  10 s. When its 4 client slots were full, the server closed the least
+  recently used session, usually a request accepted a moment earlier, and
+  dropped connection attempts beyond a five-entry wait queue.
+  - New connections now wait in a 12-entry queue for a free slot.
+  - Only sessions idle for 5 s are closed, so a page that is open and
+    refreshing is never disconnected.
 - A temporary Service Gateway rule deleted before its deadline no longer
   produces a "temporary service rule(s) closed" announcement at expiry. The
   lease is still closed.

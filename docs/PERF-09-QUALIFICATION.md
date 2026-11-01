@@ -268,3 +268,21 @@ Successful reads are served about 4 at a time and complete in up to about
 each failure's type and time, and a burst-only diagnosis run on beta.2
 (`perf-burst1`) separates timeouts from connections closed by the server's
 LRU purge.
+
+**Burst diagnosis on beta.2** (`perf-burst1`, 11 min, 3 overload-burst
+benchmarks in both directions):
+- every failed status read was a `ConnectionResetError` 0.2–0.5 s after it
+  started;
+- no read timed out; the successful reads took at most 1.31 s;
+- 48/48 forwarded connections every time.
+
+The server's LRU purge closes the least-recently-used session to admit a new
+connection. That session is typically one accepted a moment earlier and
+still waiting for its request bytes. The longer backlog of beta.2 admitted
+more connections and so produced more of these resets.
+
+**Fix in 3.0.7-beta.3** (`main/web_idle.c`):
+- LRU purge is off, and new connections wait in the 12-entry backlog;
+- sessions idle for 5 s in both directions are closed by a once-a-second
+  sweep run as httpd work;
+- host test `tools/test_web_idle.py`.
