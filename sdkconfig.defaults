@@ -192,6 +192,10 @@ CONFIG_ESPTOOLPY_FLASHMODE="dio"
 # negotiate it; no-op against a peer that doesn't.
 CONFIG_LWIP_TCP_RCV_SCALE=2
 CONFIG_LWIP_TCP_RECVMBOX_SIZE=12
+# Accepted connections waiting for accept(), per listening socket. Matches the
+# web UI backlog (12): with 6, a burst of parallel admin requests had SYNs
+# dropped and retried after 3/6 s. One pointer per entry.
+CONFIG_LWIP_TCP_ACCEPTMBOX_SIZE=12
 # TCPIP thread input mailbox. Measured on 3.0.7-dev.10 with a 4-stream upload:
 # with 32 entries the STA input hook saw 3,600-4,200 refused frames per
 # 128 MB run. Wi-Fi delivers A-MPDU bursts of up to 32 frames, and decrypted
