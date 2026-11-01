@@ -286,3 +286,29 @@ more connections and so produced more of these resets.
 - sessions idle for 5 s in both directions are closed by a once-a-second
   sweep run as httpd work;
 - host test `tools/test_web_idle.py`.
+
+## Run on 3.0.7-beta.3 (2026-11-01, image `4e3abb98…2b0e`, source `08bc3e2`)
+
+**Verdict: REJECT (48/49).** 86.5 min, every step exited 0, no unexpected
+reboot, board back on 3.0.6.
+
+- **Both bursts passed:**
+  - 16/16 status reads during and after the burst, no failure;
+  - 48/48 forwarded connections.
+
+  The burst diagnosis before the run (`perf-burst2`, 12 bursts) had also
+  read 192/192 with no reset. The LRU-purge fix works.
+- UI p95 ≤ 0.71 s; internal minimum ≥ 43,239 B; all integrations exited 0.
+- **Failed:** 500 MB upload 4.968 Mbit/s against the ≥ 5.0 threshold
+  (download 5.23).
+
+Between the beta.2 run and this one the access point moved the uplink from
+**channel 11 to channel 1**, and RSSI dropped from −50/−51 to −56/−58 dBm
+(−61 dBm at the end). On channel 11 beta.2 had moved the same 500 MB at
+7.79 / 6.45 Mbit/s.
+
+The thresholds were fixed for about −52 dBm and are not changed. Two runs
+are queued:
+1. an interleaved 3.0.6 / beta.3 A/B under the current radio (`perf-ab-b3`);
+2. a PERF-09 rerun on the same image that starts only when the uplink is
+   back on channel 11 at ≥ −54 dBm (`perf09-beta3b`, radio gate, up to 10 h).
