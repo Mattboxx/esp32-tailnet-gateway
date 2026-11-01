@@ -375,3 +375,23 @@ operation; detailed step journal and exact live paths belong in the private
   withdrawn before its run. dev.14 (`f5c2ed6`, firmware.bin `3fd773b0…ebd2`)
   adds the HTTP server at priority 18 on top of dev.13 and is queued as
   `ab14-1` against dev.11 under the same rule.
+- **perf-final1 completed** (66 min, 24/24 benchmarks exit 0, board back on
+  3.0.6). Direct comparison in one session, phase order 3.0.6, dev.15, dev.14,
+  dev.14, dev.15, 3.0.6:
+
+  | Median | 3.0.6 | dev.14 | dev.15 |
+  |---|---:|---:|---:|
+  | 1 stream, Mbit/s | 5.10 / 5.74 | 7.56 / 6.50 | 7.68 / 6.32 |
+  | 4-stream upload, Mbit/s | 5.92 | 6.73 | 6.25 |
+  | U events / longest-wait median | 3 / 5.66 s | 0 / 0.64 s | 0 / 1.77 s |
+  | Tunnel ping idle / load / U | 9 / 34 / 53 ms | 5 / 42 / 56 ms | 4.5 / 31 / 34 ms |
+  | UI p95, 1-stream median / worst run | 0.24 / 1.50 s | 0.43 / 0.73 s | 0.32 / 0.40 s |
+  | Internal minimum | 45,519 B | 43,507 B | 43,607 B |
+
+  dev.15 4-stream-upload totals: `sta_input_refused` 0, `sta_input_shed`
+  29,204 (bulk only), `wg_rx_queue_full` 6, `wg_rx_seq_gap` 3,716 (about
+  17,400 per run on dev.11).
+
+  **Selected: dev.15** (latency and UI better than 3.0.6, no stalls). It
+  becomes 3.0.7-beta.1 with only the version string changed. Next: build,
+  `validate_all --build --browser`, then PERF-09 on the exact beta image.

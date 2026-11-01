@@ -6,6 +6,61 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.7-beta.1] — 2026-11-01 (pre-release)
+
+### Changed
+
+- Faster WireGuard data path on the ESP32-S3:
+  - ChaCha20 and Poly1305 run as hand-written Xtensa assembly from internal
+    instruction RAM.
+  - Each assembly routine is compared with the portable C code at first use,
+    and the device keeps using C if they disagree.
+  - `/api/system/diag` reports the result as `crypto_asm` (1 = in use).
+- The WireGuard socket is read in batches instead of one datagram per wake-up.
+  The network input queue is larger (64), and the UDP receive queue too (16).
+- The receive tasks and the web UI server run at the network stack's
+  priority, so returning traffic and the web UI are no longer starved during
+  heavy uploads.
+- Under overload the gateway drops bulk forwarded traffic first. It keeps
+  ARP, DHCP, DNS, ICMP, WireGuard, the web UI and its own control
+  connections. Bulk traffic may occupy at most 24 queue slots, fewer than
+  before, which keeps queueing delay short.
+
+Measured on one ESP32-S3 N16R8 reference gateway against 3.0.6 in the same
+session (Wi-Fi uplink at about −53 dBm, LAN client to a Tailnet peer through
+the gateway, medians):
+
+| | 3.0.6 | 3.0.7-beta.1 |
+|---|---:|---:|
+| One stream, download | 5.1 Mbit/s | 7.7 Mbit/s (+51 %) |
+| One stream, upload | 5.7 Mbit/s | 6.3 Mbit/s (+10 %) |
+| Four-stream upload | 5.9 Mbit/s | 6.2 Mbit/s (+6 %) |
+| Four-stream upload runs with a flow stalled for 5 s or more | 3 of 4 | 0 of 4 |
+| Tunnel ping idle / under load | 9 / 34 ms | 4.5 / 31 ms |
+| Web UI status p95, worst run under load | 1.5 s | 0.4 s |
+
+- With one busy stream the web UI p95 is about 80 ms higher than on 3.0.6
+  (0.32 s against 0.24 s).
+- Free internal RAM during traffic stays above 43 KB, about 2 KB less than
+  3.0.6.
+- Results depend on the radio link and the peer.
+
+### Fixed
+
+- Under sustained upload a TCP flow could stall for 8–12 s or time out: full
+  network queues dropped the returning acknowledgements. Tunnel pings were
+  lost the same way.
+- A temporary Service Gateway rule deleted before its deadline no longer
+  produces a "temporary service rule(s) closed" announcement at expiry. The
+  lease is still closed.
+
+### Added
+
+- `/api/operations` `forward_drops`: counters for frames dropped or refused on
+  the forwarding path, kept in RAM only and reset at boot. Covered: shed under
+  overload, refused by the input queue, Wi-Fi transmit, WireGuard
+  transmit/receive queues and packets missing before decryption.
+
 ## [3.0.6] — 2026-10-29
 
 ### Fixed
