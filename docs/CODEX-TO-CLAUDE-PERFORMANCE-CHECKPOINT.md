@@ -257,3 +257,12 @@ operation; detailed step journal and exact live paths belong in the private
   `build/private-device/perf09-dev8/` (verified USB data backup first, then
   dev.8, steps 2–9, back to 3.0.6; `python perf09_analyse.py .` gives the
   verdict). The launcher refuses until `perf09_dev8_authorized` is recorded.
+- PERF-09 run 2026-11-01 (86 min, board A, back on 3.0.6 with config
+  preserved): **REJECT 47/49**. Failed: step 3 round-2 4-stream upload (one
+  flow stalled >15 s, client timeout; earlier rounds and conc8 had passed) and
+  1/16 status reads timing out (10 s) after the 48-connection burst during
+  download. Everything else passed: 500 MB at 5.31/6.25 Mbit/s, UI 0 failures,
+  MQTT always connected, traffic internal min >= 43.8 KB, sockets back to 9,
+  integrations/reconnects/30 min observation exit 0, no unexpected reboot.
+  Next: interleaved 3.0.6/dev.8 repetition to classify regression vs
+  pre-existing; no release decision before that.

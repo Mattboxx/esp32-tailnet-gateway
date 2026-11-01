@@ -58,6 +58,63 @@ The verdict (ACCEPT/REJECT) is computed by the session's `perf09_analyse.py`. A
 REJECT is recorded with the failing criteria; thresholds are not loosened
 after the run.
 
+## Result (run 2026-11-01, board A, RSSI about −53 dBm)
+
+**Verdict: REJECT (47/49 criteria).** 86 minutes, all steps executed. A
+verified data backup was taken first. The board was back on 3.0.6 at the end:
+the switch verified that the protected regions were unchanged and that the
+configuration was preserved. Thresholds were not changed after the run.
+
+Failed criteria:
+
+1. **Step 3, round 2 upload (4 streams).**
+   - One of the four LAN→Tailnet TCP flows stopped making progress for more than
+     15 s, which is the client's per-operation socket timeout. The benchmark
+     therefore failed with `URLError: timed out` about 55 s into the round.
+   - That flow had carried the fewest bytes (7.5 MB, against 10–15 MB for the
+     others). The other three were then cancelled.
+   - The status sampling also showed one 15 s gap during the round.
+   - Round 1 download (4 streams) passed: 5.385 Mbit/s, fairness 0.91, hash PASS.
+     The benchmark stopped before the remaining runs.
+2. **Step 4, download overload.** After the 48-connection burst, 1 of 16
+   status reads exceeded the 10 s timeout. The other 15 succeeded, with a
+   maximum of 7.2 s.
+   - During the burst, 16/16 reads succeeded.
+   - Of the 48 forwarded connections, 47 connected and 1 timed out; none hung.
+   - In the upload direction everything passed, both during and after the burst.
+
+Passed criteria:
+
+| Area | Result |
+|---|---|
+| 500 MB transfers | download 5.314 Mbit/s, upload 6.249 Mbit/s, hash PASS |
+| Administration during traffic | 0 UI failures, p95 ≤ 1.26 s, max ≤ 1.63 s |
+| MQTT | connected in every sample |
+| Internal RAM during traffic | minimum ≥ 43,831 B, largest block 25,600 B |
+| Sockets | back to baseline (9) after every step |
+| Reaper fallbacks | 0 |
+| Module restarts | 0 |
+| Tools | SNMP, ntfy, web screening, web sessions, runtime restarts and the full candidate qualification (MQTT/HA lab, WoL, 2 Wi-Fi/control reconnects, 30 min observation) exited 0 |
+
+Reboots: none occurred outside steps 8–9. For steps 2–7 the uptime advanced
+with wall time, so no reboot was hidden. In step 9 the expected reboot
+happened about 5 s after the step started. The launcher's simple uptime
+comparison does not flag that case, but it is an allowed restart.
+
+The lifetime internal minimum fell to 39,523 B after the ntfy step (TLS). This
+is outside the traffic criterion and is recorded for information.
+
+Not established:
+
+- Whether 3.0.6 shows the same single-flow stall: this run measured only dev.8.
+  ab8 and conc8 had completed 4-stream uploads on both images.
+- The root cause. The likely explanation is TCP retransmission backoff on one
+  flow under saturation (core 1 at about 93 %), but this is not proven.
+
+Next: an interleaved 3.0.6/dev.8 repetition of the 4-stream upload and of the
+burst, to classify both failures as regression or pre-existing before any
+release decision.
+
 ## Not covered by this run (stated, not claimed)
 
 - Two independent real Tailnet identities, ACL positive/negative between them,

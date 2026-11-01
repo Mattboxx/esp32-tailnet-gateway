@@ -332,7 +332,7 @@ were recorded after the last Codex checkpoint (Claude, 2026-10-31).
 | PERF-06 | P2 | Precision memory/cache/buffer allocation | Measured speed/headroom tradeoff under concurrent services | dev.2 (IRAM placement of `INNER_BLOCK` + WG `poly1305_blocks`) built, placement verified, installed; same-position 3×32 MB median 5.23 vs 4.56 Mbit/s for 3.0.6 (+14.7 %), every run above the baseline maximum; interleaved A/B, isolation from the RX change and concurrency pending |
 | PERF-07 | P2 | Crypto hot-path improvements | Compatible, licensed, verified implementation improvement | Conditional on crypto cost |
 | PERF-08 | P2 | MTU/MSS/loss investigation | Correct packet sizing only when evidence supports it | Conditional on loss evidence |
-| PERF-09 | Blocking final gate | Integrated load/fault/regression qualification | Exact-image evidence and accept/reject decision | Not started |
+| PERF-09 | Blocking final gate | Integrated load/fault/regression qualification | Exact-image evidence and accept/reject decision | dev.8 run 2026-11-01: REJECT 47/49 (one 4-stream upload flow stalled >15 s; 1/16 status read timed out after a burst); classification against 3.0.6 pending, see PERF-09-QUALIFICATION.md |
 
 Dependencies matter more than the numbering: select the measured bottleneck,
 not every possible optimization. Implement on a dedicated experimental branch;
