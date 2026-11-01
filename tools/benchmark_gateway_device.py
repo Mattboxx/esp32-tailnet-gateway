@@ -289,6 +289,10 @@ def main():
                 largest_block_min=min((s['operations']['internal_largest'] for s in samples), default=None),
                 cpu_median=statistics.median([s['status']['cpu_load_pct'] for s in samples]) if samples else None,
                 control_pair_p95_s=percentile([s['control_pair_latency_s'] for s in samples], .95))
+            # Saturation counters (3.0.7-dev.10+): increase between the first and last sample.
+            drops = [s['operations']['forward_drops'] for s in samples if s['operations'].get('forward_drops')]
+            result['forward_drops_delta'] = ({k: drops[-1][k] - drops[0][k] for k in drops[-1]}
+                                             if len(drops) > 1 else None)
             if a.burst:
                 result['burst'] = burst_result or None   # None: the transfer ended before 15 s
             if a.ui_load:
