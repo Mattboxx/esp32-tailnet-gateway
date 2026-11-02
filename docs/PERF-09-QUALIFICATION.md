@@ -344,3 +344,12 @@ RSSI −52/−48 dBm). **REJECT (48/49).**
 The tool recorded only the error class. It now records the reason and a
 follow-up probe 2 s later; the pass rule is unchanged. PERF-09 is rerun
 in full on the same image (`perf09-beta3d`).
+
+**Second rerun on beta.3** (`perf09-beta3d`, 2026-11-02 07:01–08:28):
+**ACCEPT (49/49).** The 30 min observation had 0 errors in 60 samples. This
+is the first image to pass the full gate.
+
+beta.3 is still not published: its tunnel ping with one busy stream is ~6 ms
+above 3.0.6 (owner requirement: ping must improve in every case). 3.0.7-beta.4
+adds a small-packet receive lane and changes the receive path, so it needs
+its own ping A/B (`perf-ping1`, fixed verdict) and its own PERF-09.
