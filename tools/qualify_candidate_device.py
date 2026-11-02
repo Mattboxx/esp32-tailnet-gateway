@@ -68,8 +68,14 @@ def observe(api, minutes, result, log):
             st = api('/api/status', timeout=8)
             row.update(uptime_s=st['uptime_s'], connected=bool(st.get('tailscale', {}).get('connected')))
             row.update(ops(api))
-        except Exception as e:  # class only
+        except Exception as e:  # class plus a short reason (timeout, refused, reset)
             row['error'] = e.__class__.__name__
+            row['error_detail'] = str(getattr(e, 'reason', e))[:120]
+            try:   # informational follow-up 2 s later; the sample still counts as an error
+                time.sleep(2)
+                row['retry_uptime_s'] = api('/api/status', timeout=8)['uptime_s']
+            except Exception as again:
+                row['retry_error'] = str(getattr(again, 'reason', again))[:120]
         samples.append(row)
         log.write(json.dumps(row) + '\n'); log.flush()
         time.sleep(30)
