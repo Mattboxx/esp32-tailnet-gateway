@@ -442,3 +442,20 @@ operation; detailed step journal and exact live paths belong in the private
   - A read-only watcher (`watch-loss1`, poll every 5 min, up to 72 h) saves
     events, operations, diag, the RAM log and the pre-crash log at the first
     new Tailnet loss or reboot.
+- **First loss captured on beta.5** (2026-11-03 ~00:00, boot 149, uptime
+  8,151 s): `Tailnet connection lost: control-plane connection closed or
+  failed`. Reconnected at 8,266 s "after 1 failed attempts (last: initial
+  policy incomplete)". `tailnet_reconnects`: control_transport 1.
+  - The 16 KB RAM ring covers only ~100 s: MicroLink logs periodic DERP
+    HEARTBEAT (every 2 s) and status (every 10 s) at WARN. The lines at the
+    moment of the loss were overwritten before the 5 min poll. The watcher now
+    polls every 60 s (`watch-loss3`).
+  - During the outage WireGuard handshakes completed (`path=direct`), but
+    `ml_policy_suspend()` had suspended policy authority. So the gateway
+    blocked all Tailnet forwarding until a full re-registration delivered a
+    complete policy (fail closed on a transient control transport loss).
+  - Candidate fix (owner decision needed, security trade-off): keep enforcing
+    the last valid policy for a bounded grace after a transport-only control
+    loss. Fail closed on revocation, malformed policy or grace expiry. Also:
+    demote the periodic heartbeats, enlarge the ring, and do not tear down
+    on an incomplete initial map that later completes.
