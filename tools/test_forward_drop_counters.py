@@ -58,7 +58,7 @@ rx_input = wg.index('if (device->netif->input(pbuf, device->netif) == ERR_OK) {'
 assert wg.index('wg_tx_count_drop(&s_wg_rx_input_refused);', rx_input) - rx_input < 200
 assert 'ml_count_wg_rx_queue_drop();' in between(netio, 'case PKT_WIREGUARD:', 'free(data);  /* Queue full, drop */')
 assert 'if (target == ml->wg_rx_queue)\n            ml_count_wg_rx_queue_drop();' in between(
-    derp, 'if (xQueueSend(target, &pkt, 0) != pdTRUE) {', 'free(data);')
+    derp, 'if (queued != pdTRUE) {', 'free(data);')
 
 send_call = wg.index('result = wireguardif_peer_output(netif, pbuf, peer);')
 assert wg.index('if (result != ERR_OK) wg_tx_count_drop(&s_wg_tx_send_failed);', send_call) - send_call < 200
@@ -115,7 +115,7 @@ static void tcpip_drain(void) { for (unsigned i = 0; i < box_n; i++) box[i].fn(b
 #include <limits.h>
 #include <stddef.h>
 #define REJECT_AFTER_MESSAGES (0xFFFFFFFFFFFFFFFFULL - (1ULL << 13))
-struct wireguard_keypair { uint64_t replay_counter; uint32_t replay_bitmap; };
+struct wireguard_keypair { uint64_t replay_counter; uint64_t replay_bitmap; };
 '''
 
 tests = r'''
