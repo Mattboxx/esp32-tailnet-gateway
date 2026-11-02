@@ -429,3 +429,16 @@ operation; detailed step journal and exact live paths belong in the private
   Offline validation: 105/105.
 - Not yet installed. Board A no longer has 3.0.5 in ota_1, so installing an
   image there needs the owner's go-ahead.
+- **beta.5 installed on board A** (2026-11-02 21:35). The owner chose to have
+  it installed rather than update it himself.
+  - Method: the firmware's own local OTA upload, through
+    `tools/test_candidate_ota.py` (pinned SHA, single upload, 8 saved-setting
+    groups compared unchanged). Booted in 38 s and running from ota_0;
+    3.0.7-beta.4 is kept in ota_1 as the fallback.
+  - Checked after boot: `crypto_asm` 1/1, `tailnet_reconnects` present.
+  - Why not USB: the board booted ota_1, so a USB write would have needed a
+    raw otadata write.
+  - The board stays on beta.5.
+  - A read-only watcher (`watch-loss1`, poll every 5 min, up to 72 h) saves
+    events, operations, diag, the RAM log and the pre-crash log at the first
+    new Tailnet loss or reboot.
