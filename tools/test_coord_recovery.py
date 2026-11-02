@@ -15,6 +15,8 @@ start = source.index('static int do_start_long_poll(')
 request = source[start:source.index('\n}', start) + 2]
 start = source.index('        case COORD_FETCH_PEERS:')
 initial = source[start:source.index('                /* Signal registration only now', start)]
+start = source.index('static void note_ctrl_loss(')
+notes = source[start:source.index('ml->ctrl_retry_failures++;', start)] + 'ml->ctrl_retry_failures++;\n}\n'
 
 PROGRAM = r'''
 #include <assert.h>
@@ -24,7 +26,8 @@ PROGRAM = r'''
 #include <stdlib.h>
 #include <string.h>
 #include "cJSON.h"
-typedef struct {uint8_t wg_public_key[32],disco_public_key[32];} microlink_t;
+typedef struct {uint8_t wg_public_key[32],disco_public_key[32];
+    const char *ctrl_loss_reason;uint32_t ctrl_loss_count;const char *ctrl_retry_reason;uint32_t ctrl_retry_failures;} microlink_t;
 typedef struct {int unused;} ml_noise_state_t;
 static bool authority;
 static int suspended,closed,fetch_rc,stream_rc,stream_calls;
@@ -49,7 +52,7 @@ static int ml_h2_build_data_frame(uint8_t *p,size_t n,const uint8_t *data,size_t
 static int noise_send(microlink_t *ml,ml_noise_state_t *noise,const uint8_t *p,int n){
     (void)ml;(void)noise;(void)p;return n;
 }
-''' + request + r'''
+''' + notes + request + r'''
 static int do_map_exchange(microlink_t *ml,ml_noise_state_t *noise,bool fetch){
     (void)ml;(void)noise;
     if(fetch){authority=fetch_authority;return fetch_rc;}
@@ -88,6 +91,11 @@ int main(void){
     reset();fetch_rc=1;assert(initial_branch(&ml)==COORD_RECONNECTING&&closed==1&&!authority);
     reset();assert(initial_branch(&ml)==COORD_RECONNECTING&&closed==1&&!authority);
     reset();fetch_rc=-1;assert(initial_branch(&ml)==COORD_RECONNECTING&&closed==1&&stream_calls==0);
+    /* Each failed attempt is recorded with its reason; a loss clears the attempt tally. */
+    assert(ml.ctrl_retry_failures>=4&&ml.ctrl_retry_reason&&!strcmp(ml.ctrl_retry_reason,"MapRequest failed"));
+    note_ctrl_loss(&ml,"control-plane map stream silent");
+    assert(ml.ctrl_loss_count==1&&ml.ctrl_retry_failures==0&&!ml.ctrl_retry_reason);
+    assert(!strcmp(ml.ctrl_loss_reason,"control-plane map stream silent"));
     puts("PASS actual coordinator: fresh-map requests after loss; full initial/stream map only; timeout/delta/incomplete/fetch failure reconnect closed (transport stubs)");
 }
 '''

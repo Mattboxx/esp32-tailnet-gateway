@@ -441,6 +441,21 @@ cJSON *homelab_ops_snapshot(bool detailed) {
         cJSON_AddNumberToObject(drops,"wg_rx_seq_gap",wg_rx_gap);
         cJSON_AddNumberToObject(drops,"wg_rx_seq_late",wg_rx_late);
     }
+    {   /* Control-plane and DERP reconnect causes since boot (MicroLink). */
+        struct microlink_s *ml=tailscale_get_microlink();
+        microlink_diag_t d;
+        if(ml&&microlink_get_diag(ml,&d)==ESP_OK){
+            cJSON *rc=cJSON_AddObjectToObject(root,"tailnet_reconnects");
+            cJSON_AddNumberToObject(rc,"control_transport",d.rc_coord_transport);
+            cJSON_AddNumberToObject(rc,"control_stream_watchdog",d.rc_coord_stream_wd);
+            cJSON_AddNumberToObject(rc,"derp_rx_watchdog",d.rc_derp_rx_wd);
+            cJSON_AddNumberToObject(rc,"derp_retry",d.rc_derp_retry);
+            cJSON_AddNumberToObject(rc,"control_losses",d.ctrl_loss_count);
+            cJSON_AddStringToObject(rc,"last_loss",d.ctrl_loss_reason);
+            cJSON_AddNumberToObject(rc,"failed_attempts_since",d.ctrl_retry_failures);
+            cJSON_AddStringToObject(rc,"last_failed_attempt",d.ctrl_retry_reason);
+        }
+    }
     cJSON_AddNumberToObject(root,"task_reaper_pending",task_reaper_pending());cJSON_AddNumberToObject(root,"task_reaper_fallbacks",task_reaper_fallbacks());cJSON_AddNumberToObject(root,"task_reaper_reaped",task_reaper_reaped());
     cJSON_AddNumberToObject(root,"minimum_internal",s.minimum_internal);cJSON_AddNumberToObject(root,"minimum_largest",s.minimum_largest);
     cJSON_AddNumberToObject(root,"socket_reserve",s.socket_reserve);cJSON_AddNumberToObject(root,"interval_s",s.interval_s);

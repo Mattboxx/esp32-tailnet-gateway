@@ -269,6 +269,28 @@ static void store_sample(const history_sample_t *s)
     memset(&s_merge, 0, sizeof s_merge);
 }
 
+/* Tailnet event text with the control-plane cause MicroLink recorded:
+ * "Tailnet connection lost: <cause>" when a new loss was noted since the
+ * last lost event, and "Tailnet connected after N failed attempts (last:
+ * <reason>)" when reconnect attempts failed. Plain texts otherwise (for
+ * example a loss caused by the uplink, which has its own event). */
+static void tailnet_event_text(bool up, const microlink_diag_t *d, uint32_t *seen_losses, char *out, size_t n)
+{
+    if (!up) {
+        if (d && d->ctrl_loss_count != *seen_losses && d->ctrl_loss_reason[0]) {
+            *seen_losses = d->ctrl_loss_count;
+            snprintf(out, n, "Tailnet connection lost: %s", d->ctrl_loss_reason);
+        } else {
+            snprintf(out, n, "Tailnet connection lost");
+        }
+    } else if (d && d->ctrl_retry_failures && d->ctrl_retry_reason[0]) {
+        snprintf(out, n, "Tailnet connected after %u failed attempts (last: %s)",
+                 (unsigned)d->ctrl_retry_failures, d->ctrl_retry_reason);
+    } else {
+        snprintf(out, n, "Tailnet connected");
+    }
+}
+
 static void history_task(void *arg)
 {
     (void)arg;
@@ -308,9 +330,15 @@ static void history_task(void *arg)
             next_poll = now + POLL_PERIOD;
             int state = tailscale_is_connected();
             if (state == tailnet_seen && state != tailnet_state) {   /* stable for two polls */
-                if (tailnet_state != -1 || state)
-                    history_event(HIST_EV_TAILNET, state ? HIST_INFO : HIST_WARN,
-                                  state ? "Tailnet connected" : "Tailnet connection lost");
+                if (tailnet_state != -1 || state) {
+                    static uint32_t seen_losses;
+                    microlink_diag_t diag;
+                    struct microlink_s *ml = tailscale_get_microlink();
+                    bool have = ml && microlink_get_diag(ml, &diag) == ESP_OK;
+                    char text[HIST_TEXT_MAX + 1];
+                    tailnet_event_text(state, have ? &diag : NULL, &seen_losses, text, sizeof text);
+                    history_event(HIST_EV_TAILNET, state ? HIST_INFO : HIST_WARN, text);
+                }
                 tailnet_state = state;
             }
             tailnet_seen = state;

@@ -162,6 +162,9 @@ static char *s_pktbuf = NULL;           /* cleaned line                   */
 static int   s_rawpos = 0;
 
 static vprintf_like_t s_original_vprintf = NULL;
+/* Memory sink for lines the console drops (sdlog_set_memory_sink). */
+static vprintf_like_t s_mem_store = NULL;
+static _Atomic uint8_t s_mem_level = SDLOG_LVL_OFF;
 
 /* microlink handle for the Phase B SNAP line. Set by main once microlink
  * is initialised; NULL until then (SNAP degrades to heap/uptime only). */
@@ -210,8 +213,17 @@ static void apply_master_level(void)
 {
     uint8_t con = atomic_load(&s_console_level);
     uint8_t sd  = atomic_load(&s_enabled) ? atomic_load(&s_sd_level) : SDLOG_LVL_OFF;
+    uint8_t mem = s_mem_store ? atomic_load(&s_mem_level) : SDLOG_LVL_OFF;
     uint8_t m   = (con > sd) ? con : sd;
+    if (mem > m) m = mem;
     esp_log_level_set("*", (esp_log_level_t)m);
+}
+
+void sdlog_set_memory_sink(vprintf_like_t store, uint8_t level)
+{
+    atomic_store(&s_mem_level, (level <= SDLOG_LVL_INFO) ? level : SDLOG_LVL_WARN);
+    s_mem_store = store;
+    apply_master_level();
 }
 
 static void save_u8(const char *key, uint8_t v)
@@ -616,11 +628,16 @@ static int sdlog_vprintf(const char *fmt, va_list args)
      * continuation fragments inherit it. esp_log serialises hook calls, so
      * the static line state is safe. */
     static bool s_con_emit = true;
+    static bool s_mem_emit = false;
     static bool s_con_at_line_start = true;
     uint8_t clvl = atomic_load(&s_console_level);
     if (s_con_at_line_start) {
         const char *cs;
-        s_con_emit = level_passes(extract_level(fmt, &cs), clvl);
+        char lv = extract_level(fmt, &cs);
+        s_con_emit = level_passes(lv, clvl);
+        /* Only what the console drops: printed lines reach the ring through
+         * the chained vprintf already. */
+        s_mem_emit = !s_con_emit && s_mem_store && level_passes(lv, atomic_load(&s_mem_level));
     }
     {
         size_t fl = strlen(fmt);
@@ -631,6 +648,8 @@ static int sdlog_vprintf(const char *fmt, va_list args)
     if (s_con_emit) {
         ret = s_original_vprintf ? s_original_vprintf(fmt, args)
                                  : vprintf(fmt, args);
+    } else if (s_mem_emit && s_mem_store) {
+        s_mem_store(fmt, args);   /* exclusive with the console path: args unused there */
     }
 
     if (!atomic_load(&s_enabled) || tl_in_sdlog || !s_queue) {

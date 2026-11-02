@@ -21,6 +21,11 @@ extern "C" {
  * allocation fails. */
 esp_err_t log_capture_init(size_t bytes);
 
+#include <stdarg.h>
+/* Formats one log line into the ring without printing it (the sdlog memory
+ * sink for warnings the console level suppresses). */
+int log_capture_store(const char *fmt, va_list args);
+
 /* Copy the buffer contents into `out` in chronological order (oldest
  * first). Returns the number of bytes written (always <= out_size-1, a
  * trailing NUL is added). If the buffer wrapped, the returned text
