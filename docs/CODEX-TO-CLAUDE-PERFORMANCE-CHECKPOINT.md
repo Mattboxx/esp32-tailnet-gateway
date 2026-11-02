@@ -407,3 +407,25 @@ operation; detailed step journal and exact live paths belong in the private
     tunnel ping.
   - beta.4 (small-packet receive lane) is under the ping A/B `perf-ping1`; if
     it wins, it needs its own PERF-09 before publication.
+- **Daily Tailnet loss investigation (2026-11-02).** Read-only dump of board A
+  (`diag-dump1`, running 3.0.7-beta.4 from ota_1, which the owner installed
+  with the GitHub updater).
+  - Boot 146, uptime 22,051 s: Tailnet lost with no uplink loss, back after
+    140 s. During the reconnect: `MapResponse JSON parse failed near:
+    RegionI…`.
+  - Boot 146, uptime 26,467 s: Wi-Fi lost (reason 200, beacon timeout),
+    back after 4 s; Tailnet back after 30 s.
+  - No microSD; console level ERROR. The WARN lines that name a reconnect
+    cause were therefore never generated, and the RAM ring only kept console
+    output.
+- 3.0.7-beta.5 (`ed6c224`, MicroLink `bdf2843`, firmware.bin
+  `5100a073…5ecd`) adds:
+  - a sdlog memory sink, so the RAM ring keeps WARN at any console level;
+  - MicroLink loss and attempt-failure reasons;
+  - Tailnet events with the cause;
+  - `/api/operations.tailnet_reconnects`;
+  - a detailed MapResponse parse report.
+
+  Offline validation: 105/105.
+- Not yet installed. Board A no longer has 3.0.5 in ota_1, so installing an
+  image there needs the owner's go-ahead.
