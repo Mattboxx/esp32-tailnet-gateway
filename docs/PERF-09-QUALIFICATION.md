@@ -331,3 +331,16 @@ On the same radio beta.3 is ahead of 3.0.6 on every metric except
 single-stream UI p95, which is 25 ms higher. The 500 MB upload shortfall in
 the PERF-09 run comes from the link, not from a firmware regression. The
 radio-gated PERF-09 rerun is still required before publication.
+
+**Rerun on beta.3** (`perf09-beta3c`, 2026-11-02 05:22–06:59, channel 1,
+RSSI −52/−48 dBm). **REJECT (48/49).**
+- 500 MB transfers: 5.219 / 5.192 Mbit/s (pass).
+- Both bursts: 0/16 status reads failed after the burst (pass).
+- **Failed:** the candidate qualification's 30 min observation. 1 of 60
+  status samples over the Tailnet address raised `URLError`. The previous
+  and next samples were normal and connected, and uptime never went back
+  (no reset).
+
+The tool recorded only the error class. It now records the reason and a
+follow-up probe 2 s later; the pass rule is unchanged. PERF-09 is rerun
+in full on the same image (`perf09-beta3d`).
