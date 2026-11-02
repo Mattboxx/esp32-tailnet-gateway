@@ -6,6 +6,28 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.7-beta.5] — 2026-11-02 (pre-release)
+
+### Fixed
+
+- Warnings were not kept anywhere when the console was set to errors and no
+  microSD card was fitted, so the reasons for a Tailnet or uplink reconnect
+  were lost. The in-memory log (and the pre-crash log) now keeps warnings and
+  errors regardless of the console level.
+
+### Added
+
+- Tailnet events name their cause:
+  - "Tailnet connection lost: control-plane map stream silent", or the
+    watchdog, PING, connection or key-expiry cause;
+  - "Tailnet connected after N failed attempts (last: registration failed)",
+    or the other failed step.
+- Notifications recognise both the plain and the detailed texts.
+- `/api/operations` → `tailnet_reconnects`: per-cause counters since boot,
+  plus the last loss and the last failed attempt.
+- A control-plane netmap that cannot be parsed is reported with its error
+  offset, size and HTTP/2 frame details.
+
 ## [3.0.7-beta.4] — 2026-11-02 (pre-release)
 
 ### Changed
