@@ -395,3 +395,15 @@ operation; detailed step journal and exact live paths belong in the private
   **Selected: dev.15** (latency and UI better than 3.0.6, no stalls). It
   becomes 3.0.7-beta.1 with only the version string changed. Next: build,
   `validate_all --build --browser`, then PERF-09 on the exact beta image.
+- **Published 2026-11-02: v3.0.7-beta.3 pre-release**
+  (https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v3.0.7-beta.3).
+  - Tag target `08bc3e2`, firmware.bin `4e3abb98…2b0e`.
+  - PERF-09 ACCEPT 49/49 on this exact image.
+  - 10 assets; the GitHub digests match the local files. v3.0.6 stays Latest.
+  - Pushed branches: `perf/crypto-fast-20261031` to the project fork and to
+    Mattboxx/microlink.
+  - Owner's decision: the ping constraint was dropped in favour of the best
+    trade-off. The release notes state the about 6 ms higher single-stream
+    tunnel ping.
+  - beta.4 (small-packet receive lane) is under the ping A/B `perf-ping1`; if
+    it wins, it needs its own PERF-09 before publication.
