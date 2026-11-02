@@ -373,3 +373,16 @@ RSSI −46…−53 dBm, board back on 3.0.6). Medians, 3.0.6 against beta.4:
 - Reordered packets are accepted late (`wg_rx_seq_late`), not rejected.
 - Decision: beta.4 is the better trade-off. PERF-09 runs on the exact image
   (`perf09-beta4`), and it is published as the next beta only on ACCEPT.
+
+## Run on 3.0.7-beta.4 (2026-11-02 09:02–10:30, image `83c54846…55f0`, source `cf3eb56`, MicroLink `e55fd6c`)
+
+**Verdict: ACCEPT (49/49).**
+- RSSI −51/−52 dBm.
+- 500 MB transfers at 7.578 / 6.371 Mbit/s; both bursts 0/16 failed after.
+- 30 min observation clean.
+- Board back on 3.0.6.
+
+**Published** as the `v3.0.7-beta.4` pre-release:
+- tag `cf3eb56`, 10 assets; the GitHub digests match the local files;
+- v3.0.6 stays Latest, and beta.3 is marked superseded;
+- consolidated offline validation of the source: 111/111.
