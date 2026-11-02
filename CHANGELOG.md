@@ -6,7 +6,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [3.0.7-beta.3] — 2026-11-01 (pre-release)
+## [3.0.7-beta.4] — 2026-11-02 (pre-release)
 
 ### Changed
 
@@ -21,6 +21,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The receive tasks and the web UI server run at the network stack's
   priority, so returning traffic and the web UI are no longer starved during
   heavy uploads.
+- Small tunnel packets (pings, TCP acknowledgements, keepalives, handshakes)
+  are decrypted before queued full-size data packets, so they do not wait
+  behind a running transfer. The WireGuard replay window grows from 32 to 64
+  packets to allow that reordering.
 - Under overload the gateway drops bulk forwarded traffic first. It keeps
   ARP, DHCP, DNS, ICMP, WireGuard, the web UI and its own control
   connections. Bulk traffic may occupy at most 24 queue slots, fewer than
