@@ -353,3 +353,23 @@ beta.3 is still not published: its tunnel ping with one busy stream is ~6 ms
 above 3.0.6 (owner requirement: ping must improve in every case). 3.0.7-beta.4
 adds a small-packet receive lane and changes the receive path, so it needs
 its own ping A/B (`perf-ping1`, fixed verdict) and its own PERF-09.
+
+**Ping A/B 3.0.6 / beta.4** (`perf-ping1`, 2026-11-02 08:29–09:00, A B B A,
+RSSI −46…−53 dBm, board back on 3.0.6). Medians, 3.0.6 against beta.4:
+
+| Metric | 3.0.6 | beta.4 |
+|---|---:|---:|
+| Idle ping | 11.5 ms | 5 ms |
+| Ping, one-stream download | 19 ms | 25 ms |
+| Ping, one-stream upload | 31 ms | 24 ms |
+| Ping, four-stream upload | 47 ms (p90 105) | 32 ms (p90 45) |
+| Throughput D / P / U | 4.94 / 5.92 / 5.77 Mbit/s | 7.60 / 6.31 / 6.27 Mbit/s |
+| Failed benchmarks | 1 | 0 |
+
+- The fixed rule gives REJECT on the download-ping criterion. The owner then
+  removed the ping constraint in favour of the best trade-off.
+- The download reply leaves through the same Wi-Fi transmit queue as 54 %
+  more forwarded data. The receive lane cannot shorten that.
+- Reordered packets are accepted late (`wg_rx_seq_late`), not rejected.
+- Decision: beta.4 is the better trade-off. PERF-09 runs on the exact image
+  (`perf09-beta4`), and it is published as the next beta only on ACCEPT.
