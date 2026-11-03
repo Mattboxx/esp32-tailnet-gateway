@@ -491,6 +491,14 @@ operation; detailed step journal and exact live paths belong in the private
   - Host tests: policy_protocols (modes, delta/malformed/reset/expiry),
     tailnet_event_text (transitions), control_loss_setting (new); the eight
     policy drivers and peer_convergence pass. Full offline validation 112/112 PASS (with browser).
-  - Next: owner authorization to install on board A, PERF-09 on the exact
-    image, then the beta pre-release. Watcher `watch-loss5` (beta.6) still
-    occupies the lab runner.
+- **3.0.7-beta.7 installed** (2026-11-03 23:16, owner "Yes, install it"):
+  rebuilt clean from `e18eb02`, firmware.bin `3099fb72…986b`, provenance
+  PASS; local OTA into ota_0, beta.6 in ota_1; 8 setting groups unchanged;
+  mode keep, grace 300 s.
+- **PERF-09 beta.7: REJECT 46/49** (docs/PERF-09-QUALIFICATION.md): internal
+  minimum 39,655–39,811 B < 40,000 B in two steps, plus the by-design "back on
+  3.0.6". Constant +3 sockets since 2026-11-02 (environment/config, not the
+  beta.7 code) explain ~2.4 KB. Not published. Next: identify the 3 sockets
+  with the owner, then a targeted rerun of the three traffic steps.
+- Watcher `watch-loss6` (beta.7, also catches "Tailnet control connection
+  lost") running from boot 154.

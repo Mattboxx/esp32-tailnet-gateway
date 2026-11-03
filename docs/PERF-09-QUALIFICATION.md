@@ -386,3 +386,26 @@ RSSI −46…−53 dBm, board back on 3.0.6). Medians, 3.0.6 against beta.4:
 - tag `cf3eb56`, 10 assets; the GitHub digests match the local files;
 - v3.0.6 stays Latest, and beta.3 is marked superseded;
 - consolidated offline validation of the source: 111/111.
+
+## 3.0.7-beta.7 result (run 2026-11-03/04, board A stays on beta.7)
+
+Image `3099fb72…986b` (source `e18eb02`, MicroLink `8a70880`), installed by
+local OTA into ota_0 (beta.6 kept in ota_1). No USB link was available, so no
+fresh step-0 backup: the verified 2026-11-02 backup is the recovery basis.
+The board stays on beta.7 by the owner's choice (criterion "back on 3.0.6"
+fails by design).
+
+**Verdict: REJECT, 46/49.** Besides the end-state criterion, the internal-RAM
+floor failed in two steps: minimum 39,811 B (500 MB) and 39,655 B (overload
+burst) against 40,000 B. Every other criterion passed: hashes, 6.47 / 5.74
+Mbit/s on 500 MB, UI p95 ≤ 0.6 s, 48/48 burst connections, sockets and
+restarts back to baseline, SNMP, ntfy, web, runtime restarts, MQTT/WoL/Wi-Fi.
+
+Cause found so far: 3 more sockets in use at every snapshot (12 instead of 9,
+also 11 vs 8 with MQTT off), constant across restarts, about 2.4 KB of internal
+RAM. They were already present on beta.5 (2026-11-02 21:47, 12 sockets,
+40,731 B free); beta.7 idle (40,331 B at 12 sockets) matches beta.5 idle
+(40,363 B at 12 sockets). Static RAM is identical to beta.4 (+8 B) and no
+change since beta.4 opens a socket. So the deficit follows a change in the
+board's environment or configuration after 2026-11-02 10:00, not the beta.7
+code; it is not yet identified. Not publishable under the fixed thresholds.
