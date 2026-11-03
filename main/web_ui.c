@@ -54,6 +54,7 @@
 #include "service_lease.h"
 #include "service_check.h"
 #include "ml_policy.h"
+#include "control_loss.h"
 #include "service_evidence.h"
 #include "eth_uplink.h"
 #include "service_diagnostics.h"
@@ -3273,6 +3274,8 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(settings, "default_derp_region",     tailscale_default_derp_region);
     cJSON_AddBoolToObject  (settings, "netcheck_override",       tailscale_netcheck_override != 0);
     cJSON_AddNumberToObject(settings, "netcheck_threshold_ms",   tailscale_netcheck_threshold_ms);
+    cJSON_AddStringToObject(settings, "control_loss_mode",       control_loss_mode_name(tailscale_control_loss_mode));
+    cJSON_AddNumberToObject(settings, "control_loss_grace_s",    tailscale_control_loss_grace_s);
     cJSON_AddBoolToObject  (settings, "lan_bypass",              tailscale_lan_bypass != 0);
     cJSON_AddBoolToObject  (settings, "accept_routes",           tailscale_accept_routes != 0);
     cJSON_AddBoolToObject  (settings, "snat_subnet_routes",      tailscale_snat_subnet_routes != 0);
@@ -3302,6 +3305,9 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     ml_policy_status_t ts_runtime_policy;
     ml_policy_get_status(&ts_runtime_policy);
     cJSON_AddBoolToObject(runtime, "authority_ready", ts_runtime_policy.authority_ready);
+    /* Control plane unreachable, last policy still enforced (keep/bounded). */
+    cJSON_AddBoolToObject(runtime, "control_stale", ts_runtime_policy.control_stale);
+    cJSON_AddNumberToObject(runtime, "control_stale_ms", ts_runtime_policy.control_stale ? ts_runtime_policy.stale_ms : 0);
     if (tailscale_tunnel_ip) {
         char buf[16];
         ip4_to_str(tailscale_tunnel_ip, buf, sizeof buf);
@@ -3510,6 +3516,15 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
                                 "invalid Tailscale settings: routes max 400 bytes, peers 1-64, DERP 0-65535, threshold 0-5000");
             return ESP_FAIL;
         }
+        const cJSON *loss_mode = cJSON_GetObjectItem(s, "control_loss_mode");
+        const cJSON *loss_grace = cJSON_GetObjectItem(s, "control_loss_grace_s");
+        if ((loss_mode && (!cJSON_IsString(loss_mode) || control_loss_mode_parse(loss_mode->valuestring) < 0))
+            || (loss_grace && (!cJSON_IsNumber(loss_grace) || !control_loss_grace_valid(loss_grace->valuedouble)))) {
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                                "invalid control-loss setting: mode keep, bounded or strict; grace 30-86400 s");
+            return ESP_FAIL;
+        }
         const cJSON *advertise_exit = cJSON_GetObjectItem(s, "advertise_exit_node");
         const cJSON *selected_exit = cJSON_GetObjectItem(s, "exit_node_ip");
         bool want_advertise_exit = cJSON_IsBool(advertise_exit)
@@ -3581,6 +3596,11 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
         save_int_if_present(s, "max_peers",        "ts_maxpeers");
         save_int_if_present(s, "default_derp_region",   "ts_def_derp");
         save_int_if_present(s, "netcheck_threshold_ms", "ts_nc_thr");
+        save_int_if_present(s, "control_loss_grace_s",  "ts_loss_grace");
+        const cJSON *loss_mode = cJSON_GetObjectItem(s, "control_loss_mode");
+        if (cJSON_IsString(loss_mode)) {
+            nvs_save_int("ts_loss_mode", control_loss_mode_parse(loss_mode->valuestring));
+        }
 
         const cJSON *bool_keys[][2] = {
             { cJSON_GetObjectItem(s, "advertise_ap"),      (void *)"ts_adv_ap" },
@@ -3693,6 +3713,12 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
             _TS_REFRESH_BOOL("accept_routes",           tailscale_accept_routes);
             _TS_REFRESH_BOOL("snat_subnet_routes",      tailscale_snat_subnet_routes);
             _TS_REFRESH_BOOL("advertise_exit_node",     tailscale_advertise_exit_node);
+            _TS_REFRESH_NUM ("control_loss_grace_s",    tailscale_control_loss_grace_s);
+            const cJSON *loss_mode = cJSON_GetObjectItem(s, "control_loss_mode");
+            if (cJSON_IsString(loss_mode)) tailscale_control_loss_mode = control_loss_mode_parse(loss_mode->valuestring);
+            /* Applies live: no restart needed for this one. */
+            ml_policy_set_control_loss((uint8_t)tailscale_control_loss_mode,
+                                       (uint32_t)tailscale_control_loss_grace_s);
 
             #undef _TS_REFRESH_STR
             #undef _TS_REFRESH_BOOL

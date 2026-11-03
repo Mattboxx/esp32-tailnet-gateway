@@ -132,6 +132,7 @@ bool history_point_age(uint32_t now_wall, uint32_t now_up, uint16_t now_boot,
 #include "tailscale_config.h"
 #include "web_ui.h"
 #include "microlink.h"
+#include "ml_policy.h"
 #include "esp_app_desc.h"
 #include "esp_attr.h"
 #include "esp_heap_caps.h"
@@ -294,6 +295,47 @@ static void tailnet_event_text(bool up, const microlink_diag_t *d, uint32_t *see
     }
 }
 
+enum { TAILNET_DOWN = 0, TAILNET_STALE = 1, TAILNET_UP = 2 };
+
+/* Event state of the Tailnet. STALE: only the control connection is lost,
+ * the last policy is still enforced (keep mode, or bounded mode within its
+ * grace) and the DERP relay is up, so traffic keeps flowing as with the
+ * official client. That is not an outage and must not open one. */
+static int tailnet_link_state(bool connected, bool control_stale, bool derp_up)
+{
+    return connected ? TAILNET_UP : control_stale && derp_up ? TAILNET_STALE : TAILNET_DOWN;
+}
+
+/* Text and level for a stable change of the event state. False when nothing
+ * is recorded and the tracked state must stay as it was: the initial down
+ * state, and traffic resuming on the last policy while the control plane is
+ * still unreachable (the outage stays open until "Tailnet connected"). */
+static bool tailnet_transition(int from, int to, const microlink_diag_t *d, uint32_t *seen_losses,
+                               char *out, size_t n, bool *warn)
+{
+    static const char lost[] = "Tailnet connection lost";
+    if (to == TAILNET_STALE) {
+        if (from != TAILNET_UP) return false;
+        char base[HIST_TEXT_MAX + 1];
+        tailnet_event_text(false, d, seen_losses, base, sizeof base);
+        /* The suffix is ": <cause up to 47> (code <int32>)", at most 68 chars,
+         * so the whole text fits HIST_TEXT_MAX. */
+        snprintf(out, n, "Tailnet control connection lost%.72s (traffic continues with the last policy)",
+                 base + sizeof lost - 1);
+        *warn = false;   /* informational: no outage, no "important" notification */
+        return true;
+    }
+    if (from == TAILNET_STALE && to == TAILNET_UP) {
+        snprintf(out, n, "Tailnet control connection restored");
+        *warn = false;
+        return true;
+    }
+    if (from == -1 && to == TAILNET_DOWN) return false;
+    tailnet_event_text(to == TAILNET_UP, d, seen_losses, out, n);
+    *warn = to != TAILNET_UP;
+    return true;
+}
+
 static void history_task(void *arg)
 {
     (void)arg;
@@ -331,18 +373,27 @@ static void history_task(void *arg)
         }
         if ((cfg.events || sink) && now >= next_poll) {
             next_poll = now + POLL_PERIOD;
-            int state = tailscale_is_connected();
+            struct microlink_s *ml = tailscale_get_microlink();
+            microlink_diag_t diag;
+            bool have = false, connected = tailscale_is_connected(), stale = false;
+            if (!connected) {   /* the policy and relay only matter while disconnected */
+                ml_policy_status_t policy;
+                ml_policy_get_status(&policy);
+                have = ml && microlink_get_diag(ml, &diag) == ESP_OK;
+                stale = policy.control_stale;
+            }
+            int state = tailnet_link_state(connected, stale, have && diag.derp_connected);
             if (state == tailnet_seen && state != tailnet_state) {   /* stable for two polls */
-                if (tailnet_state != -1 || state) {
-                    static uint32_t seen_losses;
-                    microlink_diag_t diag;
-                    struct microlink_s *ml = tailscale_get_microlink();
-                    bool have = ml && microlink_get_diag(ml, &diag) == ESP_OK;
-                    char text[HIST_TEXT_MAX + 1];
-                    tailnet_event_text(state, have ? &diag : NULL, &seen_losses, text, sizeof text);
-                    history_event(HIST_EV_TAILNET, state ? HIST_INFO : HIST_WARN, text);
+                static uint32_t seen_losses;
+                if (!have) have = ml && microlink_get_diag(ml, &diag) == ESP_OK;
+                char text[HIST_TEXT_MAX + 1];
+                bool warn = false;
+                if (tailnet_transition(tailnet_state, state, have ? &diag : NULL, &seen_losses, text, sizeof text, &warn)) {
+                    history_event(HIST_EV_TAILNET, warn ? HIST_WARN : HIST_INFO, text);
+                    tailnet_state = state;
+                } else if (state != TAILNET_STALE) {
+                    tailnet_state = state;
                 }
-                tailnet_state = state;
             }
             tailnet_seen = state;
         }

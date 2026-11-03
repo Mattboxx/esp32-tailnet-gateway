@@ -6,6 +6,34 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.7-beta.7] — 2026-11-03 (pre-release)
+
+### Fixed
+
+- Traffic over the Tailnet stopped for 30–115 s whenever the control-plane
+  connection dropped (for example the coordination server closing the
+  long-poll), even though Wi-Fi, DERP and the WireGuard tunnels were still
+  up. Like the official Tailscale client, the gateway now keeps enforcing the
+  last policy it received until a fresh one arrives. Nothing new is granted
+  meanwhile, and a malformed policy, an explicit disconnect or an expired key
+  still block immediately.
+
+### Added
+
+- Tailscale → "Advanced: control-plane outage" selects what happens while the
+  coordination server is unreachable: keep the last policy (default, like the
+  official client), keep it for a limited time (1 minute to 24 hours), or
+  block traffic immediately (strict, the previous behaviour). It applies
+  immediately, without a restart. `/api/tailscale` exposes it as
+  `control_loss_mode` (`keep`, `bounded`, `strict`) and `control_loss_grace_s`,
+  and reports `runtime.control_stale`.
+- A control-plane loss while traffic continues is recorded as an informational
+  event, "Tailnet control connection lost: <cause> (traffic continues with the
+  last policy)", followed by "Tailnet control connection restored". It does
+  not open an outage or send an important-event notification. When the
+  limited time ends or the relay is lost too, the usual "Tailnet connection
+  lost" event follows.
+
 ## [3.0.7-beta.6] — 2026-11-03 (pre-release)
 
 ### Changed

@@ -474,5 +474,23 @@ operation; detailed step journal and exact live paths belong in the private
     diagnostics; DERP heartbeat/status and successful WireGuard handshake
     lines back to INFO.
   - Offline validation 105/105. The watcher `watch-loss5` is running.
-- **Owner decision still open:** whether to keep the last valid policy for
-  ≤ 5 min during a transport-only control loss.
+- **Owner decision (2026-11-03):** approved, as an advanced selectable
+  setting whose default behaves like the official client (ADR-025).
+- **3.0.7-beta.7 built** (not installed, not published).
+  - Source: parent working tree on `c4620a6` plus the uncommitted beta.7
+    changes; MicroLink `8a70880` (`9fcb234` modes, `8a70880` DERP diag).
+    firmware.bin `bd4ade78…b848`, 2,283,744 B; RAM static 56,012 B. Hashes in
+    `build/development-3.0.7-beta.7/SHA256SUMS`.
+  - Control-loss modes keep (default) / bounded (30 s–24 h) / strict; API
+    `control_loss_mode`, `control_loss_grace_s`, `runtime.control_stale`;
+    Tailscale → "Advanced: control-plane outage" in 6 languages; NVS
+    `ts_loss_mode`/`ts_loss_grace`, applied at boot and live after a save.
+  - A control loss with the policy kept and DERP up is an INFO event ("Tailnet
+    control connection lost: … (traffic continues with the last policy)") and
+    does not open an outage.
+  - Host tests: policy_protocols (modes, delta/malformed/reset/expiry),
+    tailnet_event_text (transitions), control_loss_setting (new); the eight
+    policy drivers and peer_convergence pass. Full offline validation 112/112 PASS (with browser).
+  - Next: owner authorization to install on board A, PERF-09 on the exact
+    image, then the beta pre-release. Watcher `watch-loss5` (beta.6) still
+    occupies the lab runner.
