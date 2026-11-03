@@ -459,3 +459,20 @@ operation; detailed step journal and exact live paths belong in the private
     loss. Fail closed on revocation, malformed policy or grace expiry. Also:
     demote the periodic heartbeats, enlarge the ring, and do not tear down
     on an incomplete initial map that later completes.
+- **Last night's losses** (boot 149 on beta.5):
+  - 23:58:28, back at 00:00:23 after 1 failed attempt (initial policy
+    incomplete);
+  - 00:58:28, back after 30 s.
+
+  Both "control-plane connection closed or failed", exactly one hour apart,
+  with Wi-Fi and DERP up; then none for ~20 h.
+- **3.0.7-beta.6 installed** (2026-11-03 21:51).
+  - Image: `8adaac3`, MicroLink `9bc56cb`, firmware.bin `acfd138d…016a`.
+  - Local OTA into ota_1, beta.5 kept in ota_0; 8 setting groups unchanged;
+    `crypto_asm` 1/1.
+  - Adds: the long-poll close detail and code in the loss event and
+    diagnostics; DERP heartbeat/status and successful WireGuard handshake
+    lines back to INFO.
+  - Offline validation 105/105. The watcher `watch-loss5` is running.
+- **Owner decision still open:** whether to keep the last valid policy for
+  ≤ 5 min during a transport-only control loss.
