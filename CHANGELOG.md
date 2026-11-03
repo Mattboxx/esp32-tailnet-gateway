@@ -6,6 +6,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.7-beta.6] — 2026-11-03 (pre-release)
+
+### Changed
+
+- A lost control-plane connection names what ended it, with its HTTP/2
+  error code or network error, for example "Tailnet connection lost: control
+  server sent GOAWAY (code 0)". The other causes are: server closed the
+  connection, connection error, map session ended, stream reset, or invalid
+  map data.
+- Periodic DERP heartbeat/status lines and successful WireGuard handshake
+  steps are informational again. They had filled the warning log within
+  about 100 s and pushed out the warnings explaining a disconnection.
+
 ## [3.0.7-beta.5] — 2026-11-02 (pre-release)
 
 ### Fixed

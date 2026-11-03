@@ -279,7 +279,10 @@ static void tailnet_event_text(bool up, const microlink_diag_t *d, uint32_t *see
     if (!up) {
         if (d && d->ctrl_loss_count != *seen_losses && d->ctrl_loss_reason[0]) {
             *seen_losses = d->ctrl_loss_count;
-            snprintf(out, n, "Tailnet connection lost: %s", d->ctrl_loss_reason);
+            if (d->ctrl_loss_code >= 0)
+                snprintf(out, n, "Tailnet connection lost: %s (code %ld)", d->ctrl_loss_reason, (long)d->ctrl_loss_code);
+            else
+                snprintf(out, n, "Tailnet connection lost: %s", d->ctrl_loss_reason);
         } else {
             snprintf(out, n, "Tailnet connection lost");
         }
