@@ -25,6 +25,10 @@ extern int32_t tailscale_advertise_exit_node; // 1 = advertise 0.0.0.0/0 + ::/0 
 extern int32_t tailscale_max_peers;      // Active WG tunnels (microlink default 16, range 1..64)
 extern uint32_t tailscale_exit_node_ip;  // VPN IP (host byte order) of selected exit node; 0 = none
 extern int32_t tailscale_netcheck_override;       // 1 = let netcheck override the chosen default region, 0 = always stay on default
+/* Control-plane loss: CONTROL_LOSS_* mode (0 keep = like the official client)
+ * and the bounded-mode grace in seconds; applied live to ml_policy. */
+extern int32_t tailscale_control_loss_mode;
+extern int32_t tailscale_control_loss_grace_s;
 extern int32_t tailscale_netcheck_threshold_ms;   // Switch only when measured RTT beats default-region RTT by at least this many ms
 extern int32_t tailscale_default_derp_region;     // User-selected home DERP region id (0 = unset → Frankfurt fallback)
 extern int32_t tailscale_lan_bypass;              // 1 = exit-node mode lets RFC1918 (private) traffic egress via STA directly; 0 = everything via tunnel

@@ -26,9 +26,11 @@ static struct pbuf error_packet(unsigned family,unsigned protocol,unsigned type,
     return (struct pbuf){.payload=bytes,.len=total,.tot_len=total};
 }
 int main(void){
-    /* A transport outage blocks immediately, but an identical COMPLETE map
+    /* STRICT mode (the pre-3.0.7-beta.7 behaviour, now an advanced option):
+     * a transport outage blocks immediately, but an identical COMPLETE map
      * within 30 s can retain return state. A delta, revoke or longer outage
      * cannot inherit that state. This is not permission to run offline. */
+    ml_policy_set_control_loss(ML_POLICY_LOSS_STRICT,300);
     standard();
     struct pbuf out=packet(4,6,"100.64.0.10","100.64.0.1",50000,22,2,0);ml_policy_sent(&out,key_a);
     assert(rx(4,6,"100.64.0.1","100.64.0.10",22,50000,0x12,key_a));
@@ -95,7 +97,51 @@ int main(void){
     clock_ms+=200;assert(ml_policy_reply_age(17,svc,53,&age)&&age==1700);
     ml_policy_suspend();assert(!ml_policy_reply_age(17,svc,53,&age)); /* no evidence while suspended */
     ml_policy_reset();assert(!ml_policy_reply_age(17,svc,53,&age));
-    ml_policy_reset();puts("PASS: actual policy related TCP/UDP ICMPv4/v6, wrong key/tuple/truncation/revoke; bounded IPv6 options/atomic fragment; admitted-reply evidence (host only)");
+    /* Mode setter: unknown mode -> KEEP, grace clamped to 30 s .. 24 h. */
+    uint8_t mode;uint32_t grace;
+    ml_policy_set_control_loss(9,5);ml_policy_get_control_loss(&mode,&grace);assert(mode==ML_POLICY_LOSS_KEEP&&grace==30);
+    ml_policy_set_control_loss(ML_POLICY_LOSS_BOUNDED,999999);ml_policy_get_control_loss(&mode,&grace);assert(mode==ML_POLICY_LOSS_BOUNDED&&grace==86400);
+    /* KEEP (default, like the official client): the last complete policy keeps
+     * being enforced while the control transport is down; nothing new is
+     * granted, a delta is never applied to it, a fresh complete map is still
+     * required, and a malformed complete map blocks at once. */
+    ml_policy_set_control_loss(ML_POLICY_LOSS_KEEP,300);
+    ml_policy_reset();standard();
+    out=packet(4,6,"100.64.0.10","100.64.0.1",50000,22,2,0);ml_policy_sent(&out,key_a);
+    ml_policy_suspend();clock_ms+=3*RESUME_WINDOW_MS; /* > resume window, < TCP idle limit */
+    assert(rx(4,6,"100.64.0.1","100.64.0.10",22,50000,0x12,key_a));          /* allowed flow continues */
+    out=packet(4,6,"100.64.0.10","100.64.0.1",50001,22,2,0);assert(ml_policy_tx(&out,key_a));
+    assert(rx(4,6,"100.64.0.1","100.64.0.10",40000,80,2,key_a));              /* last rules still apply */
+    assert(!rx(4,6,"100.64.0.1","100.64.0.10",40000,443,2,key_a));            /* nothing new granted */
+    assert(!ml_policy_authority_active()&&ml_policy_peer_status(key_a)==-1);  /* not fresh */
+    ml_policy_get_status(&status);assert(status.authority_ready&&status.control_stale&&status.stale_ms==3*RESUME_WINDOW_MS);
+    assert(apply(FULL));assert(ml_policy_authority_active());                 /* fresh complete map resumes */
+    assert(rx(4,6,"100.64.0.1","100.64.0.10",22,50000,0x12,key_a));          /* same authority: flow kept */
+    ml_policy_get_status(&status);assert(!status.control_stale&&status.stale_ms==0);
+    ml_policy_suspend();assert(!apply("{\"PeersChanged\":[]}"));              /* delta first: anomaly */
+    assert(!rx(4,6,"100.64.0.1","100.64.0.10",22,50000,0x12,key_a));         /* fails closed */
+    ml_policy_get_status(&status);assert(!status.authority_ready);
+    standard();ml_policy_suspend();assert(!apply("{\"PacketFilter\":7,\"Peers\":[],\"Node\":{}}")); /* malformed map */
+    assert(!rx(4,6,"100.64.0.1","100.64.0.10",40000,80,2,key_a));
+    standard();ml_policy_suspend();assert(!apply("{\"PacketFilter\":[7],\"Peers\":[],\"Node\":{}}"));
+    assert(!rx(4,6,"100.64.0.1","100.64.0.10",40000,80,2,key_a));
+    ml_policy_reset();standard();ml_policy_suspend();ml_policy_reset();       /* explicit disconnect = revocation */
+    assert(!rx(4,6,"100.64.0.1","100.64.0.10",22,50000,0x12,key_a));
+    /* BOUNDED: the same for the grace period only, then blocked like STRICT. */
+    ml_policy_set_control_loss(ML_POLICY_LOSS_BOUNDED,30);
+    ml_policy_reset();standard();
+    out=packet(4,6,"100.64.0.10","100.64.0.1",50000,22,2,0);ml_policy_sent(&out,key_a);
+    ml_policy_suspend();clock_ms+=29999;
+    assert(rx(4,6,"100.64.0.1","100.64.0.10",22,50000,0x12,key_a));
+    clock_ms+=1;
+    assert(!rx(4,6,"100.64.0.1","100.64.0.10",22,50000,0x12,key_a));
+    out=packet(4,6,"100.64.0.10","100.64.0.1",50001,22,2,0);assert(!ml_policy_tx(&out,key_a));
+    ml_policy_get_status(&status);assert(!status.authority_ready&&!status.control_stale);
+    assert(!apply("{\"PeersChanged\":[]}"));
+    ml_policy_get_status(&status);assert(!status.authority_ready);
+    standard();assert(!rx(4,6,"100.64.0.1","100.64.0.10",22,50000,0x12,key_a)); /* old flow not inherited */
+    ml_policy_set_control_loss(ML_POLICY_LOSS_KEEP,300);
+    ml_policy_reset();puts("PASS: actual policy related TCP/UDP ICMPv4/v6, wrong key/tuple/truncation/revoke; bounded IPv6 options/atomic fragment; admitted-reply evidence; control-loss modes STRICT (immediate block), KEEP (last rules enforced, nothing new granted, fresh complete map required, delta/malformed map and disconnect fail closed) and BOUNDED (grace then block) (host only)");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='policy-protocol-') as directory:

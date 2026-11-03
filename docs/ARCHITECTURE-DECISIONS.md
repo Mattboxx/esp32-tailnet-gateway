@@ -302,6 +302,9 @@ crypto/direct/DERP/IPv6/NAT interoperability and target resource costs remain ga
 
 ## ADR-010 — Transport suspension is distinct from revocation
 
+Superseded in part by ADR-025 (3.0.7-beta.7): blocking at once is now the
+optional strict mode. The rest of this decision still holds in every mode.
+
 An outage/new stream blocks data immediately. Only a complete freshly compiled
 identical authority map within 30 s may retain existing return tuples, whose
 own timeouts continue. Malformed authority, explicit disconnect and changed
@@ -470,3 +473,26 @@ task or timer. Status/Tailscale show pending authority separately if observed.
 Actual coordinator branch/request host tests (mock transport) and Linux
 sanitizers pass; real Tailscale/Headscale reconnect qualification of dev.7 is
 still required. This is not evidence of official-client policy parity.
+
+## ADR-025 — Control-plane loss keeps the last policy by default (2026-11-03)
+
+Board A lost Tailnet traffic for 30–115 s about once a day: the coordination
+server closed the long-poll while Wi-Fi, DERP and WireGuard stayed up, and the
+ADR-010 suspension blocked all data until a complete map arrived. The official
+client keeps enforcing its last netmap/filter while the control plane is
+unreachable. The owner approved the same default, selectable as an advanced
+setting: `keep` (default), `bounded` (30 s to 24 h, then blocked) and `strict`
+(ADR-010 behaviour).
+
+Enforcement (`ml_policy` rx/tx/sent/flows/fragments) follows the mode; the
+"fresh" authority used by the coordinator (OmitPeers, initial-map check) still
+requires a complete map on the new session, so a reconnect always refreshes the
+policy. In every mode: a delta (or malformed partial map) before that complete
+map, a malformed or rejected map, an explicit reset/disconnect and an expired
+node key fail closed; nothing new is granted from cache; peers are not pruned
+while authority is unknown. Return flows keep their own idle timeouts. A
+control loss with the last policy enforced and DERP up is an informational
+history event, not a Tailnet outage. Costs: two words of state and one
+comparison per gate; no task, timer or allocation. Host tests cover the modes;
+a real server-side revocation during an outage is not qualified, and policy
+parity with the official client is not claimed beyond this behaviour.

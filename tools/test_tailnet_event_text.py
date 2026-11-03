@@ -8,7 +8,11 @@ Covers:
 - a reconnect after failed attempts, and a clean reconnect;
 - text truncation at the event limit;
 - the notification matcher accepting the base text and its detail forms but
-  not a different word that starts with the same letters.
+  not a different word that starts with the same letters;
+- control-plane loss while the last policy is kept and the relay is up
+  (keep/bounded mode): an informational event that is not an outage, its
+  restore, the later loss when the grace ends, traffic resuming before the
+  control plane (no event, outage stays open) and the initial down state.
 Also checks structurally that the history task builds the text from
 microlink_get_diag() and that MicroLink records each cause.
 """
@@ -30,8 +34,14 @@ def between(text, start, end):
 
 event_text = between(hist, 'static void tailnet_event_text(', '        snprintf(out, n, "Tailnet connected");\n    }\n}\n')
 matcher = between(notify, 'static bool event_text_is(', "text[n] == ' ');\n}\n")
-task = between(hist, 'if (state == tailnet_seen && state != tailnet_state) {', 'tailnet_state = state;')
-assert 'microlink_get_diag(ml, &diag) == ESP_OK' in task and 'tailnet_event_text(state, have ? &diag : NULL' in task
+transition = between(hist, 'enum { TAILNET_DOWN = 0', '    *warn = to != TAILNET_UP;\n    return true;\n}\n')
+task = between(hist, 'if (state == tailnet_seen && state != tailnet_state) {', 'tailnet_seen = state;')
+assert 'microlink_get_diag(ml, &diag) == ESP_OK' in task
+assert 'tailnet_transition(tailnet_state, state, have ? &diag : NULL, &seen_losses, text, sizeof text, &warn)' in task
+assert 'history_event(HIST_EV_TAILNET, warn ? HIST_WARN : HIST_INFO, text);' in task
+assert '} else if (state != TAILNET_STALE) {' in task
+assert 'int state = tailnet_link_state(connected, stale, have && diag.derp_connected);' in hist
+assert 'stale = policy.control_stale;' in hist
 for cause in ('control-plane watchdog (no data)', 'control-plane map stream silent', 'control-plane PING send failed',
               'node key expired, re-registering'):
     assert f'note_ctrl_loss(ml, "{cause}");' in coord, cause
@@ -49,8 +59,9 @@ PROGRAM = r'''
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#define HIST_TEXT_MAX 160
 typedef struct { char ctrl_loss_reason[48]; int32_t ctrl_loss_code; uint32_t ctrl_loss_count; char ctrl_retry_reason[48]; uint32_t ctrl_retry_failures; } microlink_diag_t;
-''' + event_text + matcher + r'''
+''' + event_text + transition + matcher + r'''
 int main(void) {
     microlink_diag_t d = {0};
     d.ctrl_loss_code = -1;
@@ -95,8 +106,47 @@ int main(void) {
     assert(!event_text_is("Tailnet connectedness", "Tailnet connected"));
     assert(!event_text_is("Tailnet connection lostX", "Tailnet connection lost"));
     assert(!event_text_is("Tailnet", "Tailnet connected"));
+    /* Event state: connected, control loss with policy kept and relay up, down. */
+    assert(tailnet_link_state(true, false, false) == TAILNET_UP && tailnet_link_state(true, true, true) == TAILNET_UP);
+    assert(tailnet_link_state(false, true, true) == TAILNET_STALE);
+    assert(tailnet_link_state(false, true, false) == TAILNET_DOWN && tailnet_link_state(false, false, true) == TAILNET_DOWN);
+    bool warn = true;
+    /* Control loss with the last policy kept: informational, never the outage text. */
+    strcpy(d.ctrl_loss_reason, "control server sent GOAWAY"); d.ctrl_loss_code = 0; d.ctrl_loss_count = 9;
+    assert(tailnet_transition(TAILNET_UP, TAILNET_STALE, &d, &seen, t, sizeof t, &warn) && !warn && seen == 9);
+    assert(!strcmp(t, "Tailnet control connection lost: control server sent GOAWAY (code 0) (traffic continues with the last policy)"));
+    assert(!event_text_is(t, "Tailnet connection lost") && !event_text_is(t, "Tailnet connected"));
+    assert(tailnet_transition(TAILNET_STALE, TAILNET_UP, &d, &seen, t, sizeof t, &warn) && !warn);
+    assert(!strcmp(t, "Tailnet control connection restored") && !event_text_is(t, "Tailnet connected"));
+    /* No new cause recorded: plain stale text. */
+    assert(tailnet_transition(TAILNET_UP, TAILNET_STALE, &d, &seen, t, sizeof t, &warn) && !warn);
+    assert(!strcmp(t, "Tailnet control connection lost (traffic continues with the last policy)"));
+    /* Bounded grace over (or relay lost): now an outage, with the outage text. */
+    assert(tailnet_transition(TAILNET_STALE, TAILNET_DOWN, &d, &seen, t, sizeof t, &warn) && warn);
+    assert(!strcmp(t, "Tailnet connection lost") && event_text_is(t, "Tailnet connection lost"));
+    /* Traffic resumes on the last policy before the control plane: no event;
+     * the caller keeps the down state, so the recovery is "Tailnet connected". */
+    assert(!tailnet_transition(TAILNET_DOWN, TAILNET_STALE, &d, &seen, t, sizeof t, &warn));
+    assert(!tailnet_transition(-1, TAILNET_STALE, &d, &seen, t, sizeof t, &warn));
+    d.ctrl_retry_failures = 0;
+    assert(tailnet_transition(TAILNET_DOWN, TAILNET_UP, &d, &seen, t, sizeof t, &warn) && !warn && !strcmp(t, "Tailnet connected"));
+    /* Initial down state is not recorded; a direct loss keeps its old text. */
+    assert(!tailnet_transition(-1, TAILNET_DOWN, &d, &seen, t, sizeof t, &warn));
+    d.ctrl_loss_count = 10; strcpy(d.ctrl_loss_reason, "control-plane map stream silent"); d.ctrl_loss_code = -1;
+    assert(tailnet_transition(TAILNET_UP, TAILNET_DOWN, &d, &seen, t, sizeof t, &warn) && warn);
+    assert(!strcmp(t, "Tailnet connection lost: control-plane map stream silent"));
+    /* A long cause still fits as a valid, truncated string. */
+    memset(d.ctrl_loss_reason, 'x', 47); d.ctrl_loss_reason[47] = 0; d.ctrl_loss_count = 11; d.ctrl_loss_code = 2147483647;
+    /* The longest cause and code fit whole: nothing is cut at the event limit. */
+    assert(tailnet_transition(TAILNET_UP, TAILNET_STALE, &d, &seen, t, sizeof t, &warn));
+    assert(strlen(t) < sizeof t - 1 && strstr(t, "x (code 2147483647) (traffic continues with the last policy)"));
+    d.ctrl_loss_count = 12; d.ctrl_loss_code = 2147483647;
+    char mid[100];
+    assert(tailnet_transition(TAILNET_UP, TAILNET_STALE, &d, &seen, mid, sizeof mid, &warn));
+    assert(strlen(mid) == sizeof mid - 1 && !strncmp(mid, "Tailnet control connection lost: xxx", 36));
     puts("PASS: Tailnet event texts (new cause, repeated loss, no diag, failed attempts, clean reconnect, truncation); "
-         "notification matcher accepts base and detail forms only; history uses microlink_get_diag; MicroLink records "
+         "notification matcher accepts base and detail forms only; control loss with the last policy kept is "
+         "informational (restore, grace end, resume before control, initial state); history uses microlink_get_diag; MicroLink records "
          "5 loss causes (long-poll with 7 specific close details and codes) and 8 attempt failures");
     return 0;
 }

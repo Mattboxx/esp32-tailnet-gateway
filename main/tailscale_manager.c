@@ -23,6 +23,8 @@
 #include "microlink.h"
 #include "sdlog.h"
 #include "tailscale_config.h"
+#include "control_loss.h"
+#include "ml_policy.h"
 #include "nvs_params.h"
 #include "esp_sntp.h"
 #include "fourvia6.h"
@@ -53,6 +55,10 @@ int32_t tailscale_max_peers = 16;
 uint32_t tailscale_exit_node_ip = 0;
 int32_t tailscale_netcheck_override = 1;          /* Upstream 0.1.34: corrected concurrent STUN measurements and sticky region selection. Existing explicit ts_nc_ovr policy is retained. */
 int32_t tailscale_netcheck_threshold_ms = 100;    /* default: 100 ms hysteresis (sticky — home routers rarely beat Frankfurt enough to be worth switching) */
+int32_t tailscale_control_loss_mode = CONTROL_LOSS_KEEP;
+int32_t tailscale_control_loss_grace_s = CONTROL_LOSS_GRACE_DEFAULT;
+_Static_assert(CONTROL_LOSS_KEEP == ML_POLICY_LOSS_KEEP && CONTROL_LOSS_BOUNDED == ML_POLICY_LOSS_BOUNDED
+               && CONTROL_LOSS_STRICT == ML_POLICY_LOSS_STRICT, "control-loss mode values");
 int32_t tailscale_default_derp_region = 0;        /* 0 = unset → Frankfurt fallback in microlink */
 int32_t tailscale_lan_bypass = 1;                  /* 1 = exit-node lets LAN egress via STA, like tailscale --exit-node-allow-lan-access */
 int32_t tailscale_accept_routes = 0;               /* 0 = default; 1 = honour subnet routes advertised by peers (tailscale --accept-routes) */
@@ -230,6 +236,14 @@ void tailscale_init(void)
     if (nvs_param_get_int("ts_nc_thr", &v) == ESP_OK && v >= 0 && v <= 5000) {
         tailscale_netcheck_threshold_ms = v;
     }
+    /* Absent or out-of-range values keep the default (keep, 5 minutes). */
+    if (nvs_param_get_int("ts_loss_mode", &v) == ESP_OK && v >= CONTROL_LOSS_KEEP && v <= CONTROL_LOSS_STRICT) {
+        tailscale_control_loss_mode = v;
+    }
+    if (nvs_param_get_int("ts_loss_grace", &v) == ESP_OK && control_loss_grace_valid(v)) {
+        tailscale_control_loss_grace_s = v;
+    }
+    ml_policy_set_control_loss((uint8_t)tailscale_control_loss_mode, (uint32_t)tailscale_control_loss_grace_s);
     if (nvs_param_get_int("ts_def_derp", &v) == ESP_OK && v >= 0 && v <= 65535) {
         tailscale_default_derp_region = v;
     }
