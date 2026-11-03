@@ -27,7 +27,8 @@ PROGRAM = r'''
 #include <string.h>
 #include "cJSON.h"
 typedef struct {uint8_t wg_public_key[32],disco_public_key[32];
-    const char *ctrl_loss_reason;uint32_t ctrl_loss_count;const char *ctrl_retry_reason;uint32_t ctrl_retry_failures;} microlink_t;
+    const char *ctrl_loss_reason;const char *ctrl_close_detail;int32_t ctrl_close_code,ctrl_loss_code;
+    uint32_t ctrl_loss_count;const char *ctrl_retry_reason;uint32_t ctrl_retry_failures;} microlink_t;
 typedef struct {int unused;} ml_noise_state_t;
 static bool authority;
 static int suspended,closed,fetch_rc,stream_rc,stream_calls;
@@ -95,7 +96,9 @@ int main(void){
     assert(ml.ctrl_retry_failures>=4&&ml.ctrl_retry_reason&&!strcmp(ml.ctrl_retry_reason,"MapRequest failed"));
     note_ctrl_loss(&ml,"control-plane map stream silent");
     assert(ml.ctrl_loss_count==1&&ml.ctrl_retry_failures==0&&!ml.ctrl_retry_reason);
-    assert(!strcmp(ml.ctrl_loss_reason,"control-plane map stream silent"));
+    assert(!strcmp(ml.ctrl_loss_reason,"control-plane map stream silent")&&ml.ctrl_loss_code==-1);
+    note_poll_close(&ml,"control server sent GOAWAY",0);
+    assert(!strcmp(ml.ctrl_close_detail,"control server sent GOAWAY")&&ml.ctrl_close_code==0);
     puts("PASS actual coordinator: fresh-map requests after loss; full initial/stream map only; timeout/delta/incomplete/fetch failure reconnect closed (transport stubs)");
 }
 '''
