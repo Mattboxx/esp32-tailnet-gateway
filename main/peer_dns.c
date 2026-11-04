@@ -596,9 +596,25 @@ static esp_err_t peer_dns_post_handler(httpd_req_t *req)
     return err;
 }
 
+static int32_t s_start_internal_bytes, s_start_sockets;
+int32_t peer_dns_start_internal_bytes(void) { return s_start_internal_bytes; }
+int32_t peer_dns_start_sockets(void) { return s_start_sockets; }
+
+static int count_sockets(void)
+{
+    int used = 0;
+    for (int i = 0; i < CONFIG_LWIP_MAX_SOCKETS; i++) {
+        int type; socklen_t size = sizeof type;
+        if (getsockopt(LWIP_SOCKET_OFFSET + i, SOL_SOCKET, SO_TYPE, &type, &size) == 0) used++;
+    }
+    return used;
+}
+
 void peer_dns_start(void)
 {
     if (s_server || !tailscale_exit_server_active()) return;
+    size_t free_before = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    int sockets_before = count_sockets();
 
     httpd_config_t conf = HTTPD_DEFAULT_CONFIG();
     conf.server_port      = tailscale_peerapi_port();
@@ -639,5 +655,8 @@ void peer_dns_start(void)
         return;
     }
     s_server = server;
+    /* Approximate: other tasks allocate meanwhile; measured once per start. */
+    s_start_internal_bytes = (int32_t)free_before - (int32_t)heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    s_start_sockets = count_sockets() - sockets_before;
     ESP_LOGW(TAG, "exit-node DNS service on port %d", conf.server_port);
 }
