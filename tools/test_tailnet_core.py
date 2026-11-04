@@ -21,6 +21,8 @@ cmake=(ROOT/'main/CMakeLists.txt').read_text(encoding='utf-8')
 assert '"tailnet_input.c"' in cmake and '"-Wl,--wrap=ip4_input"' in cmake, 'IPv4 policy wrapper must be compiled and linked'
 core=core_path.read_text(encoding='utf-8') if core_path.exists() else 'err_t __wrap_ip4_input(struct pbuf *p, struct netif *n) { return __real_ip4_input(p,n); }'
 core='\n'.join(line for line in core.splitlines() if not line.startswith('#include'))
+# Release definitions of the test-only TCP/IP counters (empty macros).
+core=(ROOT/'main/perf_hooks.h').read_text(encoding='utf-8').replace('#pragma once','')+'\n'+core
 early_filter='tailnet_forward_allow_uplink_packet(p,' in (ROOT/'main/netif_hooks.c').read_text(encoding='utf-8')
 fixture=r'''
 #include <assert.h>

@@ -43,6 +43,7 @@
 #include "cell_uplink.h"
 #include "ping/ping_sock.h"
 #include "task_reaper.h"
+#include "perf_hooks.h"
 
 static const char *TAG = "exit_route";
 
@@ -543,8 +544,17 @@ static inline bool should_log_route_hook(void)
     return true;
 }
 
+static struct netif *route_src_hook(const ip4_addr_t *src, const ip4_addr_t *dest);
 struct netif *__wrap_ip4_route_src_hook(const ip4_addr_t *src,
                                           const ip4_addr_t *dest)
+{
+    PH_BEGIN(t);
+    struct netif *n = route_src_hook(src, dest);
+    PH_END(PH_ROUTE_HOOK, t, 0);
+    return n;
+}
+
+static struct netif *route_src_hook(const ip4_addr_t *src, const ip4_addr_t *dest)
 {
     if (dest == NULL) return NULL;
     uint32_t dst_hbo = lwip_ntohl(dest->addr);
@@ -1018,8 +1028,17 @@ extern err_t __real_ip_napt_forward(struct pbuf *p, struct ip_hdr *iphdr,
  *   inbound ICMP/UDP (tailnet → AP):works (no 4-tuple, NAPT-state aware)
  *   outbound ICMP/UDP (AP → tailnet):works via NAPT (src rewritten as before)
  */
+static err_t napt_forward(struct pbuf *p, struct ip_hdr *iphdr, struct netif *inp, struct netif *outp);
 err_t __wrap_ip_napt_forward(struct pbuf *p, struct ip_hdr *iphdr,
                                struct netif *inp, struct netif *outp)
+{
+    PH_BEGIN(t);
+    err_t r = napt_forward(p, iphdr, inp, outp);
+    PH_END(PH_NAPT_FWD, t, 0);
+    return r;
+}
+
+static err_t napt_forward(struct pbuf *p, struct ip_hdr *iphdr, struct netif *inp, struct netif *outp)
 {
     if (iphdr != NULL) {
         uint8_t proto = IPH_PROTO(iphdr);

@@ -56,6 +56,7 @@
 #include "ml_policy.h"
 #include "control_loss.h"
 #include "ml_tls_distrust.h"
+#include "perf_hooks.h"
 #include "service_evidence.h"
 #include "eth_uplink.h"
 #include "service_diagnostics.h"
@@ -4598,7 +4599,17 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
             cJSON_AddItemToObject(root, "tls_distrust", td);
         }
     }
+    {   /* Exit-node DNS/PeerAPI server: internal RAM and sockets it took at start. */
+        cJSON *xd = cJSON_CreateObject();
+        if (xd) {
+            cJSON_AddBoolToObject(xd, "running", peer_dns_is_running());
+            cJSON_AddNumberToObject(xd, "start_internal_bytes", peer_dns_start_internal_bytes());
+            cJSON_AddNumberToObject(xd, "start_sockets", peer_dns_start_sockets());
+            cJSON_AddItemToObject(root, "exit_dns", xd);
+        }
+    }
 #if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
+    perf_hooks_report(root);
     {   /* Test-only profiling image ("-prof" version): packet-path stage counters. */
         microlink_perf_stage_t st[16];
         size_t n = microlink_perf_profile(st, sizeof st / sizeof st[0]);

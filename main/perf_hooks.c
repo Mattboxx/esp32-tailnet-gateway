@@ -1,0 +1,81 @@
+/* Test-only TCP/IP task counters: see perf_hooks.h. */
+#include "perf_hooks.h"
+
+#if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
+#include "freertos/FreeRTOS.h"
+#include "lwip/udp.h"
+#include "lwip/inet_chksum.h"
+#include "esp_private/wifi.h"
+
+typedef struct { uint64_t total, bytes; uint32_t count, max; } counter_t;
+static counter_t s_c[PH_COUNT];
+static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
+static const char *const s_names[PH_COUNT] = {
+    "ip4_input", "dnat_prep", "allow", "route_hook", "napt_forward",
+    "udp_sendto", "chksum_pseudo", "ip_chksum", "wifi_tx",
+};
+
+void perf_hooks_add(perf_hook_stage_t stage, uint32_t cycles, uint32_t bytes)
+{
+    if ((unsigned)stage >= PH_COUNT) return;
+    taskENTER_CRITICAL(&s_lock);
+    counter_t *c = &s_c[stage];
+    c->total += cycles; c->bytes += bytes; c->count++;
+    if (cycles > c->max) c->max = cycles;
+    taskEXIT_CRITICAL(&s_lock);
+}
+
+void perf_hooks_report(cJSON *root)
+{
+    counter_t copy[PH_COUNT];
+    taskENTER_CRITICAL(&s_lock);
+    for (int i = 0; i < PH_COUNT; i++) copy[i] = s_c[i];
+    taskEXIT_CRITICAL(&s_lock);
+    cJSON *o = cJSON_AddObjectToObject(root, "hook_profile");
+    for (int i = 0; o && i < PH_COUNT; i++) {
+        cJSON *s = cJSON_AddObjectToObject(o, s_names[i]);
+        cJSON_AddNumberToObject(s, "total", (double)copy[i].total);
+        cJSON_AddNumberToObject(s, "bytes", (double)copy[i].bytes);
+        cJSON_AddNumberToObject(s, "count", copy[i].count);
+        cJSON_AddNumberToObject(s, "max", copy[i].max);
+    }
+}
+
+/* Link-time wraps (-Wl,--wrap, -prof images only; see main/CMakeLists.txt). */
+err_t __real_udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u16_t dst_port);
+err_t __wrap_udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip, u16_t dst_port)
+{
+    u16_t len = p ? p->tot_len : 0;
+    PH_BEGIN(t);
+    err_t e = __real_udp_sendto(pcb, p, dst_ip, dst_port);
+    PH_END(PH_UDP_SENDTO, t, len);
+    return e;
+}
+
+u16_t __real_ip_chksum_pseudo(struct pbuf *p, u8_t proto, u16_t proto_len, const ip_addr_t *src, const ip_addr_t *dest);
+u16_t __wrap_ip_chksum_pseudo(struct pbuf *p, u8_t proto, u16_t proto_len, const ip_addr_t *src, const ip_addr_t *dest)
+{
+    PH_BEGIN(t);
+    u16_t r = __real_ip_chksum_pseudo(p, proto, proto_len, src, dest);
+    PH_END(PH_CHKSUM_PSEUDO, t, proto_len);
+    return r;
+}
+
+u16_t __real_inet_chksum(const void *dataptr, u16_t len);
+u16_t __wrap_inet_chksum(const void *dataptr, u16_t len)
+{
+    PH_BEGIN(t);
+    u16_t r = __real_inet_chksum(dataptr, len);
+    PH_END(PH_IP_CHKSUM, t, len);
+    return r;
+}
+
+esp_err_t __real_esp_wifi_internal_tx_by_ref(wifi_interface_t ifx, void *buffer, size_t len, void *netstack_buf);
+esp_err_t __wrap_esp_wifi_internal_tx_by_ref(wifi_interface_t ifx, void *buffer, size_t len, void *netstack_buf)
+{
+    PH_BEGIN(t);
+    esp_err_t e = __real_esp_wifi_internal_tx_by_ref(ifx, buffer, len, netstack_buf);
+    PH_END(PH_WIFI_TX, t, len);
+    return e;
+}
+#endif
