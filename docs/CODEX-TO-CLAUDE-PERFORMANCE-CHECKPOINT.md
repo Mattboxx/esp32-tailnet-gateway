@@ -502,3 +502,14 @@ operation; detailed step journal and exact live paths belong in the private
   with the owner, then a targeted rerun of the three traffic steps.
 - Watcher `watch-loss6` (beta.7, also catches "Tailnet control connection
   lost") running from boot 154.
+- **Exit-node cause and rerun** (2026-11-04): the +3 sockets are exit-node
+  server mode (enabled 2026-11-02). With it temporarily off, the three PERF-09
+  traffic steps on beta.7 pass every criterion (internal minimum ≥ 42,699 B);
+  settings restored exactly. Lab runner restarted by the owner at 07:55.
+- **3.0.7-beta.8 built** (not installed, not published): source `f821ac0`,
+  MicroLink `790e3e0`; firmware.bin `31618072…3fd3`, 2,284,496 B (+752 B);
+  static RAM +8 B; provenance PASS. Adds the eMudhra intermediate distrust on
+  every TLS connection (ADR-035). Offline validation: 110 + the 3 updated
+  drivers PASS, scans 0 findings.
+  - Next: owner OK to install beta.8 on board A and run PERF-09 (with exit-node
+    mode temporarily off, as the thresholds require), then the pre-release.
