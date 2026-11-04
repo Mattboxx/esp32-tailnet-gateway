@@ -419,3 +419,21 @@ node keeps open, about 2.5 KB of internal RAM in total (idle 40,331 B vs
 42,803 B; under traffic 39.6–40.2 KB vs 42.1–42.7 KB). The thresholds were
 fixed without exit-node mode; this run measured a different configuration.
 Not publishable under the fixed thresholds as run.
+
+### Targeted rerun with exit-node mode off (2026-11-04, owner-approved)
+
+Same image, the three traffic steps only, with "Advertise this ESP32 as an
+exit node" and the 0.0.0.0/0, ::/0 routes temporarily removed (restart, 240 s
+warm-up), then the exact original values restored and exit-node DNS verified
+running again. Baseline 9 sockets, 42,895 B free. All 31 step criteria PASS
+(only the by-design "back on 3.0.6" fails): 500 MB 7.64 / 6.37 Mbit/s with
+hashes; internal minimum 42,699–42,743 B in every run (beta.4: 42,139–42,655
+B); UI p95 ≤ 0.49 s, max ≤ 1.15 s; 48/48 burst connections, admin 0/16 failed
+during and after; sockets back to 9. A 48 s host compile ran on the bench PC
+during the 500 MB step; the result is within the beta.4 range regardless.
+
+Conclusion: in the configuration the thresholds were fixed in, beta.7 meets
+every PERF-09 criterion; the full run's two RAM failures are the cost of
+exit-node server mode (about 2.5 KB of internal RAM, three sockets), a
+configuration the gate does not cover yet. Follow-up: measure and reduce that
+cost, or fix a threshold for exit-node mode before the next run.
