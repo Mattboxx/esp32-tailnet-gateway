@@ -4783,21 +4783,17 @@ static const httpd_uri_t uri_system_diag = {
 };
 
 #if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
-/* Test-only ("-prof" images): POST /api/system/perf {"rx_mode":0..3} selects
- * the RX data-path variants, {"bench":true} runs the decrypt micro-benchmark.
- * Answers with the current mode (and the benchmark cycles). */
+/* Test-only ("-prof" images): POST /api/system/perf {"bench":true} runs the
+ * decrypt micro-benchmark and answers with its cycle counts. */
 static esp_err_t system_perf_handler(httpd_req_t *req)
 {
     if (require_auth(req) != ESP_OK) return ESP_FAIL;
     char buf[96];
     if (recv_body(req, buf, sizeof buf, NULL) != ESP_OK) return ESP_FAIL;
     cJSON *in = json_guard_parse(buf);
-    const cJSON *mode = cJSON_GetObjectItem(in, "rx_mode");
-    if (cJSON_IsNumber(mode) && mode->valueint >= 0 && mode->valueint <= 3) microlink_perf_set_rx_mode((uint8_t)mode->valueint);
     bool bench = cJSON_IsTrue(cJSON_GetObjectItem(in, "bench"));
     cJSON_Delete(in);
     cJSON *out = cJSON_CreateObject();
-    cJSON_AddNumberToObject(out, "rx_mode", microlink_perf_get_rx_mode());
     if (bench) {
         uint32_t c[4];
         if (microlink_perf_decrypt_bench(c) == 0) {

@@ -551,3 +551,39 @@ the revised resource policy above: RAM can change, reliability under load cannot
 be traded away. Planning alone does not implement or qualify any package.
 
 Reference: [ESP-IDF 5.5.3 lwIP performance guidance](https://docs.espressif.com/projects/esp-idf/en/v5.5.3/esp32s3/api-guides/lwip.html).
+
+## beta.9 data-path measurement (board A, 2026-11-04)
+
+Test-only `3.0.7-beta.9-prof` (source `05dad2e`) by local OTA, exit-node mode
+on as configured, beta.8 reinstalled afterwards (private `perf-beta9/`).
+
+**Decrypt micro-benchmark** (1,408 B, scheduler suspended, median of 9):
+39.5 cycles/byte from internal RAM and from warm SPIRAM, 43.0 from cold
+SPIRAM. The memory penalty is ~9 % (~5k cycles per packet). The larger
+"decrypt is memory-bound" gap in the stage counters was mostly preemption by
+the Wi-Fi driver counted inside the stopwatch. At 7 Mbit/s the real
+decryption is ~7 % of the two-core budget.
+
+**RX variants switched at run time**, ABCCBA, 32 MB each way, every hash PASS:
+
+| Variant | Download Mbit/s · CPU/Mbit | Upload Mbit/s · CPU/Mbit |
+|---|---|---|
+| copy (beta.8 behaviour) | 7.07 · 11.18 | 6.11 · 10.97 |
+| zero-copy hand-off (PBUF_REF) | 6.97 · 10.83 | 6.04 · 11.06 |
+| zero-copy + next-packet DCache preload | 6.93 · 11.50 | 6.00 · 10.71 |
+
+No variant is better beyond noise (±3 %, mixed signs); zero-copy costs more on
+small packets (rx_copy 44 → 179 cycles/byte on upload ACKs). Both rejected and
+removed; the second test (after the October dev.1 attempt) confirms it. Kept:
+no zeroing before decryption and header/padding-only zeroing on transmit
+(byte-equivalent, host-tested), per-task run time in `/api/system/diag`, the
+-prof decrypt benchmark.
+
+**Where the CPU goes** (share of two-core time): download — TCP/IP task 21 %,
+WireGuard manager 19 %, Wi-Fi driver 15 %, net_io 8 %, idle 36 %; upload —
+TCP/IP 30 %, Wi-Fi 14.5 %, WireGuard 6 %, net_io 3.6 %, idle 44 %. The CPU is
+not saturated: throughput is bounded by the radio link and its timing, not by
+computation. Further crypto assembly would gain a few percent at most. The
+remaining CPU lever is the TCP/IP task (lwIP forwarding plus the firmware's
+per-packet hooks: route, ACL/shedding, NAPT/SNAT, 4via6); next step is to
+attribute its time with -prof counters before changing anything.
