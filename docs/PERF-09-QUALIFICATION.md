@@ -437,3 +437,21 @@ every PERF-09 criterion; the full run's two RAM failures are the cost of
 exit-node server mode (about 2.5 KB of internal RAM, three sockets), a
 configuration the gate does not cover yet. Follow-up: measure and reduce that
 cost, or fix a threshold for exit-node mode before the next run.
+
+## 3.0.7-beta.8 result (run 2026-11-04, board A stays on beta.8)
+
+Image `31618072…3fd3` (source `f821ac0`, MicroLink `790e3e0`), local OTA
+into ota_1 (beta.7 kept in ota_0); recovery basis the verified 2026-11-02
+backup. Exit-node server mode was off for the whole run (the configuration
+the thresholds were fixed in) and the exact original values were restored at
+the end; exit-node DNS verified running again. Baseline 9 sockets, 42,867 B.
+
+**48/49: every firmware criterion PASS**; only "back on 3.0.6" fails, by the
+owner's choice to keep the beta running. 500 MB 6.98 / 6.20 Mbit/s with
+hashes; internal minimum 42,039–42,483 B; UI p95 ≤ 0.43 s, max ≤ 1.26 s;
+48/48 burst connections, admin 0/16 failed during and after; sockets back to
+baseline, no reaper fallbacks, no unexpected reboot; SNMP, ntfy, web
+screening and sessions, runtime restarts and integrations (MQTT lab, WoL,
+Wi-Fi/control reconnects, 30 min observation) rc 0. The new TLS distrust
+was active throughout (control, DERP, MQTT and ntfy connected; 0 refusals at
+install).
