@@ -2,12 +2,13 @@
 #include "perf_hooks.h"
 
 #if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
+#include <stdbool.h>
 #include "freertos/FreeRTOS.h"
 #include "lwip/udp.h"
 #include "lwip/inet_chksum.h"
 #include "esp_private/wifi.h"
 
-typedef struct { uint64_t total, bytes; uint32_t count, max; } counter_t;
+typedef struct { uint64_t total, bytes; uint32_t count, max, migrated; } counter_t;
 static counter_t s_c[PH_COUNT];
 static portMUX_TYPE s_lock = portMUX_INITIALIZER_UNLOCKED;
 static const char *const s_names[PH_COUNT] = {
@@ -15,13 +16,19 @@ static const char *const s_names[PH_COUNT] = {
     "udp_sendto", "chksum_pseudo", "ip_chksum", "wifi_tx",
 };
 
-void perf_hooks_add(perf_hook_stage_t stage, uint32_t cycles, uint32_t bytes)
+void perf_hooks_end(perf_hook_stage_t stage, const ph_mark_t *mark, uint32_t bytes)
 {
+    uint32_t cycles = esp_cpu_get_cycle_count() - mark->cycles;
+    bool migrated = xPortGetCoreID() != mark->core;
     if ((unsigned)stage >= PH_COUNT) return;
     taskENTER_CRITICAL(&s_lock);
     counter_t *c = &s_c[stage];
-    c->total += cycles; c->bytes += bytes; c->count++;
-    if (cycles > c->max) c->max = cycles;
+    if (migrated) {
+        c->migrated++;
+    } else {
+        c->total += cycles; c->bytes += bytes; c->count++;
+        if (cycles > c->max) c->max = cycles;
+    }
     taskEXIT_CRITICAL(&s_lock);
 }
 
@@ -38,6 +45,7 @@ void perf_hooks_report(cJSON *root)
         cJSON_AddNumberToObject(s, "bytes", (double)copy[i].bytes);
         cJSON_AddNumberToObject(s, "count", copy[i].count);
         cJSON_AddNumberToObject(s, "max", copy[i].max);
+        cJSON_AddNumberToObject(s, "migrated", copy[i].migrated);
     }
 }
 
