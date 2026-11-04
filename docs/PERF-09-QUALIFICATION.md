@@ -407,5 +407,15 @@ RAM. They were already present on beta.5 (2026-11-02 21:47, 12 sockets,
 40,731 B free); beta.7 idle (40,331 B at 12 sockets) matches beta.5 idle
 (40,363 B at 12 sockets). Static RAM is identical to beta.4 (+8 B) and no
 change since beta.4 opens a socket. So the deficit follows a change in the
-board's environment or configuration after 2026-11-02 10:00, not the beta.7
-code; it is not yet identified. Not publishable under the fixed thresholds.
+board's configuration after 2026-11-02 10:30, not the beta.7 code.
+
+Identified (2026-11-04): exit-node server mode. "Advertise this ESP32 as an
+exit node" was off in every earlier PERF-09/A-B record (last at 10:30 on
+2026-11-02) and on in every record from 21:03 that day (beta.4 had been
+installed from GitHub at 10:49, followed by three settings restarts at
+11:22–11:25). That mode starts the exit-node DNS/PeerAPI HTTP server: its
+listening and control sockets plus the DoH session a client using the exit
+node keeps open, about 2.5 KB of internal RAM in total (idle 40,331 B vs
+42,803 B; under traffic 39.6–40.2 KB vs 42.1–42.7 KB). The thresholds were
+fixed without exit-node mode; this run measured a different configuration.
+Not publishable under the fixed thresholds as run.
