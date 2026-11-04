@@ -4752,7 +4752,6 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
                 cJSON_AddNumberToObject(t, "prio",     arr[i].uxCurrentPriority);
                 cJSON_AddNumberToObject(t, "stack_hwm", arr[i].usStackHighWaterMark);
                 cJSON_AddNumberToObject(t, "runtime_us", (double)arr[i].ulRunTimeCounter);
-                cJSON_AddNumberToObject(t, "core", arr[i].xCoreID == tskNO_AFFINITY ? -1 : (int)arr[i].xCoreID);
                 const char *st = "?";
                 switch (arr[i].eCurrentState) {
                     case eRunning:   st = "running";   break;
