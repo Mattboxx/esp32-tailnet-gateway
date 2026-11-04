@@ -513,3 +513,11 @@ operation; detailed step journal and exact live paths belong in the private
   drivers PASS, scans 0 findings.
   - Next: owner OK to install beta.8 on board A and run PERF-09 (with exit-node
     mode temporarily off, as the thresholds require), then the pre-release.
+- **3.0.7-beta.8 installed and published** (2026-11-04): local OTA into ota_1
+  (beta.7 in ota_0), 8 setting groups unchanged, tls_distrust 8/0. PERF-09
+  48/49 with exit-node mode off (only "back on 3.0.6" by choice), settings
+  restored. Branches pushed fast-forward (project `d867914`, MicroLink
+  `790e3e0`); GitHub pre-release v3.0.7-beta.8 at `f821ac0`, 10 assets,
+  digests verified; v3.0.6 stays Latest. Watcher `watch-loss6` running.
+  - Open: exit-node mode RAM cost (~2.5 KB, 3 sockets) and a gate threshold
+    for it; EAP Wi-Fi bundle validation not covered by the distrust list.
