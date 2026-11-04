@@ -4741,12 +4741,18 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
         TaskStatus_t *arr = malloc(sizeof(TaskStatus_t) * n);
         cJSON *tasks = cJSON_CreateArray();
         if (arr) {
-            UBaseType_t got = uxTaskGetSystemState(arr, n, NULL);
+            configRUN_TIME_COUNTER_TYPE total_runtime = 0;
+            UBaseType_t got = uxTaskGetSystemState(arr, n, &total_runtime);
+            /* Run time in microseconds since boot (esp_timer clock): two
+             * readings give each task's CPU share over an interval. */
+            cJSON_AddNumberToObject(root, "tasks_runtime_total_us", (double)total_runtime);
             for (UBaseType_t i = 0; i < got; i++) {
                 cJSON *t = cJSON_CreateObject();
                 cJSON_AddStringToObject(t, "name",     arr[i].pcTaskName ? arr[i].pcTaskName : "?");
                 cJSON_AddNumberToObject(t, "prio",     arr[i].uxCurrentPriority);
                 cJSON_AddNumberToObject(t, "stack_hwm", arr[i].usStackHighWaterMark);
+                cJSON_AddNumberToObject(t, "runtime_us", (double)arr[i].ulRunTimeCounter);
+                cJSON_AddNumberToObject(t, "core", arr[i].xCoreID == tskNO_AFFINITY ? -1 : (int)arr[i].xCoreID);
                 const char *st = "?";
                 switch (arr[i].eCurrentState) {
                     case eRunning:   st = "running";   break;
@@ -4776,6 +4782,47 @@ static const httpd_uri_t uri_system_diag = {
     .uri = "/api/system/diag", .method = HTTP_GET,
     .handler = system_diag_handler,
 };
+
+#if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
+/* Test-only ("-prof" images): POST /api/system/perf {"rx_mode":0..3} selects
+ * the RX data-path variants, {"bench":true} runs the decrypt micro-benchmark.
+ * Answers with the current mode (and the benchmark cycles). */
+static esp_err_t system_perf_handler(httpd_req_t *req)
+{
+    if (require_auth(req) != ESP_OK) return ESP_FAIL;
+    char buf[96];
+    if (recv_body(req, buf, sizeof buf, NULL) != ESP_OK) return ESP_FAIL;
+    cJSON *in = json_guard_parse(buf);
+    const cJSON *mode = cJSON_GetObjectItem(in, "rx_mode");
+    if (cJSON_IsNumber(mode) && mode->valueint >= 0 && mode->valueint <= 3) microlink_perf_set_rx_mode((uint8_t)mode->valueint);
+    bool bench = cJSON_IsTrue(cJSON_GetObjectItem(in, "bench"));
+    cJSON_Delete(in);
+    cJSON *out = cJSON_CreateObject();
+    cJSON_AddNumberToObject(out, "rx_mode", microlink_perf_get_rx_mode());
+    if (bench) {
+        uint32_t c[4];
+        if (microlink_perf_decrypt_bench(c) == 0) {
+            cJSON *bj = cJSON_AddObjectToObject(out, "decrypt_cycles");
+            cJSON_AddNumberToObject(bj, "internal", c[0]);
+            cJSON_AddNumberToObject(bj, "spiram_warm", c[1]);
+            cJSON_AddNumberToObject(bj, "spiram_cold", c[2]);
+            cJSON_AddNumberToObject(bj, "bytes", c[3]);
+        } else {
+            cJSON_AddStringToObject(out, "bench_error", "allocation or self-check failed");
+        }
+    }
+    char *body = cJSON_PrintUnformatted(out);
+    cJSON_Delete(out);
+    httpd_resp_set_type(req, "application/json");
+    esp_err_t e = httpd_resp_sendstr(req, body ? body : "{}");
+    free(body);
+    return e;
+}
+static const httpd_uri_t uri_system_perf = {
+    .uri = "/api/system/perf", .method = HTTP_POST,
+    .handler = system_perf_handler,
+};
+#endif
 
 /* ---- Session management -------------------------------------------------
  * Four in-memory sessions. Each has a 32-byte random token hex-
@@ -6053,6 +6100,9 @@ void web_ui_init(void)
     reg_uri(server, &uri_system_secrets_get);
     reg_uri(server, &uri_system_secrets_post);
     reg_uri(server, &uri_system_diag);
+#if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
+    reg_uri(server, &uri_system_perf);
+#endif
     reg_uri(server, &uri_system_debug_crash);
     reg_uri(server, &uri_system_debug_wg_tx_post);
     reg_uri(server, &uri_auth_status);
