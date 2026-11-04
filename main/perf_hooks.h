@@ -23,11 +23,16 @@ typedef enum {
 #if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
 #include "esp_cpu.h"
 #include "cJSON.h"
-void perf_hooks_add(perf_hook_stage_t stage, uint32_t cycles, uint32_t bytes);
-/* Adds {"stage": {"total","count","bytes","max"}} counters to `root`. */
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+/* Each core has its own cycle counter: a sample that ended on the other core
+ * is counted as "migrated" and not added. */
+typedef struct { uint32_t cycles; int core; } ph_mark_t;
+void perf_hooks_end(perf_hook_stage_t stage, const ph_mark_t *mark, uint32_t bytes);
+/* Adds {"stage": {"total","count","bytes","max","migrated"}} counters to `root`. */
 void perf_hooks_report(cJSON *root);
-#define PH_BEGIN(v) uint32_t v = esp_cpu_get_cycle_count()
-#define PH_END(stage, v, bytes) perf_hooks_add((stage), esp_cpu_get_cycle_count() - (v), (uint32_t)(bytes))
+#define PH_BEGIN(v) ph_mark_t v = { esp_cpu_get_cycle_count(), xPortGetCoreID() }
+#define PH_END(stage, v, bytes) perf_hooks_end((stage), &(v), (uint32_t)(bytes))
 #else
 #define PH_BEGIN(v) ((void)0)
 #define PH_END(stage, v, bytes) ((void)(bytes))
