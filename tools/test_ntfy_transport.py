@@ -56,7 +56,7 @@ typedef struct {
     esp_err_t (*event_handler)(esp_http_client_event_t *);
     void *user_data;
 } esp_http_client_config_t;
-static void *esp_crt_bundle_attach;
+static void *ml_tls_bundle_attach;
 static const char *TAG = "fixture";
 static int log_calls;
 static void log_failure(const char *tag,const char *format,...) {(void)tag;(void)format;log_calls++;}

@@ -130,7 +130,7 @@ class UpstreamIntegrationTests(unittest.TestCase):
         self.assertIn('OTA_REPO_CURRENT "Mattboxx/esp32-tailnet-gateway"', validation)
         self.assertIn('OTA_REPO_PREVIOUS "Mattboxx/esp32-tailscale-gateway-NAS-recovery"', validation)
         self.assertNotIn('Csontikka', source + validation)
-        self.assertIn('.crt_bundle_attach = esp_crt_bundle_attach', source)
+        self.assertIn('.crt_bundle_attach = ml_tls_bundle_attach', source)
         self.assertIn('.disable_auto_redirect = true', source)
         self.assertIn('ota_download_url_allowed_for(b.location, state.asset)', source)
         installer = source.split('static OTA_NOINLINE bool install_release', 1)[1].split('static void worker', 1)[0]

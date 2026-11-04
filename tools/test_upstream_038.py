@@ -199,7 +199,7 @@ typedef struct {bool insecure_for_tests;char cert_name[80];} ml_derp_node_t;
 typedef struct {struct {int ssl_conf;} derp;} microlink_t;
 static int mode,attach_error,attaches;
 static void mbedtls_ssl_conf_authmode(int *conf,int value){(void)conf;mode=value;}
-static int esp_crt_bundle_attach(int *conf){(void)conf;attaches++;return attach_error;}
+static int ml_tls_bundle_attach(int *conf){(void)conf;attaches++;return attach_error;}
 static int configure(ml_derp_node_t *derp_node,const char *derp_host){
  microlink_t node={0};microlink_t *ml=&node;
 ''' + tls + r'''

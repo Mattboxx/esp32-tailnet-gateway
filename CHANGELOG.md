@@ -6,6 +6,25 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.7-beta.8] — 2026-11-04 (pre-release)
+
+### Security
+
+- Certificates issued under the eight eMudhra intermediate CAs compromised in
+  October 2026 are refused on every TLS connection: control server, DERP
+  relays, online updates, MQTT, ntfy, Telegram/e-mail, DDNS and the speed test.
+  Their private keys can be derived from the public certificates, and the
+  roots they chain to were still trusted by the firmware's certificate store,
+  so someone able to intercept the board's traffic could present a valid
+  certificate for any name. This is the firmware's counterpart of Tailscale
+  bulletin TS-2026-013. WireGuard traffic between peers was never affected.
+  `/api/system/diag` → `tls_distrust.refused_chains` counts refused attempts.
+  Not covered: enterprise (EAP) Wi-Fi server validation with the built-in
+  certificate store.
+- The October 2026 "Tailworm" findings (Tailscale SSH, Serve/Funnel, app
+  connector, Headscale) do not apply: the firmware has none of those features
+  and uses its own DERP client.
+
 ## [3.0.7-beta.7] — 2026-11-03 (pre-release)
 
 ### Fixed
