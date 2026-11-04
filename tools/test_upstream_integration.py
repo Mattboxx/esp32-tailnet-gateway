@@ -101,7 +101,11 @@ class UpstreamIntegrationTests(unittest.TestCase):
         self.assertIn('local_ip != own_ip', dns)
         self.assertIn('peer.vpn_ip == remote_ip', dns)
         self.assertIn('from.sin_port == htons(53)', dns)
-        self.assertIn('httpd_stop(server)', dns)
+        # A failed start releases its listening socket (3.0.7-beta.9 minimal server).
+        start = dns.split('void peer_dns_start(void)', 1)[1]
+        self.assertIn('listen(fd, PEER_DNS_BACKLOG) != 0', start)
+        self.assertEqual(start.count('close(fd);'), 2)
+        self.assertIn('if (fd >= 0 && !peer_fd_allowed(fd)) {', dns)
         self.assertIn('.peer_api_port = peer_dns_is_running()', manager)
         self.assertIn('TAILSCALE_PEERAPI_PORT + 1', manager)
         web = self.text('main/web_ui.c')
