@@ -303,6 +303,7 @@ done:
 #include "task_reaper.h"
 #include "esp_attr.h"
 #include "esp_crt_bundle.h"
+#include "ml_tls_distrust.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
@@ -459,7 +460,7 @@ static esp_err_t telegram(const notify_config_t *c, const char *text, char *why,
     snprintf(url, sizeof url, "https://api.telegram.org/bot%s/sendMessage", c->tg_token);
     size_t n = notify_telegram_body(body, NOTIFY_TEXT_MAX * 6 + 160, c->tg_chat, text);
     esp_http_client_config_t hc = {.url = url, .method = HTTP_METHOD_POST, .timeout_ms = 15000,
-                                   .crt_bundle_attach = esp_crt_bundle_attach, .disable_auto_redirect = true};
+                                   .crt_bundle_attach = ml_tls_bundle_attach, .disable_auto_redirect = true};
     esp_http_client_handle_t client = n ? esp_http_client_init(&hc) : NULL;
     memset(url, 0, sizeof url);                           /* holds the token */
     esp_err_t err = ESP_FAIL;
@@ -526,7 +527,7 @@ static int io_starttls(void *ctx)
         return -1;
     mbedtls_ssl_conf_authmode(&m->conf, MBEDTLS_SSL_VERIFY_REQUIRED);   /* never unverified */
     mbedtls_ssl_conf_rng(&m->conf, mbedtls_ctr_drbg_random, &m->drbg);
-    if (esp_crt_bundle_attach(&m->conf) != ESP_OK || mbedtls_ssl_setup(&m->ssl, &m->conf) ||
+    if (ml_tls_bundle_attach(&m->conf) != ESP_OK || mbedtls_ssl_setup(&m->ssl, &m->conf) ||
         mbedtls_ssl_set_hostname(&m->ssl, m->host)) return -1;
     mbedtls_ssl_set_bio(&m->ssl, &m->net, mbedtls_net_send, mbedtls_net_recv, NULL);
     int r;

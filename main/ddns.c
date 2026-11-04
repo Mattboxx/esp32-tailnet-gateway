@@ -147,6 +147,7 @@ bool ddns_parse_trace(const char *text, uint32_t *ip)
 #include "microlink.h"
 #include "esp_attr.h"
 #include "esp_crt_bundle.h"
+#include "ml_tls_distrust.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
@@ -214,7 +215,7 @@ static uint32_t public_ip(void)
 static int request(const char *url, esp_http_client_method_t method, const char *token, const char *body, char *answer, size_t cap)
 {
     esp_http_client_config_t hc = {.url = url, .method = method, .timeout_ms = 15000,
-                                   .crt_bundle_attach = esp_crt_bundle_attach, .disable_auto_redirect = true};
+                                   .crt_bundle_attach = ml_tls_bundle_attach, .disable_auto_redirect = true};
     esp_http_client_handle_t client = esp_http_client_init(&hc);
     if (!client) return -1;
     if (token) {

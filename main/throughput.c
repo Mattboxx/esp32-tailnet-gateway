@@ -62,6 +62,7 @@ const char *throughput_stop(uint64_t bytes, uint64_t us, uint32_t seconds, size_
 #include "web_ui.h"
 #include "esp_attr.h"
 #include "esp_crt_bundle.h"
+#include "ml_tls_distrust.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_timer.h"
@@ -87,7 +88,7 @@ static void worker(void *arg)
     (void)arg;
     char *buffer = heap_caps_malloc(4096, MALLOC_CAP_SPIRAM);
     esp_http_client_config_t hc = {.url = s_job.url, .timeout_ms = 10000, .buffer_size = 4096,
-                                   .crt_bundle_attach = esp_crt_bundle_attach, .max_redirection_count = 3};
+                                   .crt_bundle_attach = ml_tls_bundle_attach, .max_redirection_count = 3};
     esp_http_client_handle_t client = buffer ? esp_http_client_init(&hc) : NULL;
     const char *why = !buffer || !client ? "out of memory" : NULL;
     int64_t start = esp_timer_get_time(), body_start = 0;

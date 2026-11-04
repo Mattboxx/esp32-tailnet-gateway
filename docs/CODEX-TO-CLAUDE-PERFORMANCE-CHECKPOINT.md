@@ -475,7 +475,7 @@ operation; detailed step journal and exact live paths belong in the private
     lines back to INFO.
   - Offline validation 105/105. The watcher `watch-loss5` is running.
 - **Owner decision (2026-11-03):** approved, as an advanced selectable
-  setting whose default behaves like the official client (ADR-025).
+  setting whose default behaves like the official client (ADR-034).
 - **3.0.7-beta.7 built** (not installed, not published).
   - Source: parent working tree on `c4620a6` plus the uncommitted beta.7
     changes; MicroLink `8a70880` (`9fcb234` modes, `8a70880` DERP diag).

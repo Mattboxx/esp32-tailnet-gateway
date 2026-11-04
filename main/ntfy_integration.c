@@ -17,6 +17,7 @@
 #include "esp_app_desc.h"
 #include "esp_attr.h"
 #include "esp_crt_bundle.h"
+#include "ml_tls_distrust.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
@@ -302,7 +303,7 @@ static NTFY_NOINLINE esp_err_t publish_message(const ntfy_integration_config_t *
         .url = url,
         .method = HTTP_METHOD_POST,
         .timeout_ms = 12000,
-        .crt_bundle_attach = esp_crt_bundle_attach,
+        .crt_bundle_attach = ml_tls_bundle_attach,
         /* SDK redirection retains manually installed Authorization headers
          * and POST data. Never replay the token or private info to a new
          * origin (or silently downgrade HTTPS). Configure the final URL. */
@@ -663,7 +664,7 @@ static NTFY_NOINLINE bool poll_commands(const ntfy_integration_config_t *c)
     if (!batch) return false;
     build_url(c, suffix, url, sizeof url);
     esp_http_client_config_t config = {.url=url,.method=HTTP_METHOD_GET,.timeout_ms=12000,
-        .crt_bundle_attach=esp_crt_bundle_attach,.disable_auto_redirect=true};
+        .crt_bundle_attach=ml_tls_bundle_attach,.disable_auto_redirect=true};
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (!client) { free(batch); return false; }
     esp_err_t err = set_auth(client, c);

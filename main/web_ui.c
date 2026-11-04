@@ -55,6 +55,7 @@
 #include "service_check.h"
 #include "ml_policy.h"
 #include "control_loss.h"
+#include "ml_tls_distrust.h"
 #include "service_evidence.h"
 #include "eth_uplink.h"
 #include "service_diagnostics.h"
@@ -4586,6 +4587,15 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
             cJSON_AddNumberToObject(ca, "chacha20", chacha20_asm_status());
             cJSON_AddNumberToObject(ca, "poly1305", poly1305_asm_status());
             cJSON_AddItemToObject(root, "crypto_asm", ca);
+        }
+    }
+    {   /* TLS chains refused since boot because they contain a compromised CA
+     * (eMudhra 2026 intermediates); any non-zero value means someone tried. */
+        cJSON *td = cJSON_CreateObject();
+        if (td) {
+            cJSON_AddNumberToObject(td, "distrusted_cas", ML_TLS_DISTRUSTED_COUNT);
+            cJSON_AddNumberToObject(td, "refused_chains", ml_tls_distrust_refusals());
+            cJSON_AddItemToObject(root, "tls_distrust", td);
         }
     }
 #if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
