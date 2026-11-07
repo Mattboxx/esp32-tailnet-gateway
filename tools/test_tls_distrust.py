@@ -173,6 +173,11 @@ int main(int argc, char **argv)
     mbedtls_ssl_config other; mbedtls_ssl_config_init(&other);
     attach_rc = ESP_FAIL; assert(ml_tls_bundle_attach(&other) == ESP_FAIL && other.f_vrfy == NULL);
     attach_rc = 0; set_callback = 0; assert(ml_tls_bundle_attach(&other) == ESP_FAIL && other.f_vrfy == NULL);
+    /* Everything parsed is released (LeakSanitizer runs on the Linux CI). */
+    mbedtls_ssl_config_free(&other);
+    mbedtls_ssl_config_free(&conf);
+    mbedtls_x509_crt *all[] = {&forged, &aaa, &good, &good_root, &compromised, &roots};
+    for (unsigned i = 0; i < sizeof all / sizeof all[0]; i++) mbedtls_x509_crt_free(all[i]);
     puts("PASS: forged controlplane.tailscale.com chain under a compromised eMudhra intermediate (key derived from its "
          "public certificate) is accepted by plain mbedTLS 3.6.5 and refused through ml_tls_bundle_attach, also when the "
          "bundle callback clears flags; normal chains pass; 16/16 published certificates matched by SPKI, 4 roots not; "
@@ -204,8 +209,11 @@ def main():
         libs = ['-lws2_32', '-lbcrypt'] if os.name == 'nt' else []
         subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), *library, '-o', str(exe), *libs],
                        check=True)
-        subprocess.run([str(exe)] + [str(path / n) for n in ('forged.pem', 'aaa.pem', 'good.pem', 'good_root.pem',
-                                                             'compromised.pem', 'roots.pem')], check=True, timeout=60)
+        run = subprocess.run([str(exe)] + [str(path / n) for n in ('forged.pem', 'aaa.pem', 'good.pem', 'good_root.pem',
+                                                                   'compromised.pem', 'roots.pem')],
+                             capture_output=True, text=True, timeout=60)
+        print(run.stdout, end='')
+        assert run.returncode == 0, (run.returncode, run.stdout[-2000:], run.stderr[-4000:])
 
 
 if __name__ == '__main__':
