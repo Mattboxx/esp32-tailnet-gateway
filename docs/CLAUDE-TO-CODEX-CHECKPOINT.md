@@ -29,9 +29,18 @@ preload. Crypto is about 7 % of CPU; TCP/IP hooks cost 2–8k cycles per call.
 Throughput is limited by lwIP plus the Wi-Fi driver and radio, not by the CPU
 (about 50 % idle). No further assembly is justified by current data.
 
+## Board position (owner, 2026-11-07)
+
+Board A is no longer near the router. Do not run, or draw conclusions from,
+tests that depend on the radio (transfers, bursts, latency or UI p95 under
+load, Wi-Fi losses). PERF-09 for beta.10 was stopped after its 500 MB
+download for that reason. PERF-09 ACCEPT, which the beta and stable
+publication gates require, is blocked until the owner restores the position
+or changes the gate.
+
 ## Open, in order
 
-1. **PERF-09 for 3.0.7-beta.10** (lab runner job `perf09-beta10-1`). Analyse it
+1. **PERF-09 for 3.0.7-beta.10**: stopped (board position). Once allowed again, analyse it
    with `build/private-device/perf09-beta10/perf09_analyse.py`. If every firmware
    criterion passes (expected 48/49; "back on 3.0.6" fails by design), package
    with `tools/package_v2.py --version 3.0.7-beta.10`, scan, push both branches
