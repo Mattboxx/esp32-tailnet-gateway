@@ -454,6 +454,8 @@ cJSON *homelab_ops_snapshot(bool detailed) {
             cJSON_AddStringToObject(rc,"last_loss",d.ctrl_loss_reason);
             cJSON_AddNumberToObject(rc,"failed_attempts_since",d.ctrl_retry_failures);
             cJSON_AddStringToObject(rc,"last_failed_attempt",d.ctrl_retry_reason);
+            cJSON_AddNumberToObject(rc,"last_reconnect_ms",d.ctrl_last_reconnect_ms);
+            cJSON_AddStringToObject(rc,"last_reconnect_stages",d.ctrl_reconnect_stages);
         }
     }
     cJSON_AddNumberToObject(root,"task_reaper_pending",task_reaper_pending());cJSON_AddNumberToObject(root,"task_reaper_fallbacks",task_reaper_fallbacks());cJSON_AddNumberToObject(root,"task_reaper_reaped",task_reaper_reaped());
