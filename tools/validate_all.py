@@ -19,7 +19,7 @@ DRIVERS+=['lab_echo']
 DRIVERS+=['gateway_benchmark']
 # wg_rx_owned / wg_rx_sdk test the RX-ownership experiment (MicroLink branch
 # perf/owned-rx-pbuf-20261029); dev.3 leaves that change out (no measured gain).
-DRIVERS+=['wg_crypto_hotloop','ml_perf','wg_crypto_diff','wg_mgr_wake','poly1305_xtensa','chacha20_xtensa','forward_drop_counters','web_idle','sdlog_memory_sink','tailnet_event_text','control_loss_setting','tls_distrust','wg_rx_path','coord_session_end']
+DRIVERS+=['wg_crypto_hotloop','ml_perf','wg_crypto_diff','wg_mgr_wake','poly1305_xtensa','chacha20_xtensa','forward_drop_counters','web_idle','sdlog_memory_sink','tailnet_event_text','control_loss_setting','tls_distrust','wg_rx_path','coord_session_end','derp_frame_read','stun_parse','dns_relay_upstream']
 DRIVERS+=['coord_recovery']
 DRIVERS+=['lab_cleanup']
 DRIVERS+=['candidate_ota_guard']
