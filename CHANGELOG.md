@@ -39,12 +39,6 @@ below and the following.
 - Handshake messages with a wrong MAC, which anyone able to reach the
   WireGuard port can send, wrote two log lines each; a flood now produces one
   warning per 30 s with a count.
-- Deleting a temporary Service Gateway rule before its deadline no longer
-  produces a later "temporary service rule(s) closed" notification for a rule
-  that no longer exists. The lease is still closed (traffic stays denied); only
-  the announcement is limited to rules that are still configured. A lease that
-  expired while the gateway was off is announced once the rules are loaded.
-
 ### Changed
 
 - The IPv4 UDP/TCP checksum, computed for every encrypted WireGuard packet
@@ -53,7 +47,8 @@ below and the following.
   identical: before first use the gateway compares it with lwIP's own
   function on random data, every alignment and split buffers, and keeps
   lwIP's function if anything differs. `/api/system/diag` → `fast_checksum`
-  reports the outcome and the cycles both take for 1,400 bytes.
+  reports the outcome and the cycles both take for 1,400 bytes: 1,633
+  against 2,260 on the board (28 % fewer).
 - The exit-node DNS service (PeerAPI DNS-over-HTTP for devices using this
   gateway as their exit node) runs on a minimal built-in server instead of a
   second general-purpose web server instance, which used about 2.5 KB of
