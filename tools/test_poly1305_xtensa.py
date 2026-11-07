@@ -255,7 +255,9 @@ def compile_c(folder, name, source, extra=()):
 
 def asm_cases(full_range):
     rng = random.Random(1305)
-    cases = [([M32] * 5, [M32] * 5, [M32] * 4 * n, f) for n in (1, 2, 8) for f in (0, 1)]
+    # All-ones limbs are out of range for the 26-bit representation: only a
+    # host with a 32-bit unsigned long reproduces the device's wrap-around.
+    cases = [([M32] * 5, [M32] * 5, [M32] * 4 * n, f) for n in (1, 2, 8) for f in (0, 1)] if full_range else []
     cases += [([0] * 5, [0] * 5, [0] * 4, 0), (list(CLAMP), [0x3ffffff] * 5, [M32] * 16, 0)]
     for i in range(400):
         n = 1 + i % 8

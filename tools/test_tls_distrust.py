@@ -34,7 +34,8 @@ from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 ROOT = Path(__file__).resolve().parents[1]
 ML = ROOT / 'external/microlink/components/microlink'
 MBED = Path(os.environ.get('MBEDTLS_DIR', str(Path.home() / '.platformio/packages/framework-espidf@3.50503.0/components/mbedtls/mbedtls')))
-BUNDLE = MBED.parent / 'esp_crt_bundle/cacrt_all.pem'
+# The pinned SDK's certificate bundle (CI: sparse ESP-IDF checkout, CRT_BUNDLE).
+BUNDLE = Path(os.environ.get('CRT_BUNDLE', str(MBED.parent / 'esp_crt_bundle/cacrt_all.pem')))
 FIXTURE = ROOT / 'tools/fixtures/emudhra-compromised-intermediates.crt'
 AAA_SHA256 = 'D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4'
 EMSIGN_ECC_G3_SHA256 = '86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B'
