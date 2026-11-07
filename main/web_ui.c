@@ -24,12 +24,14 @@
 #include "history.h"
 #include "storage_store.h"
 #include "web_ui.h"
+#include "web_idle.h"
 #include "lan_name.h"
 #include "json_guard.h"
 #include "web_origin.h"
 #include "homelab_ops.h"
 #include "tailscale_config.h"
 #include "peer_dns.h"
+#include "fast_chksum.h"
 #include "tailscale_mtu.h"
 #include "nvs_params.h"
 #include "wifi_power_save.h"
@@ -53,6 +55,9 @@
 #include "service_lease.h"
 #include "service_check.h"
 #include "ml_policy.h"
+#include "control_loss.h"
+#include "ml_tls_distrust.h"
+#include "perf_hooks.h"
 #include "service_evidence.h"
 #include "eth_uplink.h"
 #include "service_diagnostics.h"
@@ -3272,6 +3277,8 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(settings, "default_derp_region",     tailscale_default_derp_region);
     cJSON_AddBoolToObject  (settings, "netcheck_override",       tailscale_netcheck_override != 0);
     cJSON_AddNumberToObject(settings, "netcheck_threshold_ms",   tailscale_netcheck_threshold_ms);
+    cJSON_AddStringToObject(settings, "control_loss_mode",       control_loss_mode_name(tailscale_control_loss_mode));
+    cJSON_AddNumberToObject(settings, "control_loss_grace_s",    tailscale_control_loss_grace_s);
     cJSON_AddBoolToObject  (settings, "lan_bypass",              tailscale_lan_bypass != 0);
     cJSON_AddBoolToObject  (settings, "accept_routes",           tailscale_accept_routes != 0);
     cJSON_AddBoolToObject  (settings, "snat_subnet_routes",      tailscale_snat_subnet_routes != 0);
@@ -3301,6 +3308,9 @@ static esp_err_t tailscale_handler(httpd_req_t *req)
     ml_policy_status_t ts_runtime_policy;
     ml_policy_get_status(&ts_runtime_policy);
     cJSON_AddBoolToObject(runtime, "authority_ready", ts_runtime_policy.authority_ready);
+    /* Control plane unreachable, last policy still enforced (keep/bounded). */
+    cJSON_AddBoolToObject(runtime, "control_stale", ts_runtime_policy.control_stale);
+    cJSON_AddNumberToObject(runtime, "control_stale_ms", ts_runtime_policy.control_stale ? ts_runtime_policy.stale_ms : 0);
     if (tailscale_tunnel_ip) {
         char buf[16];
         ip4_to_str(tailscale_tunnel_ip, buf, sizeof buf);
@@ -3509,6 +3519,15 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
                                 "invalid Tailscale settings: routes max 400 bytes, peers 1-64, DERP 0-65535, threshold 0-5000");
             return ESP_FAIL;
         }
+        const cJSON *loss_mode = cJSON_GetObjectItem(s, "control_loss_mode");
+        const cJSON *loss_grace = cJSON_GetObjectItem(s, "control_loss_grace_s");
+        if ((loss_mode && (!cJSON_IsString(loss_mode) || control_loss_mode_parse(loss_mode->valuestring) < 0))
+            || (loss_grace && (!cJSON_IsNumber(loss_grace) || !control_loss_grace_valid(loss_grace->valuedouble)))) {
+            cJSON_Delete(root);
+            httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST,
+                                "invalid control-loss setting: mode keep, bounded or strict; grace 30-86400 s");
+            return ESP_FAIL;
+        }
         const cJSON *advertise_exit = cJSON_GetObjectItem(s, "advertise_exit_node");
         const cJSON *selected_exit = cJSON_GetObjectItem(s, "exit_node_ip");
         bool want_advertise_exit = cJSON_IsBool(advertise_exit)
@@ -3580,6 +3599,11 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
         save_int_if_present(s, "max_peers",        "ts_maxpeers");
         save_int_if_present(s, "default_derp_region",   "ts_def_derp");
         save_int_if_present(s, "netcheck_threshold_ms", "ts_nc_thr");
+        save_int_if_present(s, "control_loss_grace_s",  "ts_loss_grace");
+        const cJSON *loss_mode = cJSON_GetObjectItem(s, "control_loss_mode");
+        if (cJSON_IsString(loss_mode)) {
+            nvs_save_int("ts_loss_mode", control_loss_mode_parse(loss_mode->valuestring));
+        }
 
         const cJSON *bool_keys[][2] = {
             { cJSON_GetObjectItem(s, "advertise_ap"),      (void *)"ts_adv_ap" },
@@ -3692,6 +3716,12 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
             _TS_REFRESH_BOOL("accept_routes",           tailscale_accept_routes);
             _TS_REFRESH_BOOL("snat_subnet_routes",      tailscale_snat_subnet_routes);
             _TS_REFRESH_BOOL("advertise_exit_node",     tailscale_advertise_exit_node);
+            _TS_REFRESH_NUM ("control_loss_grace_s",    tailscale_control_loss_grace_s);
+            const cJSON *loss_mode = cJSON_GetObjectItem(s, "control_loss_mode");
+            if (cJSON_IsString(loss_mode)) tailscale_control_loss_mode = control_loss_mode_parse(loss_mode->valuestring);
+            /* Applies live: no restart needed for this one. */
+            ml_policy_set_control_loss((uint8_t)tailscale_control_loss_mode,
+                                       (uint32_t)tailscale_control_loss_grace_s);
 
             #undef _TS_REFRESH_STR
             #undef _TS_REFRESH_BOOL
@@ -4551,6 +4581,57 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
                              microlink_get_wg_tx_copyfree(tailscale_get_microlink()));
         cJSON_AddItemToObject(root, "memory", m);
     }
+    {   /* ESP32-S3 assembly crypto: 1 in use, -1 rejected by its check (C fallback), 0 not checked yet. */
+        extern int poly1305_asm_status(void);
+        extern int chacha20_asm_status(void);
+        cJSON *ca = cJSON_CreateObject();
+        if (ca) {
+            cJSON_AddNumberToObject(ca, "chacha20", chacha20_asm_status());
+            cJSON_AddNumberToObject(ca, "poly1305", poly1305_asm_status());
+            cJSON_AddItemToObject(root, "crypto_asm", ca);
+        }
+    }
+    {   /* TLS chains refused since boot because they contain a compromised CA
+     * (eMudhra 2026 intermediates); any non-zero value means someone tried. */
+        cJSON *td = cJSON_CreateObject();
+        if (td) {
+            cJSON_AddNumberToObject(td, "distrusted_cas", ML_TLS_DISTRUSTED_COUNT);
+            cJSON_AddNumberToObject(td, "refused_chains", ml_tls_distrust_refusals());
+            cJSON_AddItemToObject(root, "tls_distrust", td);
+        }
+    }
+    {   /* Exit-node DNS/PeerAPI server: internal RAM and sockets it took at start. */
+        cJSON *xd = cJSON_CreateObject();
+        if (xd) {
+            cJSON_AddBoolToObject(xd, "running", peer_dns_is_running());
+            cJSON_AddNumberToObject(xd, "start_internal_bytes", peer_dns_start_internal_bytes());
+            cJSON_AddNumberToObject(xd, "start_sockets", peer_dns_start_sockets());
+            cJSON_AddItemToObject(root, "exit_dns", xd);
+        }
+    }
+#if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
+    perf_hooks_report(root);
+    {   /* Test-only profiling image ("-prof" version): packet-path stage counters. */
+        microlink_perf_stage_t st[16];
+        size_t n = microlink_perf_profile(st, sizeof st / sizeof st[0]);
+        cJSON *pp = cJSON_CreateObject();
+        cJSON_AddNumberToObject(pp, "cpu_hz", CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ * 1000000.0);
+        extern int poly1305_asm_status(void);
+        extern int chacha20_asm_status(void);
+        cJSON_AddNumberToObject(pp, "poly1305_asm", poly1305_asm_status());
+        cJSON_AddNumberToObject(pp, "chacha20_asm", chacha20_asm_status());
+        for (size_t i = 0; i < n; i++) {
+            cJSON *s = cJSON_CreateObject();
+            cJSON_AddNumberToObject(s, "total", (double)st[i].total);
+            cJSON_AddNumberToObject(s, "bytes", (double)st[i].bytes);
+            cJSON_AddNumberToObject(s, "count", st[i].count);
+            cJSON_AddNumberToObject(s, "max", st[i].max);
+            cJSON_AddNumberToObject(s, "migrated", st[i].migrated);
+            cJSON_AddItemToObject(pp, st[i].name, s);
+        }
+        cJSON_AddItemToObject(root, "perf_profile", pp);
+    }
+#endif
 
     /* --- B) Partitions --------------------------------------------------- */
     {
@@ -4650,8 +4731,20 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(dc, "entries",   ds.entries);
         cJSON_AddNumberToObject(dc, "capacity",  ds.capacity);
         cJSON_AddNumberToObject(dc, "evictions", ds.evictions);
+        cJSON_AddNumberToObject(dc, "upstream_stray", ds.stray);
         cJSON_AddNumberToObject(dc, "cache_bytes", ds.cache_bytes);
         cJSON_AddItemToObject(root, "dns_cache", dc);
+    }
+    {
+        fast_chksum_status_t fc;
+        fast_chksum_status(&fc);
+        cJSON *fo = cJSON_AddObjectToObject(root, "fast_checksum");
+        if (fo) {
+            cJSON_AddBoolToObject(fo, "checked", fc.checked);
+            cJSON_AddBoolToObject(fo, "active", fc.active);
+            cJSON_AddNumberToObject(fo, "cycles_1400_fast", fc.cycles_fast);
+            cJSON_AddNumberToObject(fo, "cycles_1400_lwip", fc.cycles_lwip);
+        }
     }
 
     /* --- D3) microSD card (separate from flash; mounted FAT at /sdcard) -- */
@@ -4672,12 +4765,17 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
         TaskStatus_t *arr = malloc(sizeof(TaskStatus_t) * n);
         cJSON *tasks = cJSON_CreateArray();
         if (arr) {
-            UBaseType_t got = uxTaskGetSystemState(arr, n, NULL);
+            configRUN_TIME_COUNTER_TYPE total_runtime = 0;
+            UBaseType_t got = uxTaskGetSystemState(arr, n, &total_runtime);
+            /* Run time in microseconds since boot (esp_timer clock): two
+             * readings give each task's CPU share over an interval. */
+            cJSON_AddNumberToObject(root, "tasks_runtime_total_us", (double)total_runtime);
             for (UBaseType_t i = 0; i < got; i++) {
                 cJSON *t = cJSON_CreateObject();
                 cJSON_AddStringToObject(t, "name",     arr[i].pcTaskName ? arr[i].pcTaskName : "?");
                 cJSON_AddNumberToObject(t, "prio",     arr[i].uxCurrentPriority);
                 cJSON_AddNumberToObject(t, "stack_hwm", arr[i].usStackHighWaterMark);
+                cJSON_AddNumberToObject(t, "runtime_us", (double)arr[i].ulRunTimeCounter);
                 const char *st = "?";
                 switch (arr[i].eCurrentState) {
                     case eRunning:   st = "running";   break;
@@ -4707,6 +4805,43 @@ static const httpd_uri_t uri_system_diag = {
     .uri = "/api/system/diag", .method = HTTP_GET,
     .handler = system_diag_handler,
 };
+
+#if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
+/* Test-only ("-prof" images): POST /api/system/perf {"bench":true} runs the
+ * decrypt micro-benchmark and answers with its cycle counts. */
+static esp_err_t system_perf_handler(httpd_req_t *req)
+{
+    if (require_auth(req) != ESP_OK) return ESP_FAIL;
+    char buf[96];
+    if (recv_body(req, buf, sizeof buf, NULL) != ESP_OK) return ESP_FAIL;
+    cJSON *in = json_guard_parse(buf);
+    bool bench = cJSON_IsTrue(cJSON_GetObjectItem(in, "bench"));
+    cJSON_Delete(in);
+    cJSON *out = cJSON_CreateObject();
+    if (bench) {
+        uint32_t c[4];
+        if (microlink_perf_decrypt_bench(c) == 0) {
+            cJSON *bj = cJSON_AddObjectToObject(out, "decrypt_cycles");
+            cJSON_AddNumberToObject(bj, "internal", c[0]);
+            cJSON_AddNumberToObject(bj, "spiram_warm", c[1]);
+            cJSON_AddNumberToObject(bj, "spiram_cold", c[2]);
+            cJSON_AddNumberToObject(bj, "bytes", c[3]);
+        } else {
+            cJSON_AddStringToObject(out, "bench_error", "allocation or self-check failed");
+        }
+    }
+    char *body = cJSON_PrintUnformatted(out);
+    cJSON_Delete(out);
+    httpd_resp_set_type(req, "application/json");
+    esp_err_t e = httpd_resp_sendstr(req, body ? body : "{}");
+    free(body);
+    return e;
+}
+static const httpd_uri_t uri_system_perf = {
+    .uri = "/api/system/perf", .method = HTTP_POST,
+    .handler = system_perf_handler,
+};
+#endif
 
 /* ---- Session management -------------------------------------------------
  * Four in-memory sessions. Each has a 32-byte random token hex-
@@ -5877,6 +6012,13 @@ void web_ui_init(void)
      * hardware). Room for downloads that add Content-Disposition too. */
     conf.max_resp_headers         = 12;
     conf.stack_size               = 12288;
+    /* Same priority as the TCPIP thread and the MicroLink receive tasks (18).
+     * At the default 5 the UI waited behind the data plane: with the receive
+     * tasks at 18 (3.0.7-dev.12) the status p95 under a single stream rose
+     * from ~0.3 to ~0.55 s. Equal priorities share the CPU in 10 ms slices,
+     * so a long handler cannot starve forwarding and traffic cannot starve
+     * the UI. */
+    conf.task_priority            = 18;
     /* Local uploads and queued GitHub OTA work freeze flash caches. */
     conf.task_caps                = MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT;
     /* The HTTP server needs three lwIP sockets internally. Four client slots
@@ -5895,7 +6037,15 @@ void web_ui_init(void)
     conf.max_open_sockets = available_http_clients < desired_http_clients
                           ? available_http_clients
                           : desired_http_clients;
-    conf.lru_purge_enable         = true;
+    /* No LRU purge: it closed sessions accepted a moment earlier whose request
+     * had not arrived yet (connection resets in bursts of parallel requests,
+     * PERF-09 on 3.0.7-beta.2 and 3.0.6). New connections wait in the
+     * backlog for a free slot, and web_idle closes sessions idle for 5 s so
+     * keep-alive connections cannot hold every slot. 12 waiting plus 4
+     * served covers a burst of 16; waiting connections hold only a TCP PCB. */
+    conf.lru_purge_enable         = false;
+    conf.open_fn                  = web_idle_open;
+    conf.backlog_conn             = 12;
     conf.server_port              = web_ui_configured_port();
     web_ui_set_active_port(conf.server_port);
 
@@ -5904,6 +6054,7 @@ void web_ui_init(void)
         ESP_LOGE(TAG, "httpd_start failed");
         return;
     }
+    web_idle_start(server);
     if (ota_flash_bind_httpd(server) != ESP_OK)
         ESP_LOGE(TAG, "Cannot bind internal-stack OTA work to admin server");
     /* Old stored rules may conflict with the boot listener. Keep their
@@ -5968,6 +6119,9 @@ void web_ui_init(void)
     reg_uri(server, &uri_system_secrets_get);
     reg_uri(server, &uri_system_secrets_post);
     reg_uri(server, &uri_system_diag);
+#if defined(TSR_PERF_PROFILE) && TSR_PERF_PROFILE
+    reg_uri(server, &uri_system_perf);
+#endif
     reg_uri(server, &uri_system_debug_crash);
     reg_uri(server, &uri_system_debug_wg_tx_post);
     reg_uri(server, &uri_auth_status);

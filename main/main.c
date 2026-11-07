@@ -1047,6 +1047,10 @@ void app_main(void)
      * in NVS) starts the writer task. Installs a vprintf hook (chain:
      * sdlog -> UART). Stays dark with no crash when no card is present. */
     sdlog_init();
+    /* Keep warnings and errors in the /log ring (and the pre-crash RTC ring)
+     * even when the console is at ERROR and no SD card records them: the
+     * reasons for a Tailnet or uplink reconnect are logged at WARN. */
+    sdlog_set_memory_sink(log_capture_store, SDLOG_LVL_WARN);
 
     /* Report why the previous boot rebooted (set in NVS before our deliberate
      * esp_restart paths — e.g. channel realign). Read AFTER sdlog_init so the

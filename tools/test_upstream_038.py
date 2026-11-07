@@ -54,10 +54,15 @@ def run(name, program, *, sources=(), includes=(), flags=(), libraries=()):
 
 
 wg = (WG / 'wireguard.c').read_text(encoding='utf-8')
-replay = function(wg, 'bool wireguard_check_replay(')
+# The fixture below mirrors the keypair fields the replay check uses.
+assert 'uint64_t replay_bitmap;' in (WG / 'wireguard.h').read_text(encoding='utf-8')
+# The replay check updates the loss counters declared just above it.
+_decl = 's_wg_rx_seq_gap, s_wg_rx_seq_late;'
+replay = wg[wg.index('#define WG_RX_GAP_MAX'):wg.index(_decl) + len(_decl)] + '\n' \
+    + function(wg, 'bool wireguard_check_replay(')
 run('actual 64-bit replay window: duplicates, reordering, large jumps and rejection limit', r'''
 #define REJECT_AFTER_MESSAGES (UINT64_MAX - 8192)
-struct wireguard_keypair { uint64_t replay_counter; uint32_t replay_bitmap; };
+struct wireguard_keypair { uint64_t replay_counter; uint64_t replay_bitmap; };
 ''' + replay + r'''
 int main(void) {
  struct wireguard_keypair k={0};
@@ -67,11 +72,18 @@ int main(void) {
  assert(wireguard_check_replay(&k,((uint64_t)1<<32)+3));
  assert(!wireguard_check_replay(&k,3));assert(!wireguard_check_replay(&k,2));
  assert(wireguard_check_replay(&k,REJECT_AFTER_MESSAGES-1));
- uint64_t saved=k.replay_counter;uint32_t bitmap=k.replay_bitmap;
+ uint64_t saved=k.replay_counter;uint64_t bitmap=k.replay_bitmap;
  assert(!wireguard_check_replay(&k,REJECT_AFTER_MESSAGES));
  assert(!wireguard_check_replay(&k,UINT64_MAX));
  assert(k.replay_counter==saved&&k.replay_bitmap==bitmap);
  for(unsigned i=0;i<10000;i++)assert(!wireguard_check_replay(&k,i));
+ /* 64-packet window: 63 behind is accepted once, 64 behind is too old. */
+ struct wireguard_keypair w={0};
+ assert(wireguard_check_replay(&w,1000));
+ assert(wireguard_check_replay(&w,1000-63));assert(!wireguard_check_replay(&w,1000-63));
+ assert(!wireguard_check_replay(&w,1000-64));
+ for(unsigned i=1;i<63;i++)assert(wireguard_check_replay(&w,1000-i));
+ for(unsigned i=0;i<64;i++)assert(!wireguard_check_replay(&w,1000-i));
 }
 ''')
 
@@ -187,7 +199,7 @@ typedef struct {bool insecure_for_tests;char cert_name[80];} ml_derp_node_t;
 typedef struct {struct {int ssl_conf;} derp;} microlink_t;
 static int mode,attach_error,attaches;
 static void mbedtls_ssl_conf_authmode(int *conf,int value){(void)conf;mode=value;}
-static int esp_crt_bundle_attach(int *conf){(void)conf;attaches++;return attach_error;}
+static int ml_tls_bundle_attach(int *conf){(void)conf;attaches++;return attach_error;}
 static int configure(ml_derp_node_t *derp_node,const char *derp_host){
  microlink_t node={0};microlink_t *ml=&node;
 ''' + tls + r'''

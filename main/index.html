@@ -3088,6 +3088,26 @@
             </label>
             <span class="form-hint">RFC1918 destinations stay on the local LAN even when an exit node is selected.</span>
           </div>
+
+          <details class="form-group" id="ts-loss-box">
+            <summary style="cursor:pointer;">Advanced: control-plane outage</summary>
+            <div class="grid grid-cols-2" style="margin-top:0.5rem;">
+              <div class="form-group">
+                <label class="form-label" for="ts-loss-mode">When the control plane is unreachable</label>
+                <select class="select" id="ts-loss-mode">
+                  <option value="keep">Keep the last policy (like the official client)</option>
+                  <option value="bounded">Keep the last policy for a limited time</option>
+                  <option value="strict">Block traffic immediately (strict)</option>
+                </select>
+              </div>
+              <div class="form-group" id="ts-loss-grace-group" style="display:none;">
+                <label class="form-label" for="ts-loss-grace">Time limit (minutes)</label>
+                <input class="input" type="number" id="ts-loss-grace" min="1" max="1440" value="5">
+              </div>
+            </div>
+            <span class="form-hint">The coordination server (Tailscale or Headscale) can be unreachable for a while; peers and WireGuard keep working. By default the gateway keeps enforcing the last policy it received, like the official Tailscale client: nothing new is granted and a fresh policy replaces it as soon as the connection is back. A malformed policy, an explicit disconnect or an expired key always block. Applies immediately, no restart needed.</span>
+            <span class="form-hint" id="ts-loss-state" role="status"></span>
+          </details>
         </div>
         <div class="form-footer">
           <span class="form-footer-hint">Changes require a reboot to take effect.</span>
@@ -8610,6 +8630,11 @@
       return prefix;
     }
 
+    function updateLossGrace() {
+      document.getElementById('ts-loss-grace-group').style.display =
+        document.getElementById('ts-loss-mode').value === 'bounded' ? '' : 'none';
+    }
+    document.getElementById('ts-loss-mode').addEventListener('change', updateLossGrace);
     function loadTailscale() {
       apiFetch('/api/tailscale')
         .then(function (r) { return r.json(); })
@@ -8659,6 +8684,13 @@
           document.getElementById('ts-accept-routes').checked = !!s.accept_routes;
           document.getElementById('ts-lan-bypass').checked    = !!s.lan_bypass;
           document.getElementById('ts-snat').checked          = !!s.snat_subnet_routes;
+          document.getElementById('ts-loss-mode').value = s.control_loss_mode || 'keep';
+          document.getElementById('ts-loss-grace').value = Math.max(1, Math.round((s.control_loss_grace_s || 300) / 60));
+          updateLossGrace();
+          var rt = d.runtime || {};
+          document.getElementById('ts-loss-state').textContent = !rt.connected && !rt.control_stale ? ''
+            : rt.control_stale ? 'Control plane unreachable: traffic continues with the last policy.'
+            : rt.authority_ready ? 'Control plane reachable: the policy is current.' : 'Control plane unreachable: traffic is blocked until a fresh policy arrives.';
           document.getElementById('ts-advertise-exit').checked = !!s.advertise_exit_node;
           document.getElementById('ts-manual-exit-state').textContent = s.manual_exit_advertisement === true
             ? 'Exit-node mode is also requested by a manual default route.' : '';
@@ -9005,6 +9037,8 @@
           accept_routes:     document.getElementById('ts-accept-routes').checked,
           lan_bypass:        document.getElementById('ts-lan-bypass').checked,
           snat_subnet_routes: document.getElementById('ts-snat').checked,
+          control_loss_mode: document.getElementById('ts-loss-mode').value,
+          control_loss_grace_s: Math.min(1440, Math.max(1, parseInt(document.getElementById('ts-loss-grace').value, 10) || 5)) * 60,
           advertise_exit_node: document.getElementById('ts-advertise-exit').checked,
           exit_node_ip:      document.getElementById('ts-exit-node').value,
           fourvia6: {

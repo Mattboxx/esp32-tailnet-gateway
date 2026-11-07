@@ -303,6 +303,7 @@ done:
 #include "task_reaper.h"
 #include "esp_attr.h"
 #include "esp_crt_bundle.h"
+#include "ml_tls_distrust.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
@@ -459,7 +460,7 @@ static esp_err_t telegram(const notify_config_t *c, const char *text, char *why,
     snprintf(url, sizeof url, "https://api.telegram.org/bot%s/sendMessage", c->tg_token);
     size_t n = notify_telegram_body(body, NOTIFY_TEXT_MAX * 6 + 160, c->tg_chat, text);
     esp_http_client_config_t hc = {.url = url, .method = HTTP_METHOD_POST, .timeout_ms = 15000,
-                                   .crt_bundle_attach = esp_crt_bundle_attach, .disable_auto_redirect = true};
+                                   .crt_bundle_attach = ml_tls_bundle_attach, .disable_auto_redirect = true};
     esp_http_client_handle_t client = n ? esp_http_client_init(&hc) : NULL;
     memset(url, 0, sizeof url);                           /* holds the token */
     esp_err_t err = ESP_FAIL;
@@ -526,7 +527,7 @@ static int io_starttls(void *ctx)
         return -1;
     mbedtls_ssl_conf_authmode(&m->conf, MBEDTLS_SSL_VERIFY_REQUIRED);   /* never unverified */
     mbedtls_ssl_conf_rng(&m->conf, mbedtls_ctr_drbg_random, &m->drbg);
-    if (esp_crt_bundle_attach(&m->conf) != ESP_OK || mbedtls_ssl_setup(&m->ssl, &m->conf) ||
+    if (ml_tls_bundle_attach(&m->conf) != ESP_OK || mbedtls_ssl_setup(&m->ssl, &m->conf) ||
         mbedtls_ssl_set_hostname(&m->ssl, m->host)) return -1;
     mbedtls_ssl_set_bio(&m->ssl, &m->net, mbedtls_net_send, mbedtls_net_recv, NULL);
     int r;
@@ -733,6 +734,14 @@ static void link_recovered_locked(unsigned link, uint32_t now)
     s->down = false; s->suppress_up = true;
 }
 
+/* A structured event text equal to `base` or `base` followed by its detail
+ * (": cause" or " after ..."), as history.c writes the Tailnet events. */
+static bool event_text_is(const char *text, const char *base)
+{
+    size_t n = strlen(base);
+    return !strncmp(text, base, n) && (text[n] == '\0' || text[n] == ':' || text[n] == ' ');
+}
+
 /* Match only structured messages produced by main.c/history.c. Other uplink
  * events (DDNS failures, throughput results) must never cancel an outage. */
 static bool connectivity_offer_locked(unsigned kind, unsigned level, const char *text, uint32_t now)
@@ -740,8 +749,8 @@ static bool connectivity_offer_locked(unsigned kind, unsigned level, const char 
     unsigned link = LINK_NONE; bool up = false;
     if (kind == HIST_EV_UPLINK && level == HIST_WARN && !strncmp(text, "Wi-Fi uplink lost (", sizeof("Wi-Fi uplink lost (") - 1)) link = LINK_WIFI;
     else if (kind == HIST_EV_UPLINK && level == HIST_INFO && !strncmp(text, "Wi-Fi uplink connected, ", sizeof("Wi-Fi uplink connected, ") - 1)) {link = LINK_WIFI; up = true;}
-    else if (kind == HIST_EV_TAILNET && level == HIST_WARN && !strcmp(text, "Tailnet connection lost")) link = LINK_TAILNET;
-    else if (kind == HIST_EV_TAILNET && level == HIST_INFO && !strcmp(text, "Tailnet connected")) {link = LINK_TAILNET; up = true;}
+    else if (kind == HIST_EV_TAILNET && level == HIST_WARN && event_text_is(text, "Tailnet connection lost")) link = LINK_TAILNET;
+    else if (kind == HIST_EV_TAILNET && level == HIST_INFO && event_text_is(text, "Tailnet connected")) {link = LINK_TAILNET; up = true;}
     if (!link) return false;
     link_state_t *s = &s_links[link];
     if (up) {

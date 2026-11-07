@@ -20,6 +20,12 @@ static bool expired[TAILNET_FORWARD_MAX],ready,loaded;
 static uint32_t last_wall;
 static uint64_t next_persist_retry;
 static SemaphoreHandle_t writer;
+/* Announcement of closures, not their effect (denial is immediate): a lease
+ * whose rule was deleted before its deadline closes silently. Until the rule
+ * table is known (boot), closed tokens wait for the first rules update. */
+static uint32_t closed_tokens[TAILNET_FORWARD_MAX];
+static uint32_t live_tokens[TAILNET_FORWARD_MAX];
+static int live_count=-1;
 static StaticSemaphore_t writer_storage;
 static portMUX_TYPE state_lock=portMUX_INITIALIZER_UNLOCKED;
 static uint64_t clock_ms(void){return (uint64_t)esp_timer_get_time()/1000;}
@@ -72,6 +78,23 @@ void service_lease_init(void) {
     portENTER_CRITICAL(&state_lock);ready=usable;loaded=true;portEXIT_CRITICAL(&state_lock);
     (void)service_lease_tick();
 }
+static unsigned announce_locked(void) {
+    if(live_count<0)return 0;
+    unsigned n=0;
+    for(unsigned i=0;i<TAILNET_FORWARD_MAX;i++){
+        if(!closed_tokens[i])continue;
+        for(int j=0;j<live_count;j++)if(live_tokens[j]==closed_tokens[i]){n++;break;}
+        closed_tokens[i]=0;
+    }
+    return n;
+}
+void service_lease_rules_changed(const tailnet_forward_rule_t *rules,int count) {
+    uint32_t tokens[TAILNET_FORWARD_MAX]={0};
+    if(!rules||count<0)count=0;
+    if(count>TAILNET_FORWARD_MAX)count=TAILNET_FORWARD_MAX;
+    for(int i=0;i<count;i++)tokens[i]=service_lease_token(&rules[i]);
+    portENTER_CRITICAL(&state_lock);memcpy(live_tokens,tokens,sizeof tokens);live_count=count;portEXIT_CRITICAL(&state_lock);
+}
 bool service_lease_tick(void) {
     if(!writer)return false;
     time_t wall=time(NULL);uint64_t now=clock_ms();bool changed=false;unsigned closures=0;
@@ -83,12 +106,13 @@ bool service_lease_tick(void) {
         lease_t l=saved.entries[i];if(!l.token || !l.created || expired[i])continue;
         if(!l.expires || rollback || (wall>=1700000000 && ((uint64_t)wall<l.created || (uint64_t)wall>=l.expires))
             || (deadlines[i] && now>=deadlines[i])){
-            if(l.expires)closures++; /* Persisted tombstones do not alert again on boot. */
+            if(l.expires)closed_tokens[i]=l.token; /* Persisted tombstones do not alert again on boot. */
             expired[i]=true;deadlines[i]=0;changed=true;}
         else if(!deadlines[i] && wall>=1700000000 && wall<=UINT32_MAX){deadlines[i]=now+((uint64_t)l.expires-(uint64_t)wall)*1000;changed=true;}
     }
     lease_store_t candidate=saved;bool persist=false;
     for(unsigned i=0;i<TAILNET_FORWARD_MAX;i++)if(expired[i] && candidate.entries[i].expires){candidate.entries[i].expires=0;persist=true;}
+    closures=announce_locked();
     portEXIT_CRITICAL(&state_lock);
     /* Denial takes effect first. Persist the closed state; never reopen on a
      * failed write. A failed close is retried with bounded NVS backoff. */

@@ -1,5 +1,16 @@
 # Feature implementation and validation matrix
 
+2026-10-29 performance follow-up: F21/F33 investigation packages PERF-01–09 are
+tracked independently in
+[Performance exploration](PERFORMANCE-EXPLORATION-ROADMAP.md). The owner permits
+measured RAM tradeoffs, with concurrent-service stability as a blocking gate.
+Private two-segment transfer evidence is scoped; it does not complete F33 or
+establish a maximum throughput or worst-case load capacity. The reusable harness,
+six scoped INFO/WARN baseline transfers and an owning-pbuf RX prototype with
+host/SDK lifetime tests are now complete for their stated scopes. Candidate
+hardware performance/load resilience remains unqualified; follow the
+[performance checkpoint](CODEX-TO-CLAUDE-PERFORMANCE-CHECKPOINT.md).
+
 Firmware 3.0.6 implements update-transfer recovery: bounded transient-read retries for GitHub and manual uploads,
 known-size erase and failure diagnostics. Resource limits and existing
 features remain; actual hardware evidence is separate from host fixtures.

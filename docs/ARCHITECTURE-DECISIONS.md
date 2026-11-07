@@ -2,6 +2,56 @@
 
 Decisions are explicit, revisable with evidence and never remove approved scope.
 
+## ADR-035 — Compromised CA keys are refused on every TLS connection (2026-11-04)
+
+In October 2026 the private keys of eight eMudhra intermediate CAs turned out
+to be derivable from their public certificates (P-384, scalars below 256).
+They chain to "emSign ECC Root CA - G3" and, through Sectigo cross-signs, to
+"AAA Certificate Services", both still in the ESP-IDF 5.5.3 bundle; the ESP
+does no revocation checking, and no Espressif/mbedTLS update exists. A host
+test with the real certificates and the pinned mbedTLS 3.6.5 showed a forged
+controlplane.tailscale.com chain accepted. With a network position an attacker
+could have impersonated the control server (fake key and policy, so LAN access
+through the subnet router), served a modified OTA image with a matching hash
+(no image signature yet) or read MQTT/ntfy/notification/DDNS credentials.
+Tailscale fixed its clients in TS-2026-013 (Go 1.27.3).
+
+`ml_tls_bundle_attach()` (MicroLink) replaces `esp_crt_bundle_attach()` for
+every bundle user (control, DERP, OTA, MQTT, ntfy, Telegram/mail, DDNS, layout
+migration, throughput test). It keeps the bundle callback and adds NOT_TRUSTED
+for any certificate whose SubjectPublicKeyInfo SHA-256 is one of the eight,
+at any depth, after the bundle callback so it cannot be cleared. Blocking by
+key covers both issuances of each key, as Chrome and Microsoft do, and leaves
+legitimate eMudhra/Sectigo chains alone; removing the roots would also cut
+legitimate Sectigo paths that mbedTLS cannot rebuild. Cost: one SHA-256 of
+about 120 bytes per certificate during a handshake. `/api/system/diag` →
+`tls_distrust.refused_chains` counts refusals. Not covered: enterprise Wi-Fi
+(EAP) server validation with the bundle, which ESP-IDF's supplicant attaches
+internally. Image signing remains the real fix for OTA.
+
+## ADR-034 — Control-plane loss keeps the last policy by default (2026-11-03)
+
+Board A lost Tailnet traffic for 30–115 s about once a day: the coordination
+server closed the long-poll while Wi-Fi, DERP and WireGuard stayed up, and the
+ADR-010 suspension blocked all data until a complete map arrived. The official
+client keeps enforcing its last netmap/filter while the control plane is
+unreachable. The owner approved the same default, selectable as an advanced
+setting: `keep` (default), `bounded` (30 s to 24 h, then blocked) and `strict`
+(ADR-010 behaviour).
+
+Enforcement (`ml_policy` rx/tx/sent/flows/fragments) follows the mode; the
+"fresh" authority used by the coordinator (OmitPeers, initial-map check) still
+requires a complete map on the new session, so a reconnect always refreshes the
+policy. In every mode: a delta (or malformed partial map) before that complete
+map, a malformed or rejected map, an explicit reset/disconnect and an expired
+node key fail closed; nothing new is granted from cache; peers are not pruned
+while authority is unknown. Return flows keep their own idle timeouts. A
+control loss with the last policy enforced and DERP up is an informational
+history event, not a Tailnet outage. Costs: two words of state and one
+comparison per gate; no task, timer or allocation. Host tests cover the modes;
+a real server-side revocation during an outage is not qualified, and policy
+parity with the official client is not claimed beyond this behaviour.
+
 ## ADR-033 — The 2.1.0 migration bridge is frozen (2026-10-25)
 
 Owner decision. The published 2.1.0 bridge stays the bridge release for 2.x
@@ -301,6 +351,9 @@ RX gate checks original addresses/protocol/ports before translation. This is a
 crypto/direct/DERP/IPv6/NAT interoperability and target resource costs remain gates.
 
 ## ADR-010 — Transport suspension is distinct from revocation
+
+Superseded in part by ADR-034 (3.0.7-beta.7): blocking at once is now the
+optional strict mode. The rest of this decision still holds in every mode.
 
 An outage/new stream blocks data immediately. Only a complete freshly compiled
 identical authority map within 30 s may retain existing return tuples, whose

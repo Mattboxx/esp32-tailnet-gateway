@@ -1,5 +1,46 @@
 # Maintainer continuation
 
+## Current handover — 2026-11-07
+
+Read [Claude-to-Codex checkpoint](CLAUDE-TO-CODEX-CHECKPOINT.md) first: PERF-09
+for 3.0.7-beta.10 is running; 3.0.7-beta.11 source (DERP split header, AP DNS
+relay answer matching, STUN bound) is committed with host tests and not yet
+built for the board; the disconnect fix still has to be seen on hardware
+before a stable 3.0.7. Sections below are historical.
+
+## Active performance handover — 2026-10-29
+
+Read [Codex-to-Claude performance checkpoint](CODEX-TO-CLAUDE-PERFORMANCE-CHECKPOINT.md)
+and its **Latest stage** section first: the dev.1 comparison is finished with no
+demonstrated speed gain; device is back on 3.0.6. A separate selective-IRAM
+dev.2 prototype has host crypto tests; next sanitizer/build/actual memory cost.
+No dev.2 install is authorized yet. Older details below are historical.
+
+Previous dev.1 stage: read the checkpoint
+first. PERF-01 harness and six INFO/WARN comparisons are complete for their
+scoped baseline. The exact RX buffer-adoption candidate source `f17f359`, image
+`326c0d8e…8a2d8b51`, is now built and installed under fresh owner authorization,
+with verified full backup, original configuration and protected 3.0.5 intact.
+Four targeted Linux ASan/UBSan checks pass. A three-transfer candidate campaign
+is active; finish/clean it before any USB/reset. RSSI changed after USB was
+connected, so next obtain a matching-position 3.0.6 baseline before claiming
+any speed improvement. Detailed recovery/authority/live state stays private.
+Preserve all dirty files and the local nested commits; no push/flash authority
+is implied. Update the checkpoint after every material step.
+
+## Deferred performance investigation — owner request 2026-10-29
+
+Resume [Performance and load-resilience exploration](PERFORMANCE-EXPLORATION-ROADMAP.md)
+at PERF-01 when the owner allocates development budget. Planning only: no new
+optimization, tests or firmware builds were performed for this roadmap.
+The owner explicitly allows justified RAM changes; earlier fixed-RAM constraints
+are superseded for this investigation. Concurrent-service load stability is a
+blocking gate. No flash or publication authority is implied.
+Reuse the completed, explicitly two-segment 500 MB benchmark evidence via
+ignored `build/notification-ui/500mb-active-path.txt`. Temporary rule/server
+were removed; no benchmark is running. Read the private final 3.0.6 handover
+before acting on the older candidate/publication wording retained below.
+
 ## Firmware 3.0.6 — bounded update transfer recovery
 
 The owner reported intermittent GitHub downloads and browser uploads. A real

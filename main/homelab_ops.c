@@ -25,6 +25,7 @@
 #include "config_profiles.h"
 #include "module_supervisor.h"
 #include "task_reaper.h"
+#include "netif_hooks.h"
 #include "dns_relay.h"
 #include "history.h"
 #include "notify_channels.h"
@@ -420,6 +421,43 @@ cJSON *homelab_ops_snapshot(bool detailed) {
     cJSON_AddBoolToObject(root,"lease_notifications",s.lease_notifications);
     cJSON_AddNumberToObject(root,"service_closures",service_closures);
     cJSON_AddNumberToObject(root,"module_restarts",supervisor.restarts);
+    {   /* Forwarding saturation evidence since boot; read-only counters. */
+        extern void wireguardif_tx_drops(uint32_t *send_failed, uint32_t *alloc_failed);
+        uint32_t wg_send_failed=0,wg_alloc_failed=0;
+        wireguardif_tx_drops(&wg_send_failed,&wg_alloc_failed);
+        cJSON *drops=cJSON_AddObjectToObject(root,"forward_drops");
+        cJSON_AddNumberToObject(drops,"sta_input_refused",netif_hooks_get_sta_input_refused());
+        cJSON_AddNumberToObject(drops,"sta_output_refused",netif_hooks_get_sta_output_refused());
+        cJSON_AddNumberToObject(drops,"sta_input_shed",netif_hooks_get_sta_input_shed());
+        cJSON_AddNumberToObject(drops,"wg_tx_send_failed",wg_send_failed);
+        cJSON_AddNumberToObject(drops,"wg_tx_alloc_failed",wg_alloc_failed);
+        extern void wireguard_rx_seq_stats(uint32_t *gap, uint32_t *late);
+        extern uint32_t microlink_wg_rx_queue_drops(void);
+        uint32_t wg_rx_gap=0,wg_rx_late=0;
+        wireguard_rx_seq_stats(&wg_rx_gap,&wg_rx_late);
+        extern uint32_t wireguardif_rx_input_refused(void);
+        cJSON_AddNumberToObject(drops,"wg_rx_queue_full",microlink_wg_rx_queue_drops());
+        cJSON_AddNumberToObject(drops,"wg_rx_input_refused",wireguardif_rx_input_refused());
+        cJSON_AddNumberToObject(drops,"wg_rx_seq_gap",wg_rx_gap);
+        cJSON_AddNumberToObject(drops,"wg_rx_seq_late",wg_rx_late);
+    }
+    {   /* Control-plane and DERP reconnect causes since boot (MicroLink). */
+        struct microlink_s *ml=tailscale_get_microlink();
+        microlink_diag_t d;
+        if(ml&&microlink_get_diag(ml,&d)==ESP_OK){
+            cJSON *rc=cJSON_AddObjectToObject(root,"tailnet_reconnects");
+            cJSON_AddNumberToObject(rc,"control_transport",d.rc_coord_transport);
+            cJSON_AddNumberToObject(rc,"control_stream_watchdog",d.rc_coord_stream_wd);
+            cJSON_AddNumberToObject(rc,"derp_rx_watchdog",d.rc_derp_rx_wd);
+            cJSON_AddNumberToObject(rc,"derp_retry",d.rc_derp_retry);
+            cJSON_AddNumberToObject(rc,"control_losses",d.ctrl_loss_count);
+            cJSON_AddStringToObject(rc,"last_loss",d.ctrl_loss_reason);
+            cJSON_AddNumberToObject(rc,"failed_attempts_since",d.ctrl_retry_failures);
+            cJSON_AddStringToObject(rc,"last_failed_attempt",d.ctrl_retry_reason);
+            cJSON_AddNumberToObject(rc,"last_reconnect_ms",d.ctrl_last_reconnect_ms);
+            cJSON_AddStringToObject(rc,"last_reconnect_stages",d.ctrl_reconnect_stages);
+        }
+    }
     cJSON_AddNumberToObject(root,"task_reaper_pending",task_reaper_pending());cJSON_AddNumberToObject(root,"task_reaper_fallbacks",task_reaper_fallbacks());cJSON_AddNumberToObject(root,"task_reaper_reaped",task_reaper_reaped());
     cJSON_AddNumberToObject(root,"minimum_internal",s.minimum_internal);cJSON_AddNumberToObject(root,"minimum_largest",s.minimum_largest);
     cJSON_AddNumberToObject(root,"socket_reserve",s.socket_reserve);cJSON_AddNumberToObject(root,"interval_s",s.interval_s);

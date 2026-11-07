@@ -1,5 +1,11 @@
 # Permanent development roadmap
 
+Performance follow-up (owner request 2026-10-29):
+[PERFORMANCE-EXPLORATION-ROADMAP.md](PERFORMANCE-EXPLORATION-ROADMAP.md).
+PERF-01–09 refine performance/load qualification without removing any approved
+feature. RAM changes are permitted when measured benefits and concurrent-service
+headroom justify them; load stability is a blocking gate. Execution is deferred.
+
 Authoritative execution plan for the complete [Master Prompt](MASTER-DEVELOPMENT-PROMPT.md).
 This supersedes selection/defer wording in the earlier `ROADMAP.md`; no requested
 function is removed. Milestone numbers are development targets, not releases,

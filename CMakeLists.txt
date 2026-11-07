@@ -28,7 +28,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 # PROJECT_VER lands in the esp_app_desc_t struct so the running firmware
 # can report its version via the OTA APIs and the web UI's Status page.
-set(PROJECT_VER "3.0.6")
+set(PROJECT_VER "3.0.7")
 # The migration bridge (env esp32-s3-bridge, CONFIG_TSR_MIGRATION_BRIDGE) is a
 # 2.x-line release so that 2.x updaters install it like any other update.
 set(TSR_BRIDGE_VER "2.1.0")
@@ -37,6 +37,20 @@ if(DEFINED SDKCONFIG AND EXISTS "${SDKCONFIG}")
     if(_tsr_bridge)
         set(PROJECT_VER "${TSR_BRIDGE_VER}")
     endif()
+endif()
+
+# Test-only packet-path profiling (docs/PERFORMANCE-EXPLORATION-ROADMAP.md):
+# only when the build environment sets TSR_PERF_PROFILE=1. Release builds never
+# define it, and such an image reports a version ending in "-prof".
+# Test-only placement experiment: TSR_CRYPTO_IN_FLASH=1 keeps the WireGuard
+# crypto loops out of IRAM; such an image reports a version with "-flash".
+if("$ENV{TSR_CRYPTO_IN_FLASH}" STREQUAL "1")
+    idf_build_set_property(COMPILE_DEFINITIONS "TSR_CRYPTO_IN_FLASH=1" APPEND)
+    set(PROJECT_VER "${PROJECT_VER}-flash")
+endif()
+if("$ENV{TSR_PERF_PROFILE}" STREQUAL "1")
+    idf_build_set_property(COMPILE_DEFINITIONS "TSR_PERF_PROFILE=1" APPEND)
+    set(PROJECT_VER "${PROJECT_VER}-prof")
 endif()
 
 project(esp32_tsr)

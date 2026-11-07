@@ -9,6 +9,7 @@
 #include "web_ui.h"
 #include "esp_app_desc.h"
 #include "esp_crt_bundle.h"
+#include "ml_tls_distrust.h"
 #include "esp_flash.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
@@ -316,7 +317,7 @@ static bool fetch(const char *url, const char *asset, uint32_t size, const unsig
     esp_http_client_config_t config = {
         .url = current, .disable_auto_redirect = true, .timeout_ms = 10000, .buffer_size = 2048, .buffer_size_tx = 1024,
         .event_handler = http_event, .user_data = s,
-        .crt_bundle_attach = test_source() ? NULL : esp_crt_bundle_attach,
+        .crt_bundle_attach = test_source() ? NULL : ml_tls_bundle_attach,
     };
     client = esp_http_client_init(&config);
     if (!client) goto done;
@@ -369,7 +370,7 @@ static bool find_target(mig_target_t *target, unsigned *answered, const char **w
         if (test_source()) snprintf(url, sizeof url, "%s/migration.json", CONFIG_TSR_MIGRATION_SOURCE_URL);
         else snprintf(url, sizeof url, "https://api.github.com/repos/%s/releases?per_page=10", ota_repo(repo));
         esp_http_client_config_t config = {.url = url, .timeout_ms = 10000, .buffer_size = 2048,
-            .crt_bundle_attach = test_source() ? NULL : esp_crt_bundle_attach};
+            .crt_bundle_attach = test_source() ? NULL : ml_tls_bundle_attach};
         esp_http_client_handle_t client = esp_http_client_init(&config);
         if (!client) break;
         esp_http_client_set_header(client, "User-Agent", "Mattboxx-ESP32-migration");

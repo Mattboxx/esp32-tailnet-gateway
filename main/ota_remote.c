@@ -17,6 +17,7 @@
 #include "esp_app_desc.h"
 #include "esp_app_format.h"
 #include "esp_crt_bundle.h"
+#include "ml_tls_distrust.h"
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
@@ -130,7 +131,7 @@ static esp_err_t http_event(esp_http_client_event_t *event)
 static esp_http_client_handle_t http_client(const char *url, http_buffer_t *buffer)
 {
     esp_http_client_config_t config = {
-        .url = url, .crt_bundle_attach = esp_crt_bundle_attach,
+        .url = url, .crt_bundle_attach = ml_tls_bundle_attach,
         .disable_auto_redirect = true, .timeout_ms = 5000,
         .buffer_size = 2048, .buffer_size_tx = 1024,
         .event_handler = http_event, .user_data = buffer,

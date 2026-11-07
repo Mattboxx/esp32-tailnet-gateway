@@ -1,0 +1,439 @@
+"""Offline behavior tests; mocks and loopback only, never a physical ESP."""
+import copy
+import hashlib
+import io
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+import urllib.error
+import urllib.request
+
+import http.server
+import threading
+import time
+
+import socket
+
+from gateway_benchmark import (FileService, TemporaryRule, admin_burst, combine, connection_burst, parallel,
+                               percentile, restore_console, transfer, transfer_deadline, upload)
+
+
+def row(name='owner', port=12345):
+    return dict(name=name, enabled=True, protocol='tcp', listen_port=port,
+                tailnet_destination='100.64.0.2', destination_port=45000,
+                allowed_source_subnet='192.0.2.42/32')
+
+
+class API:
+    def __init__(self):
+        self.rows, self.writes, self.console = [row()], [], 3
+        self.reject_lease = self.ambiguous = False
+        self.drift = False
+
+    def __call__(self, path, payload=None):
+        if path == '/api/tailnet-forward':
+            if payload is not None:
+                self.writes.append(copy.deepcopy(payload))
+                self.rows = copy.deepcopy(payload['rules'])
+                if self.ambiguous:
+                    raise TimeoutError('Reply lost after write')
+                return {'ok': True}
+            rows = copy.deepcopy(self.rows)
+            if self.drift:
+                rows[0]['listen_port'] += 1
+            return dict(rules=rows, max=8)
+        if path == '/api/service-leases':
+            return [dict(index=i, rule_token=r['name'], effective_enabled=True,
+                         temporary=i > 0) for i, r in enumerate(self.rows)]
+        if path == '/api/operations':
+            self.writes.append(copy.deepcopy(payload))
+            return {'ok': not self.reject_lease}
+        if path == '/api/sdlog':
+            if payload is not None:
+                self.writes.append(copy.deepcopy(payload))
+                self.console = payload['console_level']
+            return {'console_level': self.console}
+        raise AssertionError(path)
+
+
+class Rules(unittest.TestCase):
+    def test_exact_cleanup_preserves_original_and_concurrent_addition(self):
+        api = API(); original = copy.deepcopy(api.rows)
+        rule = TemporaryRule(api, row('perf', 23456))
+        rule.install(600)
+        self.assertTrue(api.writes[-1]['delete_on_expiry'])
+        api.rows.append(row('new-owner', 23457))
+        self.assertTrue(all(rule.cleanup().values()))
+        self.assertEqual(api.rows, original + [row('new-owner', 23457)])
+
+    def test_refuses_drift_before_write(self):
+        api = API(); rule = TemporaryRule(api, row('perf', 23456)); api.drift = True
+        with self.assertRaises(RuntimeError): rule.install(600)
+        self.assertFalse(api.writes)
+
+    def test_refuses_modified_owned_rule_and_preserves_it(self):
+        api = API(); rule = TemporaryRule(api, row('perf', 23456)); rule.install(600)
+        api.rows[-1]['allowed_source_subnet'] = '192.0.2.0/24'
+        before = copy.deepcopy(api.rows)
+        with self.assertRaises(RuntimeError): rule.cleanup()
+        self.assertEqual(before, api.rows)
+
+    def test_ambiguous_write_is_not_retried_and_cleanup_recovers(self):
+        api = API(); rule = TemporaryRule(api, row('perf', 23456)); api.ambiguous = True
+        with self.assertRaises(TimeoutError): rule.install(600)
+        self.assertEqual(len(api.writes), 1)
+        self.assertTrue(rule.attempted)
+        api.ambiguous = False
+        self.assertTrue(rule.cleanup()['temporary_rule_removed'])
+
+    def test_lease_failure_still_allows_cleanup(self):
+        api = API(); api.reject_lease = True; rule = TemporaryRule(api, row('perf', 23456))
+        with self.assertRaises(RuntimeError): rule.install(600)
+        self.assertTrue(rule.cleanup()['original_rules_unchanged'])
+
+    def test_expired_rule_cleanup_is_idempotent(self):
+        api = API(); rule = TemporaryRule(api, row('perf', 23456))
+        self.assertTrue(all(rule.cleanup().values()))
+        self.assertFalse(api.writes)
+
+    def test_full_table_conflict_and_invalid_lease_refused(self):
+        for mode in ('full', 'port', 'name', 'lease'):
+            api = API(); target = row('perf', 23456)
+            if mode == 'full': api.rows = [row(str(i), 10000+i) for i in range(8)]
+            if mode == 'port': target['listen_port'] = 12345
+            if mode == 'name': target['name'] = 'owner'
+            rule = TemporaryRule(api, target)
+            with self.assertRaises((RuntimeError, ValueError)): rule.install(1 if mode == 'lease' else 600)
+            self.assertFalse(api.writes)
+
+    def test_console_restores_only_last_owned_value(self):
+        api = API(); api.console = 2
+        self.assertTrue(restore_console(api, 3, 2, True))
+        self.assertEqual(api.console, 3)
+        api.console = 1; api.writes.clear()
+        self.assertFalse(restore_console(api, 3, 2, True))
+        self.assertEqual(api.console, 1)
+        self.assertFalse(api.writes)
+
+
+class Transfers(unittest.TestCase):
+    def test_loopback_transfer_integrity_and_source_path_guards(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source, dest = Path(folder)/'source.bin', Path(folder)/'dest.bin'
+            data = bytes(range(256))*2048; source.write_bytes(data)
+            service = FileService('127.0.0.1', '127.0.0.1', source)
+            service.start()
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            url = f'http://127.0.0.1:{service.port}'
+            try:
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    opener.open(url+'/wrong', timeout=2)
+                self.assertEqual(error.exception.code, 403)
+                error.exception.close()
+                result = transfer(opener, url+service.url_path, dest, len(data), hashlib.sha256(data).hexdigest())
+                self.assertTrue(result['integrity_pass'])
+                self.assertTrue(0 <= result['max_gap_s'] < 5)
+                self.assertEqual(dest.read_bytes(), data)
+                self.assertEqual(result['retries'], 0)
+                service.allowed_source = '192.0.2.1'
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    opener.open(url+service.url_path, timeout=2)
+                self.assertEqual(error.exception.code, 403)
+                error.exception.close()
+            finally:
+                service.close()
+
+    def test_rejects_corruption_incomplete_and_http_metadata(self):
+        class Response(io.BytesIO):
+            status = 200
+            headers = {'Content-Length': '3'}
+        class Opener:
+            def open(self, *args, **kwargs): return Response(b'bad')
+        with tempfile.TemporaryDirectory() as folder:
+            for mode in ('corrupt', 'size', 'status', 'incomplete'):
+                Response.status = 206 if mode == 'status' else 200
+                Response.headers = {'Content-Length': '4' if mode in ('size', 'incomplete') else '3'}
+                size = 4 if mode == 'incomplete' else 3
+                with self.assertRaises(ValueError):
+                    transfer(Opener(), 'http://unused/', Path(folder)/mode, size,
+                             hashlib.sha256(b'good').hexdigest())
+
+    def test_cancel_and_deadline_have_no_retry(self):
+        class Response(io.BytesIO):
+            status = 200
+            headers = {'Content-Length': '3'}
+        class Opener:
+            calls = 0
+            def open(self, *args, **kwargs):
+                self.calls += 1
+                return Response(b'abc')
+        with tempfile.TemporaryDirectory() as folder:
+            opener = Opener()
+            with self.assertRaises(RuntimeError):
+                transfer(opener, 'http://unused/', Path(folder)/'cancel', 3, 'unused', cancelled=lambda: True)
+            self.assertEqual(opener.calls, 1)
+            with patch('gateway_benchmark.time.monotonic', side_effect=[0, 200]):
+                with self.assertRaises(TimeoutError):
+                    transfer(opener, 'http://unused/', Path(folder)/'timeout', 3, 'unused', total_timeout=180)
+            self.assertEqual(opener.calls, 2)
+
+    def test_loopback_upload_integrity_and_guards(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'source.bin'
+            data = bytes(range(256))*2048; source.write_bytes(data)
+            digest = hashlib.sha256(data).hexdigest()
+            service = FileService('127.0.0.1', '127.0.0.1', source)
+            service.start()
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            url = f'http://127.0.0.1:{service.port}'
+            try:
+                result = upload(opener, url+service.url_path, source, len(data), digest)
+                self.assertTrue(result['integrity_pass'])
+                self.assertTrue(0 <= result['max_gap_s'] < 5)
+                self.assertEqual((result['direction'], result['retries'], result['resumed']), ('upload', 0, False))
+                self.assertEqual(service.records[-1]['bytes_read'], len(data))
+                self.assertEqual(service.records[-1]['sha256'], digest)
+                # A refusal happens before the body is read: depending on timing the
+                # client sees the status or the server closing mid-send.
+                def refused(code, send):
+                    with self.assertRaises((urllib.error.URLError, ConnectionError)) as error:
+                        send()
+                    if isinstance(error.exception, urllib.error.HTTPError):
+                        self.assertEqual(error.exception.code, code)
+                        error.exception.close()
+                for path, length, code in (('/wrong', len(data), 403), (service.url_path, len(data)-1, 413)):
+                    request = urllib.request.Request(url+path, data=data[:length], method='PUT')
+                    refused(code, lambda: opener.open(request, timeout=2))
+                service.allowed_source = '192.0.2.1'
+                refused(403, lambda: upload(opener, url+service.url_path, source, len(data), digest))
+                self.assertEqual(len(service.records), 1)   # refused uploads hold no slot
+            finally:
+                service.close()
+
+    def test_upload_rejects_server_mismatch_and_bad_status(self):
+        class Response(io.BytesIO):
+            status = 200
+            def __enter__(self): return self
+            def __exit__(self, *a): return False
+        class Opener:
+            def __init__(self, reply, status=200): self.reply, self.status, self.calls = reply, status, 0
+            def open(self, request, timeout):
+                self.calls += 1
+                while request.data.read(8192): pass    # the body is really sent
+                response = Response(self.reply); response.status = self.status
+                return response
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'s.bin'; source.write_bytes(b'good')
+            good = hashlib.sha256(b'good').hexdigest()
+            for reply, status in ((b'{"bytes":4,"sha256":"%s"}' % hashlib.sha256(b'evil').hexdigest().encode(), 200),
+                                  (b'{"bytes":3,"sha256":"%s"}' % good.encode(), 200),
+                                  (b'{"bytes":4,"sha256":"%s"}' % good.encode(), 206)):
+                opener = Opener(reply, status)
+                with self.assertRaises(ValueError):
+                    upload(opener, 'http://unused/', source, 4, good)
+                self.assertEqual(opener.calls, 1)
+            with self.assertRaises(ValueError):          # local file differs from the expected hash
+                upload(Opener(b'{"bytes":4,"sha256":"%s"}' % good.encode()), 'http://unused/', source, 4,
+                       hashlib.sha256(b'other').hexdigest())
+
+    def test_upload_cancel_and_deadline_have_no_retry(self):
+        class Opener:
+            calls = 0
+            def open(self, request, timeout):
+                self.calls += 1
+                request.data.read(8192)
+                raise AssertionError('must stop while sending')
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'s.bin'; source.write_bytes(b'abc')
+            opener = Opener()
+            with self.assertRaises(RuntimeError):
+                upload(opener, 'http://unused/', source, 3, 'unused', cancelled=lambda: True)
+            with patch('gateway_benchmark.time.monotonic', side_effect=[0, 200, 200]):
+                with self.assertRaises(TimeoutError):
+                    upload(opener, 'http://unused/', source, 3, 'unused', total_timeout=180)
+            self.assertEqual(opener.calls, 2)
+
+    def test_concurrent_streams_loopback_integrity_and_slot_limit(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'source.bin'
+            data = bytes(range(256))*16384; source.write_bytes(data)   # 4 MB: more than socket buffers
+            digest = hashlib.sha256(data).hexdigest()
+            service = FileService('127.0.0.1', '127.0.0.1', source, streams=3)
+            self.assertIsInstance(service.server, http.server.ThreadingHTTPServer)
+            service.start()
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            url = f'http://127.0.0.1:{service.port}'+service.url_path
+            try:
+                cancel = threading.Event()
+                outs = [Path(folder)/f'd{k}.bin' for k in range(3)]
+                # Each client waits, after its response has started, until all three
+                # are streaming: a serial server cannot pass this barrier.
+                barrier, waited = threading.Barrier(3, timeout=10), set()
+
+                def together():
+                    if threading.get_ident() not in waited:
+                        waited.add(threading.get_ident())
+                        barrier.wait()
+                    return False
+                started = time.monotonic()
+                results = parallel([lambda out=out: transfer(opener, url, out, len(data), digest, cancelled=together)
+                                    for out in outs], cancel)
+                down = combine(results, time.monotonic()-started)
+                self.assertTrue(all(out.read_bytes() == data for out in outs))
+                self.assertEqual((down['streams'], down['bytes'], down['integrity_pass']), (3, 3*len(data), True))
+                self.assertTrue(0 < down['stream_fairness'] <= 1 and len(down['per_stream']) == 3)
+                up = parallel([lambda: upload(opener, url, source, len(data), digest) for _ in range(3)], cancel)
+                self.assertTrue(all(r['integrity_pass'] for r in up) and not cancel.is_set())
+                self.assertEqual([r.get('sha256') for r in service.records[3:]], [digest]*3)
+                # Concurrent transfers overlapped: every one started before any finished.
+                first = service.records[:3]
+                self.assertLess(max(r['started_epoch'] for r in first), min(r['finished_epoch'] for r in first))
+                # All slots held: a further request is refused at once, nothing recorded.
+                for _ in range(3):
+                    self.assertTrue(service.slot.acquire(blocking=False))
+                with self.assertRaises(urllib.error.HTTPError) as error:
+                    opener.open(url, timeout=2)
+                self.assertEqual(error.exception.code, 429)
+                error.exception.close()
+                for _ in range(3):
+                    service.slot.release()
+                self.assertEqual(len(service.records), 6)
+            finally:
+                service.close()
+
+    def test_stream_count_bounds_and_serial_default(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'s.bin'; source.write_bytes(b'x')
+            for bad in (0, 5, 2.0, True):
+                with self.assertRaises(ValueError):
+                    FileService('127.0.0.1', '127.0.0.1', source, streams=bad)
+            service = FileService('127.0.0.1', '127.0.0.1', source)
+            try:
+                self.assertIs(type(service.server), http.server.HTTPServer)
+            finally:
+                service.server.server_close()
+
+    def test_parallel_first_failure_cancels_the_others(self):
+        cancel, seen = threading.Event(), []
+
+        def fails():
+            raise ValueError('corrupted stream')
+
+        def waits():
+            deadline = time.monotonic() + 5
+            while not cancel.is_set():
+                if time.monotonic() > deadline:
+                    return 'not cancelled'
+                time.sleep(0.01)
+            seen.append('cancelled')
+            raise RuntimeError('Cancelled or resource guard stopped transfer')
+
+        with self.assertRaises(ValueError):
+            parallel([fails, waits], cancel)
+        self.assertEqual(seen, ['cancelled'])
+        self.assertEqual(parallel([lambda: 1, lambda: 2], threading.Event()), [1, 2])
+
+    def test_combine_reports_total_over_wall_time(self):
+        rows = [dict(bytes=1_000_000, elapsed_s=2, mbps=4.0, sha256='a', windows=[], integrity_pass=True),
+                dict(bytes=1_000_000, elapsed_s=4, mbps=2.0, sha256='a', windows=[], integrity_pass=True)]
+        result = combine(rows, 4.0)
+        self.assertEqual((result['bytes'], result['mbps'], result['stream_fairness']), (2_000_000, 4.0, 0.5))
+        self.assertEqual(result['max_stream_gap_s'], 0)
+        rows[0]['max_gap_s'], rows[1]['max_gap_s'] = 0.2, 7.5
+        result = combine(rows, 4.0)
+        self.assertEqual((result['max_stream_gap_s'], result['per_stream'][0]['max_gap_s']), (7.5, 0.2))
+        rows[1]['integrity_pass'] = False
+        self.assertFalse(combine(rows, 4.0)['integrity_pass'])
+
+    def test_upload_body_records_longest_wait_between_reads(self):
+        from gateway_benchmark import _UploadBody
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'source.bin'; source.write_bytes(b'x'*300_000)
+            body = _UploadBody(source, 300_000, time.monotonic(), 60, lambda row: None, lambda: False)
+            try:
+                body.read(65536)
+                self.assertEqual(body.max_gap_s, 0.0)      # the first read has no predecessor
+                time.sleep(0.3)
+                body.read(65536); body.read(65536)
+                self.assertTrue(0.3 <= body.max_gap_s < 2.0, body.max_gap_s)
+            finally:
+                body.close()
+
+    def test_transfer_deadline_scales_with_size_and_streams(self):
+        self.assertEqual([transfer_deadline(s, 1) for s in (1, 16, 32)], [180, 180, 180])
+        self.assertEqual(transfer_deadline(33, 1), 360)
+        self.assertEqual(transfer_deadline(500, 1), 180 * 16)
+        self.assertEqual(transfer_deadline(16, 4), 720)
+
+    def test_threaded_flag_for_single_stream(self):
+        with tempfile.TemporaryDirectory() as folder:
+            source = Path(folder)/'s.bin'; source.write_bytes(b'x')
+            service = FileService('127.0.0.1', '127.0.0.1', source, threaded=True)
+            try:
+                self.assertIsInstance(service.server, http.server.ThreadingHTTPServer)
+                self.assertTrue(service.slot.acquire(blocking=False))
+                self.assertFalse(service.slot.acquire(blocking=False))   # still one transfer slot
+            finally:
+                service.server.server_close()
+
+    def test_connection_burst_counts_holds_and_closes(self):
+        def plain(timeout):
+            s = socket.socket(); s.settimeout(timeout); return s
+        listener = socket.socket(); listener.bind(('127.0.0.1', 0)); listener.listen(64)
+        port, accepted, stop = listener.getsockname()[1], [], threading.Event()
+
+        def accept():
+            listener.settimeout(0.2)
+            while not stop.is_set():
+                try:
+                    accepted.append(listener.accept()[0])
+                except OSError:
+                    pass
+        thread = threading.Thread(target=accept, daemon=True); thread.start()
+        try:
+            started = time.monotonic()
+            result = connection_burst('127.0.0.1', port, 20, plain, hold_s=0.5, timeout=2)
+            self.assertGreaterEqual(time.monotonic() - started, 0.5)
+            self.assertEqual((result['count'], result['connected']), (20, 20))
+            self.assertEqual(result['refused'] + result['timeout'] + result['other'], 0)
+            time.sleep(0.3)
+            # The burst closed every connection: each accepted peer now reads EOF.
+            for peer in accepted:
+                peer.settimeout(2)
+                self.assertEqual(peer.recv(1), b'')
+        finally:
+            stop.set(); thread.join(2); listener.close()
+            for peer in accepted:
+                peer.close()
+        closed = socket.socket(); closed.bind(('127.0.0.1', 0)); free = closed.getsockname()[1]; closed.close()
+        refused = connection_burst('127.0.0.1', free, 3, plain, hold_s=0, timeout=2)
+        # Windows retries a refused loopback SYN for ~2 s, so a timeout is possible too.
+        self.assertEqual((refused['connected'], refused['refused'] + refused['timeout'] + refused['other']), (0, 3))
+        self.assertIsNone(refused['connect_max_s'])
+        for bad in (0, 65, 1.5):
+            with self.assertRaises(ValueError):
+                connection_burst('127.0.0.1', free, bad, plain)
+
+    def test_admin_burst_counts_failures(self):
+        calls = []
+
+        def api(path, timeout):
+            calls.append(path)
+            if len(calls) % 4 == 0:
+                raise TimeoutError('slow')
+            return {}
+        result = admin_burst(api, 8)
+        self.assertEqual((result['count'], result['ok'], result['failed']), (8, 6, 2))
+        self.assertEqual([f['error'] for f in result['failures']], ['TimeoutError: slow'] * 2)
+        self.assertTrue(all(f['after_s'] >= 0 for f in result['failures']))
+        self.assertEqual(set(calls), {'/api/status'})
+        with self.assertRaises(ValueError):
+            admin_burst(api, 33)
+
+    def test_percentile_empty_and_small_samples(self):
+        self.assertIsNone(percentile([], .95))
+        self.assertEqual(percentile([3, 1, 2], .95), 3)
+
+
+if __name__ == '__main__': unittest.main()

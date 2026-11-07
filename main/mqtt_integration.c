@@ -10,6 +10,7 @@
 #include "control_validation.h"
 #include "cJSON.h"
 #include "esp_crt_bundle.h"
+#include "ml_tls_distrust.h"
 #include "esp_app_desc.h"
 #include "esp_event.h"
 #include "esp_heap_caps.h"
@@ -905,7 +906,7 @@ static bool start_client(void)
     snprintf(s_state_topic, sizeof s_state_topic, "%s/state", cfg.base_topic);
     const esp_mqtt_client_config_t client_config = {
         .broker.address.uri = cfg.uri,
-        .broker.verification.crt_bundle_attach = esp_crt_bundle_attach,
+        .broker.verification.crt_bundle_attach = ml_tls_bundle_attach,
         .credentials.username = cfg.username[0] ? cfg.username : NULL,
         .credentials.authentication.password = cfg.password[0] ? cfg.password : NULL,
         .session.last_will.topic = s_availability_topic,
