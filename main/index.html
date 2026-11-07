@@ -1825,7 +1825,9 @@
     .nt-head { font-size: var(--text-sm); margin: var(--sp-4) 0 var(--sp-2) 0; color: var(--accent-primary); }
   </style>
 </head>
-<body>
+<!-- The dashboard stays hidden (auth-open) until /api/auth/status says the
+     session may see it; showAuthOverlay(null) reveals it. -->
+<body class="auth-open">
 
   <!-- ===================================================================
        NAVIGATION BAR

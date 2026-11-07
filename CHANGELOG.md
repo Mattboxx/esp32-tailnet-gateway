@@ -6,6 +6,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- While the web page loaded, the dashboard (navigation and page layout) was
+  briefly visible behind the sign-in screen before the browser knew whether
+  the session was signed in. The page now starts hidden and shows the
+  dashboard only after the gateway confirms the session; no data was shown,
+  since every API already required the sign-in.
+
 ## [3.0.7] — 2026-11-07
 
 Stable release. It includes every change of the 3.0.7 pre-releases listed
