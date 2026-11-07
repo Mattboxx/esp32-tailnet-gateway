@@ -60,6 +60,11 @@ PROGRAM = r'''
 #define ML_H2_MAX_FRAME_LEN 16384
 #define SOL_SOCKET 1
 #define SO_RCVTIMEO 2
+/* Own names: glibc's headers may already declare fd_set and timeval. */
+#define fd_set test_fd_set
+#define timeval test_timeval
+#undef FD_ZERO
+#undef FD_SET
 typedef struct { int set; } fd_set;
 #define FD_ZERO(s) ((s)->set = 0)
 #define FD_SET(fd, s) ((s)->set = 1)
