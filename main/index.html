@@ -1684,7 +1684,7 @@
     .adv-note { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; justify-content: space-between;
       border: 1px dashed var(--border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: var(--sp-4);
       color: var(--fg-secondary); font-size: var(--text-md); }
-    .glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); margin-bottom: var(--sp-4); }
+    .glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-4); margin-bottom: var(--sp-4); }
     .glance-item { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; min-width: 0; }
     .glance-item strong { display: block; font-size: var(--text-md); color: var(--fg-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .glance-label { font-size: 0.75rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; }
@@ -1770,6 +1770,36 @@
     .st-feature.warn { color: var(--text-primary); border-color: color-mix(in srgb, var(--warning) 55%, var(--border)); }
     .st-feature.warn::before { background: var(--warning); }
     .st-feature:hover { border-color: var(--accent); }
+    /* Status: one column of blocks with the same space between every one of
+     * them (the grids inside use the same step), whatever is shown or hidden. */
+    #page-status.active { display: flex; flex-direction: column; gap: var(--sp-4); }
+    #page-status > :not(.page-header) { margin-top: 0 !important; margin-bottom: 0 !important; }
+    #page-status > .page-header { margin-bottom: var(--sp-2); }
+    /* Status: live tiles for what is switched on, suggestions from the actual state. */
+    .st-live { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--sp-2); margin-bottom: var(--sp-3); }
+    .st-live a { display: flex; flex-direction: column; gap: 2px; min-height: 52px; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border);
+      border-left: 4px solid var(--success); border-radius: 8px; background: var(--bg-subtle); color: var(--text-primary); text-decoration: none;
+      transition: background-color .8s ease; }
+    .st-live a strong { font-size: var(--text-sm); }
+    .st-live a span { font-size: var(--text-xs); color: var(--text-secondary); }
+    .st-live a.warn { border-left-color: var(--warning); }
+    .st-live a.idle { border-left-color: var(--border); }
+    .st-live a:hover { border-color: var(--accent); }
+    .st-live a.changed { background: color-mix(in srgb, var(--accent) 16%, var(--bg-subtle)); }
+    .st-avail { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin: 0 0 var(--sp-3) 0;
+      font-size: var(--text-sm); color: var(--text-secondary); }
+    .st-avail .st-feature { min-height: 32px; padding: 4px 12px; }
+    .st-next { display: flex; flex-direction: column; gap: var(--sp-2); }
+    .st-tip { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2) var(--sp-3); align-items: center; padding: var(--sp-3);
+      border: 1px solid var(--border); border-left: 4px solid var(--info); border-radius: 8px; background: var(--bg-subtle); }
+    .st-tip.danger { border-left-color: var(--danger); } .st-tip.warn { border-left-color: var(--warning); }
+    .st-tip strong { display: block; font-size: var(--text-sm); }
+    .st-tip p { margin: 2px 0 0 0; font-size: var(--text-sm); color: var(--text-secondary); }
+    .st-tip-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: flex-end; }
+    @media (max-width: 760px) { .st-tip { grid-template-columns: 1fr; } .st-tip-actions { justify-content: flex-start; } }
+    .goal-tile .goal-done { font-size: var(--text-xs); color: var(--success); font-weight: 600; }
+    .goal-tile.done { border-style: dashed; }
+    @media (prefers-reduced-motion: reduce) { .st-live a { transition: none; } }
     /* First boot: language picker, connection choice and wiring fields. */
     .fb-lang { margin-left: auto; width: auto; min-height: 40px; font-size: var(--text-sm); align-self: flex-start; }
     .fb-uplinks { display: flex; flex-direction: column; gap: var(--sp-2); margin: var(--sp-3) 0; }
@@ -1825,7 +1855,9 @@
     .nt-head { font-size: var(--text-sm); margin: var(--sp-4) 0 var(--sp-2) 0; color: var(--accent-primary); }
   </style>
 </head>
-<body>
+<!-- The dashboard stays hidden (auth-open) until /api/auth/status says the
+     session may see it; showAuthOverlay(null) reveals it. -->
+<body class="auth-open">
 
   <!-- ===================================================================
        NAVIGATION BAR
@@ -2390,7 +2422,7 @@
         </div>
 
         <!-- Heap + Uptime column -->
-        <div class="flex flex-col gap-3">
+        <div class="flex flex-col" style="gap:var(--sp-4)">
 
           <!-- Free heap metric card -->
           <div class="card card-stripe-success" id="card-heap">
@@ -2472,6 +2504,33 @@
         </div>
       </div><!-- /grid row 2 -->
 
+      <!-- Suggestions computed from the live state; hidden when nothing needs attention -->
+      <div class="card mt-4" id="st-next-card" hidden>
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Suggested next steps</span></div><span class="badge badge-neutral" id="st-next-count">—</span></div>
+        <div class="card-body"><div class="st-next" id="st-next" role="list"></div></div>
+      </div>
+
+      <!-- Recent events and the features that are on -->
+      <div class="grid grid-cols-2 mt-4 mb-4" id="st-extras">
+        <div class="card" id="st-events-card">
+          <div class="card-header"><div class="card-header-left"><span class="card-title">Recent events</span></div><a class="btn btn-ghost btn-sm" href="#tools/history">All events</a></div>
+          <div class="card-body">
+            <ul class="st-events" id="st-events"></ul>
+            <p class="form-hint" id="st-events-note" role="status">Loading…</p>
+          </div>
+        </div>
+        <div class="card" id="st-features-card">
+          <div class="card-header"><div class="card-header-left"><span class="card-title">Your features</span></div><span class="badge badge-neutral" id="st-features-count">—</span></div>
+          <div class="card-body">
+            <div class="st-live" id="st-features"></div>
+            <p class="st-avail" id="st-available" hidden></p>
+            <p class="form-hint">Only what you switched on is shown live. Everything else stays off and costs nothing until you turn it on; tap a feature to open its settings.</p>
+          </div>
+        </div>
+      </div>
+
+
+
       <!-- Trends: shown when the metrics history is on (Diagnostics → History) -->
       <div class="card mt-4" id="trend-card" hidden>
         <div class="card-header">
@@ -2497,24 +2556,6 @@
 
       <!-- Shown only while a service rule is enabled or temporary access is
            open; Network and the goal tile below always offer the feature. -->
-      <!-- Recent events and the optional features at a glance -->
-      <div class="grid grid-cols-2 mt-4" id="st-extras">
-        <div class="card" id="st-events-card">
-          <div class="card-header"><div class="card-header-left"><span class="card-title">Recent events</span></div><a class="btn btn-ghost btn-sm" href="#tools/history">All events</a></div>
-          <div class="card-body">
-            <ul class="st-events" id="st-events"></ul>
-            <p class="form-hint" id="st-events-note" role="status">Loading…</p>
-          </div>
-        </div>
-        <div class="card" id="st-features-card">
-          <div class="card-header"><div class="card-header-left"><span class="card-title">Optional features</span></div><span class="badge badge-neutral" id="st-features-count">—</span></div>
-          <div class="card-body">
-            <div class="st-features" id="st-features"></div>
-            <p class="form-hint">Everything here is off until you switch it on; tap a feature to open its settings.</p>
-          </div>
-        </div>
-      </div>
-
       <div class="card mt-4 mb-4" id="sg-home-card" data-capability="lan-tailnet-forwarding" hidden>
         <div class="card-header"><div class="card-header-left"><span class="card-title">Selective Tailnet Service Gateway</span></div><span class="badge badge-neutral" id="sg-home-badge">—</span></div>
         <div class="card-body">
@@ -3496,6 +3537,9 @@
 
           <h4 style="font-size:var(--text-sm); margin:1rem 0 0.35rem 0; color:var(--accent-primary); text-transform:uppercase; letter-spacing:0.05em;">DNS cache</h4>
           <div id="diag-dnscache" class="mono" style="font-size:var(--text-xs);">—</div>
+
+          <h4 style="font-size:var(--text-sm); margin:1rem 0 0.35rem 0; color:var(--accent-primary); text-transform:uppercase; letter-spacing:0.05em;">Connection &amp; security</h4>
+          <div id="diag-conn" class="mono" style="font-size:var(--text-xs);">—</div>
 
           <h4 style="font-size:var(--text-sm); margin:1rem 0 0.35rem 0; color:var(--accent-primary); text-transform:uppercase; letter-spacing:0.05em;">FreeRTOS tasks</h4>
           <div style="overflow-x:auto;">
@@ -4801,6 +4845,7 @@
     }
 
     function applyStatus(data) {
+      window.s_last_status = data || {};
       (function(){
         function set(id,text,tone){var el=document.getElementById(id);if(!el)return;el.querySelector('strong').textContent=text;el.className='glance-item'+(tone?' '+tone:'');}
         var sta=data&&data.sta||{},ts=data&&data.tailscale||{};
@@ -4829,7 +4874,7 @@
       if (ul.connected) {
         uplinkBadge.className = 'badge badge-success';
         uplinkBadge.textContent = 'Connected';
-        document.getElementById('card-uplink').className = 'card card-stripe-success';
+        document.getElementById('card-uplink').className = 'card card-stripe-success' + (document.getElementById('card-ap').hidden ? ' col-span-2' : '');
         /* Restore overall-badge to Online — a momentary disconnect on an
          * earlier tick used to bump it to Degraded and the badge stayed
          * stuck until the operator reloaded the page. */
@@ -4838,7 +4883,7 @@
       } else {
         uplinkBadge.className = 'badge badge-danger';
         uplinkBadge.textContent = 'Disconnected';
-        document.getElementById('card-uplink').className = 'card card-stripe-danger';
+        document.getElementById('card-uplink').className = 'card card-stripe-danger' + (document.getElementById('card-ap').hidden ? ' col-span-2' : '');
         overall.className = 'badge badge-warning';
         overall.innerHTML = '<span class="badge-dot"></span> Degraded';
       }
@@ -4868,6 +4913,9 @@
       apClientsBadge.className = (apEnabled && typeof ap.clients === 'number' && ap.clients > 0) ? 'badge badge-success' : 'badge badge-neutral';
       document.getElementById('card-ap').className = apEnabled ? 'card card-stripe-accent' : 'card';
       setFeatureCardState('card-ap', apEnabled);
+      /* Status shows what is on: the gateway Wi-Fi card only while it runs. */
+      document.getElementById('card-ap').hidden = !apEnabled;
+      document.getElementById('card-uplink').classList.toggle('col-span-2', !apEnabled);
 
       /* System tile — internal DRAM + SPIRAM bars, CPU load %, CPU temp.
        * Backend reports mem_internal_free/total, mem_spiram_free/total,
@@ -5050,7 +5098,7 @@
             return an.localeCompare(bn, undefined, { numeric: true, sensitivity: 'base' });
           });
           if (!peers.length) {
-            peerList.innerHTML = '<div class="peer-row text-muted" style="padding:0.4rem 0;">No peers</div>';
+            peerList.innerHTML = '<div class="peer-row text-muted" style="padding:var(--sp-2) var(--sp-4);">No peers</div>';
             return;
           }
           /* Strip the tailnet's shared FQDN tail from the visible
@@ -5817,8 +5865,8 @@
         var roles = String(d.setup_roles || '').split(',').filter(Boolean);
         s_setup_roles = roles; updateServiceGatewayCard();
         try { if (localStorage.getItem('ui-advanced') === null && d.ui_advanced_default) setUiAdvanced(true); } catch (e) {}
-        document.querySelectorAll('#goal-grid .goal-tile').forEach(function (b, i) {
-          var g = GOALS[i]; if (g && roles.indexOf(g.role || g.wizard || 'advanced') >= 0) b.classList.add('recommended');
+        document.querySelectorAll('#goal-grid .goal-tile').forEach(function (b) {
+          var g = GOALS[Number(b.getAttribute('data-goal'))]; if (g && roles.indexOf(g.role || g.wizard || 'advanced') >= 0) b.classList.add('recommended');
         });
       }).catch(function () {});
     }
@@ -6801,12 +6849,15 @@
       var grid=document.getElementById('goal-grid');if(!grid)return;grid.replaceChildren();
       GOALS.forEach(function(g){
         var w=g.wizard&&WIZARDS.filter(function(x){return x.id===g.wizard;})[0],f=w&&capabilityUnavailable(w.capability);
-        var b=wzEl('button');b.type='button';b.className='goal-tile'+(g.primary?' primary':'');
+        var b=wzEl('button');b.type='button';b.className='goal-tile'+(g.primary?' primary':'');b.setAttribute('data-goal',String(GOALS.indexOf(g)));
         b.appendChild(wzEl('strong',g.title));b.appendChild(wzEl('span',g.text));
         if(f){b.disabled=true;b.title=(f.compiled===false?'Not available in this firmware':'Not supported by this board')+' — '+f.evidence;}
         b.addEventListener('click',function(){if(g.href){location.hash=g.href;return;}if(g.wizard)wzOpen(g.wizard);else{setUiAdvanced(true);showToast('success','Advanced settings shown','Every page now shows all sections. Change this in System → Interface mode.',4000);}});
+        if(s_setup_roles&&s_setup_roles.indexOf(g.role||g.wizard||'advanced')>=0)b.classList.add('recommended');
         grid.appendChild(b);
       });
+      /* Re-rendered when capabilities arrive: keep the "configured" marks. */
+      if(typeof statusExtras!=='undefined'&&statusExtras&&statusExtras.marks)statusExtras.marks();
     }
     /* Simple mode hides [data-advanced] sections; it never disables a feature. */
     function uiAdvanced(){try{return localStorage.getItem('ui-advanced')==='1';}catch(e){return false;}}
@@ -7029,39 +7080,158 @@
         } catch (e) { busy(false, 'Not completed: ' + e.message); }
       });
     })();
-    /* Status: recent events and which optional features are on. */
+    /* Status: recent events, live tiles for the features that are switched on,
+     * and suggestions computed from the actual state (capabilities + status). */
     var statusExtras = (function () {
       function el(id) { return document.getElementById(id); }
+      function h(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
       var F = [
         ['lan-tailnet-forwarding', 'Service Gateway', 'network/services'], ['subnet-routing', 'Subnet routes', 'tailscale/options'],
-        ['exit-node', 'Exit node', 'tailscale/options'], ['tailnet-names', 'Tailnet names', 'tailscale/options'],
+        ['exit-node', 'Exit node', 'tailscale/options'], ['ap-gateway', 'Gateway Wi-Fi', 'network/wifi'], ['dns-relay', 'DNS relay', 'network/wifi'],
+        ['tailnet-names', 'Tailnet names', 'tailscale/options'], ['wol', 'Wake-on-LAN', 'operations'],
         ['ddns', 'Dynamic DNS', 'network/internet'], ['event-history', 'Event history', 'tools/history'], ['trends', 'Trends', 'tools/history'],
         ['settings-copies', 'Copy before updates', 'system/backup'], ['health', 'Health Monitor', 'operations'],
+        ['service-watch', 'Service watch', 'network/services'],
         ['ntfy', 'ntfy', 'automation/notifications'], ['telegram', 'Telegram', 'automation/notifications'], ['email', 'Email', 'automation/notifications'],
         ['mqtt', 'MQTT / Home Assistant', 'automation/mqtt'], ['snmp', 'SNMP', 'system/logging']];
-      /* Configured but not working: shown in amber with the reason as a tooltip. */
-      var CHECK = {mqtt: 'Not connected to the broker', ddns: 'Last update failed', 'tailnet-names': 'DNS relay not running'};
+      /* Shown only when switched on (the base gateway keeps them on by default). */
+      var LIVE_ONLY = {'ap-gateway': 1, 'dns-relay': 1};
+      /* One live line per feature: what it is doing now. */
+      function detail(id, f, st) {
+        var ts = st.tailscale || {}, ap = st.ap || {};
+        switch (id) {
+          case 'mqtt': return f.active ? 'Connected to the broker' : 'Not connected to the broker';
+          case 'exit-node': return f.active ? 'Serving this network as exit node' : 'Saved; starts after a restart';
+          case 'subnet-routing': return ts.connected ? 'Routes advertised to the Tailnet' : 'Waiting for the Tailnet';
+          case 'lan-tailnet-forwarding': return f.active ? 'Service rules installed' : 'Rules saved, none installed';
+          case 'ap-gateway': return typeof ap.clients === 'number' ? ap.clients + (ap.clients === 1 ? ' device connected' : ' devices connected') : 'Access point on';
+          case 'dns-relay': return f.active ? 'Answering local devices' : 'Not answering';
+          case 'tailnet-names': return f.active ? 'Tailnet names resolved locally' : 'Needs the DNS relay';
+          case 'ddns': return f.active ? 'Name up to date' : 'Last update failed';
+          case 'health': return f.active ? 'Checking your devices' : 'Saved, not running';
+          case 'service-watch': return f.active ? 'Testing service rules' : 'Saved, not running';
+          case 'wol': return 'Devices saved for wake-up';
+          case 'snmp': return f.active ? 'Agent answering' : 'Agent not running';
+          case 'trends': return 'Recording one sample a minute';
+          case 'event-history': return 'Recording events';
+          default: return 'On';
+        }
+      }
+      var s_prev = {};
+      var s_caps = null;
       function features() {
         return apiFetch('/api/capabilities', {cache: 'no-store'}).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }).then(function (c) {
-          var by = {};
+          var by = {}, st = window.s_last_status || {};
           (c.features || []).forEach(function (f) { by[f.id] = f; });
-          var on = 0, html = F.filter(function (x) { return by[x[0]] && by[x[0]].compiled !== false; }).map(function (x) {
-            var f = by[x[0]], cls = f.configured ? (CHECK[x[0]] && f.active === false ? 'warn' : 'on') : '';
-            if (f.configured) on++;
-            var tip = cls === 'warn' ? CHECK[x[0]] : f.configured ? 'On' : 'Off';
-            return '<a class="st-feature ' + cls + '" href="#' + x[2] + '" title="' + tip + '">' + x[1] + '</a>';
+          s_caps = by;
+          var known = F.filter(function (x) { return by[x[0]] && by[x[0]].compiled !== false && by[x[0]].hardware_supported !== false; });
+          var isOn = function (x) { var f = by[x[0]]; return LIVE_ONLY[x[0]] ? f.active === true : f.configured === true; };
+          var on = known.filter(isOn), off = known.filter(function (x) { return !isOn(x) && x[0] !== 'dns-relay'; });
+          var box = el('st-features'), next = {};
+          box.innerHTML = on.map(function (x) {
+            var f = by[x[0]], line = detail(x[0], f, st), cls = f.active === false ? 'warn' : f.active == null ? 'idle' : '';
+            next[x[0]] = line;
+            return '<a class="' + cls + '" href="#' + x[2] + '" data-feature="' + x[0] + '"><strong>' + x[1] + '</strong><span>' + h(line) + '</span></a>';
+          }).join('');
+          /* A tile whose line changed since the last refresh flashes once. */
+          box.querySelectorAll('a[data-feature]').forEach(function (a) {
+            var id = a.getAttribute('data-feature');
+            if (s_prev[id] !== undefined && s_prev[id] !== next[id]) { a.classList.add('changed'); setTimeout(function () { a.classList.remove('changed'); }, 1200); }
           });
-          el('st-features').innerHTML = html.join('');
-          el('st-features-count').textContent = html.length ? on + ' of ' + html.length + ' on' : '—';
-          el('st-features-card').hidden = !html.length;
+          s_prev = next;
+          var av = el('st-available');
+          av.innerHTML = off.length ? '<span>Available:</span>' + off.map(function (x) { return '<a class="st-feature" href="#' + x[2] + '">' + x[1] + '</a>'; }).join('') : '';
+          av.hidden = !off.length;
+          if (!on.length) box.innerHTML = '<p class="form-hint">Nothing optional is switched on yet.</p>';
+          el('st-features-count').textContent = known.length ? on.length + ' of ' + known.length + ' on' : '—';
+          el('st-features-card').hidden = !known.length;
+          el('st-features-card').classList.toggle('col-span-2', el('st-events-card').hidden);
+          markGoals(by);
+          return advice(by, st);
         }).catch(function () { el('st-features-card').hidden = true; });
+      }
+      /* Goals already reached move to the end with a "configured" mark. */
+      var GOAL_CAP = {'lan-tailnet': 'lan-tailnet-forwarding', 'subnet-router': 'subnet-routing', 'iot-ap': 'ap-gateway', 'wol': 'wol',
+                      'home-assistant': 'home-assistant', monitoring: 'health'};
+      function markGoals(by) {
+        var grid = el('goal-grid'); if (!grid) return;
+        var tiles = Array.prototype.slice.call(grid.querySelectorAll('.goal-tile'));
+        tiles.forEach(function (b) {
+          var g = GOALS[Number(b.getAttribute('data-goal'))] || {}, cap = by[GOAL_CAP[g.wizard || g.role]];
+          var done = !!(cap && (cap.id === 'ap-gateway' ? cap.active === true : cap.configured === true));
+          b.classList.toggle('done', done);
+          var mark = b.querySelector('.goal-done');
+          if (done && !mark) { mark = document.createElement('span'); mark.className = 'goal-done'; mark.textContent = 'Configured · manage'; b.insertBefore(mark, b.firstChild); }
+          if (!done && mark) mark.remove();
+        });
+        tiles.filter(function (b) { return b.classList.contains('done'); }).forEach(function (b) { grid.appendChild(b); });
+      }
+      /* Suggestions: only for what this gateway uses or obviously lacks, most
+       * urgent first, at most three. Problems cannot be hidden; tips can be
+       * hidden for a week. */
+      function hiddenTips() { try { return JSON.parse(localStorage.getItem('st-tips-hidden') || '{}'); } catch (e) { return {}; } }
+      function hideTip(id) { var m = hiddenTips(); m[id] = Date.now(); try { localStorage.setItem('st-tips-hidden', JSON.stringify(m)); } catch (e) {} }
+      function advice(by, st) {
+        var ts = st.tailscale || {}, sta = st.sta || {}, tips = [];
+        var on = function (id) { return by[id] && by[id].configured === true; };
+        var add = function (level, id, title, text, href, label) { tips.push({level: level, id: id, title: title, text: text, href: href, label: label}); };
+        if (ts.enabled && !ts.connected)
+          add(0, 'tailnet-down', 'The Tailnet is not connected', ts.startup_error ? String(ts.startup_error) : 'Remote access, routes and service rules wait for it.', 'tailscale', 'Open Tailscale');
+        else if (ts.connected && ts.authority_ready === false)
+          add(1, 'policy-pending', 'Waiting for the Tailnet policy', 'Traffic stays closed until the control server sends a complete policy.', 'tailscale', 'Open Tailscale');
+        if (sta.connected && typeof sta.rssi === 'number' && sta.rssi <= -75)
+          add(1, 'weak-wifi', 'Weak Wi-Fi signal (' + sta.rssi + ' dBm)', 'Speed and stability depend on it: move the gateway closer to the router or use a better antenna position.', 'network/internet', 'Open Internet');
+        if (on('mqtt') && by.mqtt.active === false)
+          add(1, 'mqtt-down', 'MQTT broker not reachable', 'Home Assistant does not get updates until the connection works.', 'automation/mqtt', 'Open MQTT');
+        if (on('exit-node') && by['exit-node'].active === false)
+          add(1, 'exit-restart', 'Exit node saved but not running', 'It starts after a restart of the gateway.', 'tailscale/options', 'Open options');
+        if (on('tailnet-names') && by['tailnet-names'].active === false)
+          add(1, 'names-relay', 'Tailnet names need the DNS relay', 'Turn the DNS relay on so local devices can resolve them.', 'network/wifi', 'Open Gateway Wi-Fi');
+        if (on('ddns') && by.ddns.active === false)
+          add(1, 'ddns-fail', 'Dynamic DNS is not updated', 'The name may point to an old address.', 'network/internet', 'Open Internet');
+        if (typeof st.mem_internal_free === 'number' && st.mem_internal_free < 20480)
+          add(1, 'low-ram', 'Little free internal memory', 'Switch off features you do not use; each one costs nothing while off.', 'system', 'Open System');
+        if (s_web_auth_required === false)
+          add(2, 'no-password', 'Protect the administration', 'No web password is required: anyone on this network can change settings.', 'system', 'Set a password');
+        if (on('wol') && !on('health'))
+          add(2, 'watch-devices', 'Watch the devices you wake', 'The Health Monitor tells you when a saved NAS or PC stops answering.', 'operations', 'Open Devices');
+        var notifier = on('ntfy') || on('telegram') || on('email') || on('mqtt');
+        if ((on('health') || on('service-watch') || on('wol')) && !notifier)
+          add(2, 'notify', 'Get told when something fails', 'Checks run, but nothing sends you an alert: add Telegram, email or ntfy.', 'automation/notifications', 'Open Notifications');
+        if (s_updatesAvailable)
+          add(2, 'update', 'A firmware update is available', 'Check what changed and install it when convenient.', 'system', 'Open System');
+        if (!on('settings-copies') && s_updatesAvailable)
+          add(3, 'copies', 'Keep a settings copy before updates', 'One copy is saved automatically before each firmware update.', 'system/backup', 'Open Backup');
+        if (ts.connected && !on('lan-tailnet-forwarding') && !on('subnet-routing') && !on('exit-node'))
+          add(3, 'first-use', 'Put the Tailnet connection to use', 'Publish a Tailnet service to a LAN device, or reach this network from anywhere.', null, 'Choose a goal');
+        var hidden = hiddenTips(), week = 7 * 86400000, now = Date.now();
+        tips = tips.filter(function (x) { return x.level < 2 || !(hidden[x.id] && now - hidden[x.id] < week); })
+                   .sort(function (a, b) { return a.level - b.level; }).slice(0, 3);
+        var box = el('st-next'), card = el('st-next-card');
+        card.hidden = !tips.length;
+        el('st-next-count').textContent = String(tips.length);
+        el('st-next-count').className = 'badge ' + (tips.some(function (x) { return x.level === 0; }) ? 'badge-danger' : tips.some(function (x) { return x.level === 1; }) ? 'badge-warning' : 'badge-neutral');
+        box.innerHTML = tips.map(function (x) {
+          return '<div class="st-tip ' + (x.level === 0 ? 'danger' : x.level === 1 ? 'warn' : '') + '" role="listitem" data-tip="' + x.id + '">' +
+            '<div><strong>' + h(x.title) + '</strong><p>' + h(x.text) + '</p></div><div class="st-tip-actions">' +
+            (x.href ? '<a class="btn btn-secondary btn-sm" href="#' + x.href + '">' + h(x.label) + '</a>'
+                    : '<button class="btn btn-secondary btn-sm" type="button" data-goals>' + h(x.label) + '</button>') +
+            (x.level >= 2 ? '<button class="btn btn-ghost btn-sm" type="button" data-hide>Hide</button>' : '') + '</div></div>';
+        }).join('');
+        box.querySelectorAll('[data-hide]').forEach(function (bt) {
+          bt.addEventListener('click', function () { hideTip(bt.closest('[data-tip]').getAttribute('data-tip')); advice(by, st); });
+        });
+        box.querySelectorAll('[data-goals]').forEach(function (bt) {
+          bt.addEventListener('click', function () { var w = el('wizard-card'); if (w) w.scrollIntoView({behavior: 'smooth', block: 'start'}); });
+        });
+        return tips;
       }
       function events() {
         return apiFetch('/api/events?limit=5', {cache: 'no-store'}).then(function (r) {
           if (r.status === 404) return null; if (!r.ok) throw new Error('HTTP ' + r.status); return r.json();
         }).then(function (d) {
-          if (!d || !d.storage) { el('st-events-card').hidden = true; return; }
-          el('st-events-card').hidden = false;
+          if (!d || !d.storage) { el('st-events-card').hidden = true; el('st-features-card').classList.add('col-span-2'); return; }
+          el('st-events-card').hidden = false; el('st-features-card').classList.remove('col-span-2');
           var f = histUi.fmt, list = (d.events || []).slice(0, 5);
           el('st-events').innerHTML = list.map(function (e) {
             return '<li><span class="badge ' + (f.LEVEL[e.l] || 'badge-neutral') + '">' + f.html(f.KIND[e.k] || e.k) + '</span><span>' + f.html(e.m) +
@@ -7072,7 +7242,8 @@
           el('st-events-note').hidden = !el('st-events-note').textContent;
         }).catch(function (e) { el('st-events-note').textContent = 'Unavailable: ' + e.message; });
       }
-      return {load: function () { return Promise.all([features(), events()]); }};
+      return {load: function () { return Promise.all([features(), events()]); }, refresh: features,
+              marks: function () { if (s_caps) markGoals(s_caps); }};
     })();
     /* Dynamic DNS. */
     var ddnsUi = (function () {
@@ -9544,7 +9715,47 @@
             (dq.queries | 0) + ' queries)</div>' +
             '<div>Entries: <strong>' + (dq.entries | 0) + '</strong> / ' + (dq.capacity | 0) +
             ' · evictions ' + (dq.evictions | 0) +
-            ' · SPIRAM ' + kb(dq.cache_bytes || 0) + '</div>';
+            ' · SPIRAM ' + kb(dq.cache_bytes || 0) + '</div>' +
+            '<div>Stray upstream answers discarded: <strong>' + (dq.upstream_stray | 0) + '</strong></div>';
+        }
+
+        /* Connection & security: assembly self-tests, TLS distrust, and the
+         * reconnect/drop counters of /api/operations (fetched alongside). */
+        var cnEl = document.getElementById('diag-conn');
+        if (cnEl) {
+          var L = function (s) { return '<span>' + s + '</span>'; };   /* one text node per label: translated */
+          var ca = d.crypto_asm || {}, fc = d.fast_checksum || {}, td = d.tls_distrust || {};
+          var asmState = function (v) {
+            return v === 1 ? '<span class="badge badge-success">' + L('active') + '</span>'
+                 : v === -1 ? '<span class="badge badge-warning">' + L('C fallback') + '</span>'
+                 : '<span class="badge badge-neutral">' + L('not checked yet') + '</span>';
+          };
+          var chk = !fc.checked ? 0 : fc.active ? 1 : -1;
+          var html =
+            '<div>' + L('Assembly crypto:') + ' ChaCha20 ' + asmState(ca.chacha20) +
+            ' · Poly1305 ' + asmState(ca.poly1305) + ' · ' + L('checksum') + ' ' + asmState(chk) +
+            (fc.active && fc.cycles_1400_lwip ? ' (' + (fc.cycles_1400_fast | 0) + ' / ' + (fc.cycles_1400_lwip | 0) +
+              ' ' + L('cycles per 1400 bytes, lwIP') + (fc.impl === 'xtensa-pie' ? ' · PIE' : '') + ')' : '') + '</div>' +
+            '<div>' + L('Compromised certificate authorities blocked:') + ' <strong>' + (td.distrusted_cas | 0) +
+            '</strong> · ' + L('refused connections:') + ' <strong>' + (td.refused_chains | 0) + '</strong></div>';
+          cnEl.innerHTML = html + '<div class="form-hint">' + L('Loading…') + '</div>';
+          apiFetch('/api/operations').then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
+            if (!o) { cnEl.innerHTML = html; return; }
+            var rc = o.tailnet_reconnects || {}, fd = o.forward_drops || {};
+            var last = rc.last_reconnect_ms
+              ? (rc.last_reconnect_ms / 1000).toFixed(1) + ' s' + (rc.last_reconnect_stages ? ' (' + esc(rc.last_reconnect_stages) + ')' : '')
+              : L('none since boot');
+            var drops = 0;
+            for (var k in fd) if (typeof fd[k] === 'number') drops += fd[k];
+            cnEl.innerHTML = html +
+              '<div>' + L('Control-plane losses since boot:') + ' <strong>' + (rc.control_losses | 0) + '</strong>' +
+              (rc.last_loss ? ' · ' + L('last:') + ' ' + esc(rc.last_loss) : '') + '</div>' +
+              '<div>' + L('Last control reconnect:') + ' <strong>' + last + '</strong>' +
+              (rc.failed_attempts_since ? ' · ' + L('failed attempts:') + ' ' + (rc.failed_attempts_since | 0) +
+                (rc.last_failed_attempt ? ' (' + esc(rc.last_failed_attempt) + ')' : '') : '') + '</div>' +
+              '<div>' + L('Relay reconnects (DERP):') + ' ' + ((rc.derp_retry | 0) + (rc.derp_rx_watchdog | 0)) +
+              ' · ' + L('packets dropped or refused since boot:') + ' <strong>' + drops + '</strong></div>';
+          }).catch(function () { cnEl.innerHTML = html; });
         }
 
         /* CPU temp badge */
@@ -12072,7 +12283,7 @@
       var loginVisible = document.getElementById('authLogin').style.display !== 'none';
       return !setupVisible && !loginVisible;
     }
-    setInterval(function () { if (statusRefreshDue()) { fetchStatus(); if (histUi.trendsDue() && !document.getElementById('trend-card').hidden) histUi.loadTrends(); } }, 30000);
+    setInterval(function () { if (statusRefreshDue()) { fetchStatus(); statusExtras.refresh(); if (histUi.trendsDue() && !document.getElementById('trend-card').hidden) histUi.loadTrends(); } }, 30000);
     document.addEventListener('visibilitychange', function () {
       if (statusRefreshDue() && Date.now() - s_status_fetched >= 30000) fetchStatus();
     });

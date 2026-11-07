@@ -4744,6 +4744,7 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
             cJSON_AddBoolToObject(fo, "active", fc.active);
             cJSON_AddNumberToObject(fo, "cycles_1400_fast", fc.cycles_fast);
             cJSON_AddNumberToObject(fo, "cycles_1400_lwip", fc.cycles_lwip);
+            cJSON_AddStringToObject(fo, "impl", fc.impl ? fc.impl : "lwip");
         }
     }
 
