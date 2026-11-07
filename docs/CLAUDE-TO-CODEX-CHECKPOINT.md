@@ -1,5 +1,30 @@
 # Claude-to-Codex checkpoint — 2026-11-07
 
+## Latest state (end of 2026-11-07)
+
+- **3.0.7** is the published stable (Latest; site and browser installer deployed).
+- **3.0.8** is built from `e4a6c6b`; image SHA-256 `1349e6a1…53c2` is archived
+  under `build/development-3.0.8/`.
+  - Offline validation: 125/125.
+  - Board A runs it from ota_0, with 3.0.7 in ota_1.
+  - The PIE checksum self-test passed on hardware: 365 vs 2,264 cycles.
+  - It is being published as the next stable on owner instruction.
+- **3.0.8 content:**
+  - a Status page that follows what is switched on;
+  - state-based suggestions;
+  - the Diagnostics "Connection & security" section;
+  - no dashboard flash before sign-in;
+  - the PIE checksum.
+- **Evaluated and not done:**
+  - X25519 in assembly: about 32 ms per handshake every 2 min per peer; not worth the risk.
+  - lwIP in IRAM: about 10 KB of internal RAM, below the floor.
+  - Flash QIO: needs a new bootloader over USB.
+  - 1 kHz tick.
+- **Still open:**
+  - observe a real server-side session close on the board (watcher job `watch-loss*`);
+  - radio-dependent tests stay off while the board is away from the router.
+
+
 Read AGENTS.md, then this file, then `docs/NEXT-STEPS-FOR-AGENT.md`. Private
 device state, passwords and addresses stay under ignored `build/private-device/`
 and `build/notification-ui/PERFORMANCE-STATE.json`; never copy them here.

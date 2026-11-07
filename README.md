@@ -48,6 +48,15 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
+### Firmware 3.0.8: a Status page that follows what you use
+
+- The Status page shows live tiles only for the features you switched on and
+  up to three suggested next steps computed from the gateway's state (problems
+  first: Tailnet down, weak Wi-Fi, broker unreachable…).
+- Diagnostics shows reconnect timings, dropped packets and the assembly
+  self-tests; the packet checksum runs on the ESP32-S3 vector unit (365
+  instead of 2,264 CPU cycles for 1,400 bytes).
+
 ### Firmware 3.0.7: faster tunnel, no drop when the control server reconnects
 
 - WireGuard encryption, decryption and the packet checksum run in
