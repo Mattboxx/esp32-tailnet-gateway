@@ -6,6 +6,39 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Fixed
+
+- Tailnet traffic still stopped when the coordination server closed the
+  control session (HTTP/2 END_STREAM, GOAWAY or RST_STREAM), the most common
+  way it ends: the gateway treated the close like a malformed policy and
+  revoked it, so the "keep the last policy" behaviour of 3.0.7-beta.7 never
+  applied to it (observed: an outage of about two minutes on 2026-11-05). A
+  closed session is now a transport loss: traffic continues with the last
+  policy (or follows the selected control-loss setting) until the new session
+  delivers a fresh one. Messages received just before the close are applied
+  first. Malformed or unauthorised map data still blocks immediately.
+
+### Changed
+
+- The exit-node DNS service (PeerAPI DNS-over-HTTP for devices using this
+  gateway as their exit node) runs on a minimal built-in server instead of a
+  second general-purpose web server instance, which used about 2.5 KB of
+  internal RAM and three network sockets even with no client. Behaviour is
+  unchanged: GET and POST /dns-query, keep-alive, only known Tailnet peers on
+  the tunnel address.
+- Each control-plane reconnect after a loss logs one warning with how long
+  each stage took, and `/api/operations` → `tailnet_reconnects` reports
+  `last_reconnect_ms` and `last_reconnect_stages`.
+- `/api/system/diag` reports each task's run time (`tasks[].runtime_us`,
+  `tasks_runtime_total_us`) and what the exit-node DNS service used at start
+  (`exit_dns`).
+- Less noise in the warning log: routine WireGuard handshake work (about
+  32 ms) is no longer reported as a slow periodic run, and the duplicate
+  answer to a handshake sent both directly and through the relay is logged
+  at most once every 30 s.
+- Encrypting and decrypting tunnel packets no longer zeroes buffers that are
+  overwritten anyway.
+
 ## [3.0.7-beta.8] — 2026-11-04 (pre-release)
 
 ### Security
