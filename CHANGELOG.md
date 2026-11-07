@@ -8,6 +8,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Changed
 
+- The UDP/TCP checksum uses the ESP32-S3 vector unit (PIE): eight 16-bit
+  words per instruction into its 40-bit accumulator. As before, the gateway
+  compares it with lwIP's own function on the device before first use and
+  falls back to the scalar assembly loop, then to lwIP, if a result differs;
+  `/api/system/diag` → `fast_checksum.impl` says which one runs.
 - The Status page follows what is switched on: the main cards (uplink,
   Tailscale, system) come first; "Your features" shows a live tile for each
   feature that is on, with what it is doing now, and lists the rest once as

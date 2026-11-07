@@ -63,4 +63,67 @@ tsr_csum_halfwords:
     retw.n
     .size   tsr_csum_halfwords, . - tsr_csum_halfwords
 
+/* uint32_t tsr_csum_halfwords_pie(const void *p, uint32_t nhalf);
+ * Same contract as tsr_csum_halfwords, with the ESP32-S3 vector unit (PIE):
+ * up to seven halfwords are added one by one until p is 16-byte aligned;
+ * then EE.VLD.128.IP loads eight halfwords and EE.VMULAS.U16.ACCX adds their
+ * products with a vector of ones (that is, the halfwords themselves) to the
+ * 40-bit ACCX accumulator; the rest is added one by one. ACCX is read with
+ * EE.SRS.ACCX (shift 0). Its sum stays below 2^31 for nhalf <= 32767, which
+ * a pbuf (u16 length) never exceeds. The vector registers belong to the
+ * calling task (FreeRTOS saves them lazily, coprocessor 3); never call this
+ * from an interrupt. The C caller compares it with lwIP before first use.
+ * Registers: a2 p, a3 nhalf, a4 scalar sum, a5 count, a6 load, a7 ones
+ * address / shift amount, q0/q2 data, q1 ones. */
+    .literal_position
+    .align  4
+    .global tsr_csum_halfwords_pie
+    .type   tsr_csum_halfwords_pie, @function
+tsr_csum_halfwords_pie:
+    entry   a1, 32
+    movi.n  a4, 0
+    /* head: halfwords until p is 16-byte aligned (p is 2-byte aligned) */
+.Lpie_head:
+    beqz    a3, .Lpie_done
+    extui   a5, a2, 0, 4
+    beqz    a5, .Lpie_aligned
+    l16ui   a6, a2, 0
+    addi.n  a2, a2, 2
+    addi.n  a3, a3, -1
+    add.n   a4, a4, a6
+    j       .Lpie_head
+.Lpie_aligned:
+    movi    a7, tsr_pie_ones
+    ee.vld.128.ip q1, a7, 0
+    ee.zero.accx
+    srli    a5, a3, 4               /* pairs of 16-byte blocks */
+    loopnez a5, .Lpie_pairs_done
+    ee.vld.128.ip q0, a2, 16
+    ee.vld.128.ip q2, a2, 16
+    ee.vmulas.u16.accx q0, q1
+    ee.vmulas.u16.accx q2, q1
+.Lpie_pairs_done:
+    bbci    a3, 3, .Lpie_no_single  /* one more 16-byte block? */
+    ee.vld.128.ip q0, a2, 16
+    ee.vmulas.u16.accx q0, q1
+.Lpie_no_single:
+    movi.n  a7, 0
+    ee.srs.accx a6, a7, 0
+    add.n   a4, a4, a6
+    extui   a5, a3, 0, 3            /* zero to seven halfwords left */
+    loopnez a5, .Lpie_tail_done
+    l16ui   a6, a2, 0
+    addi.n  a2, a2, 2
+    add.n   a4, a4, a6
+.Lpie_tail_done:
+.Lpie_done:
+    mov.n   a2, a4
+    retw.n
+    .size   tsr_csum_halfwords_pie, . - tsr_csum_halfwords_pie
+
+    .section .dram1.tsr_pie_ones, "aw"   /* internal RAM: vector load without flash cache */
+    .align  16
+tsr_pie_ones:
+    .short  1, 1, 1, 1, 1, 1, 1, 1
+
 #endif /* __XTENSA__ */

@@ -23,7 +23,8 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 mine = (ROOT / 'main/fast_chksum.c').read_text(encoding='utf-8').replace('\r\n', '\n')
 asm = (ROOT / 'main/fast_chksum_xtensa.S').read_text(encoding='utf-8')
-assert 'loopnez a6, .Lblocks_done' in asm and asm.count('l16ui') == 9
+assert 'loopnez a6, .Lblocks_done' in asm and 'tsr_csum_halfwords_pie:' in asm
+assert 'ee.vmulas.u16.accx q0, q1' in asm and '.dram1.tsr_pie_ones' in asm
 cmake = (ROOT / 'main/CMakeLists.txt').read_text(encoding='utf-8')
 assert '"-Wl,--wrap=ip_chksum_pseudo"' in cmake and 'ITEMS udp_sendto ip_chksum_pseudo' not in cmake
 
@@ -73,6 +74,18 @@ static uint32_t tsr_csum_halfwords(const void *p, uint32_t nhalf) {
     for (uint32_t i = 0; i < nhalf; i++) { u16_t w; memcpy(&w, b + 2 * i, 2); s += w; }
     return s;
 }
+/* C model of the PIE loop's split: halfwords until 16-byte alignment, pairs
+ * of 8-halfword blocks, one more block, then the tail (vector lanes summed). */
+static uint32_t tsr_csum_halfwords_pie(const void *p, uint32_t nhalf) {
+    const u8_t *b = p; uint32_t s = 0, acc = 0; u16_t w;
+    while (nhalf && ((uintptr_t)b & 15)) { memcpy(&w, b, 2); s += w; b += 2; nhalf--; }
+    for (uint32_t k = 0; k < (nhalf >> 4); k++) for (int i = 0; i < 16; i++) { memcpy(&w, b, 2); acc += w; b += 2; }
+    if (nhalf & 8) for (int i = 0; i < 8; i++) { memcpy(&w, b, 2); acc += w; b += 2; }
+    s += acc;
+    for (uint32_t i = 0; i < (nhalf & 7); i++) { memcpy(&w, b, 2); s += w; b += 2; }
+    return s;
+}
+static uint32_t (*s_halfwords)(const void *, uint32_t) = HALFWORDS;
 @@LWIP@@
 @@FAST@@
 /* RFC 1071 over the pseudo header and the data, big-endian words. */
@@ -128,21 +141,22 @@ int main(void) {
 '''
 
 
-def run(fast):
+def run(fast, loop='tsr_csum_halfwords'):
     with tempfile.TemporaryDirectory() as tmp:
         c = Path(tmp) / 'ck.c'
-        c.write_text(PROGRAM.replace('@@LWIP@@', lwip_code).replace('@@FAST@@', fast), encoding='utf-8')
+        c.write_text(PROGRAM.replace('@@LWIP@@', lwip_code).replace('@@FAST@@', fast).replace('HALFWORDS', loop), encoding='utf-8')
         exe = Path(tmp) / ('ck.exe' if os.name == 'nt' else 'ck')
         subprocess.run(['gcc', '-std=c11', '-O2', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function',
                         '-Wno-sign-compare', '-Wno-parentheses', str(c), '-o', str(exe)], check=True)
         return subprocess.run([str(exe)], capture_output=True, text=True, timeout=600)
 
 
-ok = run(fast_code)
-assert ok.returncode == 0 and 'fast chksum ok' in ok.stdout, (ok.returncode, ok.stdout[-400:], ok.stderr[-400:])
+for loop in ('tsr_csum_halfwords', 'tsr_csum_halfwords_pie'):
+    ok = run(fast_code, loop)
+    assert ok.returncode == 0 and 'fast chksum ok' in ok.stdout, (loop, ok.returncode, ok.stdout[-400:], ok.stderr[-400:])
 for old, new in (('    if (odd) {\n        sum = FC_SWAP(sum);\n    }\n', ''),
                  ('            swapped = !swapped;\n            acc = FC_SWAP(acc);\n', '            swapped = !swapped;\n')):
     assert fast_code.count(old) == 1
     bad = run(fast_code.replace(old, new))
     assert bad.returncode != 0, 'mutant not detected: ' + old.strip()
-print('fast chksum: equal to lwIP inet_chksum_pseudo and RFC 1071 on 420k cases; mutants detected')
+print('fast chksum: scalar and vector-split models equal lwIP inet_chksum_pseudo and RFC 1071 on 420k cases each; mutants detected')
