@@ -32,6 +32,7 @@
 #include "esp_netif.h"
 #include "esp_heap_caps.h"
 #include "esp_timer.h"
+#include "esp_random.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "task_reaper.h"
@@ -42,6 +43,7 @@
 #define DNS_RELAY_BOOT_DELAY_MS 3000     /* Settle window before the first bind attempt. */
 #define DNS_RELAY_TX_RETRIES    4        /* upstream sendto ENOMEM: retry, don't drop the query */
 #define DNS_RELAY_TX_RETRY_MS   5        /* per-retry backoff; WiFi TX buffers free within a few ms */
+#define DNS_RELAY_MAX_STRAY     8        /* unmatched datagrams discarded per query before giving up */
 
 /* PSRAM-backed stacks (see xTaskCreateWithCaps below), so generous sizing is
  * cheap. Bumped 2026-06-10: at INFO verbosity (SD recorder sd_level=3) the
@@ -119,7 +121,7 @@ static SemaphoreHandle_t  s_cache_mtx = NULL;
 
 /* Diagnostics counters. Unlocked: a torn increment only skews a stat by one,
  * which is irrelevant — the cache *data* is what the mutex protects. */
-static volatile uint32_t st_queries, st_hits, st_misses, st_inserts, st_evictions;
+static volatile uint32_t st_queries, st_hits, st_misses, st_inserts, st_evictions, st_stray;
 
 /* Resolve the live upstream IP every forward. Priority: explicit operator
  * override, then DNS learned from the STA DHCP lease. No public resolver is
@@ -205,6 +207,7 @@ static bool dns_is_std_query(const uint8_t *p, int len)
  * qlen is the question length from dns_question_len(). */
 static uint32_t dns_resp_ttl(const uint8_t *p, int len, int qlen)
 {
+    if (len < 12 + qlen) return 0;
     uint8_t rcode = p[3] & 0x0F;
     if (rcode != 0 && rcode != 3) return 0;    /* only NOERROR / NXDOMAIN */
     uint16_t an = (p[6] << 8) | p[7];
@@ -215,9 +218,9 @@ static uint32_t dns_resp_ttl(const uint8_t *p, int len, int qlen)
         if (i + 1 > len) return DNS_CACHE_TTL_NEG_S;
         if ((p[i] & 0xC0) == 0xC0) {            /* compressed name -> 2 bytes */
             i += 2;
-        } else {                                /* uncompressed labels */
-            while (i < len && p[i]) i += 1 + p[i];
-            i += 1;
+        } else {                                /* labels, maybe ending in a pointer */
+            while (i < len && p[i] && (p[i] & 0xC0) != 0xC0) i += 1 + p[i];
+            i += (i < len && (p[i] & 0xC0) == 0xC0) ? 2 : 1;
         }
         if (i + 10 > len) return DNS_CACHE_TTL_NEG_S;
         uint32_t ttl = ((uint32_t)p[i+4] << 24) | ((uint32_t)p[i+5] << 16) |
@@ -283,6 +286,44 @@ static void cache_put(const uint8_t *q, int key_len,
 
 /* ───────────────────── Worker pool ───────────────────── */
 
+/* The answer to the query just sent: same ID, a response, and the same
+ * question (ASCII case-insensitive; resolvers may randomise case). Anything
+ * else (a late answer to an earlier query, a forged datagram) is not ours. */
+static bool dns_reply_matches(const uint8_t *r, int rlen, const uint8_t *q, int qlen)
+{
+    if (rlen < 12 || qlen < 12) return false;
+    if (r[0] != q[0] || r[1] != q[1] || !(r[2] & 0x80)) return false;
+    if ((r[2] & 0x78) != (q[2] & 0x78)) return false;          /* same opcode */
+    int ql = dns_question_len(q, qlen);
+    if (ql <= 0) return true;                                  /* nothing more to compare */
+    if (((r[4] << 8) | r[5]) != 1 || rlen < 12 + ql) return false;
+    for (int i = 12; i < 12 + ql; i++) {
+        uint8_t a = r[i], b = q[i];
+        if (a >= 'A' && a <= 'Z') a = (uint8_t)(a + 32);
+        if (b >= 'A' && b <= 'Z') b = (uint8_t)(b + 32);
+        if (a != b) return false;
+    }
+    return true;
+}
+
+/* Receive the upstream answer to q: only from the server it was sent to,
+ * only a matching reply. Stray datagrams are discarded (bounded). Returns
+ * the length, 0 when none arrived in time, -1 on a socket error. */
+static int upstream_recv(int up, uint8_t *rbuf, const uint8_t *q, int qlen, const struct sockaddr_in *server)
+{
+    for (int stray = 0; stray <= DNS_RELAY_MAX_STRAY; stray++) {
+        struct sockaddr_in from = {0};
+        socklen_t from_len = sizeof from;
+        int rlen = recvfrom(up, rbuf, DNS_RELAY_BUF_SIZE, 0, (struct sockaddr *)&from, &from_len);
+        if (rlen <= 0) return (errno == EAGAIN || errno == EWOULDBLOCK) ? 0 : -1;
+        if (from.sin_addr.s_addr == server->sin_addr.s_addr && from.sin_port == server->sin_port &&
+            dns_reply_matches(rbuf, rlen, q, qlen))
+            return rlen;
+        st_stray++;
+    }
+    return 0;
+}
+
 /* Each worker owns one upstream UDP socket so concurrent in-flight queries
  * never cross responses. A send/recv hard error rebuilds just this socket. */
 static void worker_task(void *arg)
@@ -320,6 +361,12 @@ static void worker_task(void *arg)
             .sin_port   = htons(DNS_RELAY_PORT),
             .sin_addr.s_addr = upstream,
         };
+        /* A fresh random ID per upstream query, whatever the client chose:
+         * a forged answer has to guess it, the port and the question. */
+        uint8_t client_id[2] = {w->q[0], w->q[1]};
+        uint32_t up_id = esp_random();
+        w->q[0] = (uint8_t)(up_id >> 8);
+        w->q[1] = (uint8_t)up_id;
         int sent = -1;
         for (int attempt = 0; attempt < DNS_RELAY_TX_RETRIES; attempt++) {
             sent = sendto(up, w->q, w->qlen, 0, (struct sockaddr *)&up_addr, sizeof(up_addr));
@@ -339,12 +386,14 @@ static void worker_task(void *arg)
             heap_caps_free(w);
             continue;
         }
-        int rlen = recvfrom(up, rbuf, DNS_RELAY_BUF_SIZE, 0, NULL, NULL);
+        int rlen = upstream_recv(up, rbuf, w->q, w->qlen, &up_addr);
         if (rlen <= 0) {
-            if (errno != EAGAIN && errno != EWOULDBLOCK) { close(up); up = -1; }
+            if (rlen < 0) { close(up); up = -1; }
             heap_caps_free(w);
             continue;
         }
+        rbuf[0] = client_id[0];
+        rbuf[1] = client_id[1];
 
         int ls = w->lan ? s_lan_sock : s_listen_sock;   /* listener-owned sockets */
         if (ls >= 0) {
@@ -617,6 +666,7 @@ void dns_relay_get_stats(dns_relay_stats_t *out)
     out->misses      = st_misses;
     out->inserts     = st_inserts;
     out->evictions   = st_evictions;
+    out->stray       = st_stray;
     out->capacity    = DNS_CACHE_ENTRIES;
     out->cache_bytes = s_cache ? (uint32_t)(DNS_CACHE_ENTRIES * sizeof(dns_cache_entry_t)) : 0;
     out->enabled     = s_enabled ? 1 : 0;
