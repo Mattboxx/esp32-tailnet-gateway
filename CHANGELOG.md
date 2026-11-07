@@ -6,6 +6,17 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- Packets relayed through DERP are read as soon as they arrive: the idle
+  relay reader used to sleep 10 ms between checks, so a relayed packet could
+  wait up to that long before processing.
+- WireGuard handshakes take less time: X25519 squares with 36 instead of 64
+  multiplications. Handshake work runs in the task that decrypts incoming
+  packets, so packets arriving during a handshake wait less.
+  `/api/system/diag` → `crypto_asm` reports the last and longest X25519
+  duration (`x25519_us_last`, `x25519_us_max`).
+
 ## [3.0.8] — 2026-11-07
 
 ### Changed
