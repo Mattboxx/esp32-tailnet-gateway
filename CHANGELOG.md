@@ -22,6 +22,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   diagnostics).
 - The IPv6 STUN parser could read one byte past a response ending in an
   empty mapped-address attribute.
+- Handshake messages with a wrong MAC, which anyone able to reach the
+  WireGuard port can send, wrote two log lines each; a flood now produces one
+  warning per 30 s with a count.
+
+### Changed
+
+- The IPv4 UDP/TCP checksum, computed for every encrypted WireGuard packet
+  sent, runs through a hand-written Xtensa loop (eight 16-bit words per
+  zero-overhead iteration) instead of lwIP's one-word loop. The result is
+  identical: before first use the gateway compares it with lwIP's own
+  function on random data, every alignment and split buffers, and keeps
+  lwIP's function if anything differs. `/api/system/diag` → `fast_checksum`
+  reports the outcome and the cycles both take for 1,400 bytes.
 
 ## [3.0.7-beta.10] - 2026-11-07
 
