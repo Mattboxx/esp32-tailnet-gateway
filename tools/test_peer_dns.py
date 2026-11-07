@@ -15,6 +15,16 @@ functions = 'static bool advertises_exit_node' + functions
 parser = '/* One request parsed from the start of a connection buffer.' + source.split('/* One request parsed from the start of a connection buffer.', 1)[1].split('#ifndef PEER_DNS_HOST_TEST', 1)[0]
 assert '#include "esp_http_server.h"' not in source and 'httpd_' not in source, 'the framework server is gone'
 assert 'if (fd >= 0 && !peer_fd_allowed(fd)) {   /* nothing is read from others */' in source
+# Latency first (owner, 2026-11-07): as many connections as the old server,
+# idle connections kept longer than clients keep them (Go net/http: 90 s),
+# answers in one send without Nagle, one UDP retransmission within 1.5 s.
+import re as _re
+assert int(_re.search(r'#define PEER_DNS_CLIENTS\s+(\d+)', source).group(1)) >= 3
+assert int(_re.search(r'#define PEER_DNS_IDLE_US\s+\((\d+)LL', source).group(1)) >= 90
+assert 'TCP_NODELAY' in source and 'ok = ok && send_all(fd, out, (size_t)n + len);' in source
+respond = source.split('static bool respond(', 1)[1].split('\n}\n', 1)[0]
+assert respond.count('send_all(') == 1
+assert '#define PEER_DNS_UDP_RETRY_US      (600LL * 1000LL)' in source and 'resent = true;' in source
 assert 'if (!peer_fd_allowed(fd)) return respond_error(fd, "403 Forbidden", "forbidden");' in source
 fixture = r'''
 #include <stdint.h>

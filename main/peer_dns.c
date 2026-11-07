@@ -14,6 +14,8 @@
  * sockets and per-server structures took 2.5 KB of internal RAM and three of
  * the 31 lwIP sockets (measured on board A). Buffers, stack and task live in
  * SPIRAM; only the listening socket and one socket per connection remain.
+ * Latency comes first: as many connections as before, kept open longer than
+ * clients keep them, answers sent in one segment without Nagle delay.
  *
  * Lookups go to the uplink resolver (or the DNS forwarder's configured
  * upstream): UDP first, TCP when the answer is truncated.
@@ -54,10 +56,16 @@
 #define PEER_DNS_MAX_QUERY_STRING  (PEER_DNS_MAX_B64 + 32U)
 #define PEER_DNS_TIMEOUT_US        (3000LL * 1000LL)
 #define PEER_DNS_UDP_TIMEOUT_US    (1500LL * 1000LL)
-#define PEER_DNS_CLIENTS           2          /* concurrent connections, LRU replaced */
+/* One retransmission of the same query within that budget: a single lost
+ * UDP answer costs ~0.6 s instead of failing over to TCP, which many home
+ * routers do not serve. */
+#define PEER_DNS_UDP_RETRY_US      (600LL * 1000LL)
+#define PEER_DNS_CLIENTS           3          /* concurrent connections, LRU replaced (as the old server) */
 #define PEER_DNS_HEAD_MAX          (PEER_DNS_MAX_QUERY_STRING + 512U)
 #define PEER_DNS_BUF_MAX           (PEER_DNS_HEAD_MAX + PEER_DNS_MAX_MESSAGE)
-#define PEER_DNS_IDLE_US           (30LL * 1000LL * 1000LL)
+/* Longer than clients keep idle connections (Go net/http: 90 s), so the
+ * server never forces a new TCP handshake on a client that would reuse one. */
+#define PEER_DNS_IDLE_US           (120LL * 1000LL * 1000LL)
 #define PEER_DNS_REQUEST_US        (5LL * 1000LL * 1000LL)
 #define PEER_DNS_SEND_TIMEOUT_S    5
 #define PEER_DNS_BACKLOG           2
@@ -318,10 +326,19 @@ static upstream_result_t forward_dns_udp(uint32_t server, const uint8_t *query,
     if (sendto(fd, query, query_len, 0, (struct sockaddr *)&to, sizeof(to)) != (ssize_t)query_len) {
         result = UPSTREAM_ERROR;
     }
-    int64_t deadline = esp_timer_get_time() + PEER_DNS_UDP_TIMEOUT_US;
+    int64_t start = esp_timer_get_time();
+    int64_t deadline = start + PEER_DNS_UDP_TIMEOUT_US;
+    int64_t retry_at = start + PEER_DNS_UDP_RETRY_US;
+    bool resent = false;
     ssize_t n = 0;
     while (result == UPSTREAM_OK) {
-        int ready = wait_for_socket(fd, false, deadline);
+        int ready = wait_for_socket(fd, false, resent ? deadline : retry_at);
+        if (ready == 0 && !resent) {
+            resent = true;
+            if (sendto(fd, query, query_len, 0, (struct sockaddr *)&to, sizeof(to)) != (ssize_t)query_len)
+                result = UPSTREAM_ERROR;
+            continue;
+        }
         if (ready <= 0) {
             result = ready == 0 ? UPSTREAM_TIMEOUT : UPSTREAM_ERROR;
             break;
@@ -631,13 +648,21 @@ static bool send_all(int fd, const void *data, size_t len)
     return true;
 }
 
+/* Header and body leave in one send: one TCP segment for a DNS answer, no
+ * wait for an ACK between two small writes. */
 static bool respond(int fd, const char *status, const char *type, const void *body, size_t len, bool close)
 {
-    char head[192];
-    int n = snprintf(head, sizeof head,
+    enum { HEAD = 192 };
+    uint8_t *out = malloc(HEAD + len);
+    if (!out) return false;
+    int n = snprintf((char *)out, HEAD,
                      "HTTP/1.1 %s\r\nContent-Type: %s\r\nCache-Control: no-store\r\nContent-Length: %u\r\n%s\r\n",
                      status, type, (unsigned)len, close ? "Connection: close\r\n" : "");
-    return n > 0 && (size_t)n < sizeof head && send_all(fd, head, (size_t)n) && (!len || send_all(fd, body, len));
+    bool ok = n > 0 && n < HEAD;
+    if (ok && len) memcpy(out + n, body, len);
+    ok = ok && send_all(fd, out, (size_t)n + len);
+    free(out);
+    return ok;
 }
 
 static bool respond_error(int fd, const char *status, const char *message)
@@ -757,6 +782,8 @@ static void server_task(void *arg)
                 } else {
                     struct timeval send_timeout = { .tv_sec = PEER_DNS_SEND_TIMEOUT_S };
                     (void)setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &send_timeout, sizeof send_timeout);
+                    int nodelay = 1;   /* answers go out at once, never held by Nagle */
+                    (void)setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &nodelay, sizeof nodelay);
                     *slot = (peer_client_t){ .fd = fd, .buf = buf, .last_us = now, .request_us = now };
                 }
             }
