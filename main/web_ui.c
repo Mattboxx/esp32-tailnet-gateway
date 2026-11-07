@@ -4588,6 +4588,12 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
         if (ca) {
             cJSON_AddNumberToObject(ca, "chacha20", chacha20_asm_status());
             cJSON_AddNumberToObject(ca, "poly1305", poly1305_asm_status());
+            /* WireGuard handshake work: microseconds of the last and longest
+             * X25519 scalar multiplication (incoming packets wait meanwhile). */
+            extern volatile uint32_t x25519_cycles_last, x25519_cycles_max, x25519_calls;
+            cJSON_AddNumberToObject(ca, "x25519_us_last", x25519_cycles_last / CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ);
+            cJSON_AddNumberToObject(ca, "x25519_us_max", x25519_cycles_max / CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ);
+            cJSON_AddNumberToObject(ca, "x25519_calls", x25519_calls);
             cJSON_AddItemToObject(root, "crypto_asm", ca);
         }
     }
