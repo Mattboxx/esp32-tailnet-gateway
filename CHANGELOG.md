@@ -16,6 +16,15 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   packets, so packets arriving during a handshake wait less.
   `/api/system/diag` → `crypto_asm` reports the last and longest X25519
   duration (`x25519_us_last`, `x25519_us_max`).
+- Adding peers no longer stalls the data path: the static key agreement
+  with each peer (one X25519, about 15 ms measured on the board) was computed
+  when the peer was added, for every peer of the Tailnet map at start and on
+  every map change. It is now computed at the first handshake with that peer;
+  most peers never talk to the gateway.
+- Relayed (DERP) traffic is handled at the same priority as direct traffic:
+  the relay reader and writer ran below the web server and the integrations,
+  so relayed packets could wait behind them under load. They rest 10 ms
+  after 40 ms of continuous work so the web interface stays responsive.
 
 ## [3.0.8] — 2026-11-07
 
