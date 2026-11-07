@@ -11,7 +11,7 @@ Linux runner fixes and current sanitizer/build results are tracked in the
 their completion. Broader concurrent-load, remote/direct/DERP and uninterrupted
 500 MB candidate gates remain pending. RAM tradeoffs require measured reserves.
 
-The local 3.0.6 update-transfer fix has separate actual-handler regression and
+The 3.0.6 update-transfer fix has separate actual-handler regression and
 private transport evidence in `build/notification-ui/`. It does not replace
 the released 3.0.5 qualification or imply a new physical install.
 

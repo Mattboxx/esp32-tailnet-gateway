@@ -44,7 +44,7 @@ STABLE_TAG = 'v' + STABLE_VERSION
 # Current firmware: keep NEXT_PUBLISHED False until the qualified release
 # exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
 # released files (see website/firmware/README.md); the build verifies them.
-NEXT_VERSION = '3.0.5'
+NEXT_VERSION = '3.0.6'
 NEXT_PUBLISHED = True
 FIRMWARE_DIR = SRC / 'firmware'
 EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/
@@ -329,6 +329,10 @@ def render(page: Page, pages: list[Page]) -> str:
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="{NAME} — {TAGLINE}">
 <meta name="twitter:card" content="summary_large_image">
+<link rel="icon"
+      href="{page.rel('assets/icon-192.png')}"
+      type="image/png"
+      sizes="192x192">
 <link rel="icon" href="{page.rel('assets/favicon.svg')}" type="image/svg+xml">
 <link rel="icon" href="{page.rel('assets/favicon-32.png')}" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="{page.rel('assets/apple-touch-icon.png')}">
