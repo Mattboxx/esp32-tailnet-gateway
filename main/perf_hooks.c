@@ -19,7 +19,9 @@ static const char *const s_names[PH_COUNT] = {
 void perf_hooks_end(perf_hook_stage_t stage, const ph_mark_t *mark, uint32_t bytes)
 {
     uint32_t cycles = esp_cpu_get_cycle_count() - mark->cycles;
-    bool migrated = xPortGetCoreID() != mark->core;
+    /* Also discard a counter that went backwards (a CPU frequency change
+     * rewrites CCOUNT): it reads as ~4e9 cycles and would swamp the average. */
+    bool migrated = xPortGetCoreID() != mark->core || cycles > 0x80000000u;
     if ((unsigned)stage >= PH_COUNT) return;
     taskENTER_CRITICAL(&s_lock);
     counter_t *c = &s_c[stage];
