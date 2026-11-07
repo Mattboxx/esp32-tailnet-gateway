@@ -48,9 +48,23 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
+### Firmware 3.0.7: faster tunnel, no drop when the control server reconnects
+
+- WireGuard encryption, decryption and the packet checksum run in
+  hand-written Xtensa assembly; small packets no longer wait behind bulk data.
+  In A/B runs against 3.0.6 on the same board, single-stream download rose
+  from 4.9 to 7.6 Mbit/s and idle tunnel ping fell from 11.5 to 5 ms (results
+  depend on the radio link).
+- Like the official client, the gateway keeps the last Tailnet policy while
+  the control server reconnects (Tailscale → Advanced: control-plane outage).
+  Malformed or revoked policy still blocks immediately.
+- Security: TLS refuses the eight compromised eMudhra intermediate CAs, and
+  the AP DNS relay accepts only the matching upstream answer. See the
+  [changelog](CHANGELOG.md).
+
 ### Firmware 3.0.6: more tolerant updates
 
-These changes require **3.0.6**. Check the release's channel before installing;
+These changes require **3.0.6** or later. Check the release's channel before installing;
 the latest-stable links below exclude prereleases automatically.
 
 - GitHub downloads tolerate temporary read pauses within bounded inactivity
