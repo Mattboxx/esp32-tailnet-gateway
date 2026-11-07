@@ -3499,6 +3499,9 @@
           <h4 style="font-size:var(--text-sm); margin:1rem 0 0.35rem 0; color:var(--accent-primary); text-transform:uppercase; letter-spacing:0.05em;">DNS cache</h4>
           <div id="diag-dnscache" class="mono" style="font-size:var(--text-xs);">—</div>
 
+          <h4 style="font-size:var(--text-sm); margin:1rem 0 0.35rem 0; color:var(--accent-primary); text-transform:uppercase; letter-spacing:0.05em;">Connection &amp; security</h4>
+          <div id="diag-conn" class="mono" style="font-size:var(--text-xs);">—</div>
+
           <h4 style="font-size:var(--text-sm); margin:1rem 0 0.35rem 0; color:var(--accent-primary); text-transform:uppercase; letter-spacing:0.05em;">FreeRTOS tasks</h4>
           <div style="overflow-x:auto;">
             <table class="table mono" id="diag-tasks-table" style="width:100%;">
@@ -9546,7 +9549,47 @@
             (dq.queries | 0) + ' queries)</div>' +
             '<div>Entries: <strong>' + (dq.entries | 0) + '</strong> / ' + (dq.capacity | 0) +
             ' · evictions ' + (dq.evictions | 0) +
-            ' · SPIRAM ' + kb(dq.cache_bytes || 0) + '</div>';
+            ' · SPIRAM ' + kb(dq.cache_bytes || 0) + '</div>' +
+            '<div>Stray upstream answers discarded: <strong>' + (dq.upstream_stray | 0) + '</strong></div>';
+        }
+
+        /* Connection & security: assembly self-tests, TLS distrust, and the
+         * reconnect/drop counters of /api/operations (fetched alongside). */
+        var cnEl = document.getElementById('diag-conn');
+        if (cnEl) {
+          var L = function (s) { return '<span>' + s + '</span>'; };   /* one text node per label: translated */
+          var ca = d.crypto_asm || {}, fc = d.fast_checksum || {}, td = d.tls_distrust || {};
+          var asmState = function (v) {
+            return v === 1 ? '<span class="badge badge-success">' + L('active') + '</span>'
+                 : v === -1 ? '<span class="badge badge-warning">' + L('C fallback') + '</span>'
+                 : '<span class="badge badge-neutral">' + L('not checked yet') + '</span>';
+          };
+          var chk = !fc.checked ? 0 : fc.active ? 1 : -1;
+          var html =
+            '<div>' + L('Assembly crypto:') + ' ChaCha20 ' + asmState(ca.chacha20) +
+            ' · Poly1305 ' + asmState(ca.poly1305) + ' · ' + L('checksum') + ' ' + asmState(chk) +
+            (fc.active && fc.cycles_1400_lwip ? ' (' + (fc.cycles_1400_fast | 0) + ' / ' + (fc.cycles_1400_lwip | 0) +
+              ' ' + L('cycles per 1400 bytes, lwIP') + ')' : '') + '</div>' +
+            '<div>' + L('Compromised certificate authorities blocked:') + ' <strong>' + (td.distrusted_cas | 0) +
+            '</strong> · ' + L('refused connections:') + ' <strong>' + (td.refused_chains | 0) + '</strong></div>';
+          cnEl.innerHTML = html + '<div class="form-hint">' + L('Loading…') + '</div>';
+          apiFetch('/api/operations').then(function (r) { return r.ok ? r.json() : null; }).then(function (o) {
+            if (!o) { cnEl.innerHTML = html; return; }
+            var rc = o.tailnet_reconnects || {}, fd = o.forward_drops || {};
+            var last = rc.last_reconnect_ms
+              ? (rc.last_reconnect_ms / 1000).toFixed(1) + ' s' + (rc.last_reconnect_stages ? ' (' + esc(rc.last_reconnect_stages) + ')' : '')
+              : L('none since boot');
+            var drops = 0;
+            for (var k in fd) if (typeof fd[k] === 'number') drops += fd[k];
+            cnEl.innerHTML = html +
+              '<div>' + L('Control-plane losses since boot:') + ' <strong>' + (rc.control_losses | 0) + '</strong>' +
+              (rc.last_loss ? ' · ' + L('last:') + ' ' + esc(rc.last_loss) : '') + '</div>' +
+              '<div>' + L('Last control reconnect:') + ' <strong>' + last + '</strong>' +
+              (rc.failed_attempts_since ? ' · ' + L('failed attempts:') + ' ' + (rc.failed_attempts_since | 0) +
+                (rc.last_failed_attempt ? ' (' + esc(rc.last_failed_attempt) + ')' : '') : '') + '</div>' +
+              '<div>' + L('Relay reconnects (DERP):') + ' ' + ((rc.derp_retry | 0) + (rc.derp_rx_watchdog | 0)) +
+              ' · ' + L('packets dropped or refused since boot:') + ' <strong>' + drops + '</strong></div>';
+          }).catch(function () { cnEl.innerHTML = html; });
         }
 
         /* CPU temp badge */
