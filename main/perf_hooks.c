@@ -62,14 +62,7 @@ err_t __wrap_udp_sendto(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *ds
     return e;
 }
 
-u16_t __real_ip_chksum_pseudo(struct pbuf *p, u8_t proto, u16_t proto_len, const ip_addr_t *src, const ip_addr_t *dest);
-u16_t __wrap_ip_chksum_pseudo(struct pbuf *p, u8_t proto, u16_t proto_len, const ip_addr_t *src, const ip_addr_t *dest)
-{
-    PH_BEGIN(t);
-    u16_t r = __real_ip_chksum_pseudo(p, proto, proto_len, src, dest);
-    PH_END(PH_CHKSUM_PSEUDO, t, proto_len);
-    return r;
-}
+/* ip_chksum_pseudo is counted by its production wrapper (fast_chksum.c). */
 
 u16_t __real_inet_chksum(const void *dataptr, u16_t len);
 u16_t __wrap_inet_chksum(const void *dataptr, u16_t len)

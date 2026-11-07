@@ -31,6 +31,7 @@
 #include "homelab_ops.h"
 #include "tailscale_config.h"
 #include "peer_dns.h"
+#include "fast_chksum.h"
 #include "tailscale_mtu.h"
 #include "nvs_params.h"
 #include "wifi_power_save.h"
@@ -4733,6 +4734,17 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
         cJSON_AddNumberToObject(dc, "upstream_stray", ds.stray);
         cJSON_AddNumberToObject(dc, "cache_bytes", ds.cache_bytes);
         cJSON_AddItemToObject(root, "dns_cache", dc);
+    }
+    {
+        fast_chksum_status_t fc;
+        fast_chksum_status(&fc);
+        cJSON *fo = cJSON_AddObjectToObject(root, "fast_checksum");
+        if (fo) {
+            cJSON_AddBoolToObject(fo, "checked", fc.checked);
+            cJSON_AddBoolToObject(fo, "active", fc.active);
+            cJSON_AddNumberToObject(fo, "cycles_1400_fast", fc.cycles_fast);
+            cJSON_AddNumberToObject(fo, "cycles_1400_lwip", fc.cycles_lwip);
+        }
     }
 
     /* --- D3) microSD card (separate from flash; mounted FAT at /sdcard) -- */

@@ -108,6 +108,8 @@ idf_component_register(SRCS "main.c" ${_tsr_optional}
                             "tailnet_forward.c"
                             "tailnet_input.c"
                             "perf_hooks.c"
+                            "fast_chksum.c"
+                            "fast_chksum_xtensa.S"
                             "tailnet_reassembly.c"
                             "mac_deny.c"
                             "reset_history.c"
@@ -180,9 +182,13 @@ target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip4_input")
 # ESP-IDF default. The default symbol lives in
 # components/lwip/port/hooks/lwip_default_hooks.c.
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip4_route_src_hook")
+# IPv4 UDP/TCP checksum through the Xtensa loop (main/fast_chksum.c); its
+# wrapper also carries the -prof checksum counter.
+target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip_chksum_pseudo")
+
 # Test-only TCP/IP task counters (main/perf_hooks.c), -prof images only.
 if("$ENV{TSR_PERF_PROFILE}" STREQUAL "1")
-    foreach(_ph_sym IN ITEMS udp_sendto ip_chksum_pseudo inet_chksum esp_wifi_internal_tx_by_ref)
+    foreach(_ph_sym IN ITEMS udp_sendto inet_chksum esp_wifi_internal_tx_by_ref)
         target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=${_ph_sym}")
     endforeach()
 endif()
