@@ -38,3 +38,8 @@ order: 3
   <li>For a staged network upgrade, first upload <code>firmware.bin</code> from the <a href="{{repo}}/releases/tag/v0.1.38-Mattboxx-1.100">legacy 1.100 bridge release</a>. Then install the <a href="{{repo}}/releases/tag/v2.1.0">2.1.0 bridge</a> and follow <a href="#from-v2">Move to the 3.0 flash layout</a>.</li>
 </ol>
 <p>Use the image belonging to each bridge stage, not <code>firmware.bin</code> from the latest 3.x release. See the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">legacy migration guide</a>. Keeping configuration does not reopen the initial setup wizard.</p>
+
+<h2>When a transfer pauses</h2>
+<p>Firmware 3.0.6 tolerates temporary read pauses within a 30-second inactivity budget. GitHub downloads keep their total time limit; browser reception is bounded to ten minutes. Closed connections, bad images and checksum mismatches still stop the update safely.</p>
+<p>The browser bar measures <strong>bytes sent</strong>, then waits for the device to verify the image. Flash preparation can briefly pause the bar. Keep power connected and check the running version after a lost response before retrying.</p>
+<p>The first upgrade from 3.0.2–3.0.5 still uses the previous receiver. If a Tailnet upload stalls, prefer a direct LAN upload or the official GitHub updater. Choose prereleases only deliberately, keep unattended installs off for that operation and restore your intended channel afterward. Never erase a configured gateway just to retry an update.</p>
