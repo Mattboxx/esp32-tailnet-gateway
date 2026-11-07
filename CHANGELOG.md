@@ -6,8 +6,30 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- The Status page follows what is switched on: the main cards (uplink,
+  Tailscale, system) come first; "Your features" shows a live tile for each
+  feature that is on, with what it is doing now, and lists the rest once as
+  available; the gateway Wi-Fi card appears only while the access point runs.
+- "Suggested next steps" are computed from the gateway's state, most urgent
+  first and at most three: Tailnet not connected or waiting for its policy,
+  weak Wi-Fi signal, MQTT broker unreachable, exit node waiting for a restart,
+  Tailnet names without the DNS relay, failing dynamic DNS, low memory, no web
+  password, saved devices without monitoring, checks without any alert
+  channel, an available update. Problems stay until solved; tips can be
+  hidden for a week. Goals already configured move to the end, marked.
+- Diagnostics → Hardware shows a "Connection & security" section: assembly
+  self-tests and checksum cycles, TLS distrust counters, DNS relay stray
+  answers, control-plane losses, the last reconnect with its stages, DERP
+  reconnects and dropped packets.
+- Every block of the Status page uses the same spacing.
+
 ### Fixed
 
+- The guided-goal tiles lost their "recommended" mark when the capability
+  list arrived and the tiles were drawn again.
+- "No peers" on the Status page was not aligned with the rows above it.
 - While the web page loaded, the dashboard (navigation and page layout) was
   briefly visible behind the sign-in screen before the browser knew whether
   the session was signed in. The page now starts hidden and shows the
