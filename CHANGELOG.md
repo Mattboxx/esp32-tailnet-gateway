@@ -8,6 +8,25 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- The DERP relay connection dropped when a DERP frame header arrived split
+  across two TLS records, which is ordinary stream behaviour (a TLS read stops
+  at a record boundary); the header is now read in full. Relayed packets are
+  also moved in place instead of being copied into a second allocation.
+- Security: the AP DNS relay accepted the first datagram on its upstream
+  socket as the answer. A late answer to an earlier query, or a forged
+  datagram from any host able to reach that port, could be returned to the
+  client and cached under another name. Answers must now come from the server
+  the query was sent to, carry the query's ID (now random for every upstream
+  query; the client's ID is restored) and repeat its question. Other
+  datagrams are discarded and counted (`upstream_stray` in the DNS cache
+  diagnostics).
+- The IPv6 STUN parser could read one byte past a response ending in an
+  empty mapped-address attribute.
+
+## [3.0.7-beta.10] - 2026-11-07
+
+### Fixed
+
 - Tailnet traffic still stopped when the coordination server closed the
   control session (HTTP/2 END_STREAM, GOAWAY or RST_STREAM), the most common
   way it ends: the gateway treated the close like a malformed policy and

@@ -1,5 +1,13 @@
 # Maintainer continuation
 
+## Current handover — 2026-11-07
+
+Read [Claude-to-Codex checkpoint](CLAUDE-TO-CODEX-CHECKPOINT.md) first: PERF-09
+for 3.0.7-beta.10 is running; 3.0.7-beta.11 source (DERP split header, AP DNS
+relay answer matching, STUN bound) is committed with host tests and not yet
+built for the board; the disconnect fix still has to be seen on hardware
+before a stable 3.0.7. Sections below are historical.
+
 ## Active performance handover — 2026-10-29
 
 Read [Codex-to-Claude performance checkpoint](CODEX-TO-CLAUDE-PERFORMANCE-CHECKPOINT.md)
