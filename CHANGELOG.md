@@ -6,8 +6,22 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.7] — 2026-11-07
+
+Stable release. It includes every change of the 3.0.7 pre-releases listed
+below and the following.
+
 ### Fixed
 
+- Tailnet traffic still stopped when the coordination server closed the
+  control session (HTTP/2 END_STREAM, GOAWAY or RST_STREAM), the most common
+  way it ends: the gateway treated the close like a malformed policy and
+  revoked it, so the "keep the last policy" behaviour of 3.0.7-beta.7 never
+  applied to it (observed: an outage of about two minutes on 2026-11-05). A
+  closed session is now a transport loss: traffic continues with the last
+  policy (or follows the selected control-loss setting) until the new session
+  delivers a fresh one. Messages received just before the close are applied
+  first. Malformed or unauthorised map data still blocks immediately.
 - The DERP relay connection dropped when a DERP frame header arrived split
   across two TLS records, which is ordinary stream behaviour (a TLS read stops
   at a record boundary); the header is now read in full. Relayed packets are
@@ -25,6 +39,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Handshake messages with a wrong MAC, which anyone able to reach the
   WireGuard port can send, wrote two log lines each; a flood now produces one
   warning per 30 s with a count.
+- Deleting a temporary Service Gateway rule before its deadline no longer
+  produces a later "temporary service rule(s) closed" notification for a rule
+  that no longer exists. The lease is still closed (traffic stays denied); only
+  the announcement is limited to rules that are still configured. A lease that
+  expired while the gateway was off is announced once the rules are loaded.
 
 ### Changed
 
@@ -35,23 +54,6 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   function on random data, every alignment and split buffers, and keeps
   lwIP's function if anything differs. `/api/system/diag` → `fast_checksum`
   reports the outcome and the cycles both take for 1,400 bytes.
-
-## [3.0.7-beta.10] - 2026-11-07
-
-### Fixed
-
-- Tailnet traffic still stopped when the coordination server closed the
-  control session (HTTP/2 END_STREAM, GOAWAY or RST_STREAM), the most common
-  way it ends: the gateway treated the close like a malformed policy and
-  revoked it, so the "keep the last policy" behaviour of 3.0.7-beta.7 never
-  applied to it (observed: an outage of about two minutes on 2026-11-05). A
-  closed session is now a transport loss: traffic continues with the last
-  policy (or follows the selected control-loss setting) until the new session
-  delivers a fresh one. Messages received just before the close are applied
-  first. Malformed or unauthorised map data still blocks immediately.
-
-### Changed
-
 - The exit-node DNS service (PeerAPI DNS-over-HTTP for devices using this
   gateway as their exit node) runs on a minimal built-in server instead of a
   second general-purpose web server instance, which used about 2.5 KB of
@@ -223,16 +225,6 @@ change below):
   the forwarding path, kept in RAM only and reset at boot. Covered: shed under
   overload, refused by the input queue, Wi-Fi transmit, WireGuard
   transmit/receive queues and packets missing before decryption.
-
-## [3.0.6] — 2026-10-29
-
-### Fixed
-
-- Deleting a temporary Service Gateway rule before its deadline no longer
-  produces a later "temporary service rule(s) closed" notification for a rule
-  that no longer exists. The lease is still closed (traffic stays denied); only
-  the announcement is limited to rules that are still configured. A lease that
-  expired while the gateway was off is announced once the rules are loaded.
 
 ## [3.0.6] — 2026-10-29
 
