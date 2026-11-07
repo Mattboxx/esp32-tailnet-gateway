@@ -25,7 +25,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   second general-purpose web server instance, which used about 2.5 KB of
   internal RAM and three network sockets even with no client. Behaviour is
   unchanged: GET and POST /dns-query, keep-alive, only known Tailnet peers on
-  the tunnel address.
+  the tunnel address. Latency comes first: up to three connections as before,
+  idle connections kept for 120 s (longer than clients keep them), answers
+  sent in one packet without delay, and a lost UDP answer from the upstream
+  resolver is asked again after 0.6 s instead of failing over to TCP (which
+  many home routers do not serve).
 - Each control-plane reconnect after a loss logs one warning with how long
   each stage took, and `/api/operations` → `tailnet_reconnects` reports
   `last_reconnect_ms` and `last_reconnect_stages`.
