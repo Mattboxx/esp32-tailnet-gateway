@@ -587,3 +587,27 @@ computation. Further crypto assembly would gain a few percent at most. The
 remaining CPU lever is the TCP/IP task (lwIP forwarding plus the firmware's
 per-packet hooks: route, ACL/shedding, NAPT/SNAT, 4via6); next step is to
 attribute its time with -prof counters before changing anything.
+
+## TCP/IP task and exit-node DNS (board A, 2026-11-07)
+
+Test-only `3.0.7-beta.9-prof` (source `548c027`), local OTA, exit-node mode on
+as configured, beta.8 reinstalled afterwards (private `perf-beta9c/`).
+
+**Exit-node DNS/PeerAPI server.** The esp_http_server instance took 2,412-2,532
+B of internal RAM and 3 sockets at start (listen + control + message sockets);
+the minimal server takes 480 B and 1 socket. Free internal RAM at idle with
+exit-node mode on: 39,055 → 40,923 B; sockets 12 → 10. DoH from the bench PC's
+Tailnet address: GET 20/20 answered (one 502: the router lost one UDP answer,
+1.5 s timeout, then the unchanged TCP fallback failed), POST 10/10, median 75
+ms, keep-alive kept one socket, /other → 404 + close, wrong media → 415.
+
+**TCP/IP task (tiT) counters**, cycles per call, clean runs (samples that
+migrate core or whose counter went backwards are now discarded, 098a3e1):
+DNAT preparation 2-2.3k, service filter 5-7k, route hook 2.7k, NAPT 8k,
+UDP/TCP checksum 2.8-4.4k (3.5 cycles/byte on 1.4 KB), Wi-Fi send 24-39k,
+whole forwarding (ip4_input, onward send included) 79k on download; on upload
+135k including the WireGuard encryption and udp_sendto (67k). The firmware's
+own hooks are near the instrumentation floor; forwarding cost is lwIP and the
+Wi-Fi driver, and the CPU is idle ~half the time. No further CPU work in the
+firmware's TCP/IP hooks is justified (each would save under 1-2 %); a faster
+checksum would save ~0.5 % of two cores.
