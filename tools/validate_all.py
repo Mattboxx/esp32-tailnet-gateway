@@ -118,6 +118,7 @@ def main():
         if runtime.is_dir():env.setdefault('NODE_PATH',str(runtime))
         run('browser',['node','tools/test_automation_ui.cjs'])
         run('login-no-flash',['node','tools/test_login_no_flash.cjs'])
+        run('diag-connection-ui',['node','tools/test_diag_connection_ui.cjs'])
         run('setup-crypto',['node','tools/test_setup_crypto.cjs'])
         run('first-boot-ui',['node','tools/test_first_boot_ui.cjs'],900)
         run('site-browser',['node','tools/test_site_browser.cjs'],600)
