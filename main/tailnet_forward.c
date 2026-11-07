@@ -141,6 +141,7 @@ void tailnet_forward_init(void) {
         }
         nvs_close(nvs);
     }
+    service_lease_rules_changed(s_rules,s_count);
     s_loaded=true;
     if(xTaskCreate(manager,"tn_forward",4096,NULL,4,NULL)!=pdPASS)
         ESP_LOGE("tn_forward","Forwarding manager could not start");
@@ -199,6 +200,7 @@ static esp_err_t set_all_locked(const tailnet_forward_rule_t *rules,int count,ch
     s_generation++;
     for(int i=0;i<count;i++)resolve_rule(i);
     UNLOCK();
+    service_lease_rules_changed(rules,count);
     return ESP_OK;
 }
 static void table_guard_locked(char out[TAILNET_TABLE_GUARD_LEN]) {

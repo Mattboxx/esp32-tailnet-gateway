@@ -16,6 +16,10 @@ DRIVERS='release_packaging device_session feature_preservation upstream_033 upst
 DRIVERS+=['json_guard','service_transfer','service_retry','capabilities','mqtt_discovery','web_security','config_profiles','service_check','mqtt_state','eth_uplink','mqtt_commands','cell_uplink','layout_migration','storage_store','history_snapshot','tailnet_names','notify_channels','ddns','throughput']
 DRIVERS+=['soak_serial']
 DRIVERS+=['lab_echo']
+DRIVERS+=['gateway_benchmark']
+# wg_rx_owned / wg_rx_sdk test the RX-ownership experiment (MicroLink branch
+# perf/owned-rx-pbuf-20261029); dev.3 leaves that change out (no measured gain).
+DRIVERS+=['wg_crypto_hotloop','ml_perf','wg_crypto_diff','wg_mgr_wake','poly1305_xtensa','chacha20_xtensa','forward_drop_counters','web_idle','sdlog_memory_sink','tailnet_event_text','control_loss_setting','tls_distrust','wg_rx_path','coord_session_end','derp_frame_read','stun_parse','dns_relay_upstream','wg_log_rate','fast_chksum']
 DRIVERS+=['coord_recovery']
 DRIVERS+=['lab_cleanup']
 DRIVERS+=['candidate_ota_guard']
@@ -38,8 +42,11 @@ DRIVERS+=['log_capture']
 SANITIZERS='UPSTREAM NTFY SNMP ROUTE NETIF RUNTIME PORTMAP FORWARDING WEB_PORT TAILNET PEER_DNS OTA GATEWAY POLICY OPS LEASE HEALTH JSON TRANSFER RETRY CAP DISCOVERY WEB PROFILE SC MQTTSTATE ETH MQTTCMD TASKMEM REAPER FIRSTBOOT ORIGIN FBREBOOT LANNAME MDNS'.split()
 SANITIZERS+=['OTAFLASH','NOTIFY','NVS_FLAGS','NVS_TXN']
 SANITIZERS+=['LOG']
+SANITIZERS+=['ML_PERF','WG_CRYPTO_DIFF']
 SANITIZERS+=['MQTTPOWER']
 SANITIZERS+=['OTALOCAL']
+SANITIZERS+=['WG_RX']
+SANITIZERS+=['HOTLOOP']
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

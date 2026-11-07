@@ -10,10 +10,14 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/lwip_route_hook.c').read_text(encoding='utf-8')
 helpers = source.split('/* Tailscale CGNAT: 100.64.0.0/10 */', 1)[1].split('static struct netif *s_original_default', 1)[0]
-hook = 'struct netif *__wrap_ip4_route_src_hook' + source.split('struct netif *__wrap_ip4_route_src_hook', 1)[1].split('/* ---------------------------------------------------------------------', 1)[0]
+hook_start = 'static struct netif *route_src_hook(const ip4_addr_t *src, const ip4_addr_t *dest);'
+hook = hook_start + source.split(hook_start, 1)[1].split('/* ---------------------------------------------------------------------', 1)[0]
 diagnostic = 'static void name_netif' + source.split('static void name_netif', 1)[1].split('/* ---------------------------------------------------------------------', 1)[0]
 default_update = 'static void set_default_callback' + source.split('static void set_default_callback', 1)[1].split('typedef struct {', 1)[0]
-napt = 'err_t __wrap_ip_napt_forward' + source.split('err_t __wrap_ip_napt_forward', 1)[1]
+napt_start = 'static err_t napt_forward(struct pbuf *p, struct ip_hdr *iphdr, struct netif *inp, struct netif *outp);'
+napt = napt_start + source.split(napt_start, 1)[1]
+# Release definitions of the test-only counters (empty macros).
+perf_hooks = (ROOT / 'main/perf_hooks.h').read_text(encoding='utf-8').replace('#pragma once', '')
 fixture = r'''
 #include <stdint.h>
 #include <stdbool.h>
@@ -230,7 +234,7 @@ int main(void) {
 '''
 with tempfile.TemporaryDirectory(prefix='route-hook-') as directory:
     path = Path(directory)
-    (path / 'test.c').write_text(fixture + helpers + default_update + hook + diagnostic + napt + tests, encoding='utf-8')
+    (path / 'test.c').write_text(fixture + perf_hooks + helpers + default_update + hook + diagnostic + napt + tests, encoding='utf-8')
     flags = ['-std=c11', '-pthread', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-Wno-unused-variable']
     if os.environ.get('ROUTE_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']

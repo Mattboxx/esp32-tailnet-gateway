@@ -221,15 +221,12 @@ static size_t strip_ansi_inplace(char *buf, size_t len)
     return w;
 }
 
-static int log_vprintf_hook(const char *fmt, va_list args)
+/* Formats one log line into the ring (and the pre-crash RTC ring) without
+ * printing it. Also the sdlog memory sink for lines the console drops. */
+int log_capture_store(const char *fmt, va_list args)
 {
-    /* Make a copy because vsnprintf consumes the va_list; the chained
-     * vprintf below still needs the original. */
-    va_list copy;
-    va_copy(copy, args);
     char scratch[LINE_SCRATCH_BYTES];
-    int n = vsnprintf(scratch, sizeof(scratch), fmt, copy);
-    va_end(copy);
+    int n = vsnprintf(scratch, sizeof(scratch), fmt, args);
 
     if (n > 0) {
         size_t to_copy = (n >= (int)sizeof(scratch)) ? sizeof(scratch) - 1 : (size_t)n;
@@ -246,6 +243,17 @@ static int log_vprintf_hook(const char *fmt, va_list args)
         }
         buffer_append(scratch, to_copy);
     }
+    return n;
+}
+
+static int log_vprintf_hook(const char *fmt, va_list args)
+{
+    /* Make a copy because vsnprintf consumes the va_list; the chained
+     * vprintf below still needs the original. */
+    va_list copy;
+    va_copy(copy, args);
+    log_capture_store(fmt, copy);
+    va_end(copy);
 
     /* Hand off to the original sink so UART output continues unchanged. */
     if (s_orig_vprintf) {

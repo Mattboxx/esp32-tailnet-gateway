@@ -15,6 +15,8 @@ start = source.index('static int do_start_long_poll(')
 request = source[start:source.index('\n}', start) + 2]
 start = source.index('        case COORD_FETCH_PEERS:')
 initial = source[start:source.index('                /* Signal registration only now', start)]
+start = source.index('static void note_ctrl_loss(')
+notes = source[start:source.index('ml->ctrl_retry_failures++;', start)] + 'ml->ctrl_retry_failures++;\n}\n'
 
 PROGRAM = r'''
 #include <assert.h>
@@ -24,7 +26,14 @@ PROGRAM = r'''
 #include <stdlib.h>
 #include <string.h>
 #include "cJSON.h"
-typedef struct {uint8_t wg_public_key[32],disco_public_key[32];} microlink_t;
+typedef struct {uint8_t wg_public_key[32],disco_public_key[32];
+    const char *ctrl_loss_reason;const char *ctrl_close_detail;int32_t ctrl_close_code,ctrl_loss_code;
+    uint32_t ctrl_loss_count;const char *ctrl_retry_reason;uint32_t ctrl_retry_failures;
+    uint64_t rt_loss_ms,rt_backoff_ms,rt_tcp_ms,rt_noise_ms,rt_register_ms,rt_fetch_ms,rt_stream_ms,rt_derp_ms;
+    uint32_t ctrl_last_reconnect_ms;char ctrl_reconnect_stages[112];} microlink_t;
+static uint64_t ml_get_time_ms(void){return 1234;}
+static size_t strlcpy_(char *d,const char *s,size_t n){size_t l=strlen(s);if(n){size_t c=l<n-1?l:n-1;memcpy(d,s,c);d[c]=0;}return l;}
+#define strlcpy strlcpy_
 typedef struct {int unused;} ml_noise_state_t;
 static bool authority;
 static int suspended,closed,fetch_rc,stream_rc,stream_calls;
@@ -34,6 +43,7 @@ static char captured[4096];
 #define CTRL_HOST_HDR(m) "synthetic.invalid"
 #define ESP_LOGI(...) ((void)0)
 #define ESP_LOGW(...) ((void)0)
+#define TAG "test"
 static bool ml_policy_authority_active(void){return authority;}
 static void ml_policy_suspend(void){authority=false;suspended++;}
 static void ml_conn_close(microlink_t *ml){(void)ml;closed++;ml_policy_suspend();}
@@ -49,7 +59,7 @@ static int ml_h2_build_data_frame(uint8_t *p,size_t n,const uint8_t *data,size_t
 static int noise_send(microlink_t *ml,ml_noise_state_t *noise,const uint8_t *p,int n){
     (void)ml;(void)noise;(void)p;return n;
 }
-''' + request + r'''
+''' + notes + request + r'''
 static int do_map_exchange(microlink_t *ml,ml_noise_state_t *noise,bool fetch){
     (void)ml;(void)noise;
     if(fetch){authority=fetch_authority;return fetch_rc;}
@@ -80,6 +90,7 @@ static void check_request(microlink_t *ml,bool ready){
 }
 int main(void){
     microlink_t ml={0};
+    (void)note_reconnected;   /* covered by test_coord_session_end.py */
     reset();check_request(&ml,true);assert(suspended==0);
     reset();check_request(&ml,false);assert(suspended==1);
     reset();fetch_authority=true;assert(initial_branch(&ml)==TEST_REGISTERED&&stream_calls==0&&closed==0);
@@ -88,6 +99,13 @@ int main(void){
     reset();fetch_rc=1;assert(initial_branch(&ml)==COORD_RECONNECTING&&closed==1&&!authority);
     reset();assert(initial_branch(&ml)==COORD_RECONNECTING&&closed==1&&!authority);
     reset();fetch_rc=-1;assert(initial_branch(&ml)==COORD_RECONNECTING&&closed==1&&stream_calls==0);
+    /* Each failed attempt is recorded with its reason; a loss clears the attempt tally. */
+    assert(ml.ctrl_retry_failures>=4&&ml.ctrl_retry_reason&&!strcmp(ml.ctrl_retry_reason,"MapRequest failed"));
+    note_ctrl_loss(&ml,"control-plane map stream silent");
+    assert(ml.ctrl_loss_count==1&&ml.ctrl_retry_failures==0&&!ml.ctrl_retry_reason);
+    assert(!strcmp(ml.ctrl_loss_reason,"control-plane map stream silent")&&ml.ctrl_loss_code==-1);
+    note_poll_close(&ml,"control server sent GOAWAY",0);
+    assert(!strcmp(ml.ctrl_close_detail,"control server sent GOAWAY")&&ml.ctrl_close_code==0);
     puts("PASS actual coordinator: fresh-map requests after loss; full initial/stream map only; timeout/delta/incomplete/fetch failure reconnect closed (transport stubs)");
 }
 '''

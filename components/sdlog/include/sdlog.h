@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "esp_err.h"
+#include "esp_log.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -105,6 +106,16 @@ esp_err_t sdlog_disable(void);
  * recording. Clamped to SDLOG_LVL_INFO.
  */
 esp_err_t sdlog_set_console_level(uint8_t level);
+
+/**
+ * Memory sink (the web /log ring): receives every line at or above `level`
+ * (SDLOG_LVL_*) that the console level suppresses. Lines the console prints
+ * still reach the chained vprintf, so the sink never sees a line twice. Also
+ * raises the runtime master level so those lines are formatted at all; with
+ * the console at ERROR and no SD card, warnings explaining a reconnect would
+ * otherwise never be generated. SDLOG_LVL_OFF or a NULL store disables it.
+ */
+void sdlog_set_memory_sink(vprintf_like_t store, uint8_t level);
 
 /**
  * Best-effort synchronous flush: drain the write queue to the card and fsync.

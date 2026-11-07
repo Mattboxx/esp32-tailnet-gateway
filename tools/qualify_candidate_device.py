@@ -19,6 +19,7 @@ metrics only: build/private-device/qualify-<version>-<time>.json.
 import argparse
 import getpass
 import json
+import os
 from pathlib import Path
 import time
 
@@ -67,8 +68,14 @@ def observe(api, minutes, result, log):
             st = api('/api/status', timeout=8)
             row.update(uptime_s=st['uptime_s'], connected=bool(st.get('tailscale', {}).get('connected')))
             row.update(ops(api))
-        except Exception as e:  # class only
+        except Exception as e:  # class plus a short reason (timeout, refused, reset)
             row['error'] = e.__class__.__name__
+            row['error_detail'] = str(getattr(e, 'reason', e))[:120]
+            try:   # informational follow-up 2 s later; the sample still counts as an error
+                time.sleep(2)
+                row['retry_uptime_s'] = api('/api/status', timeout=8)['uptime_s']
+            except Exception as again:
+                row['retry_error'] = str(getattr(again, 'reason', again))[:120]
         samples.append(row)
         log.write(json.dumps(row) + '\n'); log.flush()
         time.sleep(30)
@@ -102,7 +109,8 @@ def main():
     a = p.parse_args()
     if not 0 <= a.observe_minutes <= 240 or not 0 <= a.wifi_reconnect <= 5:
         p.error('observe 0..240 minutes, Wi-Fi cycles 0..5')
-    password = getpass.getpass('Device password (not saved): ')
+    # An orchestrating launcher may pass the password in this process's environment only.
+    password = os.environ.get('TEST_DEVICE_PASSWORD') or getpass.getpass('Device password (not saved): ')
     api = login(a.host, password=password)
     password = None
     stamp = time.strftime('%Y%m%d-%H%M%S')

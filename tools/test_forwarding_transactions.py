@@ -43,6 +43,8 @@ static bool service_lease_allowed(int i,const tailnet_forward_rule_t *r){(void)i
 static uint32_t service_lease_token(const tailnet_forward_rule_t *r){return r->listen_port;}
 static void mqtt_integration_tailnet_forward_changed(void){}
 static bool service_lease_delete_requested(const tailnet_forward_rule_t *r){(void)r;return false;}
+static int lease_rules_updates,lease_rules_count=-1;
+static void service_lease_rules_changed(const tailnet_forward_rule_t *r,int n){(void)r;lease_rules_updates++;lease_rules_count=n;}
 static int64_t esp_timer_get_time(void){return 0;}
 #define MALLOC_CAP_SPIRAM 1
 #define MALLOC_CAP_8BIT 2
@@ -219,7 +221,9 @@ int main(int argc,char **argv) {
         tailnet_forward_rule_t live;assert(tailnet_forward_get(0,&live,NULL));
         assert(live.destination_port==disk.rules[0].destination_port && live.destination_port==222);
     } else if(!strcmp(argv[1],"toggle")) {
+        int updates=lease_rules_updates;
         char why[128];assert(tailnet_forward_set_all(first.rules,2,why,sizeof why)==ESP_OK);
+        assert(lease_rules_updates==updates+1&&lease_rules_count==2); /* saved table reaches the lease ledger */
         first.operation=second.operation=1;parallel(&first,&second);
         assert(first.result==ESP_OK&&second.result==ESP_OK);
         for(int i=0;i<2;i++) { tailnet_forward_rule_t live;assert(tailnet_forward_get(i,&live,NULL)&&!live.enabled); }
@@ -240,8 +244,9 @@ int main(int argc,char **argv) {
         web_ui_set_active_port(80);assert(web_ui_port_reserved(80));
         first.ap=(portmap_entry_t){.proto=6,.ext_port=80,.int_port=22,.int_ip=0xc0000202};
         assert(portmap_set_all(&first.ap,1)==ESP_ERR_INVALID_STATE);
-        char why[128];first.rules[0].listen_port=80;
+        char why[128];first.rules[0].listen_port=80;int updates=lease_rules_updates;
         assert(tailnet_forward_set_all(first.rules,1,why,sizeof why)==ESP_ERR_INVALID_STATE);
+        assert(lease_rules_updates==updates); /* a refused save does not change the known rules */
         /* Legacy records remain saved but cannot install over the admin port. */
         s_table[0]=first.ap;s_table[0].valid=1;s_count=1;
         portmap_install_cb(NULL);assert(!binding_count&&portmap_count()==1);

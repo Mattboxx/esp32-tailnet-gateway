@@ -53,8 +53,10 @@ jobs:
         with:
           repository: espressif/esp-idf
           ref: 2c211b236707889e8400c4dc5644dd5c4ee071e0
-          sparse-checkout: components/partition_table
+          sparse-checkout: |
+            components/partition_table
+            components/mbedtls/esp_crt_bundle
           path: .test-deps/esp-idf
           persist-credentials: false
       - name: Consolidated offline validation
-        run: PARTITION_TABLE_SOURCE=.test-deps/esp-idf/components/partition_table/gen_esp32part.py LWIP_SOURCE=.test-deps/esp-lwip MQTT_SOURCE=.test-deps/esp-mqtt/mqtt_client.c MBEDTLS_DIR=.test-deps/mbedtls python3 tools/validate_all.py --sanitizers
+        run: PARTITION_TABLE_SOURCE=.test-deps/esp-idf/components/partition_table/gen_esp32part.py CRT_BUNDLE=.test-deps/esp-idf/components/mbedtls/esp_crt_bundle/cacrt_all.pem LWIP_SOURCE=.test-deps/esp-lwip MQTT_SOURCE=.test-deps/esp-mqtt/mqtt_client.c MBEDTLS_DIR=.test-deps/mbedtls python3 tools/validate_all.py --sanitizers

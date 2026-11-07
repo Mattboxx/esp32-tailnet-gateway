@@ -6,6 +6,221 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.7] — 2026-11-07
+
+Stable release. It includes every change of the 3.0.7 pre-releases listed
+below and the following.
+
+### Fixed
+
+- Tailnet traffic still stopped when the coordination server closed the
+  control session (HTTP/2 END_STREAM, GOAWAY or RST_STREAM), the most common
+  way it ends: the gateway treated the close like a malformed policy and
+  revoked it, so the "keep the last policy" behaviour of 3.0.7-beta.7 never
+  applied to it (observed: an outage of about two minutes on 2026-11-05). A
+  closed session is now a transport loss: traffic continues with the last
+  policy (or follows the selected control-loss setting) until the new session
+  delivers a fresh one. Messages received just before the close are applied
+  first. Malformed or unauthorised map data still blocks immediately.
+- The DERP relay connection dropped when a DERP frame header arrived split
+  across two TLS records, which is ordinary stream behaviour (a TLS read stops
+  at a record boundary); the header is now read in full. Relayed packets are
+  also moved in place instead of being copied into a second allocation.
+- Security: the AP DNS relay accepted the first datagram on its upstream
+  socket as the answer. A late answer to an earlier query, or a forged
+  datagram from any host able to reach that port, could be returned to the
+  client and cached under another name. Answers must now come from the server
+  the query was sent to, carry the query's ID (now random for every upstream
+  query; the client's ID is restored) and repeat its question. Other
+  datagrams are discarded and counted (`upstream_stray` in the DNS cache
+  diagnostics).
+- The IPv6 STUN parser could read one byte past a response ending in an
+  empty mapped-address attribute.
+- Handshake messages with a wrong MAC, which anyone able to reach the
+  WireGuard port can send, wrote two log lines each; a flood now produces one
+  warning per 30 s with a count.
+### Changed
+
+- The IPv4 UDP/TCP checksum, computed for every encrypted WireGuard packet
+  sent, runs through a hand-written Xtensa loop (eight 16-bit words per
+  zero-overhead iteration) instead of lwIP's one-word loop. The result is
+  identical: before first use the gateway compares it with lwIP's own
+  function on random data, every alignment and split buffers, and keeps
+  lwIP's function if anything differs. `/api/system/diag` → `fast_checksum`
+  reports the outcome and the cycles both take for 1,400 bytes: 1,633
+  against 2,260 on the board (28 % fewer).
+- The exit-node DNS service (PeerAPI DNS-over-HTTP for devices using this
+  gateway as their exit node) runs on a minimal built-in server instead of a
+  second general-purpose web server instance, which used about 2.5 KB of
+  internal RAM and three network sockets even with no client. Behaviour is
+  unchanged: GET and POST /dns-query, keep-alive, only known Tailnet peers on
+  the tunnel address. Latency comes first: up to three connections as before,
+  idle connections kept for 120 s (longer than clients keep them), answers
+  sent in one packet without delay, and a lost UDP answer from the upstream
+  resolver is asked again after 0.6 s instead of failing over to TCP (which
+  many home routers do not serve).
+- Each control-plane reconnect after a loss logs one warning with how long
+  each stage took, and `/api/operations` → `tailnet_reconnects` reports
+  `last_reconnect_ms` and `last_reconnect_stages`.
+- `/api/system/diag` reports each task's run time (`tasks[].runtime_us`,
+  `tasks_runtime_total_us`) and what the exit-node DNS service used at start
+  (`exit_dns`).
+- Less noise in the warning log: routine WireGuard handshake work (about
+  32 ms) is no longer reported as a slow periodic run, and the duplicate
+  answer to a handshake sent both directly and through the relay is logged
+  at most once every 30 s.
+- Encrypting and decrypting tunnel packets no longer zeroes buffers that are
+  overwritten anyway.
+
+## [3.0.7-beta.8] — 2026-11-04 (pre-release)
+
+### Security
+
+- Certificates issued under the eight eMudhra intermediate CAs compromised in
+  October 2026 are refused on every TLS connection: control server, DERP
+  relays, online updates, MQTT, ntfy, Telegram/e-mail, DDNS and the speed test.
+  Their private keys can be derived from the public certificates, and the
+  roots they chain to were still trusted by the firmware's certificate store,
+  so someone able to intercept the board's traffic could present a valid
+  certificate for any name. This is the firmware's counterpart of Tailscale
+  bulletin TS-2026-013. WireGuard traffic between peers was never affected.
+  `/api/system/diag` → `tls_distrust.refused_chains` counts refused attempts.
+  Not covered: enterprise (EAP) Wi-Fi server validation with the built-in
+  certificate store.
+- The October 2026 "Tailworm" findings (Tailscale SSH, Serve/Funnel, app
+  connector, Headscale) do not apply: the firmware has none of those features
+  and uses its own DERP client.
+
+## [3.0.7-beta.7] — 2026-11-03 (pre-release)
+
+### Fixed
+
+- Traffic over the Tailnet stopped for 30–115 s whenever the control-plane
+  connection dropped (for example the coordination server closing the
+  long-poll), even though Wi-Fi, DERP and the WireGuard tunnels were still
+  up. Like the official Tailscale client, the gateway now keeps enforcing the
+  last policy it received until a fresh one arrives. Nothing new is granted
+  meanwhile, and a malformed policy, an explicit disconnect or an expired key
+  still block immediately.
+
+### Added
+
+- Tailscale → "Advanced: control-plane outage" selects what happens while the
+  coordination server is unreachable: keep the last policy (default, like the
+  official client), keep it for a limited time (1 minute to 24 hours), or
+  block traffic immediately (strict, the previous behaviour). It applies
+  immediately, without a restart. `/api/tailscale` exposes it as
+  `control_loss_mode` (`keep`, `bounded`, `strict`) and `control_loss_grace_s`,
+  and reports `runtime.control_stale`.
+- A control-plane loss while traffic continues is recorded as an informational
+  event, "Tailnet control connection lost: <cause> (traffic continues with the
+  last policy)", followed by "Tailnet control connection restored". It does
+  not open an outage or send an important-event notification. When the
+  limited time ends or the relay is lost too, the usual "Tailnet connection
+  lost" event follows.
+
+## [3.0.7-beta.6] — 2026-11-03 (pre-release)
+
+### Changed
+
+- A lost control-plane connection names what ended it, with its HTTP/2
+  error code or network error, for example "Tailnet connection lost: control
+  server sent GOAWAY (code 0)". The other causes are: server closed the
+  connection, connection error, map session ended, stream reset, or invalid
+  map data.
+- Periodic DERP heartbeat/status lines and successful WireGuard handshake
+  steps are informational again. They had filled the warning log within
+  about 100 s and pushed out the warnings explaining a disconnection.
+
+## [3.0.7-beta.5] — 2026-11-02 (pre-release)
+
+### Fixed
+
+- Warnings were not kept anywhere when the console was set to errors and no
+  microSD card was fitted, so the reasons for a Tailnet or uplink reconnect
+  were lost. The in-memory log (and the pre-crash log) now keeps warnings and
+  errors regardless of the console level.
+
+### Added
+
+- Tailnet events name their cause:
+  - "Tailnet connection lost: control-plane map stream silent", or the
+    watchdog, PING, connection or key-expiry cause;
+  - "Tailnet connected after N failed attempts (last: registration failed)",
+    or the other failed step.
+- Notifications recognise both the plain and the detailed texts.
+- `/api/operations` → `tailnet_reconnects`: per-cause counters since boot,
+  plus the last loss and the last failed attempt.
+- A control-plane netmap that cannot be parsed is reported with its error
+  offset, size and HTTP/2 frame details.
+
+## [3.0.7-beta.4] — 2026-11-02 (pre-release)
+
+### Changed
+
+- Faster WireGuard data path on the ESP32-S3:
+  - ChaCha20 and Poly1305 run as hand-written Xtensa assembly from internal
+    instruction RAM.
+  - Each assembly routine is compared with the portable C code at first use,
+    and the device keeps using C if they disagree.
+  - `/api/system/diag` reports the result as `crypto_asm` (1 = in use).
+- The WireGuard socket is read in batches instead of one datagram per wake-up.
+  The network input queue is larger (64), and the UDP receive queue too (16).
+- The receive tasks and the web UI server run at the network stack's
+  priority, so returning traffic and the web UI are no longer starved during
+  heavy uploads.
+- Small tunnel packets (pings, TCP acknowledgements, keepalives, handshakes)
+  are decrypted before queued full-size data packets, so they do not wait
+  behind a running transfer. The WireGuard replay window grows from 32 to 64
+  packets to allow that reordering.
+- Under overload the gateway drops bulk forwarded traffic first. It keeps
+  ARP, DHCP, DNS, ICMP, WireGuard, the web UI and its own control
+  connections. Bulk traffic may occupy at most 24 queue slots, fewer than
+  before, which keeps queueing delay short.
+
+Measured on one ESP32-S3 N16R8 reference gateway against 3.0.6 in the same
+session (Wi-Fi uplink at about −53 dBm, LAN client to a Tailnet peer through
+the gateway, medians; measured on the same code before the web UI backlog
+change below):
+
+| | 3.0.6 | 3.0.7 beta |
+|---|---:|---:|
+| One stream, download | 5.1 Mbit/s | 7.7 Mbit/s (+51 %) |
+| One stream, upload | 5.7 Mbit/s | 6.3 Mbit/s (+10 %) |
+| Four-stream upload | 5.9 Mbit/s | 6.2 Mbit/s (+6 %) |
+| Four-stream upload runs with a flow stalled for 5 s or more | 3 of 4 | 0 of 4 |
+| Tunnel ping idle / under load | 9 / 34 ms | 4.5 / 31 ms |
+| Web UI status p95, worst run under load | 1.5 s | 0.4 s |
+
+- With one busy stream the web UI p95 is about 80 ms higher than on 3.0.6
+  (0.32 s against 0.24 s).
+- Free internal RAM during traffic stays above 43 KB, about 2 KB less than
+  3.0.6.
+- Results depend on the radio link and the peer.
+
+### Fixed
+
+- Under sustained upload a TCP flow could stall for 8–12 s or time out: full
+  network queues dropped the returning acknowledgements. Tunnel pings were
+  lost the same way.
+- In a burst of parallel web UI requests some were reset or waited more than
+  10 s. When its 4 client slots were full, the server closed the least
+  recently used session, usually a request accepted a moment earlier, and
+  dropped connection attempts beyond a five-entry wait queue.
+  - New connections now wait in a 12-entry queue for a free slot.
+  - Only sessions idle for 5 s are closed, so a page that is open and
+    refreshing is never disconnected.
+- A temporary Service Gateway rule deleted before its deadline no longer
+  produces a "temporary service rule(s) closed" announcement at expiry. The
+  lease is still closed.
+
+### Added
+
+- `/api/operations` `forward_drops`: counters for frames dropped or refused on
+  the forwarding path, kept in RAM only and reset at boot. Covered: shed under
+  overload, refused by the input queue, Wi-Fi transmit, WireGuard
+  transmit/receive queues and packets missing before decryption.
+
 ## [3.0.6] — 2026-10-29
 
 ### Fixed

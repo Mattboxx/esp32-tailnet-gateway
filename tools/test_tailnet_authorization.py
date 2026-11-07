@@ -332,7 +332,10 @@ int main(void) {
 # Same translation unit exposes implementation sizes/helpers, not a reimplementation.
 PROGRAM = '#define ML_POLICY_HOST_TEST 1\n#include "ml_policy.c"\n' + HEAD + BODY
 wg_source=(ML/'components/wireguard_lwip/src/wireguardif.c').read_text(encoding='utf-8')
-wg_receive='static void wireguardif_process_data_message'+wg_source.split('static void wireguardif_process_data_message',1)[1].split('\nstatic struct pbuf *wireguardif_initiate_handshake',1)[0]
+# The receive path carries test-only profiling macros (empty unless TSR_PERF_PROFILE).
+# The receive path's saturation counter lives outside this function (tested in forward_drop_counters).
+wg_receive=('#include "ml_perf.h"\nstatic volatile uint32_t s_wg_rx_input_refused;\n'
+            'static inline void wg_tx_count_drop(volatile uint32_t *c){(*c)++;}\n')+'static void wireguardif_process_data_message'+wg_source.split('static void wireguardif_process_data_message',1)[1].split('\nstatic struct pbuf *wireguardif_initiate_handshake',1)[0]
 WG_FIXTURE = r'''
 /* Execute the ACTUAL receive function. Crypto/replay and netif are explicit
  * test doubles, NOT a real encrypted transport or a physical packet trace. */
@@ -441,7 +444,8 @@ with tempfile.TemporaryDirectory(prefix='tailnet-authorization-') as directory:
     (path / 'lwip').mkdir()
     (path / 'lwip/pbuf.h').write_text(PBUF, encoding='utf-8')
     flags = ['-std=c11', '-pthread', '-Wall', '-Wextra', '-Werror', '-O1', '-g',
-             '-I', str(path), '-I', str(ML/'include'), '-I', str(ML/'src')]
+             '-I', str(path), '-I', str(ML/'include'), '-I', str(ML/'src'),
+             '-I', str(ML/'components/wireguard_lwip/src')]
     libs = ['-lws2_32'] if os.name == 'nt' else ['-lm']
     dep = os.environ.get('CJSON_SOURCE')
     if dep:

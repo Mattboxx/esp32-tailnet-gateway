@@ -6,6 +6,7 @@ responses remain in memory. Not a browser-origin or two-principal policy test.
 """
 import argparse
 import getpass
+import os
 import urllib.error
 import urllib.request
 from observe_candidate import host
@@ -27,7 +28,8 @@ def main():
     parser.add_argument('--expected-version', required=True)
     parser.add_argument('--allow-session-test', action='store_true', required=True)
     args = parser.parse_args()
-    password = getpass.getpass('Device password (not saved): ')
+    # An orchestrating launcher may pass the password in this process's environment only.
+    password = os.environ.get('TEST_DEVICE_PASSWORD') or getpass.getpass('Device password (not saved): ')
     api = login(args.host, password=password)
     password = None
     try:

@@ -11,6 +11,8 @@
 #include "lwip/pbuf.h"
 #include "lwip/err.h"
 #include "lwip/tcpip.h"
+#include "netif/ethernet.h"
+#include "web_ui.h"
 #include "first_boot.h"
 
 #include <string.h>
@@ -62,6 +64,70 @@ uint64_t netif_hooks_get_sta_bytes_in (void) { return s_sta_bytes_in;  }
 uint64_t netif_hooks_get_sta_bytes_out(void) { return s_sta_bytes_out; }
 uint64_t netif_hooks_get_ap_bytes_in  (void) { return s_ap_bytes_in;   }
 uint64_t netif_hooks_get_ap_bytes_out (void) { return s_ap_bytes_out;  }
+
+/* Saturation counters for the STA path: frames the next stage refused after
+ * the ACL let them through (input: TCP/IP mailbox full or no memory; output:
+ * Wi-Fi driver without TX buffers). The refusing caller frees the frame;
+ * these only count. Single writer each; read for /api/operations. */
+static volatile uint32_t s_sta_input_refused  = 0;
+static volatile uint32_t s_sta_output_refused = 0;
+
+uint32_t netif_hooks_get_sta_input_refused (void) { return s_sta_input_refused;  }
+uint32_t netif_hooks_get_sta_output_refused(void) { return s_sta_output_refused; }
+
+/* Overload shedding on the STA input path (3.0.7). STA frames posted to the
+ * TCPIP thread and not yet handled are counted. Once STA_SHED_FROM of the
+ * CONFIG_LWIP_TCPIP_RECVMBOX_SIZE mailbox slots are taken, bulk frames are
+ * dropped:
+ *   - IPv4 not addressed to the gateway (routed/NAT forwarding);
+ *   - TCP to the gateway's own service ports (Service Gateway, port maps).
+ * The remaining slots stay free for what the gateway itself must receive:
+ *   - ARP, broadcast and multicast;
+ *   - ICMP and UDP to its address (WireGuard/DISCO, DNS, DHCP, SNMP);
+ *   - TCP to the web UI port and to its own client connections (ephemeral
+ *     ports: control plane, DERP, MQTT, ntfy).
+ * TCP retransmits the dropped bulk segments. Without this, the full mailbox
+ * dropped any frame, including web UI requests and the WireGuard packets
+ * that carry the returning TCP ACKs (3.0.7-dev.10/11 measurements). IPv6 and
+ * anything not parsed is never shed. */
+/* Bulk frames may fill at most 24 slots, fewer than the 32-entry mailbox of
+ * 3.0.6, so queueing delay under load does not grow with the larger
+ * mailbox; the other 40 slots are reserved for priority frames. */
+#define STA_SHED_FROM 24
+#define STA_EPHEMERAL_FIRST 0xC000u
+static volatile uint32_t s_sta_queued;
+static volatile uint32_t s_sta_input_shed;
+
+uint32_t netif_hooks_get_sta_input_shed(void) { return s_sta_input_shed; }
+
+/* own_ip: the STA address in network byte order; web_port: 0 if none. */
+bool netif_hooks_sta_frame_priority(const struct pbuf *p, uint32_t own_ip, uint16_t web_port)
+{
+    if (!p || p->len < 14) return true;
+    const uint8_t *f = (const uint8_t *)p->payload;
+    uint16_t type = (uint16_t)((f[12] << 8) | f[13]);
+    if (type != 0x0800) return true;                 /* ARP, IPv6, VLAN, ...: never shed */
+    if (p->len < 14 + 20) return true;
+    const uint8_t *ip = f + 14;
+    unsigned ihl = (ip[0] & 0x0fu) * 4u;
+    if ((ip[0] >> 4) != 4 || ihl < 20) return true;
+    if (ip[16] == 255 || (ip[16] & 0xf0u) == 0xe0u) return true;   /* broadcast/multicast */
+    uint32_t dst;
+    memcpy(&dst, ip + 16, 4);
+    if (dst != own_ip) return false;                 /* forwarded */
+    uint8_t proto = ip[9];
+    if (proto != 6) return true;                     /* ICMP, UDP, others to the gateway */
+    if (((ip[6] & 0x1fu) | ip[7]) || p->len < 14 + ihl + 4) return true;  /* fragment/short */
+    uint16_t dport = (uint16_t)((ip[ihl + 2] << 8) | ip[ihl + 3]);
+    return dport == web_port || dport >= STA_EPHEMERAL_FIRST;
+}
+
+/* Runs in the TCPIP thread for every counted STA frame. */
+static err_t sta_ethernet_input_counted(struct pbuf *p, struct netif *netif)
+{
+    __atomic_fetch_sub(&s_sta_queued, 1, __ATOMIC_RELAXED);
+    return ethernet_input(p, netif);
+}
 
 /* TTL override (0 = pass through). Read on every STA-out packet, set
  * by the /api/network POST handler + the boot-time NVS load. Single
@@ -243,7 +309,25 @@ static err_t sta_input_hook(struct pbuf *p, struct netif *netif)
 {
     if (p) s_sta_bytes_in += p->tot_len;
     if (acl_drops(acl_check_and_tap(ACL_TO_ESP, p, false))) { pbuf_free(p); return ERR_OK; }
-    return original_sta_input ? original_sta_input(p, netif) : ERR_VAL;
+    if (!original_sta_input) return ERR_VAL;
+    err_t err;
+    if (original_sta_input == tcpip_input && (netif->flags & (NETIF_FLAG_ETHARP | NETIF_FLAG_ETHERNET))) {
+        /* Same delivery as tcpip_input() for an Ethernet netif, counted. */
+        uint32_t queued = __atomic_fetch_add(&s_sta_queued, 1, __ATOMIC_RELAXED);
+        if (queued >= STA_SHED_FROM &&
+            !netif_hooks_sta_frame_priority(p, ip4_addr_get_u32(netif_ip4_addr(netif)), web_ui_active_port())) {
+            __atomic_fetch_sub(&s_sta_queued, 1, __ATOMIC_RELAXED);
+            s_sta_input_shed++;
+            pbuf_free(p);
+            return ERR_OK;
+        }
+        err = tcpip_inpkt(p, netif, sta_ethernet_input_counted);
+        if (err != ERR_OK) __atomic_fetch_sub(&s_sta_queued, 1, __ATOMIC_RELAXED);
+    } else {
+        err = original_sta_input(p, netif);
+    }
+    if (err != ERR_OK) s_sta_input_refused++;
+    return err;
 }
 
 static err_t sta_linkoutput_hook(struct netif *netif, struct pbuf *p)
@@ -253,7 +337,10 @@ static err_t sta_linkoutput_hook(struct netif *netif, struct pbuf *p)
      * the value that actually goes out the wire. */
     apply_sta_ttl_override(p);
     if (acl_drops(acl_check_and_tap(ACL_FROM_ESP, p, false))) { return ERR_OK; }
-    return original_sta_linkoutput ? original_sta_linkoutput(netif, p) : ERR_VAL;
+    if (!original_sta_linkoutput) return ERR_VAL;
+    err_t err = original_sta_linkoutput(netif, p);
+    if (err != ERR_OK) s_sta_output_refused++;
+    return err;
 }
 
 static err_t eth_input_hook(struct pbuf *p, struct netif *netif)

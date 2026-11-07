@@ -4,6 +4,7 @@
 #include "tailnet_forward.h"
 #include "tailnet_reassembly.h"
 #include "netif_hooks.h"
+#include "perf_hooks.h"
 #include <string.h>
 #include "lwip/tcpip.h"
 #include "lwip/ip4.h"
@@ -74,11 +75,20 @@ err_t __wrap_ip4_input(struct pbuf *packet, struct netif *input)
     LWIP_ASSERT_CORE_LOCKED();
     /* PPP delivers straight to ip4_input: its ESP-bound ACL is applied here. */
     if(!netif_hooks_ppp_input_allowed(packet,input)){pbuf_free(packet);return ERR_OK;}
+    unsigned length = packet ? packet->tot_len : 0;
+    PH_BEGIN(t_dnat);
     packet=prepare_dnat_packet(packet,input);
+    PH_END(PH_DNAT_PREP, t_dnat, length);
     if(!packet)return ERR_OK;
-    if (!tailnet_forward_allow_ipv4_packet(packet, input)) {
+    PH_BEGIN(t_allow);
+    bool allowed = tailnet_forward_allow_ipv4_packet(packet, input);
+    PH_END(PH_ALLOW, t_allow, length);
+    if (!allowed) {
         pbuf_free(packet);
         return ERR_OK;
     }
-    return __real_ip4_input(packet, input);
+    PH_BEGIN(t_input);
+    err_t err = __real_ip4_input(packet, input);
+    PH_END(PH_IP4_INPUT, t_input, length);
+    return err;
 }
