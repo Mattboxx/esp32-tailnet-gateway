@@ -320,6 +320,7 @@ done:
 #include "mbedtls/ssl.h"
 #include "nvs.h"
 #include "nvs_params.h"
+#include "telegram_commands.h"
 #include <stdlib.h>
 #include <time.h>
 
@@ -808,6 +809,31 @@ static void apply_locked(void)
     history_set_sink_poller(on && s_queue ? offer : NULL, on && s_queue ? notify_poll : NULL);
 }
 
+bool notify_telegram_target(char *token, size_t token_cap, char *chat, size_t chat_cap)
+{
+    if (!s_lock || !token || !chat || !token_cap || !chat_cap) return false;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    bool ok = s_cfg.tg_enabled && s_cfg.tg_token[0] && s_cfg.tg_chat[0];
+    if (ok) {strlcpy(token, s_cfg.tg_token, token_cap); strlcpy(chat, s_cfg.tg_chat, chat_cap);}
+    xSemaphoreGive(s_lock);
+    if (!ok) {token[0] = 0; chat[0] = 0;}
+    return ok;
+}
+
+esp_err_t notify_telegram_send_text(const char *text, char *why, size_t cap)
+{
+    if (!s_lock || !text || !text[0]) return ESP_ERR_INVALID_ARG;
+    notify_config_t *c = heap_caps_malloc(sizeof *c, MALLOC_CAP_SPIRAM);
+    if (!c) return ESP_ERR_NO_MEM;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    *c = s_cfg;
+    xSemaphoreGive(s_lock);
+    esp_err_t err = c->tg_enabled && c->tg_token[0] ? telegram(c, text, why, cap) : ESP_ERR_INVALID_STATE;
+    memset(c, 0, sizeof *c);
+    free(c);
+    return err;
+}
+
 void notify_channels_enabled(bool *telegram, bool *email)
 {
     *telegram = s_cfg.tg_enabled;
@@ -857,6 +883,26 @@ static esp_err_t get_notify(httpd_req_t *req)
     add_string(tg, "chat", c.tg_chat);
     cJSON_AddNumberToObject(tg, "sent", a.sent); cJSON_AddNumberToObject(tg, "failed", a.failed);
     add_string(tg, "last_error", a.last_error);
+    {   /* remote commands over the bot (telegram_commands.c) */
+        telegram_commands_config_t tc;
+        telegram_commands_status_t ts;
+        telegram_commands_get_config(&tc);
+        telegram_commands_get_status(&ts);
+        cJSON *cm = cJSON_AddObjectToObject(tg, "commands");
+        if (cm) {
+            cJSON_AddBoolToObject(cm, "enabled", tc.commands_enabled);
+            cJSON_AddBoolToObject(cm, "only_when_tailscale_down", tc.commands_only_when_tailscale_down);
+            cJSON_AddBoolToObject(cm, "allow_direct_mac", tc.allow_direct_mac);
+            cJSON_AddBoolToObject(cm, "info_enabled", tc.info_enabled);
+            cJSON_AddBoolToObject(cm, "info_include_details", tc.info_include_details);
+            cJSON_AddNumberToObject(cm, "poll_interval_seconds", tc.poll_interval_seconds);
+            cJSON_AddBoolToObject(cm, "running", ts.running);
+            cJSON_AddNumberToObject(cm, "received", ts.commands_received);
+            cJSON_AddNumberToObject(cm, "errors", ts.command_errors);
+            cJSON_AddNumberToObject(cm, "other_chats_skipped", ts.skipped_other_chats);
+            add_string(cm, "last_error", ts.last_error);
+        }
+    }
     cJSON_AddBoolToObject(mail, "enabled", c.mail_enabled);
     cJSON_AddBoolToObject(mail, "notify_startup", (startup_channels & CH_MAIL) != 0);
     cJSON_AddBoolToObject(mail, "notify_poweron", (startup_channels & (CH_MAIL << 2)) != 0);
@@ -928,6 +974,9 @@ static esp_err_t post_notify(httpd_req_t *req)
     uint8_t startup_channels = s_startup_channels;
     xSemaphoreGive(s_lock);
     const cJSON *tg = cJSON_GetObjectItemCaseSensitive(root, "telegram"), *mail = cJSON_GetObjectItemCaseSensitive(root, "email");
+    telegram_commands_config_t tcmd;
+    telegram_commands_get_config(&tcmd);
+    bool have_tcmd = false;
     const cJSON *events = cJSON_GetObjectItemCaseSensitive(root, "events");
     ok = cJSON_IsObject(root) && !cJSON_HasObjectItem(root, "connectivity_grace_seconds") &&
          (!tg || cJSON_IsObject(tg)) && (!mail || cJSON_IsObject(mail)) &&
@@ -962,6 +1011,22 @@ static esp_err_t post_notify(httpd_req_t *req)
         if (ok && cJSON_IsString(token) && token->valuestring[0]) ok = copy_string(tg, "token", next->tg_token, sizeof next->tg_token);
         else if (ok && token && !cJSON_IsString(token)) ok = false;
         if (ok && cJSON_IsTrue(cJSON_GetObjectItemCaseSensitive(tg, "clear_token"))) {memset(next->tg_token, 0, sizeof next->tg_token); next->tg_enabled = false;}
+        const cJSON *cm = cJSON_GetObjectItemCaseSensitive(tg, "commands");
+        if (ok && cm) {
+            /* Remote commands: the same options as ntfy, all fields required. */
+            static const char *const keys[] = {"enabled", "only_when_tailscale_down", "allow_direct_mac", "info_enabled", "info_include_details"};
+            bool *dst[] = {&tcmd.commands_enabled, &tcmd.commands_only_when_tailscale_down, &tcmd.allow_direct_mac, &tcmd.info_enabled, &tcmd.info_include_details};
+            const cJSON *poll = cJSON_GetObjectItemCaseSensitive(cm, "poll_interval_seconds");
+            ok = cJSON_IsObject(cm) && cJSON_IsNumber(poll) && poll->valuedouble == (int)poll->valuedouble;
+            for (unsigned k = 0; ok && k < sizeof keys / sizeof keys[0]; k++) {
+                const cJSON *v = cJSON_GetObjectItemCaseSensitive(cm, keys[k]);
+                ok = cJSON_IsBool(v);
+                if (ok) *dst[k] = cJSON_IsTrue(v);
+            }
+            if (ok) tcmd.poll_interval_seconds = poll->valuedouble >= 0 && poll->valuedouble <= 65535 ? (uint16_t)poll->valuedouble : 0;
+            if (ok && !telegram_commands_config_valid(&tcmd)) {ok = false; snprintf(why, sizeof why, "Telegram commands: poll interval must be 5-300 seconds");}
+            have_tcmd = ok;
+        }
     }
     if (ok && mail) {
         const cJSON *en = cJSON_GetObjectItemCaseSensitive(mail, "enabled"), *port = cJSON_GetObjectItemCaseSensitive(mail, "port");
@@ -987,6 +1052,7 @@ static esp_err_t post_notify(httpd_req_t *req)
     esp_err_t err = ESP_OK;
     if (ok && !notify_config_valid(next, why, sizeof why)) ok = false;
     if (ok) err = store_save(next, mail_level, startup_channels); /* one record, before publishing */
+    if (ok && !err && have_tcmd) err = telegram_commands_set_config(&tcmd);   /* its own keys */
     if (ok && !err) {
         xSemaphoreTake(s_lock, portMAX_DELAY);
         s_cfg = *next;
@@ -994,6 +1060,7 @@ static esp_err_t post_notify(httpd_req_t *req)
         s_startup_channels = startup_channels;
         apply_locked();
         xSemaphoreGive(s_lock);
+        telegram_commands_refresh();   /* starts or stops the command poller */
     }
     memset(next, 0, sizeof *next); free(next); free(body);
     httpd_resp_set_type(req, "application/json");

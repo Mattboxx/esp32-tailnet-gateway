@@ -71,6 +71,7 @@
 #include "mac_deny.h"
 #include "history.h"
 #include "notify_channels.h"
+#include "telegram_commands.h"
 #if CONFIG_TSR_DDNS
 #include "ddns.h"
 #endif
@@ -1014,6 +1015,7 @@ void app_main(void)
 
     /* Event/metrics history: off by default, then no task, buffer or flash use. */
     notify_channels_init();   /* Telegram/email: off by default, nothing runs */
+    telegram_commands_init(); /* bot commands: off by default, no task while off */
 #if CONFIG_TSR_DDNS
     ddns_init();              /* dynamic DNS: off by default, no timer */
 #endif
