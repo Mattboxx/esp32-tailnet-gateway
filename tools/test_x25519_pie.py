@@ -64,12 +64,12 @@ def mutant_detected(mut):
 vm = [i for i, op in enumerate(ops) if op[0] == 'vmulas']
 sar = [i for i, op in enumerate(ops) if op[0] == 'movi' and op[1] == 'a5']
 wacc = [i for i, op in enumerate(ops) if op[0] == 'wur.accx_0']
-carry = [i for i, op in enumerate(ops) if op[0] == 'src' and op[1] == 'a6' and op[2] == 'a7']
+carry = [i for i, op in enumerate(ops) if op[0] == 'src' and op[1] == 'a8' and op[2] == 'a7']
 mutants = {
     'dropped vector MAC': ops[:vm[len(vm) // 2]] + ops[vm[len(vm) // 2] + 1:],
     'wrong window shift': ops[:sar[3]] + [('movi', 'a5', ops[sar[3]][2] - 2)] + ops[sar[3] + 1:],
     'carry not written back': ops[:wacc[10]] + ops[wacc[10] + 1:],
-    'lost carry high byte': ops[:carry[12]] + [('src', 'a6', 'a15', 'a6')] + ops[carry[12] + 1:],
+    'lost carry high byte': ops[:carry[12]] + [('src', 'a8', 'a15', 'a6')] + ops[carry[12] + 1:],
 }
 for name, mut in mutants.items():
     assert mutant_detected(mut), f'mutant not detected: {name}'

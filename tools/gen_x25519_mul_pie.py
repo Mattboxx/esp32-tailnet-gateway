@@ -69,32 +69,42 @@ def program(dst='a2'):
     o(('zero.q', Z))
     o(('zero.accx',))
     o(('movi', 'a15', 0))
-    sar = None
-    for k in range(31):
+
+    def column(k):
+        """SAR_BYTE and the windows of column k, and its vector MACs."""
         s = 31 - k
         m, r = s >> 3, s & 7
-        if r and sar != 2 * r:
-            o(('movi', 'a5', 2 * r))
-            o(('wur.sar_byte', 'a5'))
-            sar = 2 * r
-        for half, lo_blk, dst_q, a_reg in ((0, m, W_LO, A_LO), (1, m + 1, W_HI, A_HI)):
+        win, macs = [], []
+        if r:
+            win += [('movi', 'a5', 2 * r), ('wur.sar_byte', 'a5')]
+        for lo_blk, dst_q, a_reg in ((m, W_LO, A_LO), (m + 1, W_HI, A_HI)):
             q0, q1 = BLOCK[lo_blk], BLOCK.get(lo_blk + 1, Z)
             if r == 0:
-                if q0 == Z:
-                    continue
-                o(('vmulas', a_reg, q0))
-            else:
-                if q0 == Z and q1 == Z:
-                    continue
-                o(('src.q', dst_q, q0, q1))
-                o(('vmulas', a_reg, dst_q))
+                if q0 != Z:
+                    macs.append(('vmulas', a_reg, q0))
+            elif q0 != Z or q1 != Z:
+                win.append(('src.q', dst_q, q0, q1))
+                macs.append(('vmulas', a_reg, dst_q))
+        return win, macs
+
+    # Scheduled for the vector unit's latencies: the windows of column k + 1
+    # are formed (their registers are free once column k's MACs issued)
+    # between column k's last MAC and the ACCX read, and the halfword store
+    # sits between the ACCX write-back and the next MAC.
+    win, macs = column(0)
+    ops.extend(win)
+    for k in range(31):
+        ops.extend(macs)
+        if k < 30:
+            win, macs = column(k + 1)
+            ops.extend(win)
         o(('rur.accx_0', 'a6'))
         o(('rur.accx_1', 'a7'))
-        o(('s16i', 'a6', dst, 2 * k))
-        o(('src', 'a6', 'a7', 'a6'))          # SAR is still 16: (hi:lo) >> 16
-        o(('wur.accx_0', 'a6'))
+        o(('src', 'a8', 'a7', 'a6'))          # SAR is still 16: (hi:lo) >> 16
+        o(('wur.accx_0', 'a8'))
         o(('wur.accx_1', 'a15'))
-    o(('s16i', 'a6', dst, 62))
+        o(('s16i', 'a6', dst, 2 * k))
+    o(('s16i', 'a8', dst, 62))
     return ops
 
 
@@ -107,28 +117,42 @@ def program_mulred():
     be a or b: the product is complete before out is written."""
     ops = program('a1')
     o = ops.append
-    TT, C, CY, K = 'a11', 'a13', 'a14', 'a15'
+    L, R1, R3, CY, K = 'a12', 'a11', 'a13', 'a14', 'a15'
+    # Scheduled so that no load or multiplication result is used by the next
+    # instruction: the low words are loaded up front, and hi[j + 1] is loaded
+    # while word j is folded.
     o(('movi', K, 38))
-    for j in range(8):
+    o(('l32i', R1, 'a1', 32))               # hi[0]
+    o(('l32i', X[0], 'a1', 0))
+    o(('l32i', R3, 'a1', 36))               # hi[1]
+    o(('mull', L, R1, K))
+    o(('l32i', X[1], 'a1', 4))
+    o(('muluh', R1, R1, K))
+    for j in range(2, 8):
+        o(('l32i', X[j], 'a1', 4 * j))
+    o(('add', X[0], X[0], L))
+    o(('saltu', L, X[0], L))
+    o(('add', CY, R1, L))                   # 38 * hi < 2^38: its high word is at most 37
+    h, n = R3, R1
+    for j in range(1, 8):
         x = X[j]
-        o(('l32i', x, 'a1', 4 * j))
-        o(('l32i', TT, 'a1', 32 + 4 * j))
-        o(('mull', C, TT, K))
-        o(('muluh', TT, TT, K))
-        o(('add', x, x, C))
-        o(('saltu', C, x, C))
-        if j == 0:
-            o(('add', CY, TT, C))         # 38 * hi < 2^38: its high word is at most 37
-        else:
-            o(('add', TT, TT, C))
-            o(('add', x, x, CY))
-            o(('saltu', C, x, CY))
-            o(('add', CY, TT, C))
+        o(('mull', L, h, K))
+        o(('muluh', h, h, K))
+        if j < 7:
+            o(('l32i', n, 'a1', 32 + 4 * (j + 1)))
+        o(('add', x, x, L))
+        o(('saltu', L, x, L))
+        o(('add', h, h, L))
+        o(('add', x, x, CY))
+        o(('saltu', CY, x, CY))
+        o(('add', CY, CY, h))
+        h, n = n, h
+    TT, C = 'a12', 'a13'
+    o(('movi', K, 19))
     o(('srli', TT, X[7], 31))
     o(('slli', X[7], X[7], 1))             # clear the top bit (EXTUI takes at most 16 bits)
     o(('srli', X[7], X[7], 1))
     o(('addx2', TT, CY, TT))                # over = carry << 1 | top bit
-    o(('movi', K, 19))
     o(('mull', C, TT, K))
     for j in range(8):
         o(('add', X[j], X[j], C))
