@@ -1,6 +1,27 @@
 # Claude-to-Codex checkpoint — 2026-11-07
 
-## Latest state (end of 2026-11-07)
+## Latest state (2026-11-08)
+
+**3.0.10** is built from `2444297`; image `c9bab332…8d67` is archived under
+`build/development-3.0.10/`. Offline validation: 129/129. It runs on board A
+from ota_0, with 3.0.9-pre1 in ota_1. It is being published as the stable
+release on owner instruction.
+
+Processing-time work in 3.0.10:
+- DERP reader waits with select() instead of 10 ms sleeps.
+- DERP tasks run at data-plane priority, with a rest policy.
+- Lazy static-static DH: none when peers are added.
+- Dedicated X25519 squaring.
+- X25519 multiplication in Xtensa assembly, checked on the device: 12.9 ms
+  vs 14.6 ms per call.
+
+Remaining candidates:
+- X25519 squaring in assembly: estimated about 10%.
+- PIE memcpy: about 0.4% per packet; not worth it.
+
+The rest of the per-packet time is lwIP and the closed Wi-Fi driver.
+
+## Earlier state (end of 2026-11-07)
 
 - **3.0.7** is the published stable (Latest; site and browser installer deployed).
 - **3.0.8** is built from `e4a6c6b`; image SHA-256 `1349e6a1…53c2` is archived

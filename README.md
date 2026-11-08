@@ -48,6 +48,14 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
+### Firmware 3.0.10: shorter waits for packets
+
+- Relayed (DERP) packets are read as soon as they arrive and handled at the
+  same priority as direct traffic.
+- Adding Tailnet peers no longer stalls the data path, and WireGuard
+  handshakes are faster: X25519 runs with a dedicated squaring and an Xtensa
+  assembly multiplication (12.9 ms per key agreement on the board).
+
 ### Firmware 3.0.8: a Status page that follows what you use
 
 - The Status page shows live tiles only for the features you switched on and

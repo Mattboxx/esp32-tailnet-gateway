@@ -6,6 +6,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.10] — 2026-11-08
+
+3.0.9 was not published; its changes are part of this release.
+
 ### Changed
 
 - Packets relayed through DERP are read as soon as they arrive: the idle
@@ -15,7 +19,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   multiplications, and multiplies with a hand-written Xtensa routine (the
   product unrolled with the column sums in registers, about 30 % fewer
   instructions), compared with the C version on the device before first use
-  (`crypto_asm.x25519_mul`). Handshake work runs in the task that decrypts
+  (`crypto_asm.x25519_mul`). Measured on the board: 12.9 ms per key
+  agreement, against 14.6 ms with the faster squaring alone. Handshake work
+  runs in the task that decrypts
   incoming packets, so packets arriving during a handshake wait less.
   `/api/system/diag` → `crypto_asm` reports the last and longest X25519
   duration (`x25519_us_last`, `x25519_us_max`).
