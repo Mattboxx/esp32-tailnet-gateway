@@ -18,7 +18,9 @@ ROOT = Path(__file__).resolve().parents[1]
 REL = 'components/microlink/components/wireguard_lwip/src/crypto/refc'
 SRC = ROOT / 'external/microlink' / REL / 'x25519.c'
 new = SRC.read_text(encoding='utf-8').replace('\r\n', '\n')
-assert 'static void sqr(fe out, const fe a) {\n    limb_t accum[2*NLIMBS]' in new
+_sqr = new[new.index('static void sqr(fe out, const fe a) {'):]
+_sqr = _sqr[:_sqr.index('\n}\n')]
+assert 'limb_t accum[2*NLIMBS] = {0};' in _sqr and 'accum[i] = (v << 1) | top;' in _sqr, 'dedicated C squaring'
 old = subprocess.run(['git', '-C', str(ROOT / 'external/microlink'), 'log', '--format=%H', '-n', '20', '--', REL + '/x25519.c'],
                      capture_output=True, text=True, check=True).stdout.split()
 ref_old = None
