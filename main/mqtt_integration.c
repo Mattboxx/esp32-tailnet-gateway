@@ -47,6 +47,7 @@
 #include "fourvia6.h"
 #include "tailnet_forward.h"
 #include "mqtt_power_event.h"
+#include "notify_text.h"
 
 static const char *TAG = "mqtt_bridge";
 _Static_assert(sizeof(mqtt_integration_config_t) == 496, "Keep the existing MQTT configuration RAM footprint");
@@ -316,6 +317,9 @@ static void publish_discovery(void)
                              "{{ value_json.update_progress }}", NULL, NULL, "%");
     discovery_publish_entity("sensor", "reset_reason", "Reset reason code", s_state_topic,
                              "{{ value_json.reset_reason }}", NULL, NULL, NULL);
+    /* The same readable cause ntfy, Telegram and email report (notify_text.c). */
+    discovery_publish_entity("sensor", "reset_cause", "Reset cause", s_state_topic,
+                             "{{ value_json.reset_cause }}", NULL, NULL, NULL);
     discovery_publish_entity("binary_sensor", "access_point", "Access point", s_state_topic,
                              "{{ value_json.ap_enabled }}", NULL, "connectivity", NULL);
     discovery_publish_entity("sensor", "ap_clients", "AP clients", s_state_topic,
@@ -668,6 +672,7 @@ static void publish_state(const mqtt_power_event_t *power, bool poweron_events)
     cJSON_AddStringToObject(root, "update_status", update.status);
     cJSON_AddNumberToObject(root, "update_progress", update.progress);
     cJSON_AddNumberToObject(root, "reset_reason", esp_reset_reason());
+    cJSON_AddStringToObject(root, "reset_cause", notify_text_reset_cause((int)esp_reset_reason(), false));
     cJSON_AddStringToObject(root, "mqtt_watchdog_triggered",
                             s_watchdog_triggered ? "ON" : "OFF");
     cJSON_AddNumberToObject(root, "mqtt_watchdog_wake_count", s_watchdog_wake_count);

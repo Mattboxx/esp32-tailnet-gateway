@@ -140,30 +140,47 @@ static void set_error(const char *why)
     xSemaphoreGive(s_lock);
 }
 
-/* GET getUpdates; the token is wiped from the URL buffer once used. */
-static int fetch(const char *token, const char *query, char *answer, size_t cap)
+/* Long polling (3.0.12+): Telegram holds getUpdates open for up to
+ * TG_LONG_POLL_S until a message arrives, so a command runs at once, and the
+ * same TLS connection is reused (keep-alive) instead of a new handshake per
+ * poll: a 15 s poll cost about 2 % of a core in handshakes on board A. */
+#define TG_LONG_POLL_S 25
+
+/* GET getUpdates on the task's connection (*client, created on first use and
+ * kept while it works; dropped after any failure). The token is wiped from
+ * the URL buffer once it has been handed to the client. */
+static int fetch(esp_http_client_handle_t *client, const char *token, const char *query, char *answer, size_t cap)
 {
     char url[200];
     int n = snprintf(url, sizeof url, "https://api.telegram.org/bot%s/getUpdates?%s", token, query);
     if (n <= 0 || (size_t)n >= sizeof url) { memset(url, 0, sizeof url); return -1; }
-    esp_http_client_config_t hc = {.url = url, .method = HTTP_METHOD_GET, .timeout_ms = 15000,
-                                   .crt_bundle_attach = ml_tls_bundle_attach, .disable_auto_redirect = true};
-    esp_http_client_handle_t client = esp_http_client_init(&hc);
+    if (!*client) {
+        esp_http_client_config_t hc = {.url = url, .method = HTTP_METHOD_GET,
+                                       .timeout_ms = (TG_LONG_POLL_S + 10) * 1000, .keep_alive_enable = true,
+                                       .crt_bundle_attach = ml_tls_bundle_attach, .disable_auto_redirect = true};
+        *client = esp_http_client_init(&hc);
+    } else if (esp_http_client_set_url(*client, url) != ESP_OK) {
+        esp_http_client_cleanup(*client);
+        *client = NULL;
+    }
     memset(url, 0, sizeof url);
-    if (!client) return -1;
+    if (!*client) return -1;
     int total = -1;
-    if (esp_http_client_open(client, 0) == ESP_OK && esp_http_client_fetch_headers(client) >= 0
-        && esp_http_client_get_status_code(client) == 200) {
+    if (esp_http_client_open(*client, 0) == ESP_OK && esp_http_client_fetch_headers(*client) >= 0
+        && esp_http_client_get_status_code(*client) == 200) {
         total = 0;
         while ((size_t)total < cap - 1) {
-            int got = esp_http_client_read(client, answer + total, (int)(cap - 1 - (size_t)total));
+            int got = esp_http_client_read(*client, answer + total, (int)(cap - 1 - (size_t)total));
             if (got <= 0) break;
             total += got;
         }
         answer[total] = 0;
-        if ((size_t)total >= cap - 1) total = -1;   /* larger than allowed: refuse */
+        if ((size_t)total >= cap - 1 || !esp_http_client_is_complete_data_received(*client)) total = -1;
     }
-    esp_http_client_cleanup(client);
+    if (total < 0) {   /* a broken or partly read connection is never reused */
+        esp_http_client_cleanup(*client);
+        *client = NULL;
+    }
     return total;
 }
 
@@ -205,27 +222,31 @@ static void run(const telegram_commands_config_t *c, const char *command)
     xSemaphoreGive(s_lock);
 }
 
-static void poll_once(const telegram_commands_config_t *c, const char *token, const char *chat)
+/* One getUpdates round; false when Telegram could not be read (the caller
+ * then waits the poll interval before trying again). */
+static bool poll_once(esp_http_client_handle_t *client, const telegram_commands_config_t *c, const char *token, const char *chat)
 {
     char *answer = heap_caps_malloc(TG_ANSWER_MAX, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!answer) { set_error("not enough memory"); return; }
+    if (!answer) { set_error("not enough memory"); return false; }
+    bool ok = false;
     tg_updates_t u;
     char query[96];
     if (!s_have_offset) {
         /* First poll: skip everything sent before (never run old commands). */
-        int n = fetch(token, "offset=-1&limit=1&timeout=0", answer, TG_ANSWER_MAX);
+        int n = fetch(client, token, "offset=-1&limit=1&timeout=0", answer, TG_ANSWER_MAX);
         if (n > 0) {
             tg_updates_parse(answer, (size_t)n, chat, 0, &u);
-            if (u.valid) { s_last_update = u.last_update_id; s_have_offset = true; set_error(""); }
+            if (u.valid) { s_last_update = u.last_update_id; s_have_offset = true; set_error(""); ok = true; }
             else set_error("unexpected answer from Telegram");
         } else set_error("cannot reach api.telegram.org");
         free(answer);
-        return;
+        return ok;
     }
     for (int attempt = 0; attempt < 2; attempt++) {
-        snprintf(query, sizeof query, "offset=%lu&limit=%d&timeout=0",
-                 (unsigned long)s_last_update + 1, attempt ? 1 : 5);
-        int n = fetch(token, query, answer, TG_ANSWER_MAX);
+        /* the retry of one update at a time does not wait */
+        snprintf(query, sizeof query, "offset=%lu&limit=%d&timeout=%d",
+                 (unsigned long)s_last_update + 1, attempt ? 1 : 5, attempt ? 0 : TG_LONG_POLL_S);
+        int n = fetch(client, token, query, answer, TG_ANSWER_MAX);
         if (n <= 0) { set_error("cannot reach api.telegram.org"); break; }
         tg_updates_parse(answer, (size_t)n, chat, wall(), &u);
         if (!u.valid && attempt == 0) continue;      /* retry one update at a time */
@@ -235,6 +256,7 @@ static void poll_once(const telegram_commands_config_t *c, const char *token, co
             unsigned long id = p ? strtoul(p + 12, NULL, 10) : 0;
             if (id > s_last_update) s_last_update = (uint32_t)id;
             set_error("skipped an unreadable update");
+            ok = true;
             break;
         }
         if (u.last_update_id > s_last_update) s_last_update = u.last_update_id;   /* before running */
@@ -243,14 +265,17 @@ static void poll_once(const telegram_commands_config_t *c, const char *token, co
         s_st.last_error[0] = 0;
         xSemaphoreGive(s_lock);
         for (int i = 0; i < u.count; i++) run(c, u.cmd[i].text);
+        ok = true;
         break;
     }
     free(answer);
+    return ok;
 }
 
 static void task_main(void *arg)
 {
     (void)arg;
+    esp_http_client_handle_t client = NULL;   /* kept across long polls */
     for (;;) {
         telegram_commands_config_t c;
         xSemaphoreTake(s_lock, portMAX_DELAY);
@@ -263,10 +288,14 @@ static void task_main(void *arg)
             break;
         }
         bool due = !c.commands_only_when_tailscale_down || (tailscale_enabled && !tailscale_is_connected());
-        if (due && uplink_up()) poll_once(&c, token, chat);
+        bool polled = due && uplink_up() && poll_once(&client, &c, token, chat);
         memset(token, 0, sizeof token);
-        (void)ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(1000u * c.poll_interval_seconds));
+        if (!due && client) { esp_http_client_cleanup(client); client = NULL; }   /* idle: no open connection */
+        /* After a long poll the next one starts at once (a settings change is
+         * picked up here); otherwise wait the poll interval, as before. */
+        (void)ulTaskNotifyTake(pdTRUE, polled ? pdMS_TO_TICKS(200) : pdMS_TO_TICKS(1000u * c.poll_interval_seconds));
     }
+    if (client) esp_http_client_cleanup(client);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_task = NULL;
     s_st.running = false;

@@ -26,7 +26,8 @@ fw = SRC[SRC.index('#ifndef TG_COMMANDS_HOST_TEST'):]
 assert 'offset=-1&limit=1&timeout=0' in fw and 's_have_offset = true' in fw
 run_at = fw.index('for (int i = 0; i < u.count; i++) run(c, u.cmd[i].text);')
 assert fw.rindex('if (u.last_update_id > s_last_update) s_last_update = u.last_update_id;', 0, run_at) < run_at
-assert 'if ((size_t)total >= cap - 1) total = -1;' in fw
+assert 'if ((size_t)total >= cap - 1 || !esp_http_client_is_complete_data_received(*client)) total = -1;' in fw
+assert 'timeout=%d' in fw and '.keep_alive_enable = true' in fw   # long polling on one connection
 assert 'memset(url, 0, sizeof url);' in fw and 'memset(token, 0, sizeof token);' in fw
 assert 'MALLOC_CAP_SPIRAM) == pdPASS' in fw and 'nvs_param_set' not in fw[:fw.index('esp_err_t telegram_commands_set_config')]
 ntfy = (ROOT / 'main/ntfy_integration.c').read_text(encoding='utf-8')
@@ -99,7 +100,72 @@ int main(void) {
 '''
 
 
+FETCH = fw[fw.index('#define TG_LONG_POLL_S'):fw.index('static void reply(')]
+FETCH_PROGRAM = r"""
+#include <assert.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
+typedef int esp_err_t;
+#define ESP_OK 0
+#define ESP_FAIL -1
+typedef enum {HTTP_METHOD_GET} esp_http_client_method_t;
+typedef struct {const char *url; int method, timeout_ms; bool keep_alive_enable; void *crt_bundle_attach; bool disable_auto_redirect;} esp_http_client_config_t;
+typedef struct {int id; char url[200]; int timeout_ms; bool keep;} client_t;
+typedef client_t *esp_http_client_handle_t;
+static client_t pool[8]; static int inits, cleanups, live, opens, fail_open, status = 200, complete = 1;
+static const char *body = "{}"; static int body_off;
+static void *ml_tls_bundle_attach;
+static esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *c) {
+    client_t *x = &pool[inits++ % 8]; x->id = inits; snprintf(x->url, sizeof x->url, "%s", c->url); x->timeout_ms = c->timeout_ms; x->keep = c->keep_alive_enable; live++; return x; }
+static esp_err_t esp_http_client_set_url(esp_http_client_handle_t c, const char *u) { snprintf(c->url, sizeof c->url, "%s", u); return ESP_OK; }
+static esp_err_t esp_http_client_open(esp_http_client_handle_t c, int n) { (void)c; (void)n; opens++; body_off = 0; return fail_open ? ESP_FAIL : ESP_OK; }
+static int esp_http_client_fetch_headers(esp_http_client_handle_t c) { (void)c; return (int)strlen(body); }
+static int esp_http_client_get_status_code(esp_http_client_handle_t c) { (void)c; return status; }
+static int esp_http_client_read(esp_http_client_handle_t c, char *o, int n) {
+    (void)c; int left = (int)strlen(body) - body_off; if (left <= 0) return 0; if (n > left) n = left; if (n > 7) n = 7;
+    memcpy(o, body + body_off, (size_t)n); body_off += n; return n; }
+static bool esp_http_client_is_complete_data_received(esp_http_client_handle_t c) { (void)c; return complete; }
+static esp_err_t esp_http_client_cleanup(esp_http_client_handle_t c) { (void)c; cleanups++; live--; return ESP_OK; }
+@@FETCH@@
+int main(void) {
+    esp_http_client_handle_t cl = NULL; char a[64];
+    body = "{\"ok\":true,\"result\":[]}";
+    assert(fetch(&cl, "TOKEN", "offset=1&limit=5&timeout=25", a, sizeof a) == (int)strlen(body) && !strcmp(a, body));
+    assert(cl && inits == 1 && cl->keep && cl->timeout_ms >= 25000 + 5000 && strstr(cl->url, "timeout=25"));
+    /* the next long poll reuses the connection (no new handshake) */
+    assert(fetch(&cl, "TOKEN", "offset=2&limit=5&timeout=25", a, sizeof a) > 0 && inits == 1 && strstr(cl->url, "offset=2"));
+    /* a failed request drops the connection; the next one makes a new one */
+    fail_open = 1; assert(fetch(&cl, "TOKEN", "q", a, sizeof a) == -1 && !cl && cleanups == 1); fail_open = 0;
+    assert(fetch(&cl, "TOKEN", "q", a, sizeof a) > 0 && inits == 2);
+    /* an answer larger than allowed or cut short is refused and never reused */
+    body = "{\"ok\":true,\"result\":[0123456789012345678901234567890123456789012345678901234567890]}";
+    assert(fetch(&cl, "TOKEN", "q", a, sizeof a) == -1 && !cl);
+    body = "{}"; complete = 0; assert(fetch(&cl, "TOKEN", "q", a, sizeof a) == -1 && !cl); complete = 1;
+    status = 502; assert(fetch(&cl, "TOKEN", "q", a, sizeof a) == -1 && !cl); status = 200;
+    /* a URL that does not fit is refused before any connection */
+    char longtok[300]; memset(longtok, 'x', 299); longtok[299] = 0; int before = opens;
+    assert(fetch(&cl, longtok, "q", a, sizeof a) == -1 && opens == before);
+    if (cl) esp_http_client_cleanup(cl);
+    assert(live == 0);
+    puts("fetch ok");
+    return 0;
+}
+"""
+
+
+def fetch_behaviour(path):
+    (path / 'fetch.c').write_text(FETCH_PROGRAM.replace('@@FETCH@@', FETCH), encoding='utf-8')
+    exe = path / ('fetch.exe' if os.name == 'nt' else 'fetch')
+    subprocess.run([os.environ.get('CC', 'gcc'), '-std=gnu11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function',
+                    str(path / 'fetch.c'), '-o', str(exe)], check=True)
+    out = subprocess.run([str(exe)], capture_output=True, text=True, timeout=60)
+    assert out.returncode == 0 and 'fetch ok' in out.stdout, (out.stdout, out.stderr)
+
+
 def main():
+    with tempfile.TemporaryDirectory(prefix='tg-fetch-') as folder:
+        fetch_behaviour(Path(folder))
     with tempfile.TemporaryDirectory(prefix='tg-cmd-') as folder:
         path = Path(folder)
         (path / 'esp_err.h').write_text('#pragma once\ntypedef int esp_err_t;\n', encoding='utf-8')
@@ -127,7 +193,8 @@ def main():
         out = subprocess.run([str(exe)], capture_output=True, text=True, timeout=60)
         assert out.returncode == 0 and 'telegram commands ok' in out.stdout, (out.returncode, out.stdout, out.stderr)
     print('telegram commands: chat authorization, age limit, batch cap, malformed answers, /cmd@Bot forms; '
-          'backlog skipped, offset before running, no flash writes, shared command engine with ntfy')
+          'backlog skipped, offset before running, no flash writes, shared command engine with ntfy; '
+          'long polling on one reused connection, dropped after a failure, oversized or cut answers refused')
 
 
 if __name__ == '__main__':

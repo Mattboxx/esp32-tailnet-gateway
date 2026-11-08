@@ -48,6 +48,15 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
+### Firmware 3.0.13: the same notifications everywhere
+
+- Telegram and email messages now carry the same title and text as ntfy
+  (power-on with the reset cause, restarts, Tailscale problem and recovery),
+  and also announce available updates; Home Assistant gets the readable reset
+  cause too.
+- Telegram remote commands run as soon as they are sent (long polling on one
+  reused connection, no TLS handshake every poll).
+
 ### Firmware 3.0.12: ready in seconds, faster key exchange, Telegram commands
 
 - Startup and control-server reconnects are about 20 s faster: the gateway

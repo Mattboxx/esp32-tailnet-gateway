@@ -47,6 +47,7 @@
 #include "service_lease.h"
 #include "service_retry.h"
 #include "ntfy_events.h"
+#include "notify_text.h"
 #include "tailnet_forward.h"
 #include "web_ui.h"
 #include "history.h"
@@ -341,35 +342,13 @@ static void appendf(char *out, size_t size, const char *fmt, ...)
     va_end(args);
 }
 
-/* Static text shared by info and boot messages; no extra buffer or state. */
+/* Static text shared by info and boot messages (notify_text.c, the same
+ * wording Telegram and email use). */
 static const char *reset_reason_text(bool poweron_events)
 {
-    switch (esp_reset_reason()) {
-    case ESP_RST_POWERON: return poweron_events
-        ? "power restored or first power-up (possible blackout)"
-        : "power restored or first power-up";
-    case ESP_RST_EXT: return "external reset pin";
-    case ESP_RST_SW: return "software-requested restart";
-    case ESP_RST_PANIC: return "firmware crash (panic/exception)";
-    case ESP_RST_INT_WDT: return "interrupt watchdog timeout";
-    case ESP_RST_TASK_WDT: return "task watchdog timeout";
-    case ESP_RST_WDT: return "watchdog timeout";
-    case ESP_RST_DEEPSLEEP: return "wake from deep sleep";
-    case ESP_RST_BROWNOUT: return "supply voltage drop (brownout)";
-    case ESP_RST_SDIO: return "SDIO reset";
-    case ESP_RST_USB: return "USB peripheral reset";
-    case ESP_RST_JTAG: return "JTAG/debugger reset";
-    case ESP_RST_EFUSE: return "eFuse error";
-    case ESP_RST_PWR_GLITCH: return "power glitch detected";
-    case ESP_RST_CPU_LOCKUP: return "CPU lockup (double exception)";
-    default: return "unknown reset cause";
-    }
+    return notify_text_reset_cause((int)esp_reset_reason(), poweron_events);
 }
 
-static const char *reset_reason_description(const ntfy_integration_config_t *c)
-{
-    return reset_reason_text(c->poweron_events);
-}
 
 /* The info reply, shared by ntfy and Telegram commands (remote_commands.h).
  * Never contains passwords, Wi-Fi keys, Tailscale keys or service tokens;
@@ -750,10 +729,9 @@ static NTFY_NOINLINE esp_err_t send_tailscale_alert(const ntfy_integration_confi
 {
     /* Alerts report connectivity, never export the local log buffer. Private
      * details for an explicitly requested info reply are a separate policy. */
-    static const char message[] =
-        "Internet uplink is connected, but Tailscale has remained disconnected.\n"
-        "Open the local Diagnostics page to inspect logs.";
-    esp_err_t err = publish_message(c, "ESP32 Tailscale problem", "warning,mattboxx-response", message);
+    char title[NOTIFY_TITLE_MAX], message[160];
+    notify_text_tailscale_problem(title, message, sizeof message);
+    esp_err_t err = publish_message(c, title, "warning,mattboxx-response", message);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     if (err == ESP_OK)
         s_status.alerts_sent++;
@@ -775,25 +753,18 @@ static NTFY_NOINLINE uint32_t available_update_id(void)
 static NTFY_NOINLINE esp_err_t send_system_event(const ntfy_integration_config_t *c, unsigned event,
                                                 uint32_t outage_seconds)
 {
-    char message[192];
-    const char *title = "ESP32 gateway event";
+    /* Wording shared with Telegram and email (notify_text.c). */
+    char message[192], title[NOTIFY_TITLE_MAX];
     if (event == NTFY_EVENT_BOOT) {
         const esp_app_desc_t *app = esp_app_get_description();
-        esp_reset_reason_t reason = esp_reset_reason();
-        snprintf(message, sizeof message, "Gateway %s: firmware %.31s; reset cause: %s.",
-                 reason == ESP_RST_POWERON ? "powered on" : "restarted",
-                 app ? app->version : "unknown", reset_reason_description(c));
-        title = reason == ESP_RST_POWERON ? "ESP32 power-on detected" : "ESP32 gateway restarted";
+        notify_text_boot(title, message, sizeof message, app ? app->version : "unknown",
+                         (int)esp_reset_reason(), c->poweron_events);
     } else if (event == NTFY_EVENT_RESTORED) {
-        snprintf(message, sizeof message, "Tailscale control connection restored after about %lu s. "
-                 "This does not prove every peer or service is reachable.", (unsigned long)outage_seconds);
-        title = "ESP32 Tailscale restored";
+        notify_text_tailscale_restored(title, message, sizeof message, outage_seconds);
     } else {
         ota_remote_state_t update;
         ota_remote_get_state(&update);
-        snprintf(message, sizeof message, "Firmware %.31s is available. Nothing was installed; review the release and update from the Web UI.",
-                 update.latest_version);
-        title = "ESP32 firmware update available";
+        notify_text_update_available(title, message, sizeof message, update.latest_version);
     }
     return publish_message(c, title, "mattboxx-response", message);
 }

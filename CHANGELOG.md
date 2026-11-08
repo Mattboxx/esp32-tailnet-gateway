@@ -6,6 +6,21 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.13] — 2026-11-08
+
+### Changed
+
+- MQTT/Home Assistant: the state also carries the readable reset cause
+  (`reset_cause`, new "Reset cause" sensor) that ntfy, Telegram and email
+  report, next to the numeric `reset_reason` code, which is kept.
+- Telegram and email word every event as ntfy does (same title and message:
+  power-on with the reset cause, restarts, Tailscale problem and recovery) and
+  also announce an available update once per version.
+- Telegram remote commands use long polling on one reused connection: a
+  command runs as soon as it is sent instead of at the next poll, and the
+  TLS handshake every poll (about 2 % of a core at 15 s) is gone. The poll
+  interval is now the wait after an error or while commands are paused.
+
 ## [3.0.12] — 2026-11-08
 
 ### Added
