@@ -6,6 +6,35 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.10] — 2026-11-08
+
+3.0.9 was not published; its changes are part of this release.
+
+### Changed
+
+- Packets relayed through DERP are read as soon as they arrive: the idle
+  relay reader used to sleep 10 ms between checks, so a relayed packet could
+  wait up to that long before processing.
+- WireGuard handshakes take less time: X25519 squares with 36 instead of 64
+  multiplications, and multiplies with a hand-written Xtensa routine (the
+  product unrolled with the column sums in registers, about 30 % fewer
+  instructions), compared with the C version on the device before first use
+  (`crypto_asm.x25519_mul`). Measured on the board: 12.9 ms per key
+  agreement, against 14.6 ms with the faster squaring alone. Handshake work
+  runs in the task that decrypts
+  incoming packets, so packets arriving during a handshake wait less.
+  `/api/system/diag` → `crypto_asm` reports the last and longest X25519
+  duration (`x25519_us_last`, `x25519_us_max`).
+- Adding peers no longer stalls the data path: the static key agreement
+  with each peer (one X25519, about 15 ms measured on the board) was computed
+  when the peer was added, for every peer of the Tailnet map at start and on
+  every map change. It is now computed at the first handshake with that peer,
+  so peers that never talk to the gateway cost nothing.
+- Relayed (DERP) traffic is handled at the same priority as direct traffic:
+  the relay reader and writer ran below the web server and the integrations,
+  so relayed packets could wait behind them under load. They rest 10 ms
+  after 40 ms of continuous work so the web interface stays responsive.
+
 ## [3.0.8] — 2026-11-07
 
 ### Changed
