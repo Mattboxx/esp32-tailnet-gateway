@@ -3756,6 +3756,13 @@
             <div class="form-group"><label class="form-label" for="nt-tg-events">Send</label><select class="input" id="nt-tg-events"><option value="problems">Warnings and errors (recommended)</option><option value="all">All events</option></select></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-startup"><span class="feature-switch-track" aria-hidden="true"></span><span>Other restarts</span></label><span class="form-hint">Software, update and other normal starts. Crash, watchdog and brownout errors keep their separate warning/error path.</span></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-poweron"><span class="feature-switch-track" aria-hidden="true"></span><span>Blackout: notify when power returns</span></label><span class="form-hint">Reports a power-on reset, separate from a crash. First power-up or reconnecting the cable can look the same. Sent after power returns and the network is available; outage duration is unknown.</span></div>
+            <h4 style="font-size:var(--text-sm); margin:1rem 0 0.35rem 0;">Remote commands</h4>
+            <p class="form-hint" style="margin-top:0;">Send <code class="mono">info</code>, <code class="mono">wol NAME</code>, <code class="mono">recover NAME</code> or <code class="mono">check NAME</code> to your bot (with or without a leading <code class="mono">/</code>). Only messages from the chat above are executed; commands sent before they were switched on, or more than 10 minutes old, are ignored.</p>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd"><span class="feature-switch-track" aria-hidden="true"></span><span>Receive remote commands</span></label><div class="feature-inline-dependent" id="nt-tg-cmd-settings"><label class="form-label" for="nt-tg-cmd-poll" style="margin-top:0.5rem;">Poll interval (seconds)</label><input class="input mono" type="number" id="nt-tg-cmd-poll" min="5" max="300" value="15"></div></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-down"><span class="feature-switch-track" aria-hidden="true"></span><span>Poll commands only while Tailscale is down</span></label></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-info"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow <code class="mono">info</code> command</span></label><span class="form-hint">Replies with operational state and counts. Credentials and tokens are always excluded.</span></div>
+            <div class="form-group feature-inline-dependent" id="nt-tg-cmd-details-setting"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-details"><span class="feature-switch-track" aria-hidden="true"></span><span>Include private network details in <code class="mono">info</code></span></label><span class="form-hint">Off by default. Enabling this includes SSID, IPs, routes, peer names, AP-client MACs and saved WOL targets in Telegram messages.</span></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-mac"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow <code class="mono">wol aa:bb:cc:dd:ee:ff</code> for unsaved MAC addresses</span></label><span class="form-hint">When off, <code class="mono">wol DEVICE_NAME</code> and saved MAC addresses still work.</span></div>
           </div>
           <p class="form-hint mono" id="nt-tg-status">—</p>
           <p class="form-hint" id="nt-tg-note" role="status">Loading…</p>
@@ -4249,7 +4256,7 @@
           <div class="card-header-left">
             <span class="card-title">About</span>
           </div>
-          <span class="badge badge-neutral mono">MIT</span>
+          <span class="badge badge-neutral mono">GPL-3.0</span>
         </div>
         <div class="card-body">
           <p style="margin:0 0 0.5rem 0;"><strong>ESP32 Tailnet Gateway — Mattboxx Edition</strong> — selective Tailnet service access, independent Wake-on-LAN and local diagnostics, with optional MQTT/Home Assistant and ntfy automation. Independent of managed servers, not of power, the router, Internet or VPN infrastructure.</p>
@@ -4262,7 +4269,7 @@
           <div class="stat-row"><span class="stat-label">Issues</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailnet-gateway/issues" target="_blank" rel="noopener" style="color:var(--accent);">github.com/&hellip;/issues</a></span></div>
           <div class="stat-row"><span class="stat-label">Original upstream</span><span class="stat-value mono"><a href="https://github.com/Csontikka/esp32-tailscale-subnet-router" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/esp32-tailscale-subnet-router</a></span></div>
           <div class="stat-row"><span class="stat-label">Tailscale stack</span><span class="stat-value mono"><a href="https://github.com/Csontikka/microlink" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/microlink</a> (userspace WireGuard + DERP + DISCO)</span></div>
-          <div class="stat-row"><span class="stat-label">License</span><span class="stat-value mono">MIT — see LICENSE in the repo</span></div>
+          <div class="stat-row"><span class="stat-label">License</span><span class="stat-value mono">GPL-3.0 — see LICENSE and NOTICE.md in the repo</span></div>
           <div class="stat-row"><span class="stat-label">Privacy</span><span class="stat-value mono">No telemetry / GitHub updates opt-in only</span></div>
         </div>
       </div>
@@ -5891,7 +5898,8 @@
           if (!hist.length) return;
           var e = hist[0];
           var critical = { PANIC:1, TASK_WDT:1, INT_WDT:1, BROWNOUT:1 };
-          if (!critical[e.reason]) return;
+          /* FLASH/ROLLBACK rows keep an abnormal chip reset in `who`. */
+          if (!critical[e.reason] && !/^after /.test(e.who || '')) return;
           var key = 'panicAck:' + (e.wallclock || 0) + ':' + e.reason;
           if (sessionStorage.getItem(key) === '1') return;
           var when = e.wallclock
@@ -5902,7 +5910,8 @@
               escapeHtml(when) +
               (e.who ? ' (attributed to: ' + escapeHtml(e.who) + ')' : '');
           document.getElementById('panic-crash').textContent =
-              e.crash || '(no crash one-liner stored — check coredump partition)';
+              isBrownoutRow(e) ? brownoutAdvice(hist)
+                : (e.crash || '(no crash one-liner stored — check coredump partition)');
           var modal = document.getElementById('panicAlertModal');
           modal.classList.add('open');
           var ack = document.getElementById('panic-ack');
@@ -7320,6 +7329,11 @@
           el('nt-tg-poweron').checked = t.notify_poweron === undefined ? (t.events || d.events) === 'all' : !!t.notify_poweron;
           el('nt-tg-startup').checked = t.notify_startup === undefined ? (t.events || d.events) === 'all' : !!t.notify_startup;
           el('nt-tg-token').value = ''; el('nt-tg-clear').checked = false;
+          var tc = t.commands || {};
+          el('nt-tg-cmd').checked = !!tc.enabled; el('nt-tg-cmd-down').checked = tc.only_when_tailscale_down !== false;
+          el('nt-tg-cmd-info').checked = tc.info_enabled !== false; el('nt-tg-cmd-details').checked = !!tc.info_include_details;
+          el('nt-tg-cmd-mac').checked = !!tc.allow_direct_mac; el('nt-tg-cmd-poll').value = tc.poll_interval_seconds || 15;
+          tgCommandStates();
           el('nt-tg-token').placeholder = t.has_token ? 'Saved — leave empty to keep' : '123456789:AA…';
           }
           if (!dirty.mail) {
@@ -7330,7 +7344,11 @@
           el('nt-mail-user').value = m.user; el('nt-mail-from').value = m.from; el('nt-mail-to').value = m.to;
           el('nt-mail-pass').value = ''; el('nt-mail-pass').placeholder = m.has_password ? 'Saved — leave empty to keep' : 'Password or app password';
           }
-          el('nt-tg-status').textContent = channelText(t);
+          var tcs = t.commands || {};   /* status: also when unsaved edits keep the fields */
+          el('nt-tg-status').textContent = channelText(t) + (tcs.enabled
+            ? ' · commands ' + (tcs.running ? 'on' : 'waiting') + ': ' + (tcs.received | 0) + ' run, ' + (tcs.errors | 0) + ' refused' +
+              (tcs.other_chats_skipped ? ', ' + tcs.other_chats_skipped + ' from other chats ignored' : '') + (tcs.last_error ? ' — ' + tcs.last_error : '')
+            : '');
           el('nt-mail-status').textContent = channelText(m);
           badge('nt-tg-badge', t.enabled); badge('nt-mail-badge', m.enabled);
           var waiting = d.waiting ? d.waiting + ' message(s) waiting to be sent.' : d.pending_connectivity ? 'Checking connectivity: alerts wait ' + (d.connectivity_grace_seconds || 60) + ' seconds.' : null;
@@ -7358,7 +7376,9 @@
         var btn = el('nt-' + ch + '-save'); btn.disabled = true;
         var body = ch === 'tg'
           ? {telegram: {enabled: el('nt-tg-enabled').checked, chat: el('nt-tg-chat').value.trim(), token: el('nt-tg-token').value.trim(),
-                        clear_token: el('nt-tg-clear').checked, events: el('nt-tg-events').value, notify_startup: el('nt-tg-startup').checked, notify_poweron: el('nt-tg-poweron').checked}}
+                        clear_token: el('nt-tg-clear').checked, events: el('nt-tg-events').value, notify_startup: el('nt-tg-startup').checked, notify_poweron: el('nt-tg-poweron').checked,
+                        commands: {enabled: el('nt-tg-cmd').checked, only_when_tailscale_down: el('nt-tg-cmd-down').checked, allow_direct_mac: el('nt-tg-cmd-mac').checked,
+                                   info_enabled: el('nt-tg-cmd-info').checked, info_include_details: el('nt-tg-cmd-details').checked, poll_interval_seconds: Number(el('nt-tg-cmd-poll').value)}}}
           : {email: {enabled: el('nt-mail-enabled').checked, host: el('nt-mail-host').value.trim(), port: Number(el('nt-mail-port').value),
                      security: el('nt-mail-security').value, user: el('nt-mail-user').value.trim(), password: el('nt-mail-pass').value,
                      from: el('nt-mail-from').value.trim(), to: el('nt-mail-to').value.trim(), events: el('nt-mail-events').value, notify_startup: el('nt-mail-startup').checked, notify_poweron: el('nt-mail-poweron').checked}};
@@ -7389,7 +7409,17 @@
         } catch (e) { el('nt-timing-note').textContent = 'Not saved: ' + e.message; }
         finally { timingSaving = false; this.disabled = !timingDirty; }
       });
-      el('nt-tg-save').addEventListener('click', function () { save('tg'); });
+      /* Dependent fields follow their switches, like the ntfy card. */
+      function tgCommandStates() {
+        setFeatureDependentState('nt-tg-cmd-settings', el('nt-tg-cmd').checked);
+        setFeatureDependentState('nt-tg-cmd-details-setting', el('nt-tg-cmd-info').checked);
+      }
+      ['nt-tg-cmd', 'nt-tg-cmd-info'].forEach(function (id) { el(id).addEventListener('change', tgCommandStates); });
+      el('nt-tg-save').addEventListener('click', function () {
+        var poll = Number(el('nt-tg-cmd-poll').value);
+        if (el('nt-tg-cmd').checked && (!Number.isInteger(poll) || poll < 5 || poll > 300)) { el('nt-tg-note').textContent = 'Poll interval: use 5 to 300 whole seconds.'; return; }
+        save('tg');
+      });
       el('nt-mail-save').addEventListener('click', function () { save('mail'); });
       async function test(channel, note) {
         try {
@@ -9726,11 +9756,46 @@
                  : '<span class="badge badge-neutral">' + L('not checked yet') + '</span>';
           };
           var chk = !fc.checked ? 0 : fc.active ? 1 : -1;
+          /* X25519 (3.0.12): the field product the device chose after checking
+           * each against C (2 PIE vector unit, 1 assembly, -1 C), the time of
+           * one scalar multiplication for WireGuard and for the control plane,
+           * and the measured product cycles. */
+          var ms = function (us) { return ((us | 0) / 1000).toFixed(1) + ' ms'; };
+          /* Boot timeline (3.0.12): seconds from the start of the application
+           * to each first milestone of this boot; a milestone not reached yet
+           * is left out. */
+          var startupLine = function (bt) {
+            if (!bt) return '';
+            var parts = [['wifi_assoc', 'Wi-Fi'], ['ip', 'IP address'], ['web', 'web interface'],
+                         ['time_sync', 'clock'], ['control_connected', 'control server'], ['first_tunnel', 'first tunnel']];
+            var out = [];
+            parts.forEach(function (p) {
+              if (typeof bt[p[0]] === 'number') out.push(L(p[1]) + ' <strong>' + (bt[p[0]] / 1000).toFixed(1) + ' s</strong>');
+            });
+            return out.length ? '<div>' + L('Startup after the last reset:') + ' ' + out.join(' · ') + '</div>' : '';
+          };
+          var x25519Line = function (c) {
+            var m = c.x25519_mul, cyc = c.x25519_mul_cycles || [];
+            var impl = m === 2 ? '<span class="badge badge-success">' + L('vector unit (PIE)') + '</span>'
+                     : m === 1 ? '<span class="badge badge-success">' + L('assembly') + '</span>' : asmState(m);
+            return '<div>' + L('Key exchange (X25519):') + ' ' + impl +
+              (m === 2 && c.x25519_mulred ? ' · ' + L('reduction fused') : '') +
+              (m === 2 && c.x25519_sqr_pie ? ' · ' + L('squares on PIE') : '') +
+              (c.x25519_calls ? ' · ' + L('WireGuard, last:') + ' <strong>' + ms(c.x25519_us_last) + '</strong> (' +
+                L('max') + ' ' + ms(c.x25519_us_max) + ')' : '') +
+              (c.x25519_ctrl_calls ? ' · ' + L('control plane, last:') + ' ' + ms(c.x25519_ctrl_us_last) : '') + '</div>' +
+              (m > 0 && cyc[0] ? '<div>' + L('Field product cycles (C / assembly / PIE):') + ' ' + (cyc[0] | 0) + ' / ' +
+                (cyc[1] ? cyc[1] | 0 : '—') + ' / ' + (cyc[2] ? cyc[2] | 0 : '—') +
+                (c.x25519_mulred && cyc[5] ? ' · ' + L('complete multiplication:') + ' ' + (cyc[5] | 0) +
+                  ' (' + (cyc[4] | 0) + ' ' + L('unfused') + ')' : '') + '</div>' : '');
+          };
           var html =
             '<div>' + L('Assembly crypto:') + ' ChaCha20 ' + asmState(ca.chacha20) +
             ' · Poly1305 ' + asmState(ca.poly1305) + ' · ' + L('checksum') + ' ' + asmState(chk) +
             (fc.active && fc.cycles_1400_lwip ? ' (' + (fc.cycles_1400_fast | 0) + ' / ' + (fc.cycles_1400_lwip | 0) +
               ' ' + L('cycles per 1400 bytes, lwIP') + (fc.impl === 'xtensa-pie' ? ' · PIE' : '') + ')' : '') + '</div>' +
+            startupLine(d.boot_timeline) +
+            x25519Line(ca) +
             '<div>' + L('Compromised certificate authorities blocked:') + ' <strong>' + (td.distrusted_cas | 0) +
             '</strong> · ' + L('refused connections:') + ' <strong>' + (td.refused_chains | 0) + '</strong></div>';
           cnEl.innerHTML = html + '<div class="form-hint">' + L('Loading…') + '</div>';
@@ -10126,13 +10191,12 @@
             }
             sel.value = stored;
           })();
-          /* Prefer the persisted NVS value so the field reflects what'll
-           * survive a reboot; fall back to the live value when there is
-           * no override yet. */
-          var txShown = (typeof d.tx_power_nvs === 'number' && d.tx_power_nvs > 0)
-                          ? d.tx_power_nvs
-                          : (typeof d.tx_power === 'number' ? d.tx_power : 0);
-          document.getElementById('sys-tx-power').value      = txShown || 0;
+          /* The field holds only the persisted override (0 = IDF default).
+           * Showing the live radio value here would turn "default" into a
+           * fixed override on the next unrelated System save. */
+          var txShown = (typeof d.tx_power_nvs === 'number' && d.tx_power_nvs > 0) ? d.tx_power_nvs : 0;
+          s_txLive = (typeof d.tx_power === 'number') ? d.tx_power : null;
+          document.getElementById('sys-tx-power').value      = txShown;
           document.getElementById('sys-web-port').value      = d.web_port || 80;
           updateTxPowerDbm(txShown);
           var ps = document.getElementById('sys-wifi-ps');
@@ -10233,6 +10297,19 @@
       } catch (e) { return '' + ts; }
     }
 
+    /* Brownout rows: the reset itself, or one kept behind a FLASH/ROLLBACK
+     * label (reset_history.c stores "after BROWNOUT" in `who`). */
+    function isBrownoutRow(e) {
+      return !!e && (e.reason === 'BROWNOUT' || e.who === 'after BROWNOUT');
+    }
+    function brownoutAdvice(hist) {
+      var n = hist.filter(isBrownoutRow).length;
+      if (n >= 2) return 'Multiple brownout resets detected (' + n + ' of the last ' + hist.length +
+                         ' boots). Check power supply and USB cable.';
+      return 'The supply voltage dropped below the brownout threshold; no crash dump is expected. ' +
+             'Check power supply and USB cable.';
+    }
+
     function renderResetHistory(hist) {
       var tb = document.getElementById('sys-hist-tbody');
       var badge = document.getElementById('sys-hist-badge');
@@ -10245,6 +10322,7 @@
       }
       badge.textContent = '' + hist.length;
       var crashCount = 0;
+      var brownouts = hist.filter(isBrownoutRow).length;
       var rows = hist.map(function (e, i) {
         var reason = e.reason || '';
         if (reason.indexOf('PANIC') >= 0 || reason.indexOf('WDT') >= 0) crashCount++;
@@ -10257,19 +10335,26 @@
           + '<td>' + crashCell + '</td>'
           + '</tr>';
       }).join('');
+      if (brownouts) rows += '<tr><td colspan="4" class="form-hint">' + escapeHtml(brownoutAdvice(hist)) + '</td></tr>';
       tb.innerHTML = rows;
-      badge.className = crashCount ? 'badge badge-danger' : 'badge badge-success';
-      badge.textContent = crashCount ? (crashCount + '× crash / ' + hist.length) : ('' + hist.length);
+      var faults = [];
+      if (crashCount) faults.push(crashCount + '× crash');
+      if (brownouts) faults.push(brownouts + '× brownout');
+      badge.className = faults.length ? 'badge badge-danger' : 'badge badge-success';
+      badge.textContent = faults.length ? (faults.join(', ') + ' / ' + hist.length) : ('' + hist.length);
     }
 
     /* Render the dBm conversion next to the TX-power input so the
      * operator doesn't have to do the 0.25 multiplication in their
      * head. 0 stays a special "default" indicator. */
+    var s_txLive = null;   /* radio's applied value from /api/system */
     function updateTxPowerDbm(raw) {
       var el = document.getElementById('sys-tx-power-dbm');
       var v  = parseInt(raw, 10);
-      if (!v) { el.textContent = '= IDF default'; return; }
-      el.textContent = '≈ ' + (v * 0.25).toFixed(2) + ' dBm';
+      var live = (typeof s_txLive === 'number')
+        ? ' (now ' + (s_txLive * 0.25).toFixed(2) + ' dBm)' : '';
+      if (!v) { el.textContent = '= IDF default' + live; return; }
+      el.textContent = '≈ ' + (Math.min(v, 80) * 0.25).toFixed(2) + ' dBm' + live;
     }
 
     /* Opt-in updates are asynchronous and independent of local OTA upload. */

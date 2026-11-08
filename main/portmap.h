@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* NAT port-forwarding (NAPT portmap) table with NVS persistence.
  *
  * Each entry maps an external (uplink-bound) TCP/UDP port to an internal

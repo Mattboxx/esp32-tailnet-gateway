@@ -1,4 +1,4 @@
-/* Bounded, allocation-free projection of one ntfy JSON event. SPDX-License-Identifier: MIT */
+/* Bounded, allocation-free projection of one ntfy JSON event. SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 #include <stdbool.h>
 #include <stddef.h>

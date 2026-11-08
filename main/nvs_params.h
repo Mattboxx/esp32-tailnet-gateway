@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* Small wrapper around the ESP-IDF NVS API for the single project
  * namespace ("tsr"). Every other module in the firmware talks to NVS
  * through these helpers so the namespace + read/write conventions live

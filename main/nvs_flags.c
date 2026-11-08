@@ -1,5 +1,5 @@
 /* Switches in one NVS byte; see nvs_flags.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "nvs_flags.h"
 #include "nvs_params.h"
 

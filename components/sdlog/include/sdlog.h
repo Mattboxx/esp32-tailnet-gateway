@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* SD flight-recorder - persistent on-device log to a microSD card.
  *
  * A vprintf hook formats each ESP_LOG line into a FreeRTOS queue; a

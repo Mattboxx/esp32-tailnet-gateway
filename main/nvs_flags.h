@@ -6,7 +6,7 @@
  * only while the record is absent (migration), and written after the record
  * on every save, best effort, so that a rollback keeps the settings. They
  * never decide once the record exists.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>

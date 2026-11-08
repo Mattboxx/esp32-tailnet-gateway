@@ -94,6 +94,8 @@ idf_component_register(SRCS "main.c" ${_tsr_optional}
                             "settings_snapshot.c"
                             "tailnet_names.c"
                             "notify_channels.c"
+                            "telegram_commands.c"
+                            "boot_timeline.c"
                             "throughput.c"
                             "service_lease.c"
                             "service_transfer.c"

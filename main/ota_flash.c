@@ -1,6 +1,6 @@
 /* Flash mapping/erase/verification must not run on the HTTPS worker's PSRAM
  * stack: ESP-IDF freezes caches and requires the current stack in internal RAM.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "ota_flash.h"
 #include <stdbool.h>
 #include <stdint.h>

@@ -54,6 +54,11 @@ static void vTaskDelay(int ms){clock_s+=(uint32_t)ms/1000;}
 static int xTaskCreateWithCaps(void (*fn)(void*),const char*n,int a,void*b,int c,void*d,int e){(void)fn;(void)n;(void)a;(void)b;(void)c;(void)d;(void)e;creates++;return task_ok;}
 static const char *esp_err_to_name(int e){(void)e;return "fixture error";}
 static void *heap_caps_calloc(size_t n,size_t size,int cap){(void)cap;return calloc(n,size);}
+static void *heap_caps_malloc(size_t size,int cap){(void)cap;return malloc(size);}
+/* The Telegram command helpers in the extracted range use strlcpy; a local
+ * copy avoids depending on the host C library (glibc < 2.38, MinGW). */
+static size_t fixture_strlcpy(char *d,const char *s,size_t n){size_t l=strlen(s);if(n){size_t c=l<n-1?l:n-1;memcpy(d,s,c);d[c]=0;}return l;}
+#define strlcpy fixture_strlcpy
 void history_set_sink_poller(history_sink_t sink,history_sink_poll_t poll){(void)sink;registered_poll=poll;}
 bool notify_wanted(uint8_t setting,unsigned kind,unsigned level){return kind==HIST_EV_SERVICE||setting==NOTIFY_ALL||level>=HIST_WARN;}
 static void when_text(uint32_t t,char *s,size_t n){(void)t;if(n)s[0]=0;}
@@ -147,7 +152,8 @@ boot_cases=r'''
 fixture=fixture.replace('int main(void){',producer+'\nint main(void){'+boot_cases,1)
 with tempfile.TemporaryDirectory(prefix='notify-delivery-') as directory:
     p=Path(directory)
-    (p/'esp_err.h').write_text('#pragma once\ntypedef int esp_err_t;\n#define ESP_OK 0\n#define ESP_FAIL -1\n')
+    (p/'esp_err.h').write_text('#pragma once\ntypedef int esp_err_t;\n#define ESP_OK 0\n#define ESP_FAIL -1\n'
+                            '#define ESP_ERR_NO_MEM 0x101\n#define ESP_ERR_INVALID_ARG 0x102\n#define ESP_ERR_INVALID_STATE 0x103\n')
     (p/'esp_http_server.h').write_text('#pragma once\ntypedef void *httpd_handle_t;\n')
     fixture=fixture.replace('bool notify_wanted(uint8_t setting,unsigned kind,unsigned level){return kind==HIST_EV_SERVICE||setting==NOTIFY_ALL||level>=HIST_WARN;}',wanted)
     (p/'case.c').write_text(fixture,encoding='utf-8')

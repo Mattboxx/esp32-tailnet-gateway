@@ -1,5 +1,5 @@
 """Differential test: the current WireGuard ChaCha20/Poly1305 C against the
-previous implementation (MicroLink 403e596, built side by side with renamed
+previous implementation (MicroLink 6d63b5f, formerly 403e596, built side by side with renamed
 symbols) on deterministic random inputs.
 
 Covers lengths 0-1600, every input/output misalignment 0-3, in-place and
@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ML = ROOT / 'external/microlink'
 REL = 'components/microlink/components/wireguard_lwip/src'
 # Last MicroLink revision with the original reference ChaCha20/Poly1305 code.
-OLD_REV = os.environ.get('WG_CRYPTO_DIFF_BASE', '403e596')
+OLD_REV = os.environ.get('WG_CRYPTO_DIFF_BASE', '6d63b5f11b00e9299969d87d71125ad9bc329dbc')  # was 403e596 before the 2026-11-08 history rewrite (same tree)
 FILES = ['crypto.h', 'ml_perf.h', 'crypto/refc/chacha20.c', 'crypto/refc/chacha20.h',
          'crypto/refc/chacha20poly1305.c', 'crypto/refc/chacha20poly1305.h', 'crypto/refc/poly1305-donna.c',
          'crypto/refc/poly1305-donna.h', 'crypto/refc/poly1305-donna-32.h', 'crypto/refc/wg_hotloop.h',

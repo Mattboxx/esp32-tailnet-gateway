@@ -67,7 +67,8 @@ class PackagingVersionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             root, idf, build = base / 'project', base / 'sdk', base / 'build'
-            names = ['LICENSE', 'NOTICE.md', 'external/microlink/LICENSE',
+            names = ['LICENSE', 'LICENSE-EXCEPTION.md', 'licenses/upstream/esp32-tailscale-subnet-router-MIT.txt',
+                     'NOTICE.md', 'external/microlink/LICENSE',
                      'external/microlink/x25519-license.txt',
                      'external/microlink/components/microlink/components/wireguard_lwip/LICENSE']
             for name in names:

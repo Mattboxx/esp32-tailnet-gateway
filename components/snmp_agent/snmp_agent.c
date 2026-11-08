@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Minimal SNMPv1/v2c read-only agent using BSD sockets.
  *
  * Runs as a FreeRTOS task listening on UDP 0.0.0.0:161.

@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Persistent event history and resource/traffic history (3.x storage).
  *
  * Events: boot, crash, update, uplink and tailnet changes, settings copies,

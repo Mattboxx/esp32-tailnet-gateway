@@ -1,5 +1,5 @@
 /* Throughput test; see throughput.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "throughput.h"
 #include <stdio.h>
 #include <string.h>

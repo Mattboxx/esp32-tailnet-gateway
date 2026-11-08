@@ -1,4 +1,4 @@
-/* Opt-in layered evidence, not a connectivity guarantee. SPDX-License-Identifier: MIT */
+/* Opt-in layered evidence, not a connectivity guarantee. SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 #include <stdint.h>
 #include <stdbool.h>

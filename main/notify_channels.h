@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Telegram and email notifications, next to ntfy.
  *
  * Messages come from the event bus of history.c (starts, crashes, updates,
@@ -59,6 +62,11 @@ bool notify_wanted(uint8_t level_setting, unsigned kind, unsigned level);
 
 /* Firmware. */
 void notify_channels_init(void);       /* before history_init */
+/* The Telegram bot target for remote commands; false (and empty) when the
+ * Telegram channel is off or incomplete. The token is secret: wipe it. */
+bool notify_telegram_target(char *token, size_t token_cap, char *chat, size_t chat_cap);
+/* Send one text to the configured chat now (remote command replies). */
+esp_err_t notify_telegram_send_text(const char *text, char *why, size_t cap);
 void notify_channels_enabled(bool *telegram, bool *email);
 #include "esp_http_server.h"
 esp_err_t notify_channels_register_http(httpd_handle_t server);

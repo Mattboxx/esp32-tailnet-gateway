@@ -36,6 +36,16 @@ static int httpd_resp_sendstr(httpd_req_t *r,const char *s){assert(s);if(!r->sta
 static const char *esp_err_to_name(int e){(void)e;return "injected failure";}
 static void *heap_caps_malloc(size_t n,int cap){(void)cap;return ++allocations==fail_allocation?NULL:malloc(n);}
 static void apply_locked(void){applied++;}
+/* Telegram remote commands (telegram_commands.c, 3.0.12): their own NVS keys,
+ * stubbed here; the POST validates and forwards telegram.commands. */
+#include "telegram_commands.h"
+static telegram_commands_config_t tg_cmd = {.info_enabled = true, .poll_interval_seconds = 15};
+static int tg_set, tg_refresh, tg_set_error;
+void telegram_commands_get_config(telegram_commands_config_t *c){*c=tg_cmd;}
+void telegram_commands_get_status(telegram_commands_status_t *s){memset(s,0,sizeof *s);}
+bool telegram_commands_config_valid(const telegram_commands_config_t *c){return c&&c->poll_interval_seconds>=5&&c->poll_interval_seconds<=300;}
+esp_err_t telegram_commands_set_config(const telegram_commands_config_t *c){if(tg_set_error)return ESP_FAIL;tg_cmd=*c;tg_set++;return ESP_OK;}
+void telegram_commands_refresh(void){tg_refresh++;}
 '''
 tests = r'''
 static void setup(void){reset();s_cfg=sample();s_mail_level=NOTIFY_PROBLEMS;s_startup_channels=0;
@@ -96,7 +106,27 @@ int main(void){
  assert(post_notify(&denied)==ESP_FAIL&&!denied.offset);
  timing_error=1;httpd_req_t failure={.body=timings[0],.content_len=(int)strlen(timings[0]),.authorized=true};
  assert(post_notify(&failure)==ESP_OK&&failure.status==500&&s_link_grace_s==3600);
- puts("PASS actual notification POST: auth dispatch, independent startup choices, omitted-field preservation, type/duplicate refusal, persistence failures and OOM");
+ /* telegram.commands: every option required, poll 5..300 s, saved after the
+  * channel record, then the poller is refreshed; a refusal saves nothing. */
+ timing_error=0;
+ const char *cmd_ok="{\"telegram\":{\"commands\":{\"enabled\":true,\"only_when_tailscale_down\":false,\"allow_direct_mac\":true,"
+  "\"info_enabled\":true,\"info_include_details\":false,\"poll_interval_seconds\":30}}}";
+ setup();tg_set=tg_refresh=0;assert(post(cmd_ok,true)==200&&tg_set==1&&tg_refresh==1);
+ assert(tg_cmd.commands_enabled&&!tg_cmd.commands_only_when_tailscale_down&&tg_cmd.allow_direct_mac&&tg_cmd.poll_interval_seconds==30);
+ const char *cmd_bad[]={
+  "{\"telegram\":{\"commands\":{\"enabled\":true,\"only_when_tailscale_down\":false,\"allow_direct_mac\":true,\"info_enabled\":true,\"info_include_details\":false,\"poll_interval_seconds\":4}}}",
+  "{\"telegram\":{\"commands\":{\"enabled\":true,\"only_when_tailscale_down\":false,\"allow_direct_mac\":true,\"info_enabled\":true,\"info_include_details\":false,\"poll_interval_seconds\":301}}}",
+  "{\"telegram\":{\"commands\":{\"enabled\":true,\"only_when_tailscale_down\":false,\"allow_direct_mac\":true,\"info_enabled\":true,\"info_include_details\":false,\"poll_interval_seconds\":7.5}}}",
+  "{\"telegram\":{\"commands\":{\"enabled\":1,\"only_when_tailscale_down\":false,\"allow_direct_mac\":true,\"info_enabled\":true,\"info_include_details\":false,\"poll_interval_seconds\":30}}}",
+  "{\"telegram\":{\"commands\":{\"enabled\":true,\"allow_direct_mac\":true,\"info_enabled\":true,\"info_include_details\":false,\"poll_interval_seconds\":30}}}",
+  "{\"telegram\":{\"commands\":[]}}"};
+ for(unsigned i=0;i<sizeof cmd_bad/sizeof *cmd_bad;i++){
+  telegram_commands_config_t before=tg_cmd;
+  setup();tg_set=tg_refresh=0;assert(post(cmd_bad[i],true)==400&&!tg_set&&!tg_refresh&&!applied);
+  assert(!memcmp(&before,&tg_cmd,sizeof before));
+ }
+ setup();tg_set=tg_refresh=0;tg_set_error=1;assert(post(cmd_ok,true)==500&&!tg_refresh);tg_set_error=0;
+ puts("PASS actual notification POST: auth dispatch, independent startup choices, omitted-field preservation, type/duplicate refusal, persistence failures and OOM, Telegram command options (range, types, missing fields, save failure)");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='notify-api-') as folder:

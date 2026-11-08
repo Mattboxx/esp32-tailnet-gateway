@@ -1,5 +1,5 @@
 /* Persistent reaper for WithCaps tasks; see task_reaper.h.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "task_reaper.h"
 
 #include "esp_heap_caps.h"

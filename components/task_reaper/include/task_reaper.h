@@ -6,7 +6,7 @@
  * turns an ordinary worker exit into a device reset. These helpers hand the
  * exiting task to one persistent reaper created at boot instead, so a worker
  * exit needs no new allocation. Without the reaper they fall back to the SDK.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 
 #include "esp_err.h"

@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Optional ntfy integration.
  *
  * No traffic is emitted unless explicitly enabled. The access token is never
@@ -5,6 +8,7 @@
  */
 #include "ntfy_integration.h"
 #include "ntfy_json_stream.h"
+#include "remote_commands.h"
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -338,10 +342,10 @@ static void appendf(char *out, size_t size, const char *fmt, ...)
 }
 
 /* Static text shared by info and boot messages; no extra buffer or state. */
-static const char *reset_reason_description(const ntfy_integration_config_t *c)
+static const char *reset_reason_text(bool poweron_events)
 {
     switch (esp_reset_reason()) {
-    case ESP_RST_POWERON: return c->poweron_events
+    case ESP_RST_POWERON: return poweron_events
         ? "power restored or first power-up (possible blackout)"
         : "power restored or first power-up";
     case ESP_RST_EXT: return "external reset pin";
@@ -362,10 +366,19 @@ static const char *reset_reason_description(const ntfy_integration_config_t *c)
     }
 }
 
-static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
+static const char *reset_reason_description(const ntfy_integration_config_t *c)
 {
+    return reset_reason_text(c->poweron_events);
+}
+
+/* The info reply, shared by ntfy and Telegram commands (remote_commands.h).
+ * Never contains passwords, Wi-Fi keys, Tailscale keys or service tokens;
+ * private network details only with include_details. Caller frees. */
+NTFY_NOINLINE char *remote_info_text(bool include_details, bool poweron_events)
+{
+    const struct { bool info_include_details, poweron_events; } cfg = {include_details, poweron_events}, *c = &cfg;
     char *text = calloc(1, 8192);
-    if (!text) return ESP_ERR_NO_MEM;
+    if (!text) return NULL;
     const esp_app_desc_t *app = esp_app_get_description();
     runtime_metrics_t cpu = runtime_metrics_get();
     if (cpu.valid)
@@ -376,7 +389,7 @@ static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
     appendf(text, 8192, "Firmware: %s\nUptime: %llu s\nFree heap: %lu B (minimum %lu B)\nReset reason: %s\nWeb UI port: %u\n",
             app ? app->version : "unknown", esp_timer_get_time() / 1000000ULL,
             (unsigned long)esp_get_free_heap_size(),
-            (unsigned long)esp_get_minimum_free_heap_size(), reset_reason_description(c),
+            (unsigned long)esp_get_minimum_free_heap_size(), reset_reason_text(c->poweron_events),
             (unsigned)web_ui_configured_port());
     appendf(text, 8192, "Socket limit: %d\nSNMP: %s (%s)\n",
             CONFIG_LWIP_MAX_SOCKETS, snmp_agent_is_enabled() ? "enabled" : "disabled",
@@ -498,6 +511,13 @@ static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
         }
         appendf(text, 8192, "\n");
     }
+    return text;
+}
+
+static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
+{
+    char *text = remote_info_text(c->info_include_details, c->poweron_events);
+    if (!text) return ESP_ERR_NO_MEM;
     /* ntfy messages are limited in size. Send deterministic chunks; no chunk
      * contains passwords, WiFi keys, Tailscale keys, or broker/ntfy tokens. */
     size_t length = strlen(text), offset = 0;
@@ -517,7 +537,7 @@ static NTFY_NOINLINE esp_err_t send_info(const ntfy_integration_config_t *c)
     return result;
 }
 
-static esp_err_t wake_argument(const ntfy_integration_config_t *c, const char *argument)
+static esp_err_t wake_argument(bool allow_direct_mac, const char *argument)
 {
     while (*argument == ' ') argument++;
     for (int i = 0; i < wol_count(); i++) {
@@ -528,25 +548,28 @@ static esp_err_t wake_argument(const ntfy_integration_config_t *c, const char *a
     uint8_t mac[6];
     if (!wol_parse_mac(argument, mac)) return ESP_ERR_NOT_FOUND;
     if (wol_send_saved_mac_text(argument) == ESP_OK) return ESP_OK;
-    return c->allow_direct_mac ? wol_send_mac(mac, NULL, 9) : ESP_ERR_INVALID_STATE;
+    return allow_direct_mac ? wol_send_mac(mac, NULL, 9) : ESP_ERR_INVALID_STATE;
 }
 
-static NTFY_NOINLINE void handle_command(const ntfy_integration_config_t *c, const char *message)
+/* One remote command, shared by ntfy and Telegram (remote_commands.h). */
+remote_cmd_kind_t remote_command_run(const char *message, bool info_enabled, bool allow_direct_mac,
+                                     char *reply, size_t cap, const char **title)
 {
+    if (reply && cap) reply[0] = '\0';
+    if (title) *title = NULL;
     while (*message && isspace((unsigned char)*message)) message++;
     /* Mobile clients often append a newline. Trim edges without changing
      * spaces within a saved WOL device name; reject oversized commands. */
     size_t length = strlen(message);
     while (length && isspace((unsigned char)message[length - 1])) length--;
     char command[128];
-    if (!length || length >= sizeof command) return;
+    if (!length || length >= sizeof command) return REMOTE_CMD_NONE;
     memcpy(command, message, length);
     command[length] = '\0';
     message = command;
+    if (strcasecmp(message, "info") == 0) return info_enabled ? REMOTE_CMD_INFO : REMOTE_CMD_ERROR;
     esp_err_t err = ESP_ERR_INVALID_ARG;
-    if (c->info_enabled && strcasecmp(message, "info") == 0) {
-        err = send_info(c);
-    } else if (strncasecmp(message,"recover ",8)==0 || strncasecmp(message,"check ",6)==0) {
+    if (strncasecmp(message,"recover ",8)==0 || strncasecmp(message,"check ",6)==0) {
         bool wake=strncasecmp(message,"recover ",8)==0;
         const char *selector=message+(wake?8:6);uint8_t mac[6];
         if(wol_parse_mac(selector,mac))err=homelab_ops_command(selector,wake);
@@ -555,20 +578,32 @@ static NTFY_NOINLINE void handle_command(const ntfy_integration_config_t *c, con
                 char address[18];wol_format_mac(d.mac,address);err=homelab_ops_command(address,wake);break;
             }
         }
-        (void)publish_message(c,"ESP32 recovery response","mattboxx-response",
-            err==ESP_OK?"Recovery/check accepted; completion must be verified in Devices & Recovery.":"Recovery/check rejected; verify target, remote-command permission, cooldown and resources.");
+        if (title) *title = "ESP32 recovery response";
+        if (reply) strlcpy(reply, err==ESP_OK?"Recovery/check accepted; completion must be verified in Devices & Recovery.":"Recovery/check rejected; verify target, remote-command permission, cooldown and resources.", cap);
     } else if (strncasecmp(message, "wol ", 4) == 0) {
-        err = wake_argument(c, message + 4);
-        char reply[160];
-        snprintf(reply, sizeof reply, "WOL %s: %s", message + 4,
-                 err == ESP_OK ? "packet sent" : esp_err_to_name(err));
-        (void)publish_message(c, "ESP32 WOL response", "mattboxx-response", reply);
+        err = wake_argument(allow_direct_mac, message + 4);
+        if (title) *title = "ESP32 WOL response";
+        if (reply) snprintf(reply, cap, "WOL %s: %s", message + 4,
+                            err == ESP_OK ? "packet sent" : esp_err_to_name(err));
+    } else {
+        return REMOTE_CMD_NONE;
     }
+    return err == ESP_OK ? REMOTE_CMD_OK : REMOTE_CMD_ERROR;
+}
+
+static NTFY_NOINLINE void handle_command(const ntfy_integration_config_t *c, const char *message)
+{
+    char reply[160];
+    const char *title = NULL;
+    remote_cmd_kind_t kind = remote_command_run(message, c->info_enabled, c->allow_direct_mac,
+                                                reply, sizeof reply, &title);
+    if (kind == REMOTE_CMD_NONE) return;
+    esp_err_t err = kind == REMOTE_CMD_OK ? ESP_OK : ESP_FAIL;
+    if (kind == REMOTE_CMD_INFO) err = send_info(c);
+    else if (reply[0] && title) (void)publish_message(c, title, "mattboxx-response", reply);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     if (err == ESP_OK) s_status.commands_received++;
-    else if (strncasecmp(message, "wol ", 4) == 0 || strcasecmp(message, "info") == 0
-        || strncasecmp(message,"recover ",8)==0 || strncasecmp(message,"check ",6)==0)
-        s_status.command_errors++;
+    else s_status.command_errors++;
     xSemaphoreGive(s_lock);
 }
 

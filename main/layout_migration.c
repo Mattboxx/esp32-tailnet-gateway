@@ -1,5 +1,5 @@
 /* 2.x -> 3.x flash-layout migration; see layout_migration.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "layout_migration.h"
 #include "ota.h"
 #include "ota_remote.h"

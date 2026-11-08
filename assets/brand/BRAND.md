@@ -82,10 +82,14 @@ peers, addresses or results; mask private addresses and identifiers.
 
 ## Licence
 
-Brand assets are original work for this project and are distributed under the
-repository's MIT licence. The upstream bunny artwork in `assets/logo/` belongs
-to the upstream author and is kept for attribution only.
+Brand assets are original work for this project. From 3.0.12 they are
+distributed with the firmware under the repository's GPL-3.0 licence
+(LICENSE, LICENSE-EXCEPTION.md); copies received with releases up to 3.0.11
+keep the MIT terms they came with. The names "Mattboxx" and "Mattboxx Edition"
+and this artwork are not licensed as names or marks of other products (GPLv3
+section 7(e)). The upstream bunny artwork in `assets/logo/` belongs to the
+upstream author and is kept for attribution only.
 
 The visual recommendations in this guide are not additional license conditions
-or an approval requirement for exercising MIT rights. Do not misrepresent a
+or an approval requirement for exercising the licence's rights. Do not misrepresent a
 modified work as endorsed by upstream authors or unrelated trademark owners.

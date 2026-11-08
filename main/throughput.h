@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Throughput test (Diagnostics), only on request.
  *
  * Gateway download: the gateway fetches a URL (HTTP or verified HTTPS) for

@@ -1,6 +1,6 @@
 /* User-authorized GitHub updates for the Mattboxx edition only.
  * No telemetry, arbitrary update URL, token, NVS upload or plaintext TLS fallback.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "history.h"
 #include "settings_snapshot.h"
 #include "ota_remote.h"

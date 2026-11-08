@@ -1,5 +1,5 @@
 /* Private, bounded receive-DNAT reassembly; called on the TCP/IP core.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 #include "lwip/pbuf.h"
 #include "lwip/netif.h"

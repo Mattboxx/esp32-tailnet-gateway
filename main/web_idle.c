@@ -1,5 +1,5 @@
 /* Web UI session admission without closing waiting requests.
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: GPL-3.0-only
  *
  * The HTTP server used to close its least-recently-used session to admit a
  * new connection (lru_purge). The session it picked was usually one accepted

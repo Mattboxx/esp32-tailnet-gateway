@@ -1,6 +1,6 @@
 /* Gateway/DNS/configured Internet/Tailnet-service evidence. No default external
  * target. One check at a time on the existing optional worker, no power action.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "health_monitor.h"
 #include "eth_uplink.h"
 #include "homelab_ops.h"

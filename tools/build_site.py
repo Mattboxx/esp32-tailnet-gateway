@@ -44,7 +44,7 @@ STABLE_TAG = 'v' + STABLE_VERSION
 # Current firmware: keep NEXT_PUBLISHED False until the qualified release
 # exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
 # released files (see website/firmware/README.md); the build verifies them.
-NEXT_VERSION = '3.0.11'
+NEXT_VERSION = '3.0.12'
 NEXT_PUBLISHED = True
 FIRMWARE_DIR = SRC / 'firmware'
 EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/
@@ -289,7 +289,7 @@ def render(page: Page, pages: list[Page]) -> str:
     if page.schema == 'home':
         structured.append({'@context': 'https://schema.org', '@type': 'SoftwareApplication', 'name': f'{NAME} — Mattboxx Edition',
                            'applicationCategory': 'NetworkingApplication', 'operatingSystem': 'ESP32-S3 firmware (ESP-IDF)',
-                           'description': DESCRIPTION, 'url': SITE_URL, 'license': 'https://opensource.org/licenses/MIT',
+                           'description': DESCRIPTION, 'url': SITE_URL, 'license': 'https://www.gnu.org/licenses/gpl-3.0.html',
                            'codeRepository': REPO_URL, 'offers': {'@type': 'Offer', 'price': '0', 'priceCurrency': 'USD'}})
         structured.append({'@context': 'https://schema.org', '@type': 'WebSite', 'name': NAME, 'url': SITE_URL})
     if page.meta.get('image'):
@@ -374,7 +374,7 @@ def render(page: Page, pages: list[Page]) -> str:
   <div class="foot-inner">
     <p><strong>{NAME} — Mattboxx Edition.</strong> {TAGLINE}</p>
     <p>Community firmware based on Csontikka's esp32-tailscale-subnet-router and microlink. Not an official Tailscale client; not affiliated with Tailscale Inc., the Headscale project or Espressif. Tailscale, Headscale, WireGuard and ESP32 are trademarks of their respective owners.</p>
-    <p><a href="{REPO_URL}">Source</a> · <a href="{page.rel('security/')}">Security</a> · <a href="{page.rel('about/')}">About and credits</a> · MIT licence · No analytics or tracking.</p>
+    <p><a href="{REPO_URL}">Source</a> · <a href="{page.rel('security/')}">Security</a> · <a href="{page.rel('about/')}">About and credits</a> · GPL-3.0 licence · No analytics or tracking.</p>
     <p>Support the project (optional): <a href="https://ko-fi.com/mattboxx" data-support-open aria-haspopup="dialog" aria-controls="support-dialog">choose how to support Mattboxx Edition</a>. Support the original author separately on <a href="https://github.com/sponsors/Csontikka">GitHub Sponsors</a>.</p>
     <noscript><p>Support Mattboxx directly: <a href="https://github.com/sponsors/Mattboxx">GitHub Sponsors</a> or <a href="https://ko-fi.com/mattboxx">Ko-fi</a>.</p></noscript>
   </div>

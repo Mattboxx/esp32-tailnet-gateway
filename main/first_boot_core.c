@@ -1,5 +1,5 @@
 /* First-boot setup core; see first_boot_core.h.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "first_boot_core.h"
 
 #include <ctype.h>

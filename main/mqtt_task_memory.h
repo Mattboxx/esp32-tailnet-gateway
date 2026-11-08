@@ -1,6 +1,6 @@
 /* Project-scoped allocation adapter for the pinned ESP-IDF esp-mqtt component.
  * No SDK files are modified. Include before that component's source only.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 #include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"

@@ -1,5 +1,5 @@
 /* Event and metrics history; see history.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "history.h"
 #include "esp_system.h"
 #include <stdio.h>

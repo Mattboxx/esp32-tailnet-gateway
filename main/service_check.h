@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* On-demand destination check for one LAN -> Tailnet service rule.
  * The ESP itself opens one bounded TCP connection to the rule's Tailnet
  * destination, which is the same remote leg forwarded LAN clients use (they

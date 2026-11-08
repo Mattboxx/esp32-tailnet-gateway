@@ -6,6 +6,73 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.12] — 2026-11-08
+
+### Added
+
+- Diagnostics > Connection & security shows how long the last startup took to
+  reach Wi-Fi, an IP address, the web interface, the clock, the control
+  server and the first tunnel (`boot_timeline` in `/api/system/diag`, with
+  every control stage and the first map fetch). RAM only, no flash writes.
+- Telegram remote commands with the same options as ntfy (`info`,
+  `wol NAME`, `recover NAME`, `check NAME`; only from the configured chat; off
+  by default). Commands sent before they were switched on, or more than 10
+  minutes old, are ignored.
+- Diagnostics > Connection & security shows the X25519 implementation in use,
+  the time of the last and longest key-exchange operation (WireGuard and
+  control plane) and the measured field-product cycles.
+
+### Performance
+
+- Startup and control-server reconnects about 20 s faster: after the network
+  map MicroLink measures the latency of every DERP relay region, and one
+  region that does not answer (usual) kept it waiting for its whole 25 s
+  budget while the control session, the relay and the tunnels waited. The
+  budget is now 5 s, like the Tailscale client's. Measured on the board over
+  three boots: control session up after 13.3-14.1 s instead of 33.5-34.5 s,
+  first tunnel after 12.8-13.5 s instead of 33.6-35.3 s. The budget now also
+  includes the DNS lookups and the probe sends: on the 3.0.12 image the first
+  tunnel is up after 10.4-11.3 s and the control session after 11.2-12.1 s.
+- X25519 key exchange about 45 % faster: the 256-bit field product runs on the
+  ESP32-S3 vector unit (PIE), measured on the board at 386 cycles against 691
+  for the scalar assembly and 1,064 for C, and is fused with the field
+  reduction (a complete multiplication in 513 cycles); squares use it too and
+  the multiplication by the curve constant has its own short path. One
+  operation now takes about 7.4-7.6 ms instead of 12.9-14.6 ms. The device
+  compares each routine with C before use and keeps the fastest one that
+  matches.
+- The control plane (connection to the coordination server, DISCO keys for
+  every peer, DERP) uses the same fast X25519 instead of a separate C copy;
+  it now also masks the received point's top bit as RFC 7748 requires.
+
+### Changed
+
+- Licence: from this release the Mattboxx Edition is distributed under the GNU
+  GPL version 3 (`GPL-3.0-only`), with an additional permission to combine it
+  with ESP-IDF and Espressif's binary-only libraries and additional terms on
+  attribution, marking of modified versions and the Mattboxx name
+  (`LICENSE-EXCEPTION.md`). This covers all Mattboxx code from 8 November
+  2026, including code first published in earlier releases; copies of
+  releases up to 3.0.11 keep the MIT terms they were published with. The
+  original firmware's MIT notice is kept verbatim in `licenses/upstream/`;
+  MicroLink and the other components keep their own licences.
+
+### Fixed
+
+- System settings: a TX power left at the default (0) no longer becomes a
+  fixed override when another System setting is saved; the field shows the
+  saved value and the radio's current power beside it. Removing an override
+  now asks for the reboot that restores the default.
+- Reset history: USB, JTAG, eFuse, power-glitch and CPU-lockup resets are
+  stored by name instead of UNKNOWN, and a fault reset that coincides with a
+  firmware change (for example a brownout during the first boot after an
+  update, which rolls the update back) is kept as "after BROWNOUT" next to
+  FLASH/ROLLBACK. No additional flash writes.
+- Diagnostics: a brownout reset explains that the supply voltage dropped
+  instead of pointing to a missing core dump, and the reset history counts
+  brownouts; with two or more in the last ten boots it shows "Multiple brownout
+  resets detected. Check power supply and USB cable."
+
 ## [3.0.11] — 2026-11-08
 
 3.0.9 and 3.0.10 were not published; their changes are part of this release.

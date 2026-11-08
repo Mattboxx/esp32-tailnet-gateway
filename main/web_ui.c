@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* Single-page web UI server.
  *
  * SPDX-License-Identifier: MIT
@@ -93,6 +96,7 @@
 
 /* Globals owned by main.c — link status flags rendered in /api/status. */
 #include "upstream_validation.h"
+#include "boot_timeline.h"
 #include "esp_attr.h"
 extern volatile int ap_connect;
 extern volatile int connect_count;
@@ -289,30 +293,14 @@ static const char *reset_reason_str(void)
      * guards never compiled the new IDF 5.x cases in — that's why the
      * S3 always reported UNKNOWN after a clean esp_restart(). With the
      * guards gone, the chip's actual cause shows through. */
+    /* Same labels as the persisted reset-history rows (reset_history.c). */
     esp_reset_reason_t r = esp_reset_reason();
     static char unk[16];
-    const char *base;
-    switch (r) {
-        case ESP_RST_POWERON:    base = "POWERON";    break;
-        case ESP_RST_EXT:        base = "EXT";        break;
-        case ESP_RST_SW:         base = "SW";         break;
-        case ESP_RST_PANIC:      base = "PANIC";      break;
-        case ESP_RST_INT_WDT:    base = "INT_WDT";    break;
-        case ESP_RST_TASK_WDT:   base = "TASK_WDT";   break;
-        case ESP_RST_WDT:        base = "WDT";        break;
-        case ESP_RST_DEEPSLEEP:  base = "DEEPSLEEP";  break;
-        case ESP_RST_BROWNOUT:   base = "BROWNOUT";   break;
-        case ESP_RST_SDIO:       base = "SDIO";       break;
-        case ESP_RST_USB:        base = "USB";        break;
-        case ESP_RST_JTAG:       base = "JTAG";       break;
-        case ESP_RST_EFUSE:      base = "EFUSE";      break;
-        case ESP_RST_PWR_GLITCH: base = "PWR_GLITCH"; break;
-        case ESP_RST_CPU_LOCKUP: base = "CPU_LOCKUP"; break;
-        default:
-            /* Surface the raw enum code so future IDF additions show up. */
-            snprintf(unk, sizeof unk, "RAW_%d", (int)r);
-            base = unk;
-            break;
+    const char *base = reset_history_reason_label(r);
+    if (!base) {
+        /* Surface the raw enum code so future IDF additions show up. */
+        snprintf(unk, sizeof unk, "RAW_%d", (int)r);
+        base = unk;
     }
     /* Append the software cause we tagged just before a deliberate
      * esp_restart() (e.g. "ch-realign 11->1") so the coarse hardware reason
@@ -4036,15 +4024,20 @@ static esp_err_t system_save_handler(httpd_req_t *req)
     }
 
     /* TX-power override — clamp + persist + apply live. 0 disables the
-     * override (next boot will skip the call and let the IDF default
-     * stand). */
+     * override; the driver has no "back to default" call, so the default
+     * returns at the next boot and the response asks for that reboot when
+     * an active override was just removed. */
     const cJSON *tx_j = cJSON_GetObjectItem(root, "tx_power");
     int tx_power = -1;
+    bool tx_default_restart = false;
     if (cJSON_IsNumber(tx_j)) {
         int v = (int)tx_j->valuedouble;
         if (v < 0)  v = 0;
         if (v > 84) v = 84;
         if (v != 0 && v < 8) v = 8;        /* IDF rejects values below 8 */
+        uint8_t previous = 0;
+        (void)nvs_param_get_u8("tx_pwr", &previous);
+        tx_default_restart = v == 0 && previous >= 8;
         nvs_save_u8("tx_pwr", (uint8_t)v);
         tx_power = v;
     }
@@ -4070,7 +4063,7 @@ static esp_err_t system_save_handler(httpd_req_t *req)
         if (cJSON_IsBool(wa)) s_web_auth_enabled = cJSON_IsTrue(wa);
         if (tx_power >= 8) esp_wifi_set_max_tx_power((int8_t)tx_power);
     } else {
-        tz_changed = web_port_changed = false;
+        tz_changed = web_port_changed = tx_default_restart = false;
         if (ps_applied) (void)wifi_power_save_init();   /* back to the stored mode */
     }
     cJSON_Delete(root);
@@ -4078,7 +4071,8 @@ static esp_err_t system_save_handler(httpd_req_t *req)
      * twin block in tailscale_save_handler. */
     cJSON *resp = cJSON_CreateObject();
     nvs_save_errors_attach(resp);
-    if (tz_changed || web_port_changed) cJSON_AddBoolToObject(resp, "restart_required", true);
+    if (tz_changed || web_port_changed || tx_default_restart)
+        cJSON_AddBoolToObject(resp, "restart_required", true);
     char *body = cJSON_PrintUnformatted(resp);
     cJSON_Delete(resp);
     httpd_resp_set_type(req, "application/json");
@@ -4594,9 +4588,55 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
             cJSON_AddNumberToObject(ca, "x25519_us_last", x25519_cycles_last / CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ);
             cJSON_AddNumberToObject(ca, "x25519_us_max", x25519_cycles_max / CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ);
             cJSON_AddNumberToObject(ca, "x25519_calls", x25519_calls);
-            extern int x25519_mul_status(void);   /* 1 Xtensa product in use, -1 C, 0 not checked yet */
+            extern int x25519_mul_status(void);   /* 2 PIE, 1 Xtensa product in use, -1 C, 0 not checked yet */
+            extern int x25519_sqr_pie(void);
+            extern volatile uint32_t x25519_mul_cycles[6];
+            extern int x25519_mulred_status(void);
+            extern volatile uint32_t x25519_control_cycles_last, x25519_control_calls;
+            /* control plane (Noise, DISCO, DERP boxes): same implementation, timed apart */
+            cJSON_AddNumberToObject(ca, "x25519_ctrl_us_last", x25519_control_cycles_last / CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ);
+            cJSON_AddNumberToObject(ca, "x25519_ctrl_calls", x25519_control_calls);
             cJSON_AddNumberToObject(ca, "x25519_mul", x25519_mul_status());
+            cJSON_AddBoolToObject(ca, "x25519_sqr_pie", x25519_sqr_pie());
+            cJSON_AddBoolToObject(ca, "x25519_mulred", x25519_mulred_status());
+            /* cycles of one 256 x 256 product: C, Xtensa, PIE; the C square;
+             * a field multiplication with the PIE product and C reduction, fused */
+            cJSON *mc = cJSON_AddArrayToObject(ca, "x25519_mul_cycles");
+            for (int i = 0; mc && i < 6; i++) cJSON_AddItemToArray(mc, cJSON_CreateNumber(x25519_mul_cycles[i]));
             cJSON_AddItemToObject(root, "crypto_asm", ca);
+        }
+    }
+    {   /* Boot timeline (boot_timeline.h, microlink_get_boot_marks): ms since
+         * boot when each milestone was first reached; null = not yet. */
+        static const char *const app_names[BOOT_TL_COUNT] = {"app_main", "nvs", "wifi_start", "wifi_assoc", "ip", "web", "time_sync"};
+        static const char *const ml_names[ML_BOOT_MARKS] = {"tailnet_start", "tcp_tls", "noise", "register", "map",
+                                                            "stream_map", "derp", "control_connected", "first_tunnel"};
+        uint32_t app[BOOT_TL_COUNT], ml[ML_BOOT_MARKS];
+        boot_timeline_get(app);
+        microlink_get_boot_marks(tailscale_get_microlink(), ml);
+        cJSON *bt = cJSON_CreateObject();
+        if (bt) {
+            for (int i = 0; i < BOOT_TL_COUNT; i++) {
+                if (app[i]) cJSON_AddNumberToObject(bt, app_names[i], app[i]); else cJSON_AddNullToObject(bt, app_names[i]);
+            }
+            for (int i = 0; i < ML_BOOT_MARKS; i++) {
+                if (ml[i]) cJSON_AddNumberToObject(bt, ml_names[i], ml[i]); else cJSON_AddNullToObject(bt, ml_names[i]);
+            }
+            microlink_boot_fetch_t bf;
+            microlink_get_boot_fetch(tailscale_get_microlink(), &bf);
+            if (bf.valid) {
+                cJSON *mf = cJSON_AddObjectToObject(bt, "map_fetch");
+                if (mf) {
+                    cJSON_AddNumberToObject(mf, "sent_ms", bf.sent_ms);
+                    cJSON_AddNumberToObject(mf, "first_byte_ms", bf.first_byte_ms);
+                    cJSON_AddNumberToObject(mf, "last_data_ms", bf.last_data_ms);
+                    cJSON_AddNumberToObject(mf, "done_ms", bf.done_ms);
+                    cJSON_AddNumberToObject(mf, "bytes", bf.bytes);
+                    cJSON_AddNumberToObject(mf, "frames", bf.frames);
+                    cJSON_AddStringToObject(mf, "end", bf.end == 1 ? "end_stream" : bf.end == 2 ? "closed_or_timeout" : "other");
+                }
+            }
+            cJSON_AddItemToObject(root, "boot_timeline", bt);
         }
     }
     {   /* TLS chains refused since boot because they contain a compromised CA

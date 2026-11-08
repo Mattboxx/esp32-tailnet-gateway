@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). Ported from Csontikka/esp32-tailscale-subnet-router, whose
+ * code keeps its MIT licence (licenses/upstream/, NOTICE.md). */
 /* DNS-over-HTTP service for Tailscale peers using this node as an exit node.
  *
  * Native Tailscale clients send DNS wire messages to the PeerAPI address the

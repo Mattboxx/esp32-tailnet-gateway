@@ -1,6 +1,6 @@
 /* Fixed eight-entry leases, immutable packet snapshots and monotonic expiry.
  * Never extend from reboot, clock rollback or a mismatched/reordered rule.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "service_lease.h"
 #include "homelab_ops.h"
 #include "forwarding_config.h"

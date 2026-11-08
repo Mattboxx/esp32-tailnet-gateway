@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Conditional SPI Ethernet uplink (W5500) for explicitly wired ESP32-S3 boards.
  * OFF by default: a WiFi-only board never touches SPI/GPIO and keeps the STA
  * route path unchanged. Pins and IP settings apply at the next boot. This is

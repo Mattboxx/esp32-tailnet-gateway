@@ -1,5 +1,5 @@
 /* On-demand LAN -> Tailnet destination check; see service_check.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "service_check.h"
 #include "service_lease.h"
 #include "homelab_ops.h"

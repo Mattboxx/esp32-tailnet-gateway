@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /*
  * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
  *
@@ -71,6 +74,7 @@
 #include "mac_deny.h"
 #include "history.h"
 #include "notify_channels.h"
+#include "telegram_commands.h"
 #if CONFIG_TSR_DDNS
 #include "ddns.h"
 #endif
@@ -83,6 +87,7 @@
 #include "esp_ota_ops.h"
 #include "task_reaper.h"
 #include "first_boot.h"
+#include "boot_timeline.h"
 #include "lan_name.h"
 
 /* The examples use WiFi configuration that you can set via project configuration menu.
@@ -496,6 +501,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         } else {
             ESP_LOGI(TAG_STA, "Station started idle — waiting for uplink configuration");
         }
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_CONNECTED) {
+        boot_timeline_mark(BOOT_TL_WIFI_ASSOC);   /* first association of this boot only */
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
         wifi_event_sta_disconnected_t *event = event_data;
         bool shutting_down = ap_policy_is_shutdown();
@@ -539,6 +546,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         if (total > 0) esp_wifi_connect();
     } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
         ip_event_got_ip_t *event = (ip_event_got_ip_t *) event_data;
+        boot_timeline_mark(BOOT_TL_IP);
         ESP_LOGI(TAG_STA, "Got IP:" IPSTR, IP2STR(&event->ip_info.ip));
         if (first_boot_active() && s_setup_test == FB_WIFI_TESTING) {
             s_setup_test_ip = event->ip_info.ip.addr;
@@ -910,6 +918,7 @@ static void remove_legacy_outbound_settings(void)
 
 void app_main(void)
 {
+    boot_timeline_mark(BOOT_TL_APP_MAIN);
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     /* Before any PSRAM-stack worker: their exits must not allocate. */
@@ -929,6 +938,7 @@ void app_main(void)
     /* Undo a multi-key settings save cut short by a power loss before any
      * setting is read (see nvs_params.h). */
     (void)nvs_param_txn_recover();
+    boot_timeline_mark(BOOT_TL_NVS);
     microlink_json_memory_init();
     remove_legacy_outbound_settings();
     ota_remote_init();
@@ -1014,6 +1024,7 @@ void app_main(void)
 
     /* Event/metrics history: off by default, then no task, buffer or flash use. */
     notify_channels_init();   /* Telegram/email: off by default, nothing runs */
+    telegram_commands_init(); /* bot commands: off by default, no task while off */
 #if CONFIG_TSR_DDNS
     ddns_init();              /* dynamic DNS: off by default, no timer */
 #endif
@@ -1126,6 +1137,7 @@ void app_main(void)
 
     /* Start WiFi */
     ESP_ERROR_CHECK(esp_wifi_start() );
+    boot_timeline_mark(BOOT_TL_WIFI_START);
     first_boot_start();   /* captive DNS + presence watcher; no-op when configured */
     /* A router is normally mains-powered. Default to disabled modem sleep so forwarded
      * packets are not held until a DTIM wake-up; this improves latency and
@@ -1230,6 +1242,7 @@ void app_main(void)
 
     /* HTTP server with the embedded SPA at / + the JSON API endpoints. */
     web_ui_init();
+    boot_timeline_mark(BOOT_TL_WEB);
 
     /* Serial REPL on UART0 (115200 8N1). Starts last so every other
      * subsystem the commands can poke is ready by the time the prompt

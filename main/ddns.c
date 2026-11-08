@@ -1,5 +1,5 @@
 /* Dynamic DNS; see ddns.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "ddns.h"
 #include <stdio.h>
 #include <string.h>

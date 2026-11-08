@@ -3,7 +3,7 @@
  * the Tailscale netif. Serves standard system, interfaces, host-resources,
  * and entity-sensor MIB objects plus one private heap-watermark OID.
  *
- * SPDX-License-Identifier: MIT
+ * SPDX-License-Identifier: GPL-3.0-only
  */
 #pragma once
 #include <stdbool.h>

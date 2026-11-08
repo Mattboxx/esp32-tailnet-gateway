@@ -1,7 +1,7 @@
 /* Per-board name on the home network: DHCP hostname and mDNS
  * "<name>.local" on the Wi-Fi uplink, so a setup page can point to one
  * gateway even when several run the same firmware on one LAN.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 
 #include <stddef.h>

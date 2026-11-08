@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* Reset-history ring buffer — keeps the 10 most recent boots persisted to
  * NVS as a single blob (`rst_hist`) so the System tab can show a full
  * trail back from "panic two boots ago" without needing serial logs.
@@ -22,6 +25,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "esp_system.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,6 +63,16 @@ void reset_history_set_current_crash(const char *crash_info);
 /* Read up to `max` entries into `out`, most-recent first. Returns the
  * number of valid entries (0..max). Used by /api/system and the SPA. */
 int reset_history_load(reset_history_entry_t *out, int max);
+
+/* Short label for an esp_reset_reason() code ("BROWNOUT", "USB", ...), the
+ * same strings the persisted rows and the live status use. NULL for a code
+ * this firmware does not know (callers choose their own fallback). */
+const char *reset_history_reason_label(esp_reset_reason_t rr);
+
+/* True for chip resets that indicate a fault rather than a requested or
+ * external restart: panic, watchdogs, brownout, power glitch, eFuse error,
+ * CPU lockup. */
+bool reset_history_reason_abnormal(esp_reset_reason_t rr);
 
 /* Called from note_restart_reason() before esp_restart() so the next boot
  * can attribute the SW reset to a specific cause (e.g. "web ota",

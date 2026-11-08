@@ -1,5 +1,5 @@
 /* Settings copies; see settings_snapshot.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "settings_snapshot.h"
 #include <stdio.h>
 #include <string.h>

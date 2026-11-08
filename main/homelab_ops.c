@@ -1,6 +1,6 @@
 /* Device Registry + Smart Recovery + health evidence + resource admission.
  * One lazy worker, one active job, one probe socket; no reboot or power control.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "homelab_ops.h"
 #include "sdkconfig.h"
 #include "nvs.h"

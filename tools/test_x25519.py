@@ -18,7 +18,9 @@ ROOT = Path(__file__).resolve().parents[1]
 REL = 'components/microlink/components/wireguard_lwip/src/crypto/refc'
 SRC = ROOT / 'external/microlink' / REL / 'x25519.c'
 new = SRC.read_text(encoding='utf-8').replace('\r\n', '\n')
-assert 'static void sqr(fe out, const fe a) {\n    limb_t accum[2*NLIMBS]' in new
+_sqr = new[new.index('static void sqr(fe out, const fe a) {'):]
+_sqr = _sqr[:_sqr.index('\n}\n')]
+assert 'limb_t accum[2*NLIMBS] = {0};' in _sqr and 'accum[i] = (v << 1) | top;' in _sqr, 'dedicated C squaring'
 old = subprocess.run(['git', '-C', str(ROOT / 'external/microlink'), 'log', '--format=%H', '-n', '20', '--', REL + '/x25519.c'],
                      capture_output=True, text=True, check=True).stdout.split()
 ref_old = None
@@ -116,4 +118,9 @@ with tempfile.TemporaryDirectory() as tmp:
     exe2 = build(tmp + '/m' if False else tmp, broken)
     bad = run(exe2, pairs[:50])
     assert any(g != b for g, b in bad), 'broken squaring not detected'
-print('x25519: RFC 7748 vector and 1,000-round iteration, 3,000+ random pairs equal pyca and the previous code; broken squaring detected')
+    # the dedicated a24 multiplication (3.0.12): a wrong fold is detected
+    broken = new.replace('out[0] = umaal(&c2, t[0], 38, carry);', 'out[0] = umaal(&c2, t[0], 37, carry);')
+    assert broken != new
+    bad = run(build(tmp, broken), pairs[:50])
+    assert any(g != b for g, b in bad), 'broken a24 multiplication not detected'
+print('x25519: RFC 7748 vector and 1,000-round iteration, 3,000+ random pairs equal pyca and the previous code; broken squaring and a24 multiplication detected')

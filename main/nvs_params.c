@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* See nvs_params.h. Boilerplate that opens the project namespace and
  * forwards to the underlying ESP-IDF NVS calls, plus the settings undo
  * journal that makes multi-key saves all or nothing.
