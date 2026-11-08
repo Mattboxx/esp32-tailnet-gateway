@@ -2,10 +2,18 @@
 
 ## Latest state (2026-11-08)
 
-**3.0.10** is built from `2444297`; image `c9bab332…8d67` is archived under
-`build/development-3.0.10/`. Offline validation: 129/129. It runs on board A
-from ota_0, with 3.0.9-pre1 in ota_1. It is being published as the stable
-release on owner instruction.
+**3.0.11** is built from `6d569e3`; image `a2ae6e41…c53e` is archived under
+`build/development-3.0.11/`. Offline validation: 129/129. It runs on board A
+from ota_1, with 3.0.10 in ota_0.
+
+3.0.10 was merged to Main but never released. Its relay reader spun at
+data-plane priority when the server closed a DERP session (0-byte read seen
+as "no data", plus a readable socket and no sleep). 3.0.11 fixes it.
+
+Next, on branch `feat/telegram-commands` (worktree `../tsr-next`):
+- Telegram remote commands, implemented and tested;
+- X25519 squaring and add/sub in assembly, then the full ladder step
+  (owner request).
 
 Processing-time work in 3.0.10:
 - DERP reader waits with select() instead of 10 ms sleeps.

@@ -64,7 +64,7 @@ schema: home
 <p><strong>Firmware v{{next_version}} is available</strong> for ESP32-S3 N8R8 and N16R8 boards, with the guided first start, the LAN address and the per-board <code>.local</code> name shown after setup. <a href="{{root}}changelog/">What's new</a> · <a href="{{root}}install-firmware/">Install the current firmware</a>.</p>
 
 <section class="note ok" aria-labelledby="latest-features">
-  <h2 id="latest-features">New in Firmware 3.0.10</h2>
+  <h2 id="latest-features">New in Firmware 3.0.11</h2>
   <p><strong>Shorter waits for packets:</strong> relayed (DERP) packets are read as soon as they arrive and handled at the same priority as direct traffic; adding Tailnet peers no longer stalls the data path; WireGuard handshakes use an Xtensa assembly multiplication (12.9 ms per key agreement on the board). <a href="{{root}}changelog/">Details</a>.</p>
   <p><strong>From 3.0.8, a Status page that follows what you use:</strong> live tiles only for the features you switched on, and up to three suggested next steps computed from the gateway's state, problems first. Diagnostics shows reconnect timings, dropped packets and the assembly self-tests. <a href="{{root}}changelog/">Details</a>.</p>
   <p><strong>From 3.0.8, checksum on the vector unit:</strong> the packet checksum runs on the ESP32-S3 vector instructions, 365 instead of 2,264 CPU cycles for 1,400 bytes, checked against lwIP on the device before use.</p>
