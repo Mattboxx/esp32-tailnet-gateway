@@ -118,4 +118,9 @@ with tempfile.TemporaryDirectory() as tmp:
     exe2 = build(tmp + '/m' if False else tmp, broken)
     bad = run(exe2, pairs[:50])
     assert any(g != b for g, b in bad), 'broken squaring not detected'
-print('x25519: RFC 7748 vector and 1,000-round iteration, 3,000+ random pairs equal pyca and the previous code; broken squaring detected')
+    # the dedicated a24 multiplication (3.0.12): a wrong fold is detected
+    broken = new.replace('out[0] = umaal(&c2, t[0], 38, carry);', 'out[0] = umaal(&c2, t[0], 37, carry);')
+    assert broken != new
+    bad = run(build(tmp, broken), pairs[:50])
+    assert any(g != b for g, b in bad), 'broken a24 multiplication not detected'
+print('x25519: RFC 7748 vector and 1,000-round iteration, 3,000+ random pairs equal pyca and the previous code; broken squaring and a24 multiplication detected')

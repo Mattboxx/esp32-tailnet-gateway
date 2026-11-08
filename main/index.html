@@ -9764,12 +9764,15 @@
             var impl = m === 2 ? '<span class="badge badge-success">' + L('vector unit (PIE)') + '</span>'
                      : m === 1 ? '<span class="badge badge-success">' + L('assembly') + '</span>' : asmState(m);
             return '<div>' + L('Key exchange (X25519):') + ' ' + impl +
+              (m === 2 && c.x25519_mulred ? ' · ' + L('reduction fused') : '') +
               (m === 2 && c.x25519_sqr_pie ? ' · ' + L('squares on PIE') : '') +
               (c.x25519_calls ? ' · ' + L('WireGuard, last:') + ' <strong>' + ms(c.x25519_us_last) + '</strong> (' +
                 L('max') + ' ' + ms(c.x25519_us_max) + ')' : '') +
               (c.x25519_ctrl_calls ? ' · ' + L('control plane, last:') + ' ' + ms(c.x25519_ctrl_us_last) : '') + '</div>' +
               (m > 0 && cyc[0] ? '<div>' + L('Field product cycles (C / assembly / PIE):') + ' ' + (cyc[0] | 0) + ' / ' +
-                (cyc[1] ? cyc[1] | 0 : '—') + ' / ' + (cyc[2] ? cyc[2] | 0 : '—') + '</div>' : '');
+                (cyc[1] ? cyc[1] | 0 : '—') + ' / ' + (cyc[2] ? cyc[2] | 0 : '—') +
+                (c.x25519_mulred && cyc[5] ? ' · ' + L('complete multiplication:') + ' ' + (cyc[5] | 0) +
+                  ' (' + (cyc[4] | 0) + ' ' + L('unfused') + ')' : '') + '</div>' : '');
           };
           var html =
             '<div>' + L('Assembly crypto:') + ' ChaCha20 ' + asmState(ca.chacha20) +

@@ -4596,16 +4596,19 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
             cJSON_AddNumberToObject(ca, "x25519_calls", x25519_calls);
             extern int x25519_mul_status(void);   /* 2 PIE, 1 Xtensa product in use, -1 C, 0 not checked yet */
             extern int x25519_sqr_pie(void);
-            extern volatile uint32_t x25519_mul_cycles[4];
+            extern volatile uint32_t x25519_mul_cycles[6];
+            extern int x25519_mulred_status(void);
             extern volatile uint32_t x25519_control_cycles_last, x25519_control_calls;
             /* control plane (Noise, DISCO, DERP boxes): same implementation, timed apart */
             cJSON_AddNumberToObject(ca, "x25519_ctrl_us_last", x25519_control_cycles_last / CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ);
             cJSON_AddNumberToObject(ca, "x25519_ctrl_calls", x25519_control_calls);
             cJSON_AddNumberToObject(ca, "x25519_mul", x25519_mul_status());
             cJSON_AddBoolToObject(ca, "x25519_sqr_pie", x25519_sqr_pie());
-            /* cycles of one 256 x 256 product: C, Xtensa, PIE; then the C square */
+            cJSON_AddBoolToObject(ca, "x25519_mulred", x25519_mulred_status());
+            /* cycles of one 256 x 256 product: C, Xtensa, PIE; the C square;
+             * a field multiplication with the PIE product and C reduction, fused */
             cJSON *mc = cJSON_AddArrayToObject(ca, "x25519_mul_cycles");
-            for (int i = 0; mc && i < 4; i++) cJSON_AddItemToArray(mc, cJSON_CreateNumber(x25519_mul_cycles[i]));
+            for (int i = 0; mc && i < 6; i++) cJSON_AddItemToArray(mc, cJSON_CreateNumber(x25519_mul_cycles[i]));
             cJSON_AddItemToObject(root, "crypto_asm", ca);
         }
     }
