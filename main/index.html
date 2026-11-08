@@ -761,12 +761,8 @@
     .support-choice svg { flex-shrink: 0; color: var(--accent); }
     @media(max-width:480px) { .support-choices { grid-template-columns: 1fr; } }
 
-    .nav-support { min-height: 40px; padding: 8px 10px; }
-    .nav-support-compact { display: none; }
-    @media (max-width: 1023px) {
-      .nav-support-label { display: none; }
-      .nav-support-compact { display: inline; }
-    }
+    /* Icon only (owner, 2026-11-08): the heart keeps its tooltip and label. */
+    .nav-support { min-height: 40px; width: 40px; padding: 8px; justify-content: center; }
 
     /* =====================================================================
        COMPONENT — INPUTS
@@ -1726,7 +1722,7 @@
       input[type="file"] { min-height: 44px; width: 100%; max-width: 100%; padding: 8px 0; font-size: 15px; }
     }
     @media (max-width: 380px) {
-      .nav-support-compact, .btn-lock > span { display: none; }
+      .btn-lock > span { display: none; }
       .nav-support { width: 44px; padding: 8px; }
       .nav-actions { gap: 2px; }
     }
@@ -1933,7 +1929,6 @@
          title="Optional tips support the Mattboxx mod — all features stay free"
          aria-label="Choose how to support Mattboxx Edition" aria-haspopup="dialog" aria-controls="supportDialog">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z"/></svg>
-        <span class="nav-support-label">Support project</span><span class="nav-support-compact">Tip</span>
       </a>
       <button class="btn btn-ghost btn-icon" id="refreshBtn" title="Refresh" aria-label="Refresh status">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

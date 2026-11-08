@@ -43,7 +43,11 @@ typedef struct { int unused; } mbedtls_ssl_context;
 typedef struct { struct { bool connected; int sockfd; mbedtls_ssl_context ssl; } derp; } microlink_t;
 static uint64_t now_ms = 1000;
 static uint64_t ml_get_time_ms(void) { return now_ms; }
-static void vTaskDelay(int ms) { now_ms += (uint64_t)ms; }
+/* The socket wait of a partial frame: a scripted socket has no fd, so model
+ * the bounded wait as 20 ms of time passing. */
+#define DERP_RX_IDLE_WAIT_US 20000
+static int waits;
+static int derp_wait_readable(microlink_t *ml, long us) { (void)ml; waits++; now_ms += (uint64_t)(us / 1000); return 0; }
 static int fail_alloc, allocs;
 static void *ml_psram_malloc(size_t n) { if (fail_alloc) return NULL; allocs++; return malloc(n); }
 
@@ -103,6 +107,10 @@ int main(void) {
     reset(); script(0, NULL, 0, MBEDTLS_ERR_SSL_TIMEOUT);
     assert(poll_derp_read(&ml) == 0 && dispatched == 0);
 
+    /* the relay closes the session before a frame: an error (reconnect), not "no data" */
+    reset(); script(0, NULL, 0, 0);
+    assert(poll_derp_read(&ml) < 0 && dispatched == 0);
+
     /* EOF and error inside the header */
     reset(); script(0, frame, 3, 0); script(1, NULL, 0, 0);
     assert(poll_derp_read(&ml) < 0 && dispatched == 0);
@@ -111,9 +119,10 @@ int main(void) {
 
     /* header that never completes: bounded */
     reset(); script(0, frame, 4, 0);
-    uint64_t t0 = now_ms;
+    uint64_t t0 = now_ms; int w0 = waits;
     assert(poll_derp_read(&ml) < 0 && dispatched == 0);
     assert(now_ms - t0 > 5000 && now_ms - t0 < 5300);
+    assert(waits - w0 >= 20 && waits - w0 <= 260);   /* bounded socket waits, not a spin */
 
     /* empty frame: dispatched without payload */
     reset(); build(DERP_FRAME_KEEP_ALIVE, 0); script(0, frame, 5, 0);

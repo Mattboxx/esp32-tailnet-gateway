@@ -6,12 +6,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [3.0.10] — 2026-11-08
+## [3.0.11] — 2026-11-08
 
-3.0.9 was not published; its changes are part of this release.
+3.0.9 and 3.0.10 were not published; their changes are part of this release.
 
 ### Changed
 
+- The support button in the top bar shows only its heart icon; its tooltip
+  and accessible label are unchanged, and the bar has more room.
 - Packets relayed through DERP are read as soon as they arrive: the idle
   relay reader used to sleep 10 ms between checks, so a relayed packet could
   wait up to that long before processing.
