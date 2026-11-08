@@ -26,6 +26,7 @@ fixture = r'''
 #include <ctype.h>
 #include <stdarg.h>
 #define NTFY_NOINLINE
+#include "notify_text.h"
 #define ESP_OK 0
 #define ESP_FAIL -1
 #define ESP_ERR_NO_MEM 2
@@ -115,7 +116,7 @@ int main(void) {
         assert((strstr(published,"(possible blackout)")!=NULL)==(enabled&&reason==ESP_RST_POWERON));
         assert(!strstr(published,"reset reason ")&&!strstr(published,"outage lasted")&&!strstr(published,"PRIVATE_LOCAL_LOG_FIXTURE"));
         assert(strlen(published)<192&&live==0&&log_reads==0&&allocations==0);
-        const char *info_line=reset_reason_description(&c);
+        const char *info_line=reset_reason_text(c.poweron_events);
         assert(strstr(info_line,descriptions[reason]));
         assert((strstr(info_line,"(possible blackout)")!=NULL)==(enabled&&reason==ESP_RST_POWERON));
         assert(strstr(published,info_line));
@@ -130,11 +131,14 @@ int main(void) {
 with tempfile.TemporaryDirectory(prefix='ntfy-logic-') as directory:
     path = Path(directory)
     (path / 'test.c').write_text(fixture + boot_fixture + reset_builder + command + alert + boot + tests)
-    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-I', str(ROOT/'main')]
+    # notify_text.c (the wording shared with Telegram and email) includes history.h
+    (path / 'esp_err.h').write_text('#pragma once\ntypedef int esp_err_t;\n')
+    (path / 'esp_http_server.h').write_text('#pragma once\ntypedef void *httpd_handle_t;\n')
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-I', str(path), '-I', str(ROOT/'main')]
     if os.environ.get('NTFY_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     binary = path / ('test.exe' if os.name == 'nt' else 'test')
-    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary)], check=True)
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), str(ROOT / 'main/notify_text.c'), '-o', str(binary)], check=True)
     subprocess.run([str(binary)], check=True)
 
 # Actual opt-in system-event scheduler (main/ntfy_events.h).

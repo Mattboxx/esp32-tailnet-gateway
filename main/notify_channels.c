@@ -296,6 +296,10 @@ done:
 
 #ifdef ESP_PLATFORM
 #include "json_guard.h"
+#include "notify_text.h"
+#include "ota_remote.h"
+#include "esp_app_desc.h"
+#include "esp_system.h"
 #include "esp_rom_crc.h"
 #include "lan_name.h"
 #include "tailscale_config.h"
@@ -456,10 +460,11 @@ static void when_text(uint32_t wall, char *out, size_t cap)
 /* --- Telegram --- */
 static esp_err_t telegram(const notify_config_t *c, const char *text, char *why, size_t cap)
 {
-    char url[160], *body = heap_caps_malloc(NOTIFY_TEXT_MAX * 6 + 160, MALLOC_CAP_SPIRAM);
+    size_t body_cap = strlen(text) * 6 + 160;   /* worst case: every byte escaped as \u00XX */
+    char url[160], *body = heap_caps_malloc(body_cap, MALLOC_CAP_SPIRAM);
     if (!body) return ESP_ERR_NO_MEM;
     snprintf(url, sizeof url, "https://api.telegram.org/bot%s/sendMessage", c->tg_token);
-    size_t n = notify_telegram_body(body, NOTIFY_TEXT_MAX * 6 + 160, c->tg_chat, text);
+    size_t n = notify_telegram_body(body, body_cap, c->tg_chat, text);
     esp_http_client_config_t hc = {.url = url, .method = HTTP_METHOD_POST, .timeout_ms = 15000,
                                    .crt_bundle_attach = ml_tls_bundle_attach, .disable_auto_redirect = true};
     esp_http_client_handle_t client = n ? esp_http_client_init(&hc) : NULL;
@@ -538,7 +543,7 @@ static int io_starttls(void *ctx)
     return 0;
 }
 
-static esp_err_t email(const notify_config_t *c, const char *text, char *why, size_t cap)
+static esp_err_t email(const notify_config_t *c, const char *title, const char *text, char *why, size_t cap)
 {
     mail_io_t *m = heap_caps_calloc(1, sizeof *m, MALLOC_CAP_SPIRAM);
     if (!m) return ESP_ERR_NO_MEM;
@@ -557,14 +562,15 @@ static esp_err_t email(const notify_config_t *c, const char *text, char *why, si
         if (c->mail_security == NOTIFY_TLS && io_starttls(m) != 0) {
             snprintf(why, cap, "TLS failed on port %s (certificate, or the port expects STARTTLS)", port);
         } else {
-            char host[40], date[40] = "", subject[128], *body = heap_caps_malloc(NOTIFY_TEXT_MAX + 160, MALLOC_CAP_SPIRAM);
+            size_t body_cap = strlen(text) + 160;
+            char host[40], date[40] = "", subject[128], *body = heap_caps_malloc(body_cap, MALLOC_CAP_SPIRAM);
             lan_name_get(host, sizeof host);
             if (!host[0]) snprintf(host, sizeof host, "esp32-gateway");
             time_t now = time(NULL);
             if (now > 1700000000) {struct tm tm; gmtime_r(&now, &tm); strftime(date, sizeof date, "%a, %d %b %Y %H:%M:%S +0000", &tm);}
-            snprintf(subject, sizeof subject, "%s: %.70s", host, text);
+            snprintf(subject, sizeof subject, "%s: %.70s", host, title);
             if (body) {
-                snprintf(body, NOTIFY_TEXT_MAX + 160, "%s\n\nSent by the ESP32 Tailnet Gateway \"%s\".\n", text, host);
+                snprintf(body, body_cap, "%s\n\nSent by the ESP32 Tailnet Gateway \"%s\".\n", text, host);
                 notify_smtp_io_t io = {m, io_send, io_recv, io_starttls};
                 notify_mail_t mail = {.helo = host, .user = c->mail_user, .pass = c->mail_pass, .from = c->mail_from,
                                       .to = c->mail_to, .subject = subject, .body = body, .date = date[0] ? date : NULL,
@@ -598,13 +604,22 @@ static void worker(void *arg)
         if (!s_count || !s_queue) {s_worker = false; xSemaphoreGive(s_lock); task_reaper_self_delete();}
         note_t note = s_queue[s_head];
         notify_config_t c = s_cfg;
+        uint8_t poweron_channels = s_startup_channels >> 2;
         xSemaphoreGive(s_lock);
-        char text[NOTIFY_TEXT_MAX + 32], when[16], why[192];   /* PSRAM stack */
+        /* The title and message ntfy uses for the same event (notify_text.c);
+         * "(possible blackout)" follows each channel's power-on choice. PSRAM stack. */
+        char title[NOTIFY_TITLE_MAX], msg[NOTIFY_MESSAGE_MAX], text[NOTIFY_MESSAGE_MAX + NOTIFY_TITLE_MAX + 48];
+        char when[16], why[192];
         when_text(note.wall, when, sizeof when);
+        const esp_app_desc_t *app = esp_app_get_description();
+        const char *version = app ? app->version : "unknown";
+        int reset = (int)esp_reset_reason();
         static const char *const mark[] = {"", "\xE2\x9A\xA0\xEF\xB8\x8F ", "\xE2\x9D\x97 "};   /* warning, error */
-        snprintf(text, sizeof text, "%s%s%s%s", note.level < 3 ? mark[note.level] : "", when, when[0] ? " " : "", note.text);
         uint8_t done = 0, delivered = 0;
         if ((note.channels & CH_TG) && c.tg_enabled) {
+            notify_text_compose(note.kind, note.level, note.text, version, reset, (poweron_channels & CH_TG) != 0,
+                                title, msg, sizeof msg);
+            snprintf(text, sizeof text, "%s%s%s%s\n%s", note.level < 3 ? mark[note.level] : "", when, when[0] ? " " : "", title, msg);
             why[0] = 0; esp_err_t err = telegram(&c, text, why, sizeof why); record(&s_tg, err, why);
             if (err) ESP_LOGW(TAG, "Telegram delivery failed: event=%u id=%lu attempt=%u/%u error=%s internal=%u largest=%u psram=%u",
                 note.kind, (unsigned long)note.id, (unsigned)note.attempts + 1, MAX_ATTEMPTS, esp_err_to_name(err),
@@ -613,7 +628,10 @@ static void worker(void *arg)
             if (!err) {done |= CH_TG; delivered |= CH_TG;}
         } else done |= CH_TG;
         if ((note.channels & CH_MAIL) && c.mail_enabled) {
-            why[0] = 0; esp_err_t err = email(&c, text, why, sizeof why); record(&s_mail, err, why);
+            notify_text_compose(note.kind, note.level, note.text, version, reset, (poweron_channels & CH_MAIL) != 0,
+                                title, msg, sizeof msg);
+            snprintf(text, sizeof text, "%s%s%s", msg, when[0] ? "\n\nTime: " : "", when);
+            why[0] = 0; esp_err_t err = email(&c, title, text, why, sizeof why); record(&s_mail, err, why);
             if (err) ESP_LOGW(TAG, "Email delivery failed: event=%u id=%lu attempt=%u/%u error=%s internal=%u largest=%u psram=%u",
                 note.kind, (unsigned long)note.id, (unsigned)note.attempts + 1, MAX_ATTEMPTS, esp_err_to_name(err),
                 (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL), (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
@@ -767,10 +785,35 @@ static bool connectivity_offer_locked(unsigned kind, unsigned level, const char 
     return true;
 }
 
+/* An available, not installed firmware, announced once per version per boot
+ * like ntfy's (ntfy_events.h): to channels on All events or with "other
+ * restarts" (ntfy's system events). PSRAM copy: only while a channel is on. */
+EXT_RAM_BSS_ATTR static ota_remote_state_t s_update;
+static uint32_t s_update_seen, s_update_checked;
+
+static void update_poll_locked(uint32_t now)
+{
+    if (s_update_checked && now - s_update_checked < 60) return;
+    s_update_checked = now ? now : 1;
+    ota_remote_get_state(&s_update);
+    if (!s_update.update_available || !s_update.latest_version[0]) return;
+    uint32_t id = 2166136261u;
+    for (const char *p = s_update.latest_version; *p; p++) id = (id ^ (uint8_t)*p) * 16777619u;
+    id |= 1u;
+    if (id == s_update_seen) return;
+    s_update_seen = id;
+    uint8_t channels = wanted_channels_locked(HIST_EV_UPDATE, HIST_INFO, NULL) | (channels_locked() & s_startup_channels);
+    if (!channels) return;
+    char title[NOTIFY_TITLE_MAX], text[NOTIFY_TEXT_MAX];
+    notify_text_update_available(title, text, sizeof text, s_update.latest_version);
+    (void)limited_locked(HIST_EV_UPDATE, HIST_INFO, channels, notify_wall(), text, false);
+}
+
 static void notify_poll(void)
 {
     xSemaphoreTake(s_lock, portMAX_DELAY);
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000000);
+    update_poll_locked(now);
     for (unsigned link = LINK_WIFI; link < LINK_END; ++link) {
         link_state_t *s = &s_links[link];
         if (!s->down) continue;
