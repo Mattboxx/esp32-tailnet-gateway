@@ -48,6 +48,17 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
+### Firmware 3.0.12: ready in seconds, faster key exchange, Telegram commands
+
+- Startup and control-server reconnects are about 20 s faster: the gateway
+  no longer waits up to 25 s for silent DERP regions before connecting. On
+  the board the first tunnel is up about 13 s after a restart instead of 34 s;
+  Diagnostics shows how long each startup step took.
+- X25519 key agreement runs on the ESP32-S3 vector unit: about 7.5 ms instead
+  of 12.9 ms, for WireGuard handshakes and the control plane.
+- Telegram bot commands with the same options as ntfy; clearer brownout and
+  reset diagnostics. From this release the edition is licensed GPL-3.0-only.
+
 ### Firmware 3.0.11: shorter waits for packets
 
 - Relayed (DERP) packets are read as soon as they arrive and handled at the

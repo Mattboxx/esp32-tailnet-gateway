@@ -6,6 +6,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.12] — 2026-11-08
+
 ### Added
 
 - Diagnostics > Connection & security shows how long the last startup took to
@@ -28,7 +30,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   budget while the control session, the relay and the tunnels waited. The
   budget is now 5 s, like the Tailscale client's. Measured on the board over
   three boots: control session up after 13.3-14.1 s instead of 33.5-34.5 s,
-  first tunnel after 12.8-13.5 s instead of 33.6-35.3 s.
+  first tunnel after 12.8-13.5 s instead of 33.6-35.3 s. The budget now also
+  includes the DNS lookups and the probe sends (about 2 s more saved; measured
+  on the 3.0.12 image below).
 - X25519 key exchange about 45 % faster: the 256-bit field product runs on the
   ESP32-S3 vector unit (PIE), measured on the board at 386 cycles against 691
   for the scalar assembly and 1,064 for C, and is fused with the field
