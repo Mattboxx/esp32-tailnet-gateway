@@ -8,6 +8,7 @@ ntfy, Telegram and email word every event the same way:
   update available compose to ntfy's title and message; the boot detail line
   keeps the history text; other events keep their text under a title by kind;
 - malformed link notes (no number, other suffix) fall back to the raw text;
+- MQTT publishes the same reset cause text (reset_cause) besides the code;
 - every output is bounded by the caller's capacity (small buffers, long
   texts) and always terminated.
 """
@@ -20,6 +21,10 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SDK_HDR = Path(os.environ.get('ESP_SYSTEM_H', str(Path.home() / '.platformio/packages/framework-espidf@3.50503.0/components/esp_system/include/esp_system.h')))
 SRC = (ROOT / 'main/notify_text.c').read_text(encoding='utf-8')
+# MQTT/Home Assistant reports the same readable cause next to the numeric code
+MQTT = (ROOT / 'main/mqtt_integration.c').read_text(encoding='utf-8')
+assert 'cJSON_AddStringToObject(root, "reset_cause", notify_text_reset_cause((int)esp_reset_reason(), false));' in MQTT
+assert '"reset_cause", "Reset cause", s_state_topic' in MQTT and '"reset_reason", "Reset reason code"' in MQTT
 mine = re.search(r'enum \{\s*(RST_UNKNOWN[^}]*)\}', SRC).group(1)
 mine = [x.strip() for x in mine.replace('\n', ' ').split(',') if x.strip()]
 if SDK_HDR.is_file():

@@ -6,8 +6,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.13] — 2026-11-08
+
 ### Changed
 
+- MQTT/Home Assistant: the state also carries the readable reset cause
+  (`reset_cause`, new "Reset cause" sensor) that ntfy, Telegram and email
+  report, next to the numeric `reset_reason` code, which is kept.
 - Telegram and email word every event as ntfy does (same title and message:
   power-on with the reset cause, restarts, Tailscale problem and recovery) and
   also announce an available update once per version.
