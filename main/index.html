@@ -9754,11 +9754,29 @@
                  : '<span class="badge badge-neutral">' + L('not checked yet') + '</span>';
           };
           var chk = !fc.checked ? 0 : fc.active ? 1 : -1;
+          /* X25519 (3.0.12): the field product the device chose after checking
+           * each against C (2 PIE vector unit, 1 assembly, -1 C), the time of
+           * one scalar multiplication for WireGuard and for the control plane,
+           * and the measured product cycles. */
+          var ms = function (us) { return ((us | 0) / 1000).toFixed(1) + ' ms'; };
+          var x25519Line = function (c) {
+            var m = c.x25519_mul, cyc = c.x25519_mul_cycles || [];
+            var impl = m === 2 ? '<span class="badge badge-success">' + L('vector unit (PIE)') + '</span>'
+                     : m === 1 ? '<span class="badge badge-success">' + L('assembly') + '</span>' : asmState(m);
+            return '<div>' + L('Key exchange (X25519):') + ' ' + impl +
+              (m === 2 && c.x25519_sqr_pie ? ' · ' + L('squares on PIE') : '') +
+              (c.x25519_calls ? ' · ' + L('WireGuard, last:') + ' <strong>' + ms(c.x25519_us_last) + '</strong> (' +
+                L('max') + ' ' + ms(c.x25519_us_max) + ')' : '') +
+              (c.x25519_ctrl_calls ? ' · ' + L('control plane, last:') + ' ' + ms(c.x25519_ctrl_us_last) : '') + '</div>' +
+              (m > 0 && cyc[0] ? '<div>' + L('Field product cycles (C / assembly / PIE):') + ' ' + (cyc[0] | 0) + ' / ' +
+                (cyc[1] ? cyc[1] | 0 : '—') + ' / ' + (cyc[2] ? cyc[2] | 0 : '—') + '</div>' : '');
+          };
           var html =
             '<div>' + L('Assembly crypto:') + ' ChaCha20 ' + asmState(ca.chacha20) +
             ' · Poly1305 ' + asmState(ca.poly1305) + ' · ' + L('checksum') + ' ' + asmState(chk) +
             (fc.active && fc.cycles_1400_lwip ? ' (' + (fc.cycles_1400_fast | 0) + ' / ' + (fc.cycles_1400_lwip | 0) +
               ' ' + L('cycles per 1400 bytes, lwIP') + (fc.impl === 'xtensa-pie' ? ' · PIE' : '') + ')' : '') + '</div>' +
+            x25519Line(ca) +
             '<div>' + L('Compromised certificate authorities blocked:') + ' <strong>' + (td.distrusted_cas | 0) +
             '</strong> · ' + L('refused connections:') + ' <strong>' + (td.refused_chains | 0) + '</strong></div>';
           cnEl.innerHTML = html + '<div class="form-hint">' + L('Loading…') + '</div>';
