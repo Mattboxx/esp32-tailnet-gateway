@@ -11,10 +11,34 @@ ROOT=Path(__file__).resolve().parents[1]
 
 class LicenseComplianceTests(unittest.TestCase):
     def test_original_mit_notice_is_intact(self):
-        payload=(ROOT/'LICENSE').read_text(encoding='utf-8').encode()
+        # The original firmware's MIT text, moved verbatim when the edition
+        # adopted GPL-3.0 (3.0.12): same git blob as the former root LICENSE.
+        payload=(ROOT/'licenses/upstream/esp32-tailscale-subnet-router-MIT.txt').read_text(encoding='utf-8').encode()
         blob=hashlib.sha1(b'blob '+str(len(payload)).encode()+b'\0'+payload).hexdigest()
         self.assertEqual(blob,'2694857e74627637b7f58da11e8f0556a74f7498',
-                         'Recheck original upstream MIT text; no relicensing was intended')
+                         'The original upstream MIT text must stay verbatim')
+        self.assertIn('Copyright (c) 2026 Csontikka',payload.decode())
+
+    def test_edition_licence_is_gpl3_with_espressif_permission(self):
+        text=(ROOT/'LICENSE').read_text(encoding='utf-8')
+        # the FSF's verbatim gpl-3.0.txt
+        self.assertEqual(hashlib.sha256(text.replace('\r\n','\n').encode()).hexdigest(),
+                         '8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903')
+        exception=' '.join((ROOT/'LICENSE-EXCEPTION.md').read_text(encoding='utf-8').split())
+        for item in ('GPL-3.0-only','section 7','additional permission to convey the resulting work',
+                     'binary-only libraries','3.0.11 were distributed under the MIT License',
+                     'licenses/upstream/esp32-tailscale-subnet-router-MIT.txt','external/microlink'):
+            self.assertIn(item,exception)
+        notice=' '.join((ROOT/'NOTICE.md').read_text(encoding='utf-8').split())
+        self.assertIn('LICENSE-EXCEPTION.md',notice)
+        self.assertIn('Copyright (c) 2026 Csontikka',notice)
+        about=(ROOT/'main/index.html').read_text(encoding='utf-8')
+        self.assertIn('GPL-3.0 — see LICENSE and NOTICE.md in the repo',about)
+        self.assertNotIn('MIT — see LICENSE',about)
+        # binary packages carry the GPL text, the permission and the upstream MIT notice
+        release=(ROOT/'tools/package_release.py').read_text(encoding='utf-8')
+        for name in ("'LICENSE-EXCEPTION.md'","'licenses/upstream/esp32-tailscale-subnet-router-MIT.txt'","'LICENSE'"):
+            self.assertIn(name,release)
 
     def test_actual_dependency_and_original_author_are_named(self):
         notice=' '.join((ROOT/'NOTICE.md').read_text(encoding='utf-8').split())
@@ -35,7 +59,7 @@ class LicenseComplianceTests(unittest.TestCase):
 
     def test_citation_describes_this_edition_and_separate_upstreams(self):
         citation=yaml.safe_load((ROOT/'CITATION.cff').read_text(encoding='utf-8'))
-        self.assertEqual(citation['license'],'MIT')
+        self.assertEqual(citation['license'],'GPL-3.0-only')
         stable=re.findall(r'^## \[(\d+\.\d+\.\d+)\]',(ROOT/'CHANGELOG.md').read_text(encoding='utf-8'),re.M)[0]
         self.assertEqual(citation['version'],stable)
         urls={r['repository-code'] for r in citation['references']}

@@ -3,8 +3,17 @@
 This project (ESP32 Tailnet Gateway — Mattboxx Edition, formerly ESP32 Homelab
 Gateway; repository `esp32-tailnet-gateway`, formerly
 `esp32-tailscale-gateway-NAS-recovery`, forked from
-`esp32-tailscale-subnet-router`) is licensed under the
-[MIT License](LICENSE), Copyright (c) 2026 Csontikka.
+`esp32-tailscale-subnet-router`) is licensed, from version 3.0.12, under the
+[GNU General Public License version 3](LICENSE) (`GPL-3.0-only`) with the
+additional permission for ESP-IDF and Espressif's binary libraries and the
+additional terms in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md); Copyright (C)
+2026 Mattboxx for the Mattboxx Edition. Releases up to and including 3.0.11
+were distributed under the MIT License.
+
+The original firmware is licensed under the MIT License, Copyright (c) 2026
+Csontikka, kept verbatim in
+[licenses/upstream/esp32-tailscale-subnet-router-MIT.txt](licenses/upstream/esp32-tailscale-subnet-router-MIT.txt).
+Its code remains available under those terms and its notice must be preserved.
 
 Original firmware repository:
 https://github.com/Csontikka/esp32-tailscale-subnet-router.
@@ -57,8 +66,10 @@ the mDNS authors Verisure Innovation AB), FreeRTOS (MIT), cJSON (MIT),
 mbedTLS (Apache-2.0 option), ESP-MQTT (Apache-2.0), FatFs (its upstream
 redistribution notice), wpa_supplicant (BSD-3-Clause, with its full terms in
 the SDK component's `README`), and newlib/GCC/libstdc++ runtime notices. The GCC
-Runtime Library Exception is not a reason to relicense this application as
-GPL. Use the notices from the exact SDK/toolchain used for the image.
+Runtime Library Exception keeps those runtime libraries from imposing their
+own terms on the application; the edition's GPL-3.0 licence is a separate
+choice of its author. Use the notices from the exact SDK/toolchain used for
+the image.
 
 `main/lwip_mdns/mdns.c` preserves its original BSD source notice and identifies
 the local modification. The firmware notice generator additionally carries
@@ -97,14 +108,16 @@ not MIT. Its license accompanies the tool as `ESPTOOL-LICENSE.txt`.
 Redistributing its executable also requires the applicable corresponding-source
 arrangement; a license copy alone is insufficient. See
 [Flashing-tool redistribution](docs/FLASHING-TOOL-LICENSES.md). A standalone tool
-aggregated with the firmware does not by itself relicense the firmware GPL.
+aggregated with the firmware is a separate program under its own licence.
 
 ## Mattboxx edition, branding and optional support
 
 The edition's name, custom artwork, additional features and documentation do
-not replace the original authorship above. The root MIT notice is preserved
-unchanged; third-party files retain their own terms. Brand assets use the
-repository MIT license as documented in `assets/brand/BRAND.md`.
+not replace the original authorship above. The original MIT notice is
+preserved unchanged in `licenses/upstream/`; third-party files retain their own
+terms. Brand assets are covered as documented in `assets/brand/BRAND.md`; the
+names "Mattboxx" and "Mattboxx Edition" are not licensed as marks of other
+products (LICENSE-EXCEPTION.md, GPLv3 section 7(e)).
 
 Optional https://ko-fi.com/mattboxx tips support the **Mattboxx Edition**,
 not Csontikka or Cameron Malone. Separately labeled upstream support links

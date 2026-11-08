@@ -21,7 +21,7 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > 2.x update), or once over USB without erasing —
 > see [Moving to 3.0](docs/MIGRATION-3.0.md).
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-0B7A4B.svg)](LICENSE)
+[![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-0B7A4B.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
 [![ESP-IDF 5.5.3](https://img.shields.io/badge/ESP--IDF-5.5.3-0A0F0C.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![CodeQL](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml)
@@ -567,7 +567,11 @@ Support the original author via
 
 ## 20. Credits and licences
 
-MIT licensed ([LICENSE](LICENSE)). Built on:
+From 3.0.12, GPL-3.0-only ([LICENSE](LICENSE)) with an additional permission
+for ESP-IDF and Espressif's binary libraries and terms on attribution and on the
+Mattboxx name ([LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)). Releases up to
+3.0.11 were MIT licensed. The original firmware's MIT notice is kept in
+[licenses/upstream](licenses/upstream/esp32-tailscale-subnet-router-MIT.txt). Built on:
 
 - **[Csontikka/esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)** —
   the original firmware this edition forks.
@@ -580,7 +584,7 @@ MIT licensed ([LICENSE](LICENSE)). Built on:
   Apache-2.0; bundled libraries retain their own licenses).
 
 Full attribution: [NOTICE.md](NOTICE.md). Brand assets: [assets/brand](assets/brand/BRAND.md).
-The root MIT license is not a relicensing of bundled third-party components
-or the separately distributed GPL esptool flashing program.
+The edition's licence does not relicense bundled third-party components
+(MicroLink stays MIT) or the separately distributed esptool flashing program.
 Tailscale, Headscale, WireGuard and ESP32 are trademarks of their respective
 owners. Legacy README: [1.13 documentation](https://github.com/Mattboxx/esp32-tailnet-gateway/blob/v0.1.38-Mattboxx-1.13/README.md).

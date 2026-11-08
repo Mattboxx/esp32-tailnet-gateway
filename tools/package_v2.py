@@ -165,6 +165,8 @@ def main():
     shutil.copyfile(a.esptool_license, pkg / 'windows' / 'ESPTOOL-LICENSE.txt')
     shutil.copyfile(ROOT / 'docs/FLASHING-TOOL-LICENSES.md', pkg / 'FLASHING-TOOL-LICENSES.md')
     (pkg / 'SOURCE-DOWNLOAD.txt').write_text(
+        f'Corresponding source for the firmware (GPL-3.0-only, LICENSE-EXCEPTION.md):\n'
+        f'{source_url}/tree/v{v} (with the external/microlink submodule at the commit it records)\n\n'
         f'Corresponding source for the bundled esptool:\n{source_url}/releases/download/v{v}/{SOURCE_NAME}\n'
         f'SHA-256: {sha(a.tool_sources)}\n', encoding='utf-8')
     for bat in (pkg / 'windows').glob('*.bat'):

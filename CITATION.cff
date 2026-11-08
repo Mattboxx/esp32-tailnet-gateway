@@ -11,7 +11,7 @@ authors:
   - alias: Mattboxx
 version: 3.0.11
 date-released: 2026-11-08
-license: MIT
+license: GPL-3.0-only
 repository-code: "https://github.com/Mattboxx/esp32-tailnet-gateway"
 url: "https://mattboxx.github.io/esp32-tailnet-gateway/"
 keywords:
