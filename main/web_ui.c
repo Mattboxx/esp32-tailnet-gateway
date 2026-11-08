@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* Single-page web UI server.
  *
  * SPDX-License-Identifier: MIT
@@ -4618,6 +4621,20 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
             }
             for (int i = 0; i < ML_BOOT_MARKS; i++) {
                 if (ml[i]) cJSON_AddNumberToObject(bt, ml_names[i], ml[i]); else cJSON_AddNullToObject(bt, ml_names[i]);
+            }
+            microlink_boot_fetch_t bf;
+            microlink_get_boot_fetch(tailscale_get_microlink(), &bf);
+            if (bf.valid) {
+                cJSON *mf = cJSON_AddObjectToObject(bt, "map_fetch");
+                if (mf) {
+                    cJSON_AddNumberToObject(mf, "sent_ms", bf.sent_ms);
+                    cJSON_AddNumberToObject(mf, "first_byte_ms", bf.first_byte_ms);
+                    cJSON_AddNumberToObject(mf, "last_data_ms", bf.last_data_ms);
+                    cJSON_AddNumberToObject(mf, "done_ms", bf.done_ms);
+                    cJSON_AddNumberToObject(mf, "bytes", bf.bytes);
+                    cJSON_AddNumberToObject(mf, "frames", bf.frames);
+                    cJSON_AddStringToObject(mf, "end", bf.end == 1 ? "end_stream" : bf.end == 2 ? "closed_or_timeout" : "other");
+                }
             }
             cJSON_AddItemToObject(root, "boot_timeline", bt);
         }
