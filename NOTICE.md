@@ -3,12 +3,15 @@
 This project (ESP32 Tailnet Gateway — Mattboxx Edition, formerly ESP32 Homelab
 Gateway; repository `esp32-tailnet-gateway`, formerly
 `esp32-tailscale-gateway-NAS-recovery`, forked from
-`esp32-tailscale-subnet-router`) is licensed, from version 3.0.12, under the
+`esp32-tailscale-subnet-router`) is licensed under the
 [GNU General Public License version 3](LICENSE) (`GPL-3.0-only`) with the
 additional permission for ESP-IDF and Espressif's binary libraries and the
 additional terms in [LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md); Copyright (C)
-2026 Mattboxx for the Mattboxx Edition. Releases up to and including 3.0.11
-were distributed under the MIT License.
+2026 Mattboxx for the Mattboxx Edition. Since 8 November 2026 this applies to
+all Mattboxx code, including code first published in earlier releases, in the
+current source and in every release from 3.0.12. Releases up to and including
+3.0.11 were distributed under the MIT License, and copies of them keep those
+terms.
 
 The original firmware is licensed under the MIT License, Copyright (c) 2026
 Csontikka, kept verbatim in
@@ -25,7 +28,9 @@ license:
 
 - **Dependency used by this project:** https://github.com/Mattboxx/microlink,
   branch `mattboxx`, pinned by the `external/microlink` gitlink. The audited
-  revision is `fa3153b6892d00d0c9a9c42f11c8f1a89c6ea910`; the gitlink, not a
+  revision is `a709f473137dfd73d9d79ee0577db9c3decd4c29` (identical files to
+  `fa3153b6892d00d0c9a9c42f11c8f1a89c6ea910`, see
+  [docs/RELEASE-COMMIT-IDS.md](docs/RELEASE-COMMIT-IDS.md)); the gitlink, not a
   moving branch name, selects the code built into a release.
 - **Immediate upstream:** https://github.com/Csontikka/microlink.
 - **Original project:** https://github.com/CamM2325/microlink, by

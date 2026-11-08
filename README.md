@@ -567,10 +567,11 @@ Support the original author via
 
 ## 20. Credits and licences
 
-From 3.0.12, GPL-3.0-only ([LICENSE](LICENSE)) with an additional permission
-for ESP-IDF and Espressif's binary libraries and terms on attribution and on the
-Mattboxx name ([LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)). Releases up to
-3.0.11 were MIT licensed. The original firmware's MIT notice is kept in
+GPL-3.0-only ([LICENSE](LICENSE)) with an additional permission for ESP-IDF and
+Espressif's binary libraries and terms on attribution and on the Mattboxx name
+([LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md)), for all Mattboxx code from
+8 November 2026 and every release from 3.0.12. Releases up to 3.0.11 were
+published under MIT and copies of them keep those terms. The original firmware's MIT notice is kept in
 [licenses/upstream](licenses/upstream/esp32-tailscale-subnet-router-MIT.txt). Built on:
 
 - **[Csontikka/esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)** —

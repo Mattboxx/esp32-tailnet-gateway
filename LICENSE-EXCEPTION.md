@@ -14,9 +14,16 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 ## Scope
 
-- This licence applies to the Mattboxx Edition from version **3.0.12**.
-  Releases up to and including 3.0.11 were distributed under the MIT License;
-  copies received under those terms keep them.
+- From 8 November 2026 the Mattboxx Edition is distributed only under this
+  licence. This covers all code written for the Mattboxx Edition, including
+  code that first appeared in earlier releases, in the current source and in
+  every release from **3.0.12** on. Its author no longer offers that code
+  under any other licence.
+- Releases up to and including 3.0.11 were distributed under the MIT License,
+  and the historical revisions in this repository still carry that notice. A
+  licence already granted cannot be withdrawn: copies of those releases and
+  revisions keep the MIT terms they were published with. Nothing here claims
+  otherwise; it only applies to what is distributed from now on.
 - Code from the original firmware by Csontikka stays available under its MIT
   License, kept verbatim in
   [licenses/upstream/esp32-tailscale-subnet-router-MIT.txt](licenses/upstream/esp32-tailscale-subnet-router-MIT.txt).

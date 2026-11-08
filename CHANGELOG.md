@@ -36,7 +36,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   GPL version 3 (`GPL-3.0-only`), with an additional permission to combine it
   with ESP-IDF and Espressif's binary-only libraries and additional terms on
   attribution, marking of modified versions and the Mattboxx name
-  (`LICENSE-EXCEPTION.md`). Releases up to 3.0.11 stay MIT licensed. The
+  (`LICENSE-EXCEPTION.md`). This covers all Mattboxx code from 8 November
+  2026, including code first published in earlier releases; copies of
+  releases up to 3.0.11 keep the MIT terms they were published with. The
   original firmware's MIT notice is kept verbatim in `licenses/upstream/`;
   MicroLink and the other components keep their own licences.
 
