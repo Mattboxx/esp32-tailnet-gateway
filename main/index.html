@@ -3756,6 +3756,13 @@
             <div class="form-group"><label class="form-label" for="nt-tg-events">Send</label><select class="input" id="nt-tg-events"><option value="problems">Warnings and errors (recommended)</option><option value="all">All events</option></select></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-startup"><span class="feature-switch-track" aria-hidden="true"></span><span>Other restarts</span></label><span class="form-hint">Software, update and other normal starts. Crash, watchdog and brownout errors keep their separate warning/error path.</span></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-poweron"><span class="feature-switch-track" aria-hidden="true"></span><span>Blackout: notify when power returns</span></label><span class="form-hint">Reports a power-on reset, separate from a crash. First power-up or reconnecting the cable can look the same. Sent after power returns and the network is available; outage duration is unknown.</span></div>
+            <h4 style="font-size:var(--text-sm); margin:1rem 0 0.35rem 0;">Remote commands</h4>
+            <p class="form-hint" style="margin-top:0;">Send <code class="mono">info</code>, <code class="mono">wol NAME</code>, <code class="mono">recover NAME</code> or <code class="mono">check NAME</code> to your bot (with or without a leading <code class="mono">/</code>). Only messages from the chat above are executed; commands sent before they were switched on, or more than 10 minutes old, are ignored.</p>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd"><span class="feature-switch-track" aria-hidden="true"></span><span>Receive remote commands</span></label><div class="feature-inline-dependent" id="nt-tg-cmd-settings"><label class="form-label" for="nt-tg-cmd-poll" style="margin-top:0.5rem;">Poll interval (seconds)</label><input class="input mono" type="number" id="nt-tg-cmd-poll" min="5" max="300" value="15"></div></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-down"><span class="feature-switch-track" aria-hidden="true"></span><span>Poll commands only while Tailscale is down</span></label></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-info"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow <code class="mono">info</code> command</span></label><span class="form-hint">Replies with operational state and counts. Credentials and tokens are always excluded.</span></div>
+            <div class="form-group feature-inline-dependent" id="nt-tg-cmd-details-setting"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-details"><span class="feature-switch-track" aria-hidden="true"></span><span>Include private network details in <code class="mono">info</code></span></label><span class="form-hint">Off by default. Enabling this includes SSID, IPs, routes, peer names, AP-client MACs and saved WOL targets in Telegram messages.</span></div>
+            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-mac"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow <code class="mono">wol aa:bb:cc:dd:ee:ff</code> for unsaved MAC addresses</span></label><span class="form-hint">When off, <code class="mono">wol DEVICE_NAME</code> and saved MAC addresses still work.</span></div>
           </div>
           <p class="form-hint mono" id="nt-tg-status">—</p>
           <p class="form-hint" id="nt-tg-note" role="status">Loading…</p>
@@ -7320,6 +7327,11 @@
           el('nt-tg-poweron').checked = t.notify_poweron === undefined ? (t.events || d.events) === 'all' : !!t.notify_poweron;
           el('nt-tg-startup').checked = t.notify_startup === undefined ? (t.events || d.events) === 'all' : !!t.notify_startup;
           el('nt-tg-token').value = ''; el('nt-tg-clear').checked = false;
+          var tc = t.commands || {};
+          el('nt-tg-cmd').checked = !!tc.enabled; el('nt-tg-cmd-down').checked = tc.only_when_tailscale_down !== false;
+          el('nt-tg-cmd-info').checked = tc.info_enabled !== false; el('nt-tg-cmd-details').checked = !!tc.info_include_details;
+          el('nt-tg-cmd-mac').checked = !!tc.allow_direct_mac; el('nt-tg-cmd-poll').value = tc.poll_interval_seconds || 15;
+          tgCommandStates();
           el('nt-tg-token').placeholder = t.has_token ? 'Saved — leave empty to keep' : '123456789:AA…';
           }
           if (!dirty.mail) {
@@ -7330,7 +7342,11 @@
           el('nt-mail-user').value = m.user; el('nt-mail-from').value = m.from; el('nt-mail-to').value = m.to;
           el('nt-mail-pass').value = ''; el('nt-mail-pass').placeholder = m.has_password ? 'Saved — leave empty to keep' : 'Password or app password';
           }
-          el('nt-tg-status').textContent = channelText(t);
+          var tcs = t.commands || {};   /* status: also when unsaved edits keep the fields */
+          el('nt-tg-status').textContent = channelText(t) + (tcs.enabled
+            ? ' · commands ' + (tcs.running ? 'on' : 'waiting') + ': ' + (tcs.received | 0) + ' run, ' + (tcs.errors | 0) + ' refused' +
+              (tcs.other_chats_skipped ? ', ' + tcs.other_chats_skipped + ' from other chats ignored' : '') + (tcs.last_error ? ' — ' + tcs.last_error : '')
+            : '');
           el('nt-mail-status').textContent = channelText(m);
           badge('nt-tg-badge', t.enabled); badge('nt-mail-badge', m.enabled);
           var waiting = d.waiting ? d.waiting + ' message(s) waiting to be sent.' : d.pending_connectivity ? 'Checking connectivity: alerts wait ' + (d.connectivity_grace_seconds || 60) + ' seconds.' : null;
@@ -7358,7 +7374,9 @@
         var btn = el('nt-' + ch + '-save'); btn.disabled = true;
         var body = ch === 'tg'
           ? {telegram: {enabled: el('nt-tg-enabled').checked, chat: el('nt-tg-chat').value.trim(), token: el('nt-tg-token').value.trim(),
-                        clear_token: el('nt-tg-clear').checked, events: el('nt-tg-events').value, notify_startup: el('nt-tg-startup').checked, notify_poweron: el('nt-tg-poweron').checked}}
+                        clear_token: el('nt-tg-clear').checked, events: el('nt-tg-events').value, notify_startup: el('nt-tg-startup').checked, notify_poweron: el('nt-tg-poweron').checked,
+                        commands: {enabled: el('nt-tg-cmd').checked, only_when_tailscale_down: el('nt-tg-cmd-down').checked, allow_direct_mac: el('nt-tg-cmd-mac').checked,
+                                   info_enabled: el('nt-tg-cmd-info').checked, info_include_details: el('nt-tg-cmd-details').checked, poll_interval_seconds: Number(el('nt-tg-cmd-poll').value)}}}
           : {email: {enabled: el('nt-mail-enabled').checked, host: el('nt-mail-host').value.trim(), port: Number(el('nt-mail-port').value),
                      security: el('nt-mail-security').value, user: el('nt-mail-user').value.trim(), password: el('nt-mail-pass').value,
                      from: el('nt-mail-from').value.trim(), to: el('nt-mail-to').value.trim(), events: el('nt-mail-events').value, notify_startup: el('nt-mail-startup').checked, notify_poweron: el('nt-mail-poweron').checked}};
@@ -7389,7 +7407,17 @@
         } catch (e) { el('nt-timing-note').textContent = 'Not saved: ' + e.message; }
         finally { timingSaving = false; this.disabled = !timingDirty; }
       });
-      el('nt-tg-save').addEventListener('click', function () { save('tg'); });
+      /* Dependent fields follow their switches, like the ntfy card. */
+      function tgCommandStates() {
+        setFeatureDependentState('nt-tg-cmd-settings', el('nt-tg-cmd').checked);
+        setFeatureDependentState('nt-tg-cmd-details-setting', el('nt-tg-cmd-info').checked);
+      }
+      ['nt-tg-cmd', 'nt-tg-cmd-info'].forEach(function (id) { el(id).addEventListener('change', tgCommandStates); });
+      el('nt-tg-save').addEventListener('click', function () {
+        var poll = Number(el('nt-tg-cmd-poll').value);
+        if (el('nt-tg-cmd').checked && (!Number.isInteger(poll) || poll < 5 || poll > 300)) { el('nt-tg-note').textContent = 'Poll interval: use 5 to 300 whole seconds.'; return; }
+        save('tg');
+      });
       el('nt-mail-save').addEventListener('click', function () { save('mail'); });
       async function test(channel, note) {
         try {

@@ -9,9 +9,10 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 source = (ROOT / 'main/ntfy_integration.c').read_text()
-command = 'static NTFY_NOINLINE void handle_command' + source.split('static NTFY_NOINLINE void handle_command', 1)[1].split('static void collect_line', 1)[0]
-reset_builder = source[source.index('static const char *reset_reason_description('):source.index('static NTFY_NOINLINE esp_err_t send_info(')]
-assert '(unsigned long)esp_get_minimum_free_heap_size(), reset_reason_description(c),' in source
+# The shared command engine (remote_command_run) and ntfy's handler on top of it.
+command = source[source.index('/* One remote command, shared by ntfy and Telegram'):source.index('static void collect_line')]
+reset_builder = source[source.index('static const char *reset_reason_text('):source.index('/* The info reply, shared by ntfy and Telegram')]
+assert '(unsigned long)esp_get_minimum_free_heap_size(), reset_reason_text(c->poweron_events),' in source
 boot = 'static NTFY_NOINLINE esp_err_t send_system_event' + source.split('static NTFY_NOINLINE esp_err_t send_system_event',1)[1].split('static void task_main',1)[0]
 alert = 'static NTFY_NOINLINE esp_err_t send_tailscale_alert' + source.split('static NTFY_NOINLINE esp_err_t send_tailscale_alert', 1)[1].split('static NTFY_NOINLINE uint32_t available_update_id', 1)[0]
 fixture = r'''
@@ -32,7 +33,7 @@ fixture = r'''
 #define HTTP_EVENT_ON_DATA 1
 #define portMAX_DELAY 0
 typedef int esp_err_t;
-typedef struct { bool info_enabled, info_include_details, poweron_events; } ntfy_integration_config_t;
+typedef struct { bool info_enabled, info_include_details, poweron_events, allow_direct_mac; } ntfy_integration_config_t;
 typedef struct { int event_id, data_len; void *data, *user_data; } esp_http_client_event_t;
 static int s_lock;
 static struct { unsigned alerts_sent, commands_received, command_errors; } s_status;
@@ -58,7 +59,10 @@ size_t log_capture_read(char *out,size_t capacity) {
     out[capacity-1]=0;return capacity-1;
 }
 static esp_err_t send_info(const ntfy_integration_config_t *c) { (void)c; return info_result; }
-static esp_err_t wake_argument(const ntfy_integration_config_t *c,const char *s) { (void)c; (void)s; return ESP_FAIL; }
+static esp_err_t wake_argument(bool allow_direct_mac,const char *s) { (void)allow_direct_mac; (void)s; return ESP_FAIL; }
+static size_t strlcpy_(char *d,const char *s,size_t n){size_t l=strlen(s);if(n){size_t c=l<n-1?l:n-1;memcpy(d,s,c);d[c]=0;}return l;}
+#define strlcpy strlcpy_
+#include "remote_commands.h"
 typedef struct {char name[32];uint8_t mac[6];} wol_device_t;
 static bool wol_parse_mac(const char *s,uint8_t out[6]){(void)s;(void)out;return false;}
 static int wol_count(void){return 0;}
