@@ -5898,7 +5898,8 @@
           if (!hist.length) return;
           var e = hist[0];
           var critical = { PANIC:1, TASK_WDT:1, INT_WDT:1, BROWNOUT:1 };
-          if (!critical[e.reason]) return;
+          /* FLASH/ROLLBACK rows keep an abnormal chip reset in `who`. */
+          if (!critical[e.reason] && !/^after /.test(e.who || '')) return;
           var key = 'panicAck:' + (e.wallclock || 0) + ':' + e.reason;
           if (sessionStorage.getItem(key) === '1') return;
           var when = e.wallclock
@@ -5909,7 +5910,8 @@
               escapeHtml(when) +
               (e.who ? ' (attributed to: ' + escapeHtml(e.who) + ')' : '');
           document.getElementById('panic-crash').textContent =
-              e.crash || '(no crash one-liner stored — check coredump partition)';
+              isBrownoutRow(e) ? brownoutAdvice(hist)
+                : (e.crash || '(no crash one-liner stored — check coredump partition)');
           var modal = document.getElementById('panicAlertModal');
           modal.classList.add('open');
           var ack = document.getElementById('panic-ack');
@@ -10175,13 +10177,12 @@
             }
             sel.value = stored;
           })();
-          /* Prefer the persisted NVS value so the field reflects what'll
-           * survive a reboot; fall back to the live value when there is
-           * no override yet. */
-          var txShown = (typeof d.tx_power_nvs === 'number' && d.tx_power_nvs > 0)
-                          ? d.tx_power_nvs
-                          : (typeof d.tx_power === 'number' ? d.tx_power : 0);
-          document.getElementById('sys-tx-power').value      = txShown || 0;
+          /* The field holds only the persisted override (0 = IDF default).
+           * Showing the live radio value here would turn "default" into a
+           * fixed override on the next unrelated System save. */
+          var txShown = (typeof d.tx_power_nvs === 'number' && d.tx_power_nvs > 0) ? d.tx_power_nvs : 0;
+          s_txLive = (typeof d.tx_power === 'number') ? d.tx_power : null;
+          document.getElementById('sys-tx-power').value      = txShown;
           document.getElementById('sys-web-port').value      = d.web_port || 80;
           updateTxPowerDbm(txShown);
           var ps = document.getElementById('sys-wifi-ps');
@@ -10282,6 +10283,19 @@
       } catch (e) { return '' + ts; }
     }
 
+    /* Brownout rows: the reset itself, or one kept behind a FLASH/ROLLBACK
+     * label (reset_history.c stores "after BROWNOUT" in `who`). */
+    function isBrownoutRow(e) {
+      return !!e && (e.reason === 'BROWNOUT' || e.who === 'after BROWNOUT');
+    }
+    function brownoutAdvice(hist) {
+      var n = hist.filter(isBrownoutRow).length;
+      if (n >= 2) return 'Multiple brownout resets detected (' + n + ' of the last ' + hist.length +
+                         ' boots). Check power supply and USB cable.';
+      return 'The supply voltage dropped below the brownout threshold; no crash dump is expected. ' +
+             'Check power supply and USB cable.';
+    }
+
     function renderResetHistory(hist) {
       var tb = document.getElementById('sys-hist-tbody');
       var badge = document.getElementById('sys-hist-badge');
@@ -10294,6 +10308,7 @@
       }
       badge.textContent = '' + hist.length;
       var crashCount = 0;
+      var brownouts = hist.filter(isBrownoutRow).length;
       var rows = hist.map(function (e, i) {
         var reason = e.reason || '';
         if (reason.indexOf('PANIC') >= 0 || reason.indexOf('WDT') >= 0) crashCount++;
@@ -10306,19 +10321,26 @@
           + '<td>' + crashCell + '</td>'
           + '</tr>';
       }).join('');
+      if (brownouts) rows += '<tr><td colspan="4" class="form-hint">' + escapeHtml(brownoutAdvice(hist)) + '</td></tr>';
       tb.innerHTML = rows;
-      badge.className = crashCount ? 'badge badge-danger' : 'badge badge-success';
-      badge.textContent = crashCount ? (crashCount + '× crash / ' + hist.length) : ('' + hist.length);
+      var faults = [];
+      if (crashCount) faults.push(crashCount + '× crash');
+      if (brownouts) faults.push(brownouts + '× brownout');
+      badge.className = faults.length ? 'badge badge-danger' : 'badge badge-success';
+      badge.textContent = faults.length ? (faults.join(', ') + ' / ' + hist.length) : ('' + hist.length);
     }
 
     /* Render the dBm conversion next to the TX-power input so the
      * operator doesn't have to do the 0.25 multiplication in their
      * head. 0 stays a special "default" indicator. */
+    var s_txLive = null;   /* radio's applied value from /api/system */
     function updateTxPowerDbm(raw) {
       var el = document.getElementById('sys-tx-power-dbm');
       var v  = parseInt(raw, 10);
-      if (!v) { el.textContent = '= IDF default'; return; }
-      el.textContent = '≈ ' + (v * 0.25).toFixed(2) + ' dBm';
+      var live = (typeof s_txLive === 'number')
+        ? ' (now ' + (s_txLive * 0.25).toFixed(2) + ' dBm)' : '';
+      if (!v) { el.textContent = '= IDF default' + live; return; }
+      el.textContent = '≈ ' + (Math.min(v, 80) * 0.25).toFixed(2) + ' dBm' + live;
     }
 
     /* Opt-in updates are asynchronous and independent of local OTA upload. */

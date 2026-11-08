@@ -78,6 +78,40 @@ static void migrate_v1_to_v2(nvs_handle_t h, reset_history_entry_t *hist)
     ESP_LOGW(TAG, "rst_hist v1 -> v2 migrated, last_crash back-filled");
 }
 
+const char *reset_history_reason_label(esp_reset_reason_t rr)
+{
+    switch (rr) {
+        case ESP_RST_POWERON:    return "POWERON";
+        case ESP_RST_EXT:        return "EXT";
+        case ESP_RST_SW:         return "SW";
+        case ESP_RST_PANIC:      return "PANIC";
+        case ESP_RST_INT_WDT:    return "INT_WDT";
+        case ESP_RST_TASK_WDT:   return "TASK_WDT";
+        case ESP_RST_WDT:        return "WDT";
+        case ESP_RST_DEEPSLEEP:  return "DEEPSLEEP";
+        case ESP_RST_BROWNOUT:   return "BROWNOUT";
+        case ESP_RST_SDIO:       return "SDIO";
+        case ESP_RST_USB:        return "USB";
+        case ESP_RST_JTAG:       return "JTAG";
+        case ESP_RST_EFUSE:      return "EFUSE";
+        case ESP_RST_PWR_GLITCH: return "PWR_GLITCH";
+        case ESP_RST_CPU_LOCKUP: return "CPU_LOCKUP";
+        default:                 return NULL;
+    }
+}
+
+bool reset_history_reason_abnormal(esp_reset_reason_t rr)
+{
+    switch (rr) {
+        case ESP_RST_PANIC: case ESP_RST_INT_WDT: case ESP_RST_TASK_WDT:
+        case ESP_RST_WDT: case ESP_RST_BROWNOUT: case ESP_RST_EFUSE:
+        case ESP_RST_PWR_GLITCH: case ESP_RST_CPU_LOCKUP:
+            return true;
+        default:
+            return false;
+    }
+}
+
 /* Compute a human label for the current boot's reset cause. The
  * FLASH/ROLLBACK detection sits in front of esp_reset_reason() because
  * IDF v5.3 reports UNKNOWN for both first-boot and the post-flash chip
@@ -111,27 +145,23 @@ static const char *classify_reset(nvs_handle_t h, char *out_who, size_t who_len)
     }
 
     esp_reset_reason_t rr = esp_reset_reason();
+    const char *raw = reset_history_reason_label(rr);
     const char *rs;
     if (rolled_back)      rs = "ROLLBACK";
     else if (just_flashed) rs = "FLASH";
-    else switch (rr) {
-        case ESP_RST_POWERON:   rs = "POWERON";   break;
-        case ESP_RST_EXT:       rs = "EXT";       break;
-        case ESP_RST_SW:        rs = "SW";        break;
-        case ESP_RST_PANIC:     rs = "PANIC";     break;
-        case ESP_RST_INT_WDT:   rs = "INT_WDT";   break;
-        case ESP_RST_TASK_WDT:  rs = "TASK_WDT";  break;
-        case ESP_RST_WDT:       rs = "WDT";       break;
-        case ESP_RST_DEEPSLEEP: rs = "DEEPSLEEP"; break;
-        case ESP_RST_BROWNOUT:  rs = "BROWNOUT";  break;
-        case ESP_RST_SDIO:      rs = "SDIO";      break;
-        default:                rs = "UNKNOWN";   break;
-    }
+    else                  rs = raw ? raw : "UNKNOWN";
 
     if (out_who && who_len) out_who[0] = '\0';
     if (rr == ESP_RST_SW && out_who && who_len) {
         size_t wl = who_len;
         nvs_get_str(h, KEY_WHO, out_who, &wl);
+    } else if ((rolled_back || just_flashed) && raw && reset_history_reason_abnormal(rr)
+               && out_who && who_len) {
+        /* ROLLBACK/FLASH label the image change, but the chip reset itself
+         * was abnormal (e.g. a brownout during the first boot of an OTA
+         * image makes the bootloader roll back). Keep that cause visible in
+         * the same row: no extra NVS key or write. */
+        snprintf(out_who, who_len, "after %s", raw);
     }
     if (rr != ESP_RST_SW) {
         nvs_erase_key(h, KEY_WHO);

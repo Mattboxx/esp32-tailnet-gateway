@@ -289,30 +289,14 @@ static const char *reset_reason_str(void)
      * guards never compiled the new IDF 5.x cases in — that's why the
      * S3 always reported UNKNOWN after a clean esp_restart(). With the
      * guards gone, the chip's actual cause shows through. */
+    /* Same labels as the persisted reset-history rows (reset_history.c). */
     esp_reset_reason_t r = esp_reset_reason();
     static char unk[16];
-    const char *base;
-    switch (r) {
-        case ESP_RST_POWERON:    base = "POWERON";    break;
-        case ESP_RST_EXT:        base = "EXT";        break;
-        case ESP_RST_SW:         base = "SW";         break;
-        case ESP_RST_PANIC:      base = "PANIC";      break;
-        case ESP_RST_INT_WDT:    base = "INT_WDT";    break;
-        case ESP_RST_TASK_WDT:   base = "TASK_WDT";   break;
-        case ESP_RST_WDT:        base = "WDT";        break;
-        case ESP_RST_DEEPSLEEP:  base = "DEEPSLEEP";  break;
-        case ESP_RST_BROWNOUT:   base = "BROWNOUT";   break;
-        case ESP_RST_SDIO:       base = "SDIO";       break;
-        case ESP_RST_USB:        base = "USB";        break;
-        case ESP_RST_JTAG:       base = "JTAG";       break;
-        case ESP_RST_EFUSE:      base = "EFUSE";      break;
-        case ESP_RST_PWR_GLITCH: base = "PWR_GLITCH"; break;
-        case ESP_RST_CPU_LOCKUP: base = "CPU_LOCKUP"; break;
-        default:
-            /* Surface the raw enum code so future IDF additions show up. */
-            snprintf(unk, sizeof unk, "RAW_%d", (int)r);
-            base = unk;
-            break;
+    const char *base = reset_history_reason_label(r);
+    if (!base) {
+        /* Surface the raw enum code so future IDF additions show up. */
+        snprintf(unk, sizeof unk, "RAW_%d", (int)r);
+        base = unk;
     }
     /* Append the software cause we tagged just before a deliberate
      * esp_restart() (e.g. "ch-realign 11->1") so the coarse hardware reason
@@ -4036,15 +4020,20 @@ static esp_err_t system_save_handler(httpd_req_t *req)
     }
 
     /* TX-power override — clamp + persist + apply live. 0 disables the
-     * override (next boot will skip the call and let the IDF default
-     * stand). */
+     * override; the driver has no "back to default" call, so the default
+     * returns at the next boot and the response asks for that reboot when
+     * an active override was just removed. */
     const cJSON *tx_j = cJSON_GetObjectItem(root, "tx_power");
     int tx_power = -1;
+    bool tx_default_restart = false;
     if (cJSON_IsNumber(tx_j)) {
         int v = (int)tx_j->valuedouble;
         if (v < 0)  v = 0;
         if (v > 84) v = 84;
         if (v != 0 && v < 8) v = 8;        /* IDF rejects values below 8 */
+        uint8_t previous = 0;
+        (void)nvs_param_get_u8("tx_pwr", &previous);
+        tx_default_restart = v == 0 && previous >= 8;
         nvs_save_u8("tx_pwr", (uint8_t)v);
         tx_power = v;
     }
@@ -4070,7 +4059,7 @@ static esp_err_t system_save_handler(httpd_req_t *req)
         if (cJSON_IsBool(wa)) s_web_auth_enabled = cJSON_IsTrue(wa);
         if (tx_power >= 8) esp_wifi_set_max_tx_power((int8_t)tx_power);
     } else {
-        tz_changed = web_port_changed = false;
+        tz_changed = web_port_changed = tx_default_restart = false;
         if (ps_applied) (void)wifi_power_save_init();   /* back to the stored mode */
     }
     cJSON_Delete(root);
@@ -4078,7 +4067,8 @@ static esp_err_t system_save_handler(httpd_req_t *req)
      * twin block in tailscale_save_handler. */
     cJSON *resp = cJSON_CreateObject();
     nvs_save_errors_attach(resp);
-    if (tz_changed || web_port_changed) cJSON_AddBoolToObject(resp, "restart_required", true);
+    if (tz_changed || web_port_changed || tx_default_restart)
+        cJSON_AddBoolToObject(resp, "restart_required", true);
     char *body = cJSON_PrintUnformatted(resp);
     cJSON_Delete(resp);
     httpd_resp_set_type(req, "application/json");

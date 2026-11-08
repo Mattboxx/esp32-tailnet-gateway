@@ -40,6 +40,22 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   original firmware's MIT notice is kept verbatim in `licenses/upstream/`;
   MicroLink and the other components keep their own licences.
 
+### Fixed
+
+- System settings: a TX power left at the default (0) no longer becomes a
+  fixed override when another System setting is saved; the field shows the
+  saved value and the radio's current power beside it. Removing an override
+  now asks for the reboot that restores the default.
+- Reset history: USB, JTAG, eFuse, power-glitch and CPU-lockup resets are
+  stored by name instead of UNKNOWN, and a fault reset that coincides with a
+  firmware change (for example a brownout during the first boot after an
+  update, which rolls the update back) is kept as "after BROWNOUT" next to
+  FLASH/ROLLBACK. No additional flash writes.
+- Diagnostics: a brownout reset explains that the supply voltage dropped
+  instead of pointing to a missing core dump, and the reset history counts
+  brownouts; with two or more in the last ten boots it shows "Multiple brownout
+  resets detected. Check power supply and USB cable."
+
 ## [3.0.11] — 2026-11-08
 
 3.0.9 and 3.0.10 were not published; their changes are part of this release.
