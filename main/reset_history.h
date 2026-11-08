@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* Reset-history ring buffer — keeps the 10 most recent boots persisted to
  * NVS as a single blob (`rst_hist`) so the System tab can show a full
  * trail back from "panic two boots ago" without needing serial logs.

@@ -1,5 +1,5 @@
 /* Keep live and next-boot admin listeners separate from forwarding.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "web_ui.h"
 #include "nvs_params.h"
 #include "forwarding_config.h"

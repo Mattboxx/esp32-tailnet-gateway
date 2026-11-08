@@ -1,5 +1,5 @@
 /* Per-board LAN name and mDNS responder (lwIP apps/mdns, uplink only).
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "lan_name.h"
 
 #include <ctype.h>

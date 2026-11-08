@@ -1,5 +1,5 @@
 /* Telegram and email notifications; see notify_channels.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "notify_channels.h"
 #include "history.h"
 #include <stdio.h>

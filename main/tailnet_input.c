@@ -1,6 +1,6 @@
 /* Enforce listener policy where the SDK processes IPv4 input, not at the
  * earlier physical/tunnel callback that queues packets to tcpip_thread.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "tailnet_forward.h"
 #include "tailnet_reassembly.h"
 #include "netif_hooks.h"

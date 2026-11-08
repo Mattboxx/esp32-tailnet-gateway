@@ -1,7 +1,7 @@
 /* Non-destructive configuration profiles over the existing setting owners.
  * Persist the backup record before touching any setting; undo a failed
  * apply; rollback never overrides a setting the operator changed since.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "config_profiles.h"
 #include "homelab_ops.h"
 #include "health_monitor.h"

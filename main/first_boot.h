@@ -1,6 +1,6 @@
 /* First-boot setup over the device's own access point (captive portal).
  * See first_boot_core.h for the pairing and confidentiality design.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 
 #include <stdbool.h>

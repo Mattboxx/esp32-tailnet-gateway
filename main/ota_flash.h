@@ -1,5 +1,5 @@
 /* Synchronous OTA work on the existing internal-stack admin server.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 #include "esp_ota_ops.h"
 #include "esp_http_server.h"

@@ -1,5 +1,5 @@
 /* Tailnet names for devices behind the gateway; see tailnet_names.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "tailnet_names.h"
 #include <string.h>
 

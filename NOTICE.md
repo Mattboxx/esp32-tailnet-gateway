@@ -110,6 +110,16 @@ arrangement; a license copy alone is insufficient. See
 [Flashing-tool redistribution](docs/FLASHING-TOOL-LICENSES.md). A standalone tool
 aggregated with the firmware is a separate program under its own licence.
 
+## Source file headers
+
+Firmware sources written for the Mattboxx Edition carry
+`SPDX-License-Identifier: GPL-3.0-only`. Files that came from the original
+firmware keep their original notice (MIT, Csontikka) under a short notice
+saying that the Mattboxx Edition changes are GPL-3.0-only. Third-party copies
+keep only their own terms: the lwIP mDNS responder (`main/lwip_mdns/mdns.c`,
+BSD) and Espressif's DHCP server (`components/dhcpserver/`, Apache-2.0).
+MicroLink (`external/microlink`) is a separate MIT-licensed project.
+
 ## Mattboxx edition, branding and optional support
 
 The edition's name, custom artwork, additional features and documentation do

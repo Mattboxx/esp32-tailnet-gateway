@@ -1,7 +1,7 @@
 /* Build without the SNMP agent (CONFIG_TSR_SNMP off): the same API, no
  * listener, no task, no configuration. Only the die temperature stays,
  * because Status and diagnostics read it through this component.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "snmp_agent.h"
 #include "snmp_operational.h"
 #include "driver/temperature_sensor.h"

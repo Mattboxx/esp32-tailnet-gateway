@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: MIT */
+/* SPDX-License-Identifier: GPL-3.0-only */
 #include "ap_policy.h"
 #include "esp_timer.h"
 #include "esp_system.h"

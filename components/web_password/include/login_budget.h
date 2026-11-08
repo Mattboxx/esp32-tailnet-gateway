@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Device-wide failed-login budget, on top of the per-client guard: cycling
  * source addresses must not reset online password guessing. Tradeoff: under
  * a sustained attack a legitimate operator also waits for a refill (at most

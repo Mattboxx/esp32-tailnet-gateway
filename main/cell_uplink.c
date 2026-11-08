@@ -1,5 +1,5 @@
 /* Optional cellular (GSM/LTE) uplink over a UART modem; see cell_uplink.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "cell_uplink.h"
 #include "eth_uplink.h"
 #include "json_guard.h"

@@ -19,6 +19,32 @@ class LicenseComplianceTests(unittest.TestCase):
                          'The original upstream MIT text must stay verbatim')
         self.assertIn('Copyright (c) 2026 Csontikka',payload.decode())
 
+    def test_source_headers_follow_the_edition_licence(self):
+        # Firmware sources: Mattboxx files say GPL-3.0-only; files from the
+        # original firmware keep their MIT notice under a Mattboxx-changes
+        # notice; third-party copies (lwIP mDNS, Espressif DHCP server) keep
+        # only their own terms.
+        third_party = {'main/lwip_mdns/mdns.c', 'components/dhcpserver/dhcpserver.c',
+                       'components/dhcpserver/include/dhcpserver/dhcpserver.h',
+                       'components/dhcpserver/include/dhcpserver/dhcpserver_options.h'}
+        sources = [p for d in ('main', 'components') for p in (ROOT / d).rglob('*')
+                   if p.suffix in ('.c', '.h') and p.is_file()]
+        self.assertGreater(len(sources), 100)
+        for path in sources:
+            rel = path.relative_to(ROOT).as_posix()
+            head = path.read_text(encoding='utf-8', errors='replace')[:1500]
+            if head.startswith('/* GENERATED'):
+                continue   # build output (embedded web UI), not a source
+            if rel in third_party:
+                self.assertNotIn('GPL-3.0-only', head, rel)
+                continue
+            if 'Mattboxx Edition changes' in head or 'GPL-3.0-only' in head:
+                continue
+            # no GPL header and no changes notice: an unchanged upstream file
+            # (covered by the original MIT licence), never a Mattboxx one
+            self.assertNotIn('Mattboxx', head, rel)
+            self.assertNotIn('GPL', head, rel)
+
     def test_edition_licence_is_gpl3_with_espressif_permission(self):
         text=(ROOT/'LICENSE').read_text(encoding='utf-8')
         # the FSF's verbatim gpl-3.0.txt

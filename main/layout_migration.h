@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* 2.x -> 3.x flash-layout migration over the network (the 2.1 bridge).
  *
  * 2.x gateways have a 4 MB layout (two 1920 KiB app slots); 3.x needs the

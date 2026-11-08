@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* Tailscale (microlink) manager — settings load and lifecycle.
  *
  * Phase 1.5b: connect path drives the public microlink_config_t with

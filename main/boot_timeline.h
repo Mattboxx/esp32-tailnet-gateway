@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Boot timeline: when each startup milestone was first reached in this boot.
  *
  * Milliseconds since the application timer started (shortly after the

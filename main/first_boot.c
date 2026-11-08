@@ -1,5 +1,5 @@
 /* First-boot setup: access point, captive portal, pairing and HTTP API.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #include "first_boot.h"
 #include "first_boot_core.h"
 

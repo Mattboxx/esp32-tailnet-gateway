@@ -1,5 +1,5 @@
 /* Conditional SPI Ethernet uplink; see eth_uplink.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "eth_uplink.h"
 #include "sdkconfig.h"
 #include "json_guard.h"

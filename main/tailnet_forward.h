@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Dedicated uplink-LAN -> Tailnet service forwarding. */
 #pragma once
 #include <stdbool.h>

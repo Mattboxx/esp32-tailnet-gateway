@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). Ported from Csontikka/esp32-tailscale-subnet-router, whose
+ * code keeps its MIT licence (licenses/upstream/, NOTICE.md). */
 /* WiFi modem-sleep policy, adapted from upstream v0.1.33.
  * Keep the fork's low-latency default and report driver/save failures honestly.
  * SPDX-License-Identifier: MIT

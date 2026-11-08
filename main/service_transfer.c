@@ -1,5 +1,5 @@
 /* Strict local preview/confirmed import. Imported listeners always start OFF.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "service_transfer.h"
 #include "tailnet_forward.h"
 #include "forwarding_config.h"

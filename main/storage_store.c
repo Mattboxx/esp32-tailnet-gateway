@@ -1,5 +1,5 @@
 /* Record rings in the "storage" partition; see storage_store.h.
- * Original implementation, Mattboxx Edition. SPDX-License-Identifier: MIT */
+ * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "storage_store.h"
 #include <string.h>
 #ifdef ESP_PLATFORM

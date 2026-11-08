@@ -12,7 +12,7 @@
  * point; that residual risk is documented, not hidden.
  *
  * Crypto and randomness are injected so the logic runs in host tests.
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 
 #include <stdbool.h>

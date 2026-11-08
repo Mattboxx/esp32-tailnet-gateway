@@ -1,3 +1,6 @@
+/* Mattboxx Edition changes: Copyright (C) 2026 Mattboxx, GPL-3.0-only (LICENSE,
+ * LICENSE-EXCEPTION.md). The original code keeps the licence stated in its own
+ * notice below (see also NOTICE.md and licenses/upstream/). */
 /* Phase 1.5e exit-node default-route supervisor.
  *
  * 1.5c (Tailscale CGNAT routing for AP -> tailnet) works automatically:

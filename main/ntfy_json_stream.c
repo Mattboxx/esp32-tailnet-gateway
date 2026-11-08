@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* Validate the entire JSON frame, retain only bounded top-level fields.
  * Unknown strings/containers do not require storage; no recursive calls,
  * cJSON allocations or dependence on HTTP chunk boundaries. */

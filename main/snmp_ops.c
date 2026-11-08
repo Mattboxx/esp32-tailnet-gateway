@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* SNMP opt-in agent pulls a bounded, numeric snapshot; no new task or socket. MIT. */
 #include "snmp_ops.h"
 #include "snmp_operational.h"

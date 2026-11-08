@@ -1,5 +1,5 @@
 /* Web UI session admission: idle close instead of LRU purge (see web_idle.c).
- * SPDX-License-Identifier: MIT */
+ * SPDX-License-Identifier: GPL-3.0-only */
 #pragma once
 
 #include <stddef.h>

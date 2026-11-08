@@ -1,3 +1,6 @@
+/* SPDX-License-Identifier: GPL-3.0-only
+ * Copyright (C) 2026 Mattboxx. ESP32 Tailnet Gateway, Mattboxx Edition: see LICENSE
+ * and LICENSE-EXCEPTION.md. */
 /* One sampler for UI, MQTT and ntfy; no request-time task-list allocation. */
 #include "runtime_metrics.h"
 #include "control_validation.h"

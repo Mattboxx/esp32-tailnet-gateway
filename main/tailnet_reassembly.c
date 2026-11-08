@@ -1,4 +1,4 @@
-/* Private receive-DNAT fragment ownership; SPDX-License-Identifier: MIT */
+/* Private receive-DNAT fragment ownership; SPDX-License-Identifier: GPL-3.0-only */
 #include "tailnet_reassembly.h"
 #include <stdbool.h>
 #include <stdint.h>
