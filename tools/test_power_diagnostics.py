@@ -14,8 +14,14 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SDK = Path.home() / '.platformio/packages/framework-espidf@3.50503.0/components'
 CJSON = Path(os.environ.get('CJSON_SOURCE', SDK / 'json/cJSON/cJSON.c'))
-if not CJSON.is_file():
-    raise SystemExit('FAIL: set CJSON_SOURCE to the pinned SDK cJSON.c')
+# The pinned SDK's cJSON.c (Windows, CJSON_SOURCE) or the system libcjson
+# through pkg-config (Linux CI), like the other cJSON-based drivers.
+if CJSON.is_file():
+    CJSON_SOURCES, CJSON_FLAGS, CJSON_LIBS = [CJSON], ['-I', str(CJSON.parent)], []
+else:
+    CJSON_SOURCES = []
+    CJSON_FLAGS = subprocess.check_output(['pkg-config', '--cflags', 'libcjson'], text=True).split()
+    CJSON_LIBS = subprocess.check_output(['pkg-config', '--libs', 'libcjson'], text=True).split()
 
 STUBS = {
     'esp_err.h': '#pragma once\ntypedef int esp_err_t;\n#define ESP_OK 0\n#define ESP_FAIL -1\n'
@@ -183,14 +189,15 @@ int main(void){
 '''
 
 
-def build_and_run(directory, name, sources, includes):
+def build_and_run(directory, name, sources, includes, extra_flags=(), libs=()):
     binary = directory / (name + ('.exe' if os.name == 'nt' else ''))
     flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function']
     if os.environ.get('POWER_DIAG_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     for inc in includes:
         flags += ['-I', str(inc)]
-    subprocess.run([os.environ.get('CC', 'gcc'), *flags, *map(str, sources), '-o', str(binary)], check=True)
+    flags += list(extra_flags)
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, *map(str, sources), '-o', str(binary), *libs], check=True)
     subprocess.run([str(binary)], check=True, timeout=20)
 
 
@@ -205,4 +212,4 @@ with tempfile.TemporaryDirectory(prefix='power-diag-') as tmp:
     (d / 'reset_cases.c').write_text(RESET_CASES, encoding='utf-8')
     build_and_run(d, 'reset_cases', [d / 'reset_cases.c', d / 'reset_history.c'], [d])
     (d / 'tx_cases.c').write_text(TX_CASES, encoding='utf-8')
-    build_and_run(d, 'tx_cases', [d / 'tx_cases.c', CJSON], [CJSON.parent])
+    build_and_run(d, 'tx_cases', [d / 'tx_cases.c', *CJSON_SOURCES], [], CJSON_FLAGS, CJSON_LIBS)
