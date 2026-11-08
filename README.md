@@ -48,7 +48,7 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
-### Firmware 3.0.10: shorter waits for packets
+### Firmware 3.0.11: shorter waits for packets
 
 - Relayed (DERP) packets are read as soon as they arrive and handled at the
   same priority as direct traffic.
