@@ -6,6 +6,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Changed
+
+- The support button in the top bar shows only its heart icon; its tooltip
+  and accessible label are unchanged, and the bar has more room.
+
 ## [3.0.10] — 2026-11-08
 
 3.0.9 was not published; its changes are part of this release.
