@@ -6,6 +6,27 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+### Added
+
+- Telegram remote commands with the same options as ntfy (`info`,
+  `wol NAME`, `recover NAME`, `check NAME`; only from the configured chat; off
+  by default). Commands sent before they were switched on, or more than 10
+  minutes old, are ignored.
+- Diagnostics > Connection & security shows the X25519 implementation in use,
+  the time of the last and longest key-exchange operation (WireGuard and
+  control plane) and the measured field-product cycles.
+
+### Performance
+
+- X25519 key exchange about 30 % faster: the 256-bit field product runs on the
+  ESP32-S3 vector unit (PIE), measured on the board at 412 cycles against 690
+  for the scalar assembly and 1,077 for C; squares use it too. One operation
+  now takes about 9.4-9.7 ms instead of 12.9-14.6 ms. The device compares
+  each product with C before use and keeps the fastest one that matches.
+- The control plane (connection to the coordination server, DISCO keys for
+  every peer, DERP) uses the same fast X25519 instead of a separate C copy;
+  it now also masks the received point's top bit as RFC 7748 requires.
+
 ### Changed
 
 - Licence: from this release the Mattboxx Edition is distributed under the GNU
