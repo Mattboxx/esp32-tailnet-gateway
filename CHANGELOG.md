@@ -8,6 +8,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Added
 
+- Diagnostics > Connection & security shows how long the last startup took to
+  reach Wi-Fi, an IP address, the web interface, the clock, the control
+  server and the first tunnel (`boot_timeline` in `/api/system/diag`, with
+  every control stage and the first map fetch). RAM only, no flash writes.
 - Telegram remote commands with the same options as ntfy (`info`,
   `wol NAME`, `recover NAME`, `check NAME`; only from the configured chat; off
   by default). Commands sent before they were switched on, or more than 10
@@ -18,12 +22,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Performance
 
-- X25519 key exchange about 40 % faster: the 256-bit field product runs on the
-  ESP32-S3 vector unit (PIE), measured on the board at 413 cycles against 691
+- Startup and control-server reconnects about 20 s faster: after the network
+  map MicroLink measures the latency of every DERP relay region, and one
+  region that does not answer (usual) kept it waiting for its whole 25 s
+  budget while the control session, the relay and the tunnels waited. The
+  budget is now 5 s, like the Tailscale client's. Measured on the board over
+  three boots: control session up after 13.3-14.1 s instead of 33.5-34.5 s,
+  first tunnel after 12.8-13.5 s instead of 33.6-35.3 s.
+- X25519 key exchange about 45 % faster: the 256-bit field product runs on the
+  ESP32-S3 vector unit (PIE), measured on the board at 386 cycles against 691
   for the scalar assembly and 1,064 for C, and is fused with the field
-  reduction (a complete multiplication in 597 cycles); squares use it too and
+  reduction (a complete multiplication in 513 cycles); squares use it too and
   the multiplication by the curve constant has its own short path. One
-  operation now takes about 7.8 ms instead of 12.9-14.6 ms. The device
+  operation now takes about 7.4-7.6 ms instead of 12.9-14.6 ms. The device
   compares each routine with C before use and keeps the fastest one that
   matches.
 - The control plane (connection to the coordination server, DISCO keys for
