@@ -1,17 +1,21 @@
 // Actual notification-form controller with deterministic DOM/HTTP fixtures.
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
-const html=fs.readFileSync(path.join(__dirname,'../main/index.html'),'utf8');
+const html=fs.readFileSync(path.join(__dirname,'../main/index.html'),'utf8').replace(/\r\n/g,'\n');
 const start=html.indexOf('    var ntUi = (function () {');
 const controller=html.slice(start,html.indexOf('    })();',start)+11);
+/* the Telegram command switches' helper is declared next to the controller in the same scope */
+const helperAt=html.indexOf('      function tgCommandStates() {');
+const helper=html.slice(helperAt,html.indexOf('\n      }\n',helperAt)+9);
 const elements={},requests=[];
 function el(id){return elements[id]||(elements[id]={value:'',checked:false,disabled:false,textContent:'',listeners:{},
-  tagName:id.endsWith('events')||id.endsWith('security')?'SELECT':'INPUT',type:id.endsWith('enabled')||id.endsWith('clear')||id.endsWith('startup')||id.endsWith('poweron')?'checkbox':'text',
+  tagName:id.endsWith('events')||id.endsWith('security')?'SELECT':'INPUT',type:id.endsWith('enabled')||id.endsWith('clear')||id.endsWith('startup')||id.endsWith('poweron')||/-cmd(-down|-info|-details|-mac)?$/.test(id)?'checkbox':'text',
   addEventListener(type,fn){this.listeners[type]=fn;}});}
-const fields={tg:['enabled','token','clear','chat','events','startup','poweron'],mail:['enabled','host','port','security','user','pass','from','to','events','startup','poweron']};
+const fields={tg:['enabled','token','clear','chat','events','startup','poweron','cmd','cmd-poll','cmd-down','cmd-info','cmd-details','cmd-mac'],mail:['enabled','host','port','security','user','pass','from','to','events','startup','poweron']};
 const context={document:{getElementById:el,querySelectorAll(q){const ch=q.includes('nt-tg-')?'tg':'mail';return fields[ch].map(k=>el('nt-'+ch+'-'+k));}},
   clearTimeout(){},setTimeout(){return 1;},onPage(){return false;},showToast(){},
+  dependent:{},setFeatureDependentState(id,on){context.dependent[id]=on;},
   apiFetch(url,opts){return new Promise(resolve=>requests.push({url,opts,resolve}));}};
-vm.createContext(context);vm.runInContext(controller,context);
+vm.createContext(context);vm.runInContext(helper+'\n'+controller,context);
 const response=d=>({status:200,ok:true,json:()=>Promise.resolve(d)});
 const body=(chat='saved-chat')=>({events:'problems',waiting:1,telegram:{enabled:true,notify_startup:true,notify_poweron:false,has_token:true,chat,sent:0,failed:0,last_error:''},
   email:{enabled:true,notify_startup:false,notify_poweron:true,host:'saved.example',port:465,security:'tls',user:'',has_password:true,from:'',to:'',sent:0,failed:0,last_error:''}});
@@ -34,6 +38,9 @@ const turn=()=>new Promise(setImmediate);
   assert.equal(el('nt-tg-startup').checked,false);assert.equal(el('nt-mail-startup').checked,true);
   el('nt-tg-save').listeners.click();assert.equal(el('nt-tg-save').disabled,true);
   const post=requests.shift();assert.equal(post.opts.method,'POST');
+  assert.deepEqual(JSON.parse(post.opts.body).telegram.commands,{enabled:false,only_when_tailscale_down:true,allow_direct_mac:false,
+    info_enabled:true,info_include_details:false,poll_interval_seconds:15},'remote command defaults sent with the channel');
+  assert.equal(context.dependent['nt-tg-cmd-settings'],false);assert.equal(context.dependent['nt-tg-cmd-details-setting'],true);
   assert.equal(JSON.parse(post.opts.body).telegram.notify_startup,false);assert.equal(JSON.parse(post.opts.body).telegram.notify_poweron,true);assert.equal(JSON.parse(post.opts.body).email,undefined);
   input('nt-tg-token','newer-draft');assert.equal(el('nt-tg-save').disabled,true);
   el('nt-tg-save').listeners.click();assert.equal(requests.length,0,'duplicate save refused while a request is pending');
