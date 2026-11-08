@@ -9761,6 +9761,19 @@
            * one scalar multiplication for WireGuard and for the control plane,
            * and the measured product cycles. */
           var ms = function (us) { return ((us | 0) / 1000).toFixed(1) + ' ms'; };
+          /* Boot timeline (3.0.12): seconds from the start of the application
+           * to each first milestone of this boot; a milestone not reached yet
+           * is left out. */
+          var startupLine = function (bt) {
+            if (!bt) return '';
+            var parts = [['wifi_assoc', 'Wi-Fi'], ['ip', 'IP address'], ['web', 'web interface'],
+                         ['time_sync', 'clock'], ['control_connected', 'control server'], ['first_tunnel', 'first tunnel']];
+            var out = [];
+            parts.forEach(function (p) {
+              if (typeof bt[p[0]] === 'number') out.push(L(p[1]) + ' <strong>' + (bt[p[0]] / 1000).toFixed(1) + ' s</strong>');
+            });
+            return out.length ? '<div>' + L('Startup after the last reset:') + ' ' + out.join(' · ') + '</div>' : '';
+          };
           var x25519Line = function (c) {
             var m = c.x25519_mul, cyc = c.x25519_mul_cycles || [];
             var impl = m === 2 ? '<span class="badge badge-success">' + L('vector unit (PIE)') + '</span>'
@@ -9781,6 +9794,7 @@
             ' · Poly1305 ' + asmState(ca.poly1305) + ' · ' + L('checksum') + ' ' + asmState(chk) +
             (fc.active && fc.cycles_1400_lwip ? ' (' + (fc.cycles_1400_fast | 0) + ' / ' + (fc.cycles_1400_lwip | 0) +
               ' ' + L('cycles per 1400 bytes, lwIP') + (fc.impl === 'xtensa-pie' ? ' · PIE' : '') + ')' : '') + '</div>' +
+            startupLine(d.boot_timeline) +
             x25519Line(ca) +
             '<div>' + L('Compromised certificate authorities blocked:') + ' <strong>' + (td.distrusted_cas | 0) +
             '</strong> · ' + L('refused connections:') + ' <strong>' + (td.refused_chains | 0) + '</strong></div>';

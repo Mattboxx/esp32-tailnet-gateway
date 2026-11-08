@@ -32,6 +32,7 @@
 #include "peer_dns.h"
 #include "web_ui.h"
 #include "task_reaper.h"
+#include "boot_timeline.h"
 
 /* Local helper: load a string from NVS, defaulting to an empty heap
  * buffer when the key isn't there. Other modules assume non-NULL. */
@@ -472,6 +473,7 @@ static void tailscale_connect_task(void *pvParameters)
         retry++;
     }
     if (now > 1577836800) {
+        boot_timeline_mark(BOOT_TL_TIME);
         struct tm timeinfo;
         localtime_r(&now, &timeinfo);
         ESP_LOGI(TAG, "Time synchronized: %04d-%02d-%02d %02d:%02d:%02d",

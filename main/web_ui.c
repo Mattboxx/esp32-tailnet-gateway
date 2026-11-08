@@ -93,6 +93,7 @@
 
 /* Globals owned by main.c — link status flags rendered in /api/status. */
 #include "upstream_validation.h"
+#include "boot_timeline.h"
 #include "esp_attr.h"
 extern volatile int ap_connect;
 extern volatile int connect_count;
@@ -4600,6 +4601,25 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
             cJSON *mc = cJSON_AddArrayToObject(ca, "x25519_mul_cycles");
             for (int i = 0; mc && i < 6; i++) cJSON_AddItemToArray(mc, cJSON_CreateNumber(x25519_mul_cycles[i]));
             cJSON_AddItemToObject(root, "crypto_asm", ca);
+        }
+    }
+    {   /* Boot timeline (boot_timeline.h, microlink_get_boot_marks): ms since
+         * boot when each milestone was first reached; null = not yet. */
+        static const char *const app_names[BOOT_TL_COUNT] = {"app_main", "nvs", "wifi_start", "wifi_assoc", "ip", "web", "time_sync"};
+        static const char *const ml_names[ML_BOOT_MARKS] = {"tailnet_start", "tcp_tls", "noise", "register", "map",
+                                                            "stream_map", "derp", "control_connected", "first_tunnel"};
+        uint32_t app[BOOT_TL_COUNT], ml[ML_BOOT_MARKS];
+        boot_timeline_get(app);
+        microlink_get_boot_marks(tailscale_get_microlink(), ml);
+        cJSON *bt = cJSON_CreateObject();
+        if (bt) {
+            for (int i = 0; i < BOOT_TL_COUNT; i++) {
+                if (app[i]) cJSON_AddNumberToObject(bt, app_names[i], app[i]); else cJSON_AddNullToObject(bt, app_names[i]);
+            }
+            for (int i = 0; i < ML_BOOT_MARKS; i++) {
+                if (ml[i]) cJSON_AddNumberToObject(bt, ml_names[i], ml[i]); else cJSON_AddNullToObject(bt, ml_names[i]);
+            }
+            cJSON_AddItemToObject(root, "boot_timeline", bt);
         }
     }
     {   /* TLS chains refused since boot because they contain a compromised CA

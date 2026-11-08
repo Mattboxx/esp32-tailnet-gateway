@@ -19,6 +19,9 @@ const diag = {
                 x25519_mul_cycles: [1500, 820, 610, 1100, 760, 590] },
   fast_checksum: { checked: true, active: true, cycles_1400_fast: 1633, cycles_1400_lwip: 2260 },
   tls_distrust: { distrusted_cas: 8, refused_chains: 2 },
+  boot_timeline: { app_main: 12, nvs: 180, wifi_start: 900, wifi_assoc: 2140, ip: 3420, web: 1010, time_sync: 3990,
+                   tailnet_start: 4010, tcp_tls: 4600, noise: 4800, register: 5100, map: 5900, stream_map: 6100, derp: 6400,
+                   control_connected: 6500, first_tunnel: null },
   dns_cache: { enabled: true, healthy: true, queries: 10, hits: 4, misses: 6, hit_pct: 40, entries: 3, capacity: 256,
                evictions: 0, upstream_stray: 5, cache_bytes: 331776 },
 };
@@ -71,6 +74,8 @@ async function page(browser, opts) {
     assert.match(r.conn, /WireGuard, last:\s*9\.9 ms\s*\(max\s*12\.3 ms\)/);
     assert.match(r.conn, /control plane, last:\s*10\.3 ms/);
     assert.match(r.conn, /Field product cycles \(C \/ assembly \/ PIE\):\s*1500 \/ 820 \/ 610/);
+    assert.match(r.conn, /Startup after the last reset:\s*Wi-Fi\s*2\.1 s\s*·\s*IP address\s*3\.4 s\s*·\s*web interface\s*1\.0 s\s*·\s*clock\s*4\.0 s\s*·\s*control server\s*6\.5 s/);
+    assert.ok(!/first tunnel/.test(r.conn), 'a milestone not reached yet is left out');
     assert.match(r.conn, /Compromised certificate authorities blocked:\s*8/);
     assert.match(r.conn, /refused connections:\s*2/);
     assert.match(r.conn, /Control-plane losses since boot:\s*3/);
@@ -99,6 +104,7 @@ async function page(browser, opts) {
 
     r = await page(browser, { lang: 'it' });
     assert.match(r.conn, /Crittografia in assembly:/);
+    assert.match(r.conn, /Avvio dopo l’ultimo riavvio:\s*Wi-Fi\s*2\.1 s\s*·\s*[Ii]ndirizzo IP\s*3\.4 s/);
     assert.match(r.conn, /Scambio di chiavi \(X25519\):\s*unità vettoriale \(PIE\)/);
     assert.match(r.conn, /Perdite del piano di controllo dall’avvio:\s*3/);
     assert.match(r.dns, /Risposte upstream estranee scartate:\s*5/);
