@@ -10,8 +10,8 @@ Checked:
 - every region answers: the lowest-RTT region is picked, RTTs are stored per
   region, and the netcheck ends as soon as two samples per region arrived;
 - one region silent (the usual case on board A): the netcheck ends within its
-  budget (5 s plus DNS and send spacing), with the right pick; the former
-  25 s budget fails this bound;
+  budget of 5 s, DNS and send spacing included, with the right pick; the
+  former 25 s budget after the sends fails this bound;
 - every region silent: no pick (0), within the same bound;
 - a first reply lost: the retry gets the region measured;
 - a stop request ends it at once.
@@ -215,9 +215,9 @@ def run(body):
 R = 28
 dns = 30 * R
 spacing = 50 * R          # probes are spaced 50 ms apart, retries too
-bound = dns + 5000 + 4 * spacing + 500
+bound = 5000 + 300          # the budget includes DNS and the spaced sends; one retry sweep may overrun by a probe gap
 t1, t2, t3, t5, stop_best = run(BODY)
-assert t1 <= dns + 2 * spacing + 1500, f'all regions answered but the netcheck took {t1} ms'
+assert t1 <= bound, f'all regions answered but the netcheck took {t1} ms'
 assert t2 <= bound, f'one silent region kept the netcheck for {t2} ms (bound {bound} ms)'
 assert t3 <= bound, f'all silent: {t3} ms (bound {bound} ms)'
 assert t5 <= 2000 + 300 and stop_best == 0, f'stop request not honoured quickly ({t5} ms)'
