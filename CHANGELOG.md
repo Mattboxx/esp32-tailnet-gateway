@@ -18,11 +18,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Performance
 
-- X25519 key exchange about 30 % faster: the 256-bit field product runs on the
-  ESP32-S3 vector unit (PIE), measured on the board at 412 cycles against 690
-  for the scalar assembly and 1,077 for C; squares use it too. One operation
-  now takes about 9.4-9.7 ms instead of 12.9-14.6 ms. The device compares
-  each product with C before use and keeps the fastest one that matches.
+- X25519 key exchange about 40 % faster: the 256-bit field product runs on the
+  ESP32-S3 vector unit (PIE), measured on the board at 413 cycles against 691
+  for the scalar assembly and 1,064 for C, and is fused with the field
+  reduction (a complete multiplication in 597 cycles); squares use it too and
+  the multiplication by the curve constant has its own short path. One
+  operation now takes about 7.8 ms instead of 12.9-14.6 ms. The device
+  compares each routine with C before use and keeps the fastest one that
+  matches.
 - The control plane (connection to the coordination server, DISCO keys for
   every peer, DERP) uses the same fast X25519 instead of a separate C copy;
   it now also masks the received point's top bit as RFC 7748 requires.
