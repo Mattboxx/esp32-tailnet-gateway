@@ -1374,20 +1374,20 @@ async function main() {
     await f.page.locator('#tsn-save').click();
     await f.page.waitForFunction(() => document.getElementById('tsn-badge').textContent === 'On');
     assert.deepEqual(f.state.savedNames, { enabled: true, lan: false });
-    assert.match(await f.page.locator('#tsn-status').textContent(), /5 tailnet peers known/);
+    assert.match(await f.page.locator('#tsn-status').textContent(), /Tailnet peers known: 5/);
     assert.ok(await f.page.locator('#tsn-self').evaluate(e => e.closest('.form-group').hidden), 'older firmware: no extra switches');
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     // Tailnet DNS settings and the gateway's own lookups (current firmware).
     f = await fixture(browser, { page: 'tailscale/options', namesExt: true });
-    await f.page.waitForFunction(() => /This gateway: gw\.tail1234\.ts\.net\./.test(document.getElementById('tsn-status').textContent));
-    assert.match(await f.page.locator('#tsn-status').textContent(), /3 records, 2 split-DNS routes, 1 DNS servers \(1 entries skipped\)\. MagicDNS is off in the admin console\./);
+    await f.page.waitForFunction(() => /This gateway: gw\.tail1234\.ts\.net/.test(document.getElementById('tsn-status').textContent));
+    assert.match(await f.page.locator('#tsn-status').textContent(), /Tailnet DNS records: 3 · Split-DNS routes: 2 · DNS servers: 1 · Entries skipped: 1 · MagicDNS is off in the admin console\./);
     assert.equal(await f.page.locator('#tsn-badge').textContent(), 'Off');
     await f.page.locator('#tsn-card label.feature-switch', { hasText: 'This gateway uses tailnet names too' }).click();
     await f.page.locator('#tsn-card label.feature-switch', { hasText: "Use the tailnet's DNS settings" }).click();
     await f.page.locator('#tsn-save').click();
     await f.page.waitForFunction(() => document.getElementById('tsn-badge').textContent === 'On');
     assert.deepEqual(f.state.savedNames, { enabled: false, lan: false, dns_config: true, self_resolve: true });
-    assert.match(await f.page.locator('#tsn-status').textContent(), /^Devices: off\. This gateway resolves tailnet names for its own connections\./);
+    assert.match(await f.page.locator('#tsn-status').textContent(), /^Devices: off\. · This gateway resolves tailnet names for its own connections\./);
     assert.ok(await f.page.locator('#tsn-dns').isChecked() && await f.page.locator('#tsn-self').isChecked());
     assert.deepEqual(f.errors, []); await f.context.close(); count++;
     f = await fixture(browser, { page: 'automation/notifications' });

@@ -1903,8 +1903,19 @@
      * its top while reading or typing; it is one swipe up when needed. */
     @media (max-width: 767px) {
       html { scroll-padding-top: 64px; }
-      .subnav { position: static; box-shadow: none; }
+      .subnav, .subnav-row { position: static; box-shadow: none; }
     }
+    /* A section bar with its "more" chips: one row that carries the card
+     * look and the sticky position, so the chip never wraps below the bar. */
+    .subnav-row {
+      position: sticky; top: 56px; z-index: 20; display: flex; align-items: center; gap: 4px;
+      margin: 0 0 var(--sp-5); padding: 4px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl);
+      box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.6);
+    }
+    .subnav-row > .subnav { position: static; flex: 1 1 auto; min-width: 0; margin: 0; padding: 0;
+      background: none; border: 0; border-radius: 0; box-shadow: none; }
+    .subnav-row:has(> .subnav[hidden]) { display: none; }
     .subnav-tab {
       flex: 0 0 auto; min-height: 36px; padding: 0 var(--sp-4);
       border: 0; border-radius: var(--radius-lg); background: transparent;
@@ -1917,7 +1928,8 @@
     .subpage { display: flex; flex-direction: column; gap: var(--sp-4); }
     .subpage > * { margin-top: 0 !important; margin-bottom: 0 !important; }
     @media (max-width: 640px) {
-      .subnav { top: 52px; margin-left: calc(-1 * var(--sp-1)); margin-right: calc(-1 * var(--sp-1)); }
+      .subnav, .subnav-row { top: 52px; margin-left: calc(-1 * var(--sp-1)); margin-right: calc(-1 * var(--sp-1)); }
+      .subnav-row > .subnav { margin: 0; }
       .subnav-tab { padding: 0 var(--sp-3); }
     }
     /* Trends (history of resources and traffic) */
@@ -7613,14 +7625,28 @@
         document.getElementById('tsn-save').disabled = true;
         var on = d.enabled || !!d.self_resolve, b = document.getElementById('tsn-badge');
         b.textContent = on ? 'On' : 'Off'; b.className = 'badge ' + (on ? 'badge-success' : 'badge-neutral');
-        var t = d.tailnet_dns || {}, parts = [];
-        if (t.self) parts.push('This gateway: ' + t.self + '.');
-        if (t.present) parts.push('Tailnet DNS settings: ' + t.records + ' records, ' + t.routes + ' split-DNS routes, ' + t.resolvers + ' DNS servers' +
-          (t.ignored ? ' (' + t.ignored + ' entries skipped)' : '') + '.' + (t.magic_dns ? '' : ' MagicDNS is off in the admin console.'));
-        document.getElementById('tsn-status').textContent = (!d.enabled ? (d.self_resolve ? 'Devices: off. ' : 'Off: name lookups are forwarded as before. ') :
-          !d.relay ? 'On, but the DNS relay is off: switch it on under Network. ' :
-          (d.peers + ' tailnet peers known.') + (d.lan ? (d.lan_listening ? ' Also listening on the uplink address.' : ' Waiting for the uplink address.') : '') + ' ') +
-          (d.self_resolve ? 'This gateway resolves tailnet names for its own connections. ' : '') + parts.join(' ');
+        /* Whole sentences and "Label:" + value pairs as separate text nodes,
+         * so every language translates them; numbers and names stay. */
+        var t = d.tailnet_dns || {}, items = [];
+        if (!d.enabled) items.push([d.self_resolve ? 'Devices: off.' : 'Off: name lookups are forwarded as before.']);
+        else if (!d.relay) items.push(['On, but the DNS relay is off: switch it on under Network.']);
+        else {
+          items.push(['Tailnet peers known:', String(d.peers)]);
+          if (d.lan) items.push([d.lan_listening ? 'Also listening on the uplink address.' : 'Waiting for the uplink address.']);
+        }
+        if (d.self_resolve) items.push(['This gateway resolves tailnet names for its own connections.']);
+        if (t.self) items.push(['This gateway:', t.self]);
+        if (t.present) {
+          items.push(['Tailnet DNS records:', String(t.records)], ['Split-DNS routes:', String(t.routes)], ['DNS servers:', String(t.resolvers)]);
+          if (t.ignored) items.push(['Entries skipped:', String(t.ignored)]);
+          if (!t.magic_dns) items.push(['MagicDNS is off in the admin console.']);
+        }
+        var st = document.getElementById('tsn-status');
+        st.replaceChildren();
+        items.forEach(function (item, i) {
+          if (i) st.appendChild(document.createTextNode(' · '));
+          item.forEach(function (p, k) { if (k) st.appendChild(document.createTextNode(' ')); st.appendChild(document.createTextNode(p)); });
+        });
       }).catch(function (e) { document.getElementById('tsn-status').textContent = 'Unavailable: ' + e.message; });
     }
     ['tsn-enabled', 'tsn-lan', 'tsn-dns', 'tsn-self'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { document.getElementById('tsn-save').disabled = false; }); });
@@ -12612,15 +12638,15 @@
    * (English and Italian); titles rank above options, options above hints. */
   (function () {
     var SYN = [
-      ['wifi', 'wi', 'wlan', 'wireless', 'ssid', 'rete', 'network', 'uplink'],
-      ['password', 'pass', 'pwd', 'parola', 'credenziali', 'login', 'accesso', 'access', 'auth', 'sessione', 'session'],
-      ['update', 'updates', 'aggiornamento', 'aggiornamenti', 'aggiorna', 'firmware', 'ota', 'versione', 'version'],
+      ['wifi', 'wi', 'wlan', 'wireless', 'ssid', 'rete', 'network', 'uplink', 'netzwerk', 'reseau', 'red', '网络', '无线'],
+      ['password', 'pass', 'pwd', 'parola', 'credenziali', 'login', 'accesso', 'access', 'auth', 'sessione', 'session', 'passwort', 'kennwort', 'anmeldung', 'motdepasse', 'contrasena', 'clave', '密码', '登录'],
+      ['update', 'updates', 'aggiornamento', 'aggiornamenti', 'aggiorna', 'firmware', 'ota', 'versione', 'version', 'aktualisierung', 'actualisation', 'actualizacion', 'actualizar', '更新', '固件'],
       ['tailscale', 'tailnet', 'vpn', 'headscale', 'tunnel'],
       ['dns', 'magicdns', 'nomi', 'names', 'resolver', 'relay'],
       ['wol', 'wake', 'risveglio', 'sveglia', 'accendi', 'accensione', 'power'],
-      ['restart', 'reboot', 'riavvia', 'riavvio', 'reset'],
-      ['backup', 'copia', 'copie', 'salvataggio', 'snapshot', 'ripristino', 'restore', 'export', 'esporta'],
-      ['notification', 'notifications', 'notifiche', 'notifica', 'avvisi', 'alert', 'alerts', 'ntfy', 'telegram', 'email', 'mail'],
+      ['restart', 'reboot', 'riavvia', 'riavvio', 'reset', 'neustart', 'redemarrage', 'reiniciar', 'reinicio', '重启'],
+      ['backup', 'copia', 'copie', 'salvataggio', 'snapshot', 'ripristino', 'restore', 'export', 'esporta', 'sicherung', 'sauvegarde', 'respaldo', '备份'],
+      ['notification', 'notifications', 'notifiche', 'notifica', 'avvisi', 'alert', 'alerts', 'ntfy', 'telegram', 'email', 'mail', 'benachrichtigung', 'benachrichtigungen', 'notificacion', 'notificaciones', 'avisos', '通知'],
       ['firewall', 'regole', 'rules', 'acl', 'blocco', 'block'],
       ['ap', 'hotspot', 'access', 'point', 'client', 'clients', 'gateway'],
       ['exit', 'uscita'],
@@ -12628,19 +12654,21 @@
       ['mqtt', 'home', 'assistant', 'ha', 'domotica'],
       ['ip', 'indirizzo', 'address', 'addresses', 'subnet', 'route', 'routes', 'rotte'],
       ['speed', 'velocita', 'throughput', 'speedtest', 'banda', 'bandwidth'],
-      ['language', 'lingua', 'idioma'],
-      ['time', 'ora', 'orario', 'ntp', 'clock', 'timezone', 'fuso'],
+      ['language', 'lingua', 'idioma', 'sprache', 'langue', '语言'],
+      ['time', 'ora', 'orario', 'ntp', 'clock', 'timezone', 'fuso', 'zeit', 'uhrzeit', 'heure', 'hora', '时间'],
       ['port', 'porta', 'porte', 'ports'],
       ['trend', 'trends', 'grafici', 'grafico', 'chart', 'andamento'],
       ['dhcp', 'lease', 'leases', 'dispositivi', 'devices'],
       ['snmp', 'monitor', 'monitoraggio', 'health', 'salute']
     ];
     var GENERIC = /^(save|cancel|close|reload|refresh|ok|apply|edit|remove|delete|add|back|next|show|hide|copy|done|yes|no|start|stop|clear|change|more|less|salva|annulla|chiudi|ricarica|aggiorna|applica|modifica|rimuovi|elimina|aggiungi|indietro|avanti|mostra|nascondi|copia|fatto|si|sì)$/i;
+    var CJK = /[぀-ヿ㐀-鿿가-힯]/;
     var synOf = {};
     SYN.forEach(function (g) { g.forEach(function (w) { (synOf[w] = synOf[w] || []).push(g); }); });
 
     function norm(s) {
-      return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+      /* Letters of every script stay (Chinese, Cyrillic…), accents go. */
+      return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
     }
     function words(s) { var n = norm(s); return n ? n.split(' ') : []; }
     function clean(el) { return String(el.textContent || '').replace(/\s+/g, ' ').trim(); }
@@ -12659,7 +12687,7 @@
         var w = list[i];
         if (w === t) best = 3;
         else if (w.indexOf(t) === 0) best = Math.max(best, 2.2);
-        else if (t.length >= 3 && w.indexOf(t) > 0) best = Math.max(best, 1.3);
+        else if ((t.length >= 3 || CJK.test(t)) && w.indexOf(t) > 0) best = Math.max(best, 1.3);   /* CJK words are not space-separated */
         else if (t.length >= 4 && (oneEdit(t, w) || oneEdit(t, w.slice(0, t.length)))) best = Math.max(best, 1.1);
       }
       return best;
@@ -12816,6 +12844,14 @@
     function setup(row) {
       if (!row || row.dataset.moreReady) return;
       row.dataset.moreReady = '1';
+      /* Section bars sit in a block: wrap them in a flex row so the chips stay
+       * on the same line (the top bar already is a flex row). */
+      if (row.classList.contains('subnav') && !row.parentNode.classList.contains('subnav-row')) {
+        var line = document.createElement('div');
+        line.className = 'subnav-row';
+        row.parentNode.insertBefore(line, row);
+        line.appendChild(row);
+      }
       function arrow(dir) {
         var wrap = document.createElement('span');
         wrap.className = 'scroll-more scroll-more-' + dir;

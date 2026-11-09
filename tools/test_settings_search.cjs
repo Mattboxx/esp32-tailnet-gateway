@@ -10,6 +10,7 @@
  * - hidden cards are not offered;
  * - in simple mode an advanced option is tagged and opening it switches to
  *   advanced mode;
+ * - in Chinese, German and Italian it finds options in that language;
  * - no script errors; the phone layout keeps the palette inside the screen. */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
@@ -18,7 +19,8 @@ const { install } = require('./ui_fixture.cjs');
 async function open(browser, opts = {}) {
   const width = opts.width || 1280;
   const context = await browser.newContext({ viewport: { width, height: 860 }, locale: 'en-US', hasTouch: width < 768, isMobile: width < 768 });
-  await context.addInitScript(a => { try { localStorage.setItem('ui-advanced', a ? '1' : '0'); } catch (e) {} }, opts.advanced !== false);
+  await context.addInitScript(o => { try { localStorage.setItem('ui-advanced', o.a ? '1' : '0'); if (o.l) localStorage.setItem('ui-lang', o.l); } catch (e) {} },
+    { a: opts.advanced !== false, l: opts.lang || '' });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -112,6 +114,18 @@ async function type(page, text) { await page.fill('#search-input', text); await 
       const box = await f.page.$eval('.search-box', e => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, vw: innerWidth }; });
       assert.ok(box.l >= 0 && box.r <= box.vw, JSON.stringify(box));
       assert.equal(await f.page.$eval('#search-input', e => getComputedStyle(e).fontSize), '16px');
+      assert.deepEqual(f.errors, []);
+      await f.context.close();
+    }
+    for (const [lang, word, expect] of [['zh', '密码', /密码/], ['de', 'Passwort', /Passwort/i], ['it', 'aggiornamento', /aggiorn|firmware/i]]) {
+      /* Translated interface: the search reads the page in that language;
+       * Chinese words need no spaces. */
+      const f = await open(browser, { lang });
+      await f.page.waitForFunction(l => document.documentElement.lang.startsWith(l), lang);
+      await f.page.click('#searchBtn');
+      const r = await type(f.page, word);
+      assert.ok(r.some(x => expect.test(x.title + ' ' + x.path)), lang + ': ' + JSON.stringify(r.slice(0, 3)));
+      assert.notEqual(await f.page.getAttribute('#search-input', 'placeholder'), 'Search settings', lang + ' placeholder translated');
       assert.deepEqual(f.errors, []);
       await f.context.close();
     }

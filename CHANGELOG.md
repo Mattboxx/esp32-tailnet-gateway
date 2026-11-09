@@ -12,6 +12,16 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Phones: with the side menu open, the page underneath kept scrolling and
   jumped (a regression of beta.2). The page is locked while the menu or the
   settings search is open; drags outside the open panel are ignored.
+- The chip that counts hidden sections stays on the same line as the
+  section bar on every page (it wrapped below it, e.g. System on phones).
+- Settings search works in Chinese (the page text was dropped when matching)
+  and knows common German, French, Spanish and Chinese synonyms.
+
+### Changed
+- Italian, German, French, Spanish and Chinese: every text of the
+  interface is translated (65 new strings, among them the settings search,
+  MagicDNS, Telegram user id help, update progress and support choices);
+  the MagicDNS status line is now built from translatable pieces.
 
 ## [3.0.14-beta.3] — 2026-11-09 (pre-release)
 
