@@ -1,6 +1,9 @@
 /* Status page signature (3.0.14). Actual SPA with ui_fixture.cjs data, Chromium:
- * - wide screens: the summary is one signal line; the travelling light runs
- *   only while uplink and tailnet are both up, never with the tailnet down;
+ * - wide screens: the summary is one signal line with a node per fact, the
+ *   RAM node coloured like the others; no travelling light, no card entrance
+ *   delay (cards are visible at once);
+ * - the page never scrolls sideways (tab rows contain their swipes) and
+ *   cannot be pinch-zoomed; identical GETs in flight are one request;
  * - the Client WiFi node appears only while the access point runs, with SSID
  *   and client count, and the grid gains a fifth column; on a phone it stays
  *   two columns with RAM spanning the last row;
@@ -9,7 +12,7 @@
  * - sparklines appear on the summary only while trends are on;
  * - a changed value gets a short highlight, the first fill does not;
  * - the top-bar chip counts the hidden sections;
- * - reduced motion stops every loop and hides the travelling light;
+ * - reduced motion stops every loop;
  * - state-coloured cards use the corner bar, not a left border. */
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
@@ -30,10 +33,12 @@ async function open(browser, opts) {
   page.on('pageerror', e => errors.push(e.message));
   await install(page, opts.overrides || {});
   const live = { body: opts.status || status() };
+  const counts = {};
+  page.on('request', r => { const u = new URL(r.url()); if (r.method() === 'GET') counts[u.pathname] = (counts[u.pathname] || 0) + 1; });
   await page.route('http://esp32.test/api/status', route => route.fulfill({ contentType: 'application/json', body: JSON.stringify(live.body) }));
   await page.goto('http://esp32.test/#status');
   await page.waitForTimeout(900);
-  return { context, page, errors, live };
+  return { context, page, errors, live, counts };
 }
 
 async function refresh(page) {
@@ -49,18 +54,26 @@ async function refresh(page) {
       const f = await open(browser, { status: status(s => { s.ap.enabled = false; }) });
       const st = () => f.page.evaluate(() => {
         const g = document.getElementById('status-glance'), ap = document.getElementById('glance-ap');
-        const flow = g.querySelector('.glance-flow');
-        return { flowing: g.classList.contains('flowing'), flowShown: getComputedStyle(flow).display !== 'none',
+        return { flow: !!g.querySelector('.glance-flow, .glance-orb'), ram: document.getElementById('glance-memory').className,
                  line: getComputedStyle(g.querySelector('.glance-line')).display !== 'none',
                  hasAp: g.classList.contains('has-ap'), apHidden: ap.hidden, apText: ap.querySelector('strong').textContent,
                  cols: getComputedStyle(g).gridTemplateColumns.split(' ').length,
                  sparks: Array.from(g.querySelectorAll('.glance-spark')).map(x => x.parentElement.id).sort(),
                  rateHidden: document.getElementById('status-rate').hidden, rate: document.getElementById('status-rate').textContent,
-                 runner: getComputedStyle(g.querySelector('.glance-runner')).animationName };
+                 cardAnim: getComputedStyle(document.getElementById('card-uplink')).animationName,
+                 sideways: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+                 clip: getComputedStyle(document.documentElement).overflowX,
+                 zoom: document.querySelector('meta[name=viewport]').content, touch: getComputedStyle(document.documentElement).touchAction,
+                 rows: Array.from(document.querySelectorAll('.nav-tabs, .subnav')).map(r => getComputedStyle(r).overscrollBehaviorX) };
       });
       let s = await st();
       assert.equal(s.line, true, 'signal line shown on wide screens');
-      assert.equal(s.flowing, true); assert.equal(s.flowShown, true); assert.equal(s.runner, 'orbTravel');
+      assert.equal(s.flow, false, 'no travelling light'); assert.equal(s.cardAnim, 'none', 'cards appear at once');
+      assert.equal(s.ram, 'glance-item ok', 'RAM node coloured like the others');
+      assert.equal(s.sideways, 0); assert.equal(s.clip, 'clip');
+      assert.match(s.zoom, /maximum-scale=1\.0, user-scalable=no/); assert.equal(s.touch, 'pan-x pan-y', 'no pinch zoom');
+      assert.ok(s.rows.length && s.rows.every(x => x === 'contain'), 'tab rows keep their swipes');
+      assert.equal(f.counts['/api/capabilities'], 1, 'one capabilities request at load');
       assert.equal(s.hasAp, false); assert.equal(s.apHidden, true); assert.equal(s.cols, 4);
       assert.deepEqual(s.sparks, ['glance-memory', 'glance-peers', 'glance-uplink'], 'trends on: sparks on the summary');
       assert.equal(s.rateHidden, true, 'one reading: no rate yet');
@@ -78,7 +91,6 @@ async function refresh(page) {
       s = await st();
       assert.equal(s.hasAp, true); assert.equal(s.apHidden, false); assert.equal(s.cols, 5);
       assert.equal(s.apText, 'Tailnet-Gateway · 2 clients');
-      assert.equal(s.flowing, false, 'tailnet down: no travelling light'); assert.equal(s.flowShown, false);
       assert.equal(s.rateHidden, false);
       const m = s.rate.match(/^↓(\d+(?:\.\d)?) (kbit|Mbit)\/s↑(\d+(?:\.\d)?) kbit\/s$/);
       assert.ok(m, s.rate);
@@ -149,10 +161,9 @@ async function refresh(page) {
     {
       const f = await open(browser, { reduced: true });
       const r = await f.page.evaluate(() => ({
-        flow: getComputedStyle(document.querySelector('#status-glance .glance-flow')).display,
         dot: getComputedStyle(document.querySelector('#overall-badge .badge-dot')).animationName,
         card: getComputedStyle(document.getElementById('card-uplink')).animationName }));
-      assert.equal(r.flow, 'none'); assert.equal(r.dot, 'none'); assert.equal(r.card, 'none');
+      assert.equal(r.dot, 'none'); assert.equal(r.card, 'none');
       assert.deepEqual(f.errors, []);
       await f.context.close();
     }

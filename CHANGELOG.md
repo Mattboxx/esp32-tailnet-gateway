@@ -6,6 +6,21 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.14-beta.2] — 2026-11-09 (pre-release)
+
+### Changed
+- The Web UI loads as fast as 3.0.13: no staggered card entrance and no
+  travelling light on the summary line; identical requests made at the same
+  time are sent once.
+- The free internal RAM node uses the same colours as the others.
+- Uplink WiFi and access-point card icons corrected.
+- The same light motion on every page: a short fade when a page or section
+  opens, card hover, and a brief highlight on values that change.
+
+### Fixed
+- After swiping the section bar, the page could be dragged sideways past
+  its edges; the page no longer scrolls sideways and cannot be pinch-zoomed.
+
 ## [3.0.14-beta.1] — 2026-11-09 (pre-release)
 
 ### Added

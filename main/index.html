@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>ESP32 Tailnet Gateway</title>
   <script>
     /* Ask for the visitor's language as early as possible: the page lists
@@ -151,7 +151,9 @@
        ===================================================================== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html { font-size: 16px; }
+    /* The page never scrolls sideways: wide rows scroll inside themselves,
+     * and a swipe at an edge does not drag or bounce the whole page. */
+    html { font-size: 16px; overflow-x: clip; overscroll-behavior-x: none; touch-action: pan-x pan-y; }   /* no pinch zoom (owner's choice) */
 
     body {
       font-family: var(--font-ui);
@@ -161,6 +163,8 @@
       color: var(--fg-primary);
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
+      overflow-x: clip;
+      overscroll-behavior-x: none;
     }
 
     a { color: var(--accent); text-decoration: none; }
@@ -226,6 +230,7 @@
       overflow-x: auto;
       scrollbar-width: none;
       -ms-overflow-style: none;
+      overscroll-behavior-x: contain;
     }
     .nav-tabs::-webkit-scrollbar { display: none; }
     /* Horizontal rows that do not fit (top bar on narrower desktops, the
@@ -350,7 +355,11 @@
 
     /* Page section (each tab is a section) */
     .page-section { display: none; }
-    .page-section.active { display: block; }
+    .page-section.active { display: block; animation: pageIn .16s ease-out; }
+    /* A page or sub-section that opens fades in briefly (opacity only, no
+     * delay): the same light motion everywhere, nothing waits for it. */
+    .subpage { animation: pageIn .16s ease-out; }
+    @keyframes pageIn { from { opacity: 0; } }
 
     /* Page header */
     .page-header {
@@ -1716,14 +1725,12 @@
     .glance-item strong { display: block; font-size: var(--text-md); color: var(--fg-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .glance-label { font-size: 0.75rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; }
     .glance-item.ok { border-left-color: var(--success); } .glance-item.bad { border-left-color: var(--danger); } .glance-item.warn { border-left-color: var(--warning); }
-    .glance-line, .glance-flow { display: none; }
+    .glance-line { display: none; }
     .glance-spark { display: block; width: min(120px, 100%); height: 18px; margin-top: 6px; opacity: .9; }
     .glance-spark svg { display: block; width: 100%; height: 18px; }
     .glance-spark.draw svg { animation: sparkReveal 1.6s cubic-bezier(.3, .6, .3, 1) .2s backwards; }
     @keyframes sparkReveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
-    /* Wide screens: the facts sit on one signal line, LAN to tailnet. A soft
-     * light travels along it only while uplink and tailnet are up; it is
-     * decoration, not proof that a data path works. */
+    /* Wide screens: the facts sit on one signal line, LAN to tailnet. */
     @media (min-width: 761px) {
       .glance { gap: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 18px 8px 16px; }
       .glance-item { position: relative; z-index: 1; background: none; border: 0; border-radius: 0; padding: 26px 10px 0; text-align: center; }
@@ -1734,42 +1741,24 @@
       .glance-spark { margin: 6px auto 0; }
       .glance-line { display: block; position: absolute; left: var(--edge); right: var(--edge); top: 25px; height: 2px; border-radius: 2px;
         background: linear-gradient(90deg, var(--border), var(--accent-border) 30%, var(--accent-border)); }
-      .glance.flowing .glance-flow { display: block; position: absolute; left: var(--edge); right: var(--edge); top: 16px; height: 20px; pointer-events: none; }
-      .glance-runner { display: block; width: 100%; height: 20px; animation: orbTravel 12s cubic-bezier(.42, 0, .58, 1) infinite; }
-      .glance-orb { position: relative; display: block; width: 8px; height: 8px; margin: 6px 0 0 -4px; border-radius: 50%;
-        background: radial-gradient(circle at 40% 40%, #eafff3, var(--accent) 70%); animation: orbFade 12s ease-in-out infinite; }
-      .glance-orb::after { content: ""; position: absolute; left: -12px; top: -12px; width: 32px; height: 32px; border-radius: 50%;
-        background: radial-gradient(circle, rgba(31, 201, 122, .55), rgba(31, 201, 122, .18) 45%, rgba(31, 201, 122, 0) 70%);
-        animation: orbBreathe 4s ease-in-out infinite; }
     }
-    @keyframes orbTravel { 0% { transform: translateX(0); } 75% { transform: translateX(100%); } 100% { transform: translateX(100%); } }
-    @keyframes orbFade { 0% { opacity: 0; transform: scale(.6); } 12% { opacity: 1; transform: scale(1); } 62% { opacity: 1; transform: scale(1); }
-      75% { opacity: 0; transform: scale(.6); } 100% { opacity: 0; transform: scale(.6); } }
-    @keyframes orbBreathe { 0%, 100% { opacity: .35; transform: scale(.75); } 50% { opacity: 1; transform: scale(1.15); } }
     .status-rate { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .status-rate b { color: var(--accent); font-weight: var(--weight-semibold); margin: 0 2px 0 8px; }
     .status-rate b:first-child { margin-left: 0; }
     #page-status .page-header-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; justify-content: flex-end; }
     #overall-badge.badge-success .badge-dot { animation: dotBreathe 4.5s ease-in-out infinite; }
-    @keyframes dotBreathe { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } 50% { opacity: .55; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); } }
-    /* Cards settle in softly when a page opens (start state only, so no
-     * transform stays on the card afterwards). */
-    .page-section.active .card { animation: cardIn .5s cubic-bezier(.2, .7, .2, 1) backwards; animation-delay: calc(var(--ci, 0) * 45ms); }
-    @keyframes cardIn { from { opacity: 0; transform: translateY(10px); } }
-    @media (hover: hover) { #page-status .card { transition: border-color .25s ease, box-shadow .25s ease; }
-      #page-status .card:hover { border-color: var(--fg-faint, #3a4350); box-shadow: 0 6px 22px rgba(0, 0, 0, .22); }
+    @keyframes dotBreathe { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+    @media (hover: hover) { .page-section .card { transition: border-color .25s ease, box-shadow .25s ease; }
+      .page-section .card:hover { border-color: var(--fg-faint, #3a4350); box-shadow: 0 6px 22px rgba(0, 0, 0, .22); }
       .stat-list .stat-row:hover { background: rgba(255, 255, 255, .02); } }
     .stat-value { font-variant-numeric: tabular-nums; }
     .val-tick { animation: valTick 1.8s ease-out; }
     @keyframes valTick { 0% { color: var(--accent); text-shadow: 0 0 10px rgba(31, 201, 122, .35); } 100% { text-shadow: none; } }
     /* Two columns of facts when the Uplink card spans the full width. */
     @media (min-width: 1000px) { #card-uplink.col-span-2 > .stat-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--sp-6); } }
-    html.ui-hidden .glance-runner, html.ui-hidden .glance-orb, html.ui-hidden .glance-orb::after,
     html.ui-hidden #overall-badge .badge-dot { animation-play-state: paused; }
     @media (prefers-reduced-motion: reduce) {
-      .glance-runner, .glance-orb, .glance-orb::after, #overall-badge .badge-dot, .page-section.active .card, .val-tick,
-      .glance-spark.draw svg, .scroll-more.show.hint button { animation: none !important; }
-      .glance.flowing .glance-flow { display: none; }
+      #overall-badge .badge-dot, .val-tick, .glance-spark.draw svg, .scroll-more.show.hint button, .page-section.active, .subpage { animation: none !important; }
     }
     @media (max-width: 760px) { .glance, .glance.has-ap { grid-template-columns: repeat(2, minmax(0, 1fr)); } .glance.has-ap #glance-memory { grid-column: 1 / -1; } .goal-tile { min-height: auto; } }
     /* Goal launcher on the Status page */
@@ -1832,7 +1821,7 @@
     /* Sub-sections of the long pages: one group of cards at a time. */
     .subnav {
       position: sticky; top: 56px; z-index: 20;
-      display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
+      display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
       margin: 0 0 var(--sp-5); padding: 4px;
       background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl);
       box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.6);
@@ -2320,7 +2309,7 @@
       <!-- Primary feature: Selective Tailnet Service Gateway -->
       <!-- At-a-glance strip: the four facts that matter first, on every screen size -->
       <div class="glance" id="status-glance" aria-label="Summary">
-        <span class="glance-line" aria-hidden="true"></span><span class="glance-flow" aria-hidden="true"><span class="glance-runner"><span class="glance-orb"></span></span></span>
+        <span class="glance-line" aria-hidden="true"></span>
         <div class="glance-item" id="glance-uplink"><span class="glance-label">Uplink</span><strong>—</strong></div>
         <div class="glance-item" id="glance-ap" hidden><span class="glance-label">Client WiFi</span><strong>—</strong></div>
         <div class="glance-item" id="glance-tailnet"><span class="glance-label">Tailnet</span><strong>—</strong></div>
@@ -2337,8 +2326,7 @@
             <div class="card-header-left">
               <span class="card-header-icon">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1.42 9a16 16 0 0121.16 0M5 12.55a11 11 0 0114.08 0M10.95 16.55L12 18l1.05-1.45"/>
-                  <circle cx="12" cy="20" r="1"/>
+                  <path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M8.53 16.11a6 6 0 0 1 6.94 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
                 </svg>
               </span>
               <span class="card-title">Uplink WiFi</span>
@@ -2396,7 +2384,7 @@
             <div class="card-header-left">
               <span class="card-header-icon">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M10.95 16.55L12 18l1.05-1.45"/>
+                  <circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/>
                 </svg>
               </span>
               <span class="card-title">Client WiFi / Tailnet gateway</span>
@@ -4952,11 +4940,11 @@
         set('glance-tailnet',!ts.enabled?'Off':ts.connected?(ts.authority_ready===false?'Policy pending':'Connected'):(ts.startup_retrying?'Retrying':'Not connected'),!ts.enabled?'':ts.connected?(ts.authority_ready===false?'warn':'ok'):'bad');
         set('glance-peers',Number.isFinite(ts.peers_online)?ts.peers_online+' / '+(ts.peers_total||0):'—',ts.connected&&ts.peers_online>0?'ok':'');
         var kb=Number.isFinite(data&&data.mem_internal_free)?Math.round(data.mem_internal_free/1024):null;
-        set('glance-memory',kb==null?'—':kb+' KB',kb!=null&&kb<10?'warn':'');
+        set('glance-memory',kb==null?'—':kb+' KB',kb==null?'':kb<10?'warn':'ok');
         /* Client WiFi node only while the gateway access point runs. */
         var ap=data&&data.ap||{},apOn=ap.enabled!==false,apEl=document.getElementById('glance-ap'),gl=document.getElementById('status-glance');
         if(apEl){apEl.hidden=!apOn;if(apOn)set('glance-ap',(ap.ssid||'On')+(typeof ap.clients==='number'?' · '+ap.clients+' client'+(ap.clients!==1?'s':''):''),'ok');}
-        if(gl){gl.classList.toggle('has-ap',apOn);gl.classList.toggle('flowing',!!sta.connected&&!!ts.connected&&ts.authority_ready!==false);}
+        if(gl)gl.classList.toggle('has-ap',apOn);
       })();
       // STA (uplink)
       var ul = data.sta || {};
@@ -5578,7 +5566,25 @@
       };
     }
 
+    /* Identical GETs in flight share one request: the gateway's web server
+     * answers one request at a time, so the duplicates of a page load
+     * (several cards asking for the same data) only delay everything else.
+     * A request made after the answer arrived (Reload) is always new. Each
+     * caller gets its own copy of the response. */
+    var s_inflight = {};
     function apiFetch(url, opts) {
+      var method = String((opts && opts.method) || 'GET').toUpperCase();
+      var share = method === 'GET' && !(opts && (opts.body || opts.signal));
+      if (!share) return apiFetchOnce(url, opts);
+      var p = s_inflight[url];
+      if (!p) {
+        p = s_inflight[url] = apiFetchOnce(url, opts);
+        var done = function () { if (s_inflight[url] === p) delete s_inflight[url]; };
+        p.then(done, done);
+      }
+      return p.then(function (r) { return r.clone(); });
+    }
+    function apiFetchOnce(url, opts) {
       /* cache: 'no-store' on every request — the backend never sets
        * Cache-Control headers and Chrome/Firefox happily serve stale
        * /api/tailscale responses out of HTTP cache, which made the
@@ -5979,7 +5985,7 @@
       if (card) card.hidden = !(s_sg_enabled > 0 || s_sg_open > 0);
     }
     function applySetupChoices() {
-      fetch('/api/system', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+      apiFetch('/api/system').then(function (r) { return r.json(); }).then(function (d) {
         var roles = String(d.setup_roles || '').split(',').filter(Boolean);
         s_setup_roles = roles; updateServiceGatewayCard();
         try { if (localStorage.getItem('ui-advanced') === null && d.ui_advanced_default) setUiAdvanced(true); } catch (e) {}
@@ -12514,18 +12520,13 @@
       if (typeof loadDhcpLeases === 'function') loadDhcpLeases();
     }, 10000);
 
-  /* Status motion: card entrance order, a soft highlight when a shown value
-   * changes, sparklines on the summary line while trends are on, and paused
+  /* Motion: a soft highlight when a shown value changes (every page),
+   * sparklines on the Status summary line while trends are on, and paused
    * loops while the browser tab is hidden. */
   (function () {
-    function order() {
-      document.querySelectorAll('.page-section').forEach(function (sec) {
-        sec.querySelectorAll('.card').forEach(function (c, i) { c.style.setProperty('--ci', String(Math.min(i, 10))); });
-      });
-    }
     var seen = new WeakMap();
     function watch() {
-      var root = document.getElementById('page-status');
+      var root = document.querySelector('.page-section') ? document.querySelector('.page-section').parentElement : null;
       if (!root || !window.MutationObserver) return;
       new MutationObserver(function (list) {
         list.forEach(function (m) {
@@ -12556,8 +12557,10 @@
       });
     };
     document.addEventListener('visibilitychange', function () { document.documentElement.classList.toggle('ui-hidden', document.hidden); });
-    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { order(); watch(); });
-    else { order(); watch(); }
+    /* Older iOS ignores user-scalable=no: block the pinch gesture there too. */
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, {passive: false});
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch);
+    else watch();
   })();
 
   /* Horizontal tab rows: tell the user when sections are out of view. */
