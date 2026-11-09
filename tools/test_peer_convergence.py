@@ -37,6 +37,8 @@ static bool apply_peer_map(microlink_t *ml,cJSON *map){if(!ml_policy_apply(map))
 
 HEAD=r'''
 #include <stdarg.h>
+/* Tailnet DNS settings are tested by test_tailnet_dns.py; here only the call. */
+#define ml_dns_apply_map(map) ((void)(map))
 #define ML_MAX_PEERS 16
 #define ML_MAX_ENDPOINTS 8
 #define MICROLINK_MAX_PEER_ROUTES 8
