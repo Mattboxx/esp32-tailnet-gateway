@@ -873,6 +873,8 @@
 "Monitor interval (seconds)",
 "Monitor the gateway and get alerts",
 "Monitor this device",
+"More sections on the left",
+"More sections on the right",
 "Move down",
 "Move this gateway to the 3.0 flash layout now? It restarts into 3.0 when done. Keep the power on.",
 "Move to the 3.0 flash layout",

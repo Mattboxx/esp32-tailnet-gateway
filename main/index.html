@@ -228,6 +228,22 @@
       -ms-overflow-style: none;
     }
     .nav-tabs::-webkit-scrollbar { display: none; }
+    /* Horizontal rows that do not fit (top bar on narrower desktops, the
+     * sub-section bars): the hidden side fades and an arrow shows that more
+     * sections follow; the arrow scrolls by most of a screen. */
+    .nav-tabs.more-right, .subnav.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
+    .nav-tabs.more-left, .subnav.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); }
+    .nav-tabs.more-left.more-right, .subnav.more-left.more-right {
+      mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); }
+    .scroll-more { position: relative; display: none; align-items: center; flex: 0 0 auto; }
+    .scroll-more.show { display: inline-flex; }
+    .scroll-more button {
+      width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--accent-border);
+      background: var(--bg-elevated); color: var(--accent); cursor: pointer; font-size: 16px; line-height: 1;
+      display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+    .scroll-more button:hover { background: var(--accent-muted); }
+    .scroll-more button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
     .nav-tab {
       display: flex;
@@ -12380,6 +12396,60 @@
       if (setupVisible || loginVisible) return;
       if (typeof loadDhcpLeases === 'function') loadDhcpLeases();
     }, 10000);
+
+  /* Horizontal tab rows: tell the user when sections are out of view. */
+  (function () {
+    function setup(row) {
+      if (!row || row.dataset.moreReady) return;
+      row.dataset.moreReady = '1';
+      function arrow(dir) {
+        var wrap = document.createElement('span');
+        wrap.className = 'scroll-more scroll-more-' + dir;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = dir === 'left' ? '\u2039' : '\u203A';
+        b.setAttribute('aria-label', dir === 'left' ? 'More sections on the left' : 'More sections on the right');
+        b.title = b.getAttribute('aria-label');
+        b.addEventListener('click', function () {
+          row.scrollBy({left: (dir === 'left' ? -1 : 1) * Math.max(120, row.clientWidth * 0.7), behavior: 'smooth'});
+        });
+        wrap.appendChild(b);
+        return wrap;
+      }
+      var left = arrow('left'), right = arrow('right');
+      row.parentNode.insertBefore(left, row);
+      row.parentNode.insertBefore(right, row.nextSibling);
+      function update() {
+        var max = row.scrollWidth - row.clientWidth;
+        var horizontal = getComputedStyle(row).flexDirection !== 'column' && max > 2;
+        var l = horizontal && row.scrollLeft > 2, r = horizontal && row.scrollLeft < max - 2;
+        row.classList.toggle('more-left', l); row.classList.toggle('more-right', r);
+        left.classList.toggle('show', l); right.classList.toggle('show', r);
+      }
+      row.addEventListener('scroll', update, {passive: true});
+      window.addEventListener('resize', update);
+      if (window.ResizeObserver) new ResizeObserver(update).observe(row);
+      row._moreUpdate = update;
+      update();
+    }
+    function revealActive() {
+      document.querySelectorAll('.nav-tabs, .subnav').forEach(function (row) {
+        var a = row.querySelector('.active, [aria-selected="true"]');
+        if (a && row.scrollWidth > row.clientWidth && getComputedStyle(row).flexDirection !== 'column') {
+          var r = a.getBoundingClientRect(), box = row.getBoundingClientRect();
+          if (r.left < box.left || r.right > box.right)
+            row.scrollBy({left: r.left < box.left ? r.left - box.left - 40 : r.right - box.right + 40});
+        }
+        if (row._moreUpdate) row._moreUpdate();
+      });
+    }
+    function init() {
+      document.querySelectorAll('.nav-tabs, .subnav').forEach(setup);
+      revealActive();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+    window.addEventListener('hashchange', function () { setTimeout(revealActive, 0); });
+  })();
   </script>
 
 </body>
