@@ -2,6 +2,13 @@
 
 ## Current handover — 2026-11-09 (after 3.0.13)
 
+3.0.14-beta.3 published as a GitHub pre-release (tag on b7ee3f8, MicroLink
+4ea68d1 pushed; 10 asset digests verified; v3.0.13 stays Latest; no site
+change). It adds settings search (`tools/test_settings_search.cjs`) and the
+load-speed fixes of beta.2. Installed over Tailscale on the owner's test
+board (100.80.107.31), POST-INSTALL PASS; validate_all --build --browser 142
+PASS. The owner tests it for some days before a stable 3.0.14.
+
 Local, not pushed: Status page signature (signal line, Client WiFi node,
 header rate, calm motion; `tools/test_status_signature.cjs`) and MagicDNS
 completion (F46): own name answered, tailnet DNS settings (extra records,
