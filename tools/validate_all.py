@@ -125,6 +125,7 @@ def main():
         run('telegram-ui',['node','tools/test_telegram_ui.cjs'])
         run('nav-scroll-hint',['node','tools/test_nav_scroll_hint.cjs'])
         run('status-signature',['node','tools/test_status_signature.cjs'])
+        run('settings-search',['node','tools/test_settings_search.cjs'])
         run('setup-crypto',['node','tools/test_setup_crypto.cjs'])
         run('first-boot-ui',['node','tools/test_first_boot_ui.cjs'],900)
         run('site-browser',['node','tools/test_site_browser.cjs'],600)

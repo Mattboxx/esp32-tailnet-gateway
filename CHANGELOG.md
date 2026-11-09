@@ -6,6 +6,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.14-beta.3] — 2026-11-09 (pre-release)
+
+### Added
+- Settings search: the magnifier in the top bar, Ctrl+K or "/" opens it.
+  It finds pages, sections, cards and options as you type, ignoring case and
+  accents, with word beginnings, one typo in longer words and common
+  synonyms in English and Italian (for example "aggiornamento" finds the
+  firmware update). Enter opens the page and section, highlights the setting
+  and puts the cursor in its first field; advanced settings are marked and
+  shown when chosen. The list is read from the page only when the search
+  opens, so page loading is unchanged.
+
 ## [3.0.14-beta.2] — 2026-11-09 (pre-release)
 
 ### Changed

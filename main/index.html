@@ -1742,6 +1742,26 @@
       .glance-line { display: block; position: absolute; left: var(--edge); right: var(--edge); top: 25px; height: 2px; border-radius: 2px;
         background: linear-gradient(90deg, var(--border), var(--accent-border) 30%, var(--accent-border)); }
     }
+    /* Settings search palette (built on first use). */
+    .nav-search { width: 40px; height: 40px; }
+    .search-pal { position: fixed; inset: 0; z-index: 900; background: rgba(5, 7, 10, .55); display: flex; justify-content: center;
+      align-items: flex-start; padding: 72px 16px 16px; animation: pageIn .12s ease-out; }
+    .search-pal[hidden] { display: none; }
+    .search-box { width: min(620px, 100%); max-height: calc(100vh - 96px); display: flex; flex-direction: column; background: var(--bg-elevated);
+      border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: 0 18px 50px rgba(0, 0, 0, .45); overflow: hidden; }
+    .search-field { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--fg-muted); }
+    .search-field input { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: var(--fg-primary); font: inherit; font-size: 16px; }
+    .search-field kbd { font: 600 11px/1 var(--font-mono, monospace); color: var(--fg-muted); border: 1px solid var(--border); border-radius: 5px; padding: 3px 5px; }
+    .search-list { list-style: none; overflow-y: auto; padding: 6px; }
+    .search-item { display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 9px; cursor: pointer; }
+    .search-item.active, .search-item:hover { background: var(--accent-muted); }
+    .search-title { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--fg-primary); display: flex; align-items: center; gap: 8px; }
+    .search-path { font-size: var(--text-xs); color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-tag { font-size: 10px; font-weight: 600; color: var(--warning); border: 1px solid currentColor; border-radius: 999px; padding: 1px 6px; }
+    .search-empty { padding: 14px 16px; font-size: var(--text-sm); color: var(--fg-muted); }
+    .search-empty[hidden] { display: none; }
+    .search-hit { animation: searchHit 1.8s ease-out; border-radius: var(--radius-md); }
+    @keyframes searchHit { 0%, 30% { box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(31, 201, 122, .35); } 100% { box-shadow: 0 0 0 2px transparent; } }
     .status-rate { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
     .status-rate b { color: var(--accent); font-weight: var(--weight-semibold); margin: 0 2px 0 8px; }
     .status-rate b:first-child { margin-left: 0; }
@@ -1758,7 +1778,8 @@
     @media (min-width: 1000px) { #card-uplink.col-span-2 > .stat-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--sp-6); } }
     html.ui-hidden #overall-badge .badge-dot { animation-play-state: paused; }
     @media (prefers-reduced-motion: reduce) {
-      #overall-badge .badge-dot, .val-tick, .glance-spark.draw svg, .scroll-more.show.hint button, .page-section.active, .subpage { animation: none !important; }
+      #overall-badge .badge-dot, .val-tick, .glance-spark.draw svg, .scroll-more.show.hint button, .page-section.active, .subpage,
+      .search-pal, .search-hit { animation: none !important; }
     }
     @media (max-width: 760px) { .glance, .glance.has-ap { grid-template-columns: repeat(2, minmax(0, 1fr)); } .glance.has-ap #glance-memory { grid-column: 1 / -1; } .goal-tile { min-height: auto; } }
     /* Goal launcher on the Status page */
@@ -1999,6 +2020,9 @@
     </div>
 
     <div class="nav-actions">
+      <button class="btn btn-ghost btn-icon nav-search" id="searchBtn" type="button" title="Search settings (Ctrl K or /)" aria-label="Search settings" aria-haspopup="dialog">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      </button>
       <a id="nav-support-link" class="btn btn-md mod-support-button nav-support" href="https://ko-fi.com/mattboxx"
          target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"
          title="Optional tips support the Mattboxx mod — all features stay free"
@@ -12561,6 +12585,211 @@
     document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, {passive: false});
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch);
     else watch();
+  })();
+
+  /* Settings search (Ctrl+K, "/" or the magnifier). Nothing is built at page
+   * load: the list of pages, sections, cards and options is read from the
+   * page the first time the search opens, in the language shown, and again
+   * on each opening (a few milliseconds). Matching ignores case and accents,
+   * accepts word beginnings, one typo in longer words and common synonyms
+   * (English and Italian); titles rank above options, options above hints. */
+  (function () {
+    var SYN = [
+      ['wifi', 'wi', 'wlan', 'wireless', 'ssid', 'rete', 'network', 'uplink'],
+      ['password', 'pass', 'pwd', 'parola', 'credenziali', 'login', 'accesso', 'access', 'auth', 'sessione', 'session'],
+      ['update', 'updates', 'aggiornamento', 'aggiornamenti', 'aggiorna', 'firmware', 'ota', 'versione', 'version'],
+      ['tailscale', 'tailnet', 'vpn', 'headscale', 'tunnel'],
+      ['dns', 'magicdns', 'nomi', 'names', 'resolver', 'relay'],
+      ['wol', 'wake', 'risveglio', 'sveglia', 'accendi', 'accensione', 'power'],
+      ['restart', 'reboot', 'riavvia', 'riavvio', 'reset'],
+      ['backup', 'copia', 'copie', 'salvataggio', 'snapshot', 'ripristino', 'restore', 'export', 'esporta'],
+      ['notification', 'notifications', 'notifiche', 'notifica', 'avvisi', 'alert', 'alerts', 'ntfy', 'telegram', 'email', 'mail'],
+      ['firewall', 'regole', 'rules', 'acl', 'blocco', 'block'],
+      ['ap', 'hotspot', 'access', 'point', 'client', 'clients', 'gateway'],
+      ['exit', 'uscita'],
+      ['log', 'logs', 'registro', 'eventi', 'events', 'history', 'cronologia', 'storico'],
+      ['mqtt', 'home', 'assistant', 'ha', 'domotica'],
+      ['ip', 'indirizzo', 'address', 'addresses', 'subnet', 'route', 'routes', 'rotte'],
+      ['speed', 'velocita', 'throughput', 'speedtest', 'banda', 'bandwidth'],
+      ['language', 'lingua', 'idioma'],
+      ['time', 'ora', 'orario', 'ntp', 'clock', 'timezone', 'fuso'],
+      ['port', 'porta', 'porte', 'ports'],
+      ['trend', 'trends', 'grafici', 'grafico', 'chart', 'andamento'],
+      ['dhcp', 'lease', 'leases', 'dispositivi', 'devices'],
+      ['snmp', 'monitor', 'monitoraggio', 'health', 'salute']
+    ];
+    var GENERIC = /^(save|cancel|close|reload|refresh|ok|apply|edit|remove|delete|add|back|next|show|hide|copy|done|yes|no|start|stop|clear|change|more|less|salva|annulla|chiudi|ricarica|aggiorna|applica|modifica|rimuovi|elimina|aggiungi|indietro|avanti|mostra|nascondi|copia|fatto|si|sì)$/i;
+    var synOf = {};
+    SYN.forEach(function (g) { g.forEach(function (w) { (synOf[w] = synOf[w] || []).push(g); }); });
+
+    function norm(s) {
+      return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+    }
+    function words(s) { var n = norm(s); return n ? n.split(' ') : []; }
+    function clean(el) { return String(el.textContent || '').replace(/\s+/g, ' ').trim(); }
+    /* One insertion, deletion, substitution or swap of neighbours. */
+    function oneEdit(a, b) {
+      if (a === b) return true;
+      var la = a.length, lb = b.length;
+      if (Math.abs(la - lb) > 1) return false;
+      var i = 0; while (i < la && i < lb && a[i] === b[i]) i++;
+      if (la === lb) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+      return la > lb ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+    }
+    function wordScore(t, list) {
+      var best = 0;
+      for (var i = 0; i < list.length && best < 3; i++) {
+        var w = list[i];
+        if (w === t) best = 3;
+        else if (w.indexOf(t) === 0) best = Math.max(best, 2.2);
+        else if (t.length >= 3 && w.indexOf(t) > 0) best = Math.max(best, 1.3);
+        else if (t.length >= 4 && (oneEdit(t, w) || oneEdit(t, w.slice(0, t.length)))) best = Math.max(best, 1.1);
+      }
+      return best;
+    }
+    function tokenScore(t, item) {
+      var s = Math.max(wordScore(t, item.w) * item.weight, wordScore(t, item.h) * 0.45);
+      (synOf[t] || []).forEach(function (g) {
+        g.forEach(function (alt) {
+          if (alt !== t) s = Math.max(s, Math.max(wordScore(alt, item.w) * item.weight, wordScore(alt, item.h) * 0.45) * 0.8);
+        });
+      });
+      return s;
+    }
+
+    function shownIn(el, stop) {
+      for (var n = el; n && n !== stop; n = n.parentElement) {
+        if (n.hidden && !n.classList.contains('subpage')) return false;
+        if (n.style && n.style.display === 'none') return false;
+      }
+      return true;
+    }
+    function pageLabel(page) {
+      var tab = document.querySelector('.nav-tab[data-page="' + page + '"]');
+      return tab ? clean(tab) : page;
+    }
+    function build() {
+      var items = [], seen = {};
+      function add(text, path, hash, el, weight, adv, hint) {
+        var key = norm(text) + '|' + hash;
+        if (!text || seen[key]) return;
+        seen[key] = 1;
+        items.push({text: text, path: path, hash: hash, el: el, weight: weight, adv: adv, w: words(text), h: words(path + ' ' + (hint || ''))});
+      }
+      document.querySelectorAll('.nav-tab[data-page]').forEach(function (t) { add(clean(t), '', t.getAttribute('data-page'), null, 1.4, false, ''); });
+      document.querySelectorAll('.subnav[data-page] [data-sub]').forEach(function (t) {
+        var page = t.closest('.subnav').getAttribute('data-page');
+        add(clean(t), pageLabel(page), page + '/' + t.getAttribute('data-sub'), null, 1.3, false, '');
+      });
+      document.querySelectorAll('.page-section').forEach(function (sec) {
+        var page = sec.id.replace(/^page-/, '');
+        sec.querySelectorAll('.card').forEach(function (card) {
+          if (!shownIn(card, sec)) return;
+          var sp = card.closest('.subpage'), hash = page + (sp && sp.getAttribute('data-sub') ? '/' + sp.getAttribute('data-sub') : '');
+          var crumb = pageLabel(page) + (sp ? ' › ' + (sp.getAttribute('aria-label') || '') : '');
+          var titleEl = card.querySelector('.card-title'), title = titleEl ? clean(titleEl) : '';
+          var adv = !!card.closest('[data-advanced]');
+          var intro = card.querySelector('.card-body > .form-hint, .card-body > p');
+          if (title) add(title, crumb, hash, card, 1.2, adv || !!titleEl.closest('[data-advanced]'), intro ? clean(intro).slice(0, 240) : '');
+          card.querySelectorAll('label, .stat-label, .section-heading, .form-label, button.btn').forEach(function (e) {
+            if (!shownIn(e, card) || e.closest('.card') !== card) return;
+            var t = clean(e);
+            if (t.length < 2 || t.length > 90 || GENERIC.test(t)) return;
+            var group = e.closest('.form-group, .stat-row') || e, hintEl = group.querySelector && group.querySelector('.form-hint');
+            add(t, crumb + (title ? ' › ' + title : ''), hash, group, 1, adv || !!e.closest('[data-advanced]'), hintEl ? clean(hintEl).slice(0, 240) : '');
+          });
+        });
+      });
+      return items;
+    }
+    function search(items, q) {
+      var toks = words(q);
+      if (!toks.length) return [];
+      var out = [];
+      items.forEach(function (it) {
+        var total = 0;
+        for (var i = 0; i < toks.length; i++) { var s = tokenScore(toks[i], it); if (!s) return; total += s; }
+        if (norm(it.text).indexOf(toks.join(' ')) === 0) total += 1.5;
+        if (it.adv && document.body.classList.contains('ui-simple')) total -= 0.2;
+        out.push({it: it, s: total});
+      });
+      return out.sort(function (a, b) { return b.s - a.s || a.it.text.length - b.it.text.length; }).slice(0, 8).map(function (x) { return x.it; });
+    }
+
+    var pal = null, input = null, list = null, empty = null, items = [], results = [], sel = 0, opener = null;
+    function render() {
+      list.replaceChildren();
+      results.forEach(function (it, i) {
+        var li = document.createElement('li');
+        li.className = 'search-item' + (i === sel ? ' active' : '');
+        li.id = 'search-opt-' + i; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', i === sel ? 'true' : 'false');
+        var t = document.createElement('span'); t.className = 'search-title'; t.textContent = it.text;
+        if (it.adv) { var a = document.createElement('span'); a.className = 'search-tag'; a.textContent = 'Advanced'; t.appendChild(a); }
+        var p = document.createElement('span'); p.className = 'search-path'; p.textContent = it.path || 'Page';
+        li.append(t, p);
+        li.addEventListener('mousedown', function (e) { e.preventDefault(); go(it); });
+        list.appendChild(li);
+      });
+      empty.hidden = !!results.length;
+      empty.textContent = input.value.trim() ? 'Nothing found. Try another word, e.g. password, MagicDNS or Wi-Fi.' : 'Type a setting, e.g. password, MagicDNS, Wi-Fi or update.';
+      input.setAttribute('aria-activedescendant', results.length ? 'search-opt-' + sel : '');
+    }
+    function close() {
+      if (!pal || pal.hidden) return;
+      pal.hidden = true;
+      if (opener && opener.focus) opener.focus();
+    }
+    function go(it) {
+      close();
+      if (it.adv && document.body.classList.contains('ui-simple') && typeof setUiAdvanced === 'function') setUiAdvanced(true);
+      if ((location.hash || '').replace(/^#/, '') !== it.hash) location.hash = it.hash;
+      if (!it.el) return;
+      setTimeout(function () {
+        it.el.scrollIntoView({block: 'center', behavior: 'smooth'});
+        it.el.classList.remove('search-hit'); void it.el.offsetWidth; it.el.classList.add('search-hit');
+        var field = it.el.matches && it.el.matches('input, select, textarea, button') ? it.el : it.el.querySelector && it.el.querySelector('input:not([type=hidden]), select, textarea');
+        if (field && field.focus) field.focus({preventScroll: true});
+      }, 120);
+    }
+    function make() {
+      pal = document.createElement('div');
+      pal.className = 'search-pal'; pal.hidden = true;
+      pal.innerHTML = '<div class="search-box" role="dialog" aria-modal="true" aria-label="Search settings">' +
+        '<div class="search-field"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
+        '<input type="search" id="search-input" placeholder="Search settings" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="search-list" aria-autocomplete="list"><kbd>Esc</kbd></div>' +
+        '<ul class="search-list" id="search-list" role="listbox" aria-label="Results"></ul><p class="search-empty" role="status"></p></div>';
+      document.body.appendChild(pal);
+      input = pal.querySelector('input'); list = pal.querySelector('ul'); empty = pal.querySelector('.search-empty');
+      pal.addEventListener('mousedown', function (e) { if (e.target === pal) close(); });
+      input.addEventListener('input', function () { results = search(items, input.value); sel = 0; render(); });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (results.length) sel = (sel + (e.key === 'ArrowDown' ? 1 : results.length - 1)) % results.length;
+          render();
+          var a = list.children[sel]; if (a && a.scrollIntoView) a.scrollIntoView({block: 'nearest'});
+        } else if (e.key === 'Enter') { e.preventDefault(); if (results[sel]) go(results[sel]); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+      });
+    }
+    function open() {
+      if (!pal) make();
+      opener = document.activeElement;
+      items = build();
+      window.s_search_items = items.length;
+      pal.hidden = false;
+      input.value = ''; results = []; sel = 0; render();
+      input.focus();
+    }
+    window.openSettingsSearch = open;
+    var btn = document.getElementById('searchBtn');
+    if (btn) btn.addEventListener('click', open);
+    document.addEventListener('keydown', function (e) {
+      var t = e.target, typing = t && (t.isContentEditable || /^(textarea|select)$/i.test(t.tagName) ||
+        (/^input$/i.test(t.tagName) && !/^(checkbox|radio|button|submit|reset|range|color|file)$/i.test(t.type)));
+      if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); open(); }
+      else if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); open(); }
+    });
   })();
 
   /* Horizontal tab rows: tell the user when sections are out of view. */
