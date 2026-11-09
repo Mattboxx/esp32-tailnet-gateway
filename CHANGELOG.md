@@ -6,6 +6,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.14-beta.4] — 2026-11-09 (pre-release)
+
+### Fixed
+- Phones: with the side menu open, the page underneath kept scrolling and
+  jumped (a regression of beta.2). The page is locked while the menu or the
+  settings search is open; drags outside the open panel are ignored.
+
 ## [3.0.14-beta.3] — 2026-11-09 (pre-release)
 
 ### Added

@@ -6,7 +6,8 @@
  *   cannot be pinch-zoomed; identical GETs in flight are one request;
  * - the Client WiFi node appears only while the access point runs, with SSID
  *   and client count, and the grid gains a fifth column; on a phone it stays
- *   two columns with RAM spanning the last row;
+ *   two columns with RAM spanning the last row; the menu drawer locks the
+ *   page under it (no scroll, drags outside the drawer ignored) until closed;
  * - the header rate stays hidden after one reading and shows the averaged
  *   uplink rate after a second one; counters that go backwards are ignored;
  * - sparklines appear on the summary only while trends are on;
@@ -136,6 +137,20 @@ async function refresh(page) {
                  span: getComputedStyle(document.getElementById('glance-memory')).gridColumnStart };
       });
       assert.equal(r.cols, 2); assert.equal(r.line, 'none'); assert.equal(r.span, '1');
+      /* Menu drawer open: the page under it does not scroll; closed again: it does. */
+      await f.page.evaluate(() => window.scrollTo(0, 0));
+      await f.page.click('#navHamBtn');
+      const locked = await f.page.evaluate(() => {
+        const ev = new Event('touchmove', { bubbles: true, cancelable: true }); document.querySelector('#page-status').dispatchEvent(ev);
+        const inside = new Event('touchmove', { bubbles: true, cancelable: true }); document.getElementById('navTabs').dispatchEvent(inside);
+        return { cls: document.documentElement.classList.contains('scroll-locked'), html: getComputedStyle(document.documentElement).overflowY,
+                 outside: ev.defaultPrevented, inside: inside.defaultPrevented };
+      });
+      assert.deepEqual(locked, { cls: true, html: 'hidden', outside: true, inside: false });
+      await f.page.click('#navHamBtn');
+      const free = await f.page.evaluate(() => { const ev = new Event('touchmove', { bubbles: true, cancelable: true }); document.body.dispatchEvent(ev);
+        return { cls: document.documentElement.classList.contains('scroll-locked'), prevented: ev.defaultPrevented }; });
+      assert.deepEqual(free, { cls: false, prevented: false });
       assert.deepEqual(f.errors, []);
       await f.context.close();
     }

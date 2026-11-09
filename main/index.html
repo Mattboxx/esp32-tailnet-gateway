@@ -154,6 +154,7 @@
     /* The page never scrolls sideways: wide rows scroll inside themselves,
      * and a swipe at an edge does not drag or bounce the whole page. */
     html { font-size: 16px; overflow-x: clip; overscroll-behavior-x: none; touch-action: pan-x pan-y; }   /* no pinch zoom (owner's choice) */
+    html.scroll-locked, html.scroll-locked body { overflow: hidden; overscroll-behavior: none; }
 
     body {
       font-family: var(--font-ui);
@@ -1482,7 +1483,7 @@
         gap: 0.3rem;
         overflow-y: auto;
       }
-      .nav-tabs.open       { display: flex; }
+      .nav-tabs.open       { display: flex; overscroll-behavior: contain; }
       .nav-tabs .nav-tab   {
         padding: 14px 18px;
         font-size: 16px;
@@ -4737,13 +4738,13 @@
         if (!navTabs) return;
         document.body.appendChild(navTabs);
         navTabs.classList.add('open');
-        document.body.style.overflow = 'hidden';
+        lockPageScroll(navTabs);
         if (hamBtn) { hamBtn.setAttribute('aria-expanded', 'true'); hamBtn.setAttribute('aria-label', 'Close menu'); hamBtn.textContent = '✕'; }
       }
       function closeHamMenu() {
         if (!navTabs) return;
         navTabs.classList.remove('open');
-        document.body.style.overflow = '';
+        unlockPageScroll();
         if (navOrigParent && navTabs.parentNode !== navOrigParent) {
           navOrigParent.insertBefore(navTabs, navOrigNext);
         }
@@ -5588,6 +5589,22 @@
         }
         return null;
       };
+    }
+
+    /* While a drawer or dialog is open the page under it must not move: the
+     * lock sits on <html> (the page's scroller), and on touch screens a drag
+     * outside the open panel is ignored (iOS scrolls past overflow:hidden). */
+    var s_scroll_panel = null;
+    function blockOutsideDrag(e) { if (s_scroll_panel && !s_scroll_panel.contains(e.target)) e.preventDefault(); }
+    function lockPageScroll(panel) {
+      s_scroll_panel = panel || null;
+      document.documentElement.classList.add('scroll-locked');
+      document.addEventListener('touchmove', blockOutsideDrag, {passive: false});
+    }
+    function unlockPageScroll() {
+      s_scroll_panel = null;
+      document.documentElement.classList.remove('scroll-locked');
+      document.removeEventListener('touchmove', blockOutsideDrag, {passive: false});
     }
 
     /* Identical GETs in flight share one request: the gateway's web server
@@ -12737,6 +12754,7 @@
     function close() {
       if (!pal || pal.hidden) return;
       pal.hidden = true;
+      if (typeof unlockPageScroll === 'function') unlockPageScroll();
       if (opener && opener.focus) opener.focus();
     }
     function go(it) {
@@ -12778,6 +12796,7 @@
       items = build();
       window.s_search_items = items.length;
       pal.hidden = false;
+      if (typeof lockPageScroll === 'function') lockPageScroll(pal.querySelector('.search-box'));
       input.value = ''; results = []; sel = 0; render();
       input.focus();
     }
