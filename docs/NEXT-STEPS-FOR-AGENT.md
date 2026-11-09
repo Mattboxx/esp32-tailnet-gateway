@@ -1,5 +1,17 @@
 # Maintainer continuation
 
+## Current handover — 2026-11-09 (after 3.0.13)
+
+Local, not pushed: Status page signature (signal line, Client WiFi node,
+header rate, calm motion; `tools/test_status_signature.cjs`) and MagicDNS
+completion (F46): own name answered, tailnet DNS settings (extra records,
+split-DNS routes, override resolvers) behind `dns_config`, gateway's own
+lookups through the lwIP netconn resolve hook behind `self_resolve`, both
+off by default (`tsn_ext` record). Host tests `tailnet_dns`, `tailnet_names`
+and browser suites pass; firmware builds. Pending on board A: AP client and
+gateway lookups of a real peer, the own name, a split-DNS route and an extra
+record from the admin console; Headscale domains; lookups with the tunnel down.
+
 ## Current handover — 2026-11-07
 
 Read [Claude-to-Codex checkpoint](CLAUDE-TO-CODEX-CHECKPOINT.md) first: PERF-09

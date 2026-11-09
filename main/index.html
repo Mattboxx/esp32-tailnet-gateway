@@ -3260,7 +3260,7 @@
       <div class="subpage" data-sub="options" role="tabpanel" aria-label="Options">
       <!-- Tailnet (MagicDNS) names for devices behind the gateway -->
       <div class="card mt-4" id="tsn-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Tailnet names for local devices</span></div><span class="badge badge-neutral" id="tsn-badge">Off</span></div>
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Tailnet names (MagicDNS)</span></div><span class="badge badge-neutral" id="tsn-badge">Off</span></div>
         <div class="card-body">
           <p class="form-hint">Devices on this gateway's access point can reach tailnet peers by name: <code>nas</code> or <code>nas.tail1234.ts.net</code> resolves to the peer's 100.x address, without a Tailscale client on the device. Unknown names inside the tailnet domain are answered "not found" and never sent to the public resolver. A name is not access: reaching the peer still depends on this gateway's routes, firewall and the tailnet policy. Off by default.</p>
           <div class="form-group">
@@ -3270,6 +3270,14 @@
           <div class="form-group">
             <label class="feature-switch"><input type="checkbox" id="tsn-lan"><span class="feature-switch-track" aria-hidden="true"></span><span>Also answer devices on the home network</span></label>
             <span class="form-hint">Listens for DNS on the WiFi uplink address too. Useful only for LAN devices that use this gateway as their DNS server and reach 100.64.0.0/10 through it (a route on your router); all their other lookups are forwarded as well.</span>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="tsn-dns"><span class="feature-switch-track" aria-hidden="true"></span><span>Use the tailnet's DNS settings</span></label>
+            <span class="form-hint">Extra records and split DNS set in the Tailscale (or Headscale) admin console are answered or sent to their DNS server; with "Override local DNS" set there, other names go to the tailnet's DNS server while the tunnel is up. DNS over HTTPS/TLS and IPv6 servers are skipped.</span>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="tsn-self"><span class="feature-switch-track" aria-hidden="true"></span><span>This gateway uses tailnet names too</span></label>
+            <span class="form-hint">MQTT, ntfy, email and other connections of this gateway can use a MagicDNS name such as <code>ha.tail1234.ts.net</code> as their server. Tailnet names never go to the public resolver; everything else resolves as before.</span>
           </div>
           <div class="page-header-actions"><button class="btn btn-primary" id="tsn-save" type="button" disabled>Save</button></div>
           <p class="form-hint" id="tsn-status" role="status">Loading…</p>
@@ -7550,20 +7558,33 @@
         if (!d) { document.getElementById('tsn-card').hidden = true; return; }
         document.getElementById('tsn-enabled').checked = d.enabled;
         document.getElementById('tsn-lan').checked = d.lan;
+        var hasExt = typeof d.dns_config === 'boolean';
+        document.getElementById('tsn-dns').checked = !!d.dns_config;
+        document.getElementById('tsn-self').checked = !!d.self_resolve;
+        document.getElementById('tsn-dns').closest('.form-group').hidden = !hasExt;
+        document.getElementById('tsn-self').closest('.form-group').hidden = !hasExt;
         document.getElementById('tsn-save').disabled = true;
-        var b = document.getElementById('tsn-badge');
-        b.textContent = d.enabled ? 'On' : 'Off'; b.className = 'badge ' + (d.enabled ? 'badge-success' : 'badge-neutral');
-        document.getElementById('tsn-status').textContent = !d.enabled ? 'Off: name lookups are forwarded as before.' :
-          !d.relay ? 'On, but the DNS relay is off: switch it on under Network.' :
-          (d.peers + ' tailnet peers known.') + (d.lan ? (d.lan_listening ? ' Also listening on the uplink address.' : ' Waiting for the uplink address.') : '');
+        var on = d.enabled || !!d.self_resolve, b = document.getElementById('tsn-badge');
+        b.textContent = on ? 'On' : 'Off'; b.className = 'badge ' + (on ? 'badge-success' : 'badge-neutral');
+        var t = d.tailnet_dns || {}, parts = [];
+        if (t.self) parts.push('This gateway: ' + t.self + '.');
+        if (t.present) parts.push('Tailnet DNS settings: ' + t.records + ' records, ' + t.routes + ' split-DNS routes, ' + t.resolvers + ' DNS servers' +
+          (t.ignored ? ' (' + t.ignored + ' entries skipped)' : '') + '.' + (t.magic_dns ? '' : ' MagicDNS is off in the admin console.'));
+        document.getElementById('tsn-status').textContent = (!d.enabled ? (d.self_resolve ? 'Devices: off. ' : 'Off: name lookups are forwarded as before. ') :
+          !d.relay ? 'On, but the DNS relay is off: switch it on under Network. ' :
+          (d.peers + ' tailnet peers known.') + (d.lan ? (d.lan_listening ? ' Also listening on the uplink address.' : ' Waiting for the uplink address.') : '') + ' ') +
+          (d.self_resolve ? 'This gateway resolves tailnet names for its own connections. ' : '') + parts.join(' ');
       }).catch(function (e) { document.getElementById('tsn-status').textContent = 'Unavailable: ' + e.message; });
     }
-    ['tsn-enabled', 'tsn-lan'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { document.getElementById('tsn-save').disabled = false; }); });
+    ['tsn-enabled', 'tsn-lan', 'tsn-dns', 'tsn-self'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { document.getElementById('tsn-save').disabled = false; }); });
     document.getElementById('tsn-save').addEventListener('click', async function () {
       var btn = this; btn.disabled = true;
       try {
         var r = await apiFetch('/api/tailnet-names', {method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({enabled: document.getElementById('tsn-enabled').checked, lan: document.getElementById('tsn-lan').checked})});
+          body: JSON.stringify(Object.assign({enabled: document.getElementById('tsn-enabled').checked, lan: document.getElementById('tsn-lan').checked},
+            /* Only to firmware that reports these switches. */
+            document.getElementById('tsn-self').closest('.form-group').hidden ? {} :
+            {dns_config: document.getElementById('tsn-dns').checked, self_resolve: document.getElementById('tsn-self').checked}))});
         if (!r.ok) throw new Error('HTTP ' + r.status);
         await loadTailnetNames();
       } catch (e) { document.getElementById('tsn-status').textContent = 'Not saved: ' + e.message; btn.disabled = false; }

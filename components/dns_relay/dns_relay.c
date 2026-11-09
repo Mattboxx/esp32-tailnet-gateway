@@ -90,6 +90,7 @@ static volatile uint32_t s_lan_nbo       = 0;      /* uplink IP; 0 = not bound *
 static volatile bool     s_lan_dirty     = false;
 static volatile int      s_lan_sock      = -1;
 static volatile dns_relay_local_cb_t s_local_cb = NULL;
+static volatile dns_relay_route_cb_t s_route_cb = NULL;
 
 /* Explicit registration-based health callback (see git history: weak-symbol
  * overrides didn't resolve reliably across the component link boundary). */
@@ -106,6 +107,7 @@ typedef struct {
     struct sockaddr_in client;
     socklen_t          client_len;
     bool               lan;            /* reply through the LAN listener */
+    uint32_t           upstream;       /* chosen per query (route), 0 = usual */
     int                qlen;
     uint8_t            q[DNS_RELAY_BUF_SIZE];
 } dns_work_t;
@@ -353,7 +355,7 @@ static void worker_task(void *arg)
         }
         if (up < 0) { heap_caps_free(w); continue; }
 
-        uint32_t upstream = pick_upstream();
+        uint32_t upstream = w->upstream ? w->upstream : pick_upstream();
         if (upstream == 0) {
             ESP_LOGW(TAG, "no upstream DNS available; dropping query");
             heap_caps_free(w);
@@ -559,6 +561,8 @@ static void listener_task(void *arg)
         w->client     = client;
         w->client_len = client_len;
         w->lan        = from_lan;
+        dns_relay_route_cb_t route = s_route_cb;
+        w->upstream   = route ? route(qbuf, qlen) : 0;
         w->qlen       = qlen;
         memcpy(w->q, qbuf, qlen);
         if (xQueueSend(s_workq, &w, 0) != pdTRUE) {
@@ -706,3 +710,4 @@ void dns_relay_set_lan(bool on, uint32_t ip_nbo)
 bool dns_relay_lan_listening(void) { return s_lan_sock >= 0; }
 
 void dns_relay_set_local_resolver(dns_relay_local_cb_t cb) { s_local_cb = cb; }
+void dns_relay_set_route(dns_relay_route_cb_t cb) { s_route_cb = cb; }
