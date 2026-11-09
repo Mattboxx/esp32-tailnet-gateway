@@ -231,19 +231,25 @@
     /* Horizontal rows that do not fit (top bar on narrower desktops, the
      * sub-section bars): the hidden side fades and an arrow shows that more
      * sections follow; the arrow scrolls by most of a screen. */
-    .nav-tabs.more-right, .subnav.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 56px), transparent); }
-    .nav-tabs.more-left, .subnav.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 56px), transparent); }
+    .nav-tabs.more-right, .subnav.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 76px), transparent); }
+    .nav-tabs.more-left, .subnav.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 76px), transparent); }
     .nav-tabs.more-left.more-right, .subnav.more-left.more-right {
-      mask-image: linear-gradient(to right, transparent, #000 56px, #000 calc(100% - 56px), transparent); }
-    .scroll-more { position: relative; display: none; align-items: center; flex: 0 0 auto; }
+      mask-image: linear-gradient(to right, transparent, #000 76px, #000 calc(100% - 76px), transparent); }
+    /* The chip sits right after the faded edge, where the hidden sections are. */
+    .scroll-more { position: relative; z-index: 2; display: none; align-items: center; flex: 0 0 auto; }
     .scroll-more.show { display: inline-flex; }
     .scroll-more button {
-      width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--accent-border);
-      background: var(--bg-elevated); color: var(--accent); cursor: pointer; font-size: 16px; line-height: 1;
-      display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-    }
+      height: 26px; min-width: 26px; padding: 0 9px; border-radius: var(--radius-pill); border: 1px solid var(--accent-border);
+      background: var(--bg-elevated); color: var(--accent); cursor: pointer; font: 600 12px/1 var(--font-ui);
+      display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+      transition: background var(--transition-fast); }
     .scroll-more button:hover { background: var(--accent-muted); }
     .scroll-more button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (max-width: 760px), (pointer: coarse) { .scroll-more button { height: 36px; min-width: 36px; padding: 0 11px; } }
+    .scroll-more-right.show.hint button { animation: moreNudgeR 1.4s ease-in-out .8s 2; }
+    .scroll-more-left.show.hint button { animation: moreNudgeL 1.4s ease-in-out .8s 2; }
+    @keyframes moreNudgeR { 0%, 100% { transform: none; } 50% { transform: translateX(3px); } }
+    @keyframes moreNudgeL { 0%, 100% { transform: none; } 50% { transform: translateX(-3px); } }
 
     .nav-tab {
       display: flex;
@@ -526,11 +532,16 @@
     }
 
     /* Left-border accent stripe variant */
-    .card-stripe-success { border-left: 3px solid var(--success); }
-    .card-stripe-warning { border-left: 3px solid var(--warning); }
-    .card-stripe-danger  { border-left: 3px solid var(--danger);  }
-    .card-stripe-info    { border-left: 3px solid var(--info);    }
-    .card-stripe-accent  { border-left: 3px solid var(--accent);  }
+    /* State accent: a short bar in the card's top-left corner (Mattboxx
+     * signature) instead of a full left stripe. */
+    .card-stripe-success { --stripe: var(--success); }
+    .card-stripe-warning { --stripe: var(--warning); }
+    .card-stripe-danger  { --stripe: var(--danger);  }
+    .card-stripe-info    { --stripe: var(--info);    }
+    .card-stripe-accent  { --stripe: var(--accent);  }
+    .card[class*="card-stripe-"] { position: relative; }
+    .card[class*="card-stripe-"]::before { content: ""; position: absolute; top: 0; left: 0; width: 56px; height: 3px;
+      background: var(--stripe); border-bottom-right-radius: 3px; pointer-events: none; transition: background .6s ease; }
 
     .card-header {
       display: flex;
@@ -552,7 +563,9 @@
     }
 
     .card-header-icon {
-      color: var(--fg-muted);
+      width: 24px; height: 24px; border-radius: 7px; justify-content: center; flex: 0 0 auto;
+      background: var(--accent-muted); border: 1px solid var(--accent-border);
+      color: var(--accent);
       display: flex;
       align-items: center;
     }
@@ -1696,12 +1709,69 @@
     .adv-note { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; justify-content: space-between;
       border: 1px dashed var(--border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: var(--sp-4);
       color: var(--fg-secondary); font-size: var(--text-md); }
-    .glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-4); margin-bottom: var(--sp-4); }
+    .glance { --edge: 12.5%; position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-4); margin-bottom: var(--sp-4); }
+    .glance.has-ap { --edge: 10%; grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .glance-item { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; min-width: 0; }
-    .glance-item strong { display: block; font-size: var(--text-md); color: var(--fg-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .glance-item[hidden] { display: none; }
+    .glance-item strong { display: block; font-size: var(--text-md); color: var(--fg-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .glance-label { font-size: 0.75rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; }
     .glance-item.ok { border-left-color: var(--success); } .glance-item.bad { border-left-color: var(--danger); } .glance-item.warn { border-left-color: var(--warning); }
-    @media (max-width: 760px) { .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); } .goal-tile { min-height: auto; } }
+    .glance-line, .glance-flow { display: none; }
+    .glance-spark { display: block; width: min(120px, 100%); height: 18px; margin-top: 6px; opacity: .9; }
+    .glance-spark svg { display: block; width: 100%; height: 18px; }
+    .glance-spark.draw svg { animation: sparkReveal 1.6s cubic-bezier(.3, .6, .3, 1) .2s backwards; }
+    @keyframes sparkReveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+    /* Wide screens: the facts sit on one signal line, LAN to tailnet. A soft
+     * light travels along it only while uplink and tailnet are up; it is
+     * decoration, not proof that a data path works. */
+    @media (min-width: 761px) {
+      .glance { gap: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 18px 8px 16px; }
+      .glance-item { position: relative; z-index: 1; background: none; border: 0; border-radius: 0; padding: 26px 10px 0; text-align: center; }
+      .glance-item::before { content: ""; position: absolute; top: 0; left: 50%; width: 16px; height: 16px; margin-left: -8px; box-sizing: border-box;
+        border-radius: 50%; background: var(--bg-card); border: 3px solid var(--border); transition: border-color .8s ease, box-shadow .8s ease; }
+      .glance-item.ok::before { border-color: var(--success); box-shadow: 0 0 0 4px rgba(34, 197, 94, .10); }
+      .glance-item.bad::before { border-color: var(--danger); } .glance-item.warn::before { border-color: var(--warning); }
+      .glance-spark { margin: 6px auto 0; }
+      .glance-line { display: block; position: absolute; left: var(--edge); right: var(--edge); top: 25px; height: 2px; border-radius: 2px;
+        background: linear-gradient(90deg, var(--border), var(--accent-border) 30%, var(--accent-border)); }
+      .glance.flowing .glance-flow { display: block; position: absolute; left: var(--edge); right: var(--edge); top: 16px; height: 20px; pointer-events: none; }
+      .glance-runner { display: block; width: 100%; height: 20px; animation: orbTravel 12s cubic-bezier(.42, 0, .58, 1) infinite; }
+      .glance-orb { position: relative; display: block; width: 8px; height: 8px; margin: 6px 0 0 -4px; border-radius: 50%;
+        background: radial-gradient(circle at 40% 40%, #eafff3, var(--accent) 70%); animation: orbFade 12s ease-in-out infinite; }
+      .glance-orb::after { content: ""; position: absolute; left: -12px; top: -12px; width: 32px; height: 32px; border-radius: 50%;
+        background: radial-gradient(circle, rgba(31, 201, 122, .55), rgba(31, 201, 122, .18) 45%, rgba(31, 201, 122, 0) 70%);
+        animation: orbBreathe 4s ease-in-out infinite; }
+    }
+    @keyframes orbTravel { 0% { transform: translateX(0); } 75% { transform: translateX(100%); } 100% { transform: translateX(100%); } }
+    @keyframes orbFade { 0% { opacity: 0; transform: scale(.6); } 12% { opacity: 1; transform: scale(1); } 62% { opacity: 1; transform: scale(1); }
+      75% { opacity: 0; transform: scale(.6); } 100% { opacity: 0; transform: scale(.6); } }
+    @keyframes orbBreathe { 0%, 100% { opacity: .35; transform: scale(.75); } 50% { opacity: 1; transform: scale(1.15); } }
+    .status-rate { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .status-rate b { color: var(--accent); font-weight: var(--weight-semibold); margin: 0 2px 0 8px; }
+    .status-rate b:first-child { margin-left: 0; }
+    #page-status .page-header-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; justify-content: flex-end; }
+    #overall-badge.badge-success .badge-dot { animation: dotBreathe 4.5s ease-in-out infinite; }
+    @keyframes dotBreathe { 0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); } 50% { opacity: .55; box-shadow: 0 0 0 3px rgba(34, 197, 94, .18); } }
+    /* Cards settle in softly when a page opens (start state only, so no
+     * transform stays on the card afterwards). */
+    .page-section.active .card { animation: cardIn .5s cubic-bezier(.2, .7, .2, 1) backwards; animation-delay: calc(var(--ci, 0) * 45ms); }
+    @keyframes cardIn { from { opacity: 0; transform: translateY(10px); } }
+    @media (hover: hover) { #page-status .card { transition: border-color .25s ease, box-shadow .25s ease; }
+      #page-status .card:hover { border-color: var(--fg-faint, #3a4350); box-shadow: 0 6px 22px rgba(0, 0, 0, .22); }
+      .stat-list .stat-row:hover { background: rgba(255, 255, 255, .02); } }
+    .stat-value { font-variant-numeric: tabular-nums; }
+    .val-tick { animation: valTick 1.8s ease-out; }
+    @keyframes valTick { 0% { color: var(--accent); text-shadow: 0 0 10px rgba(31, 201, 122, .35); } 100% { text-shadow: none; } }
+    /* Two columns of facts when the Uplink card spans the full width. */
+    @media (min-width: 1000px) { #card-uplink.col-span-2 > .stat-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--sp-6); } }
+    html.ui-hidden .glance-runner, html.ui-hidden .glance-orb, html.ui-hidden .glance-orb::after,
+    html.ui-hidden #overall-badge .badge-dot { animation-play-state: paused; }
+    @media (prefers-reduced-motion: reduce) {
+      .glance-runner, .glance-orb, .glance-orb::after, #overall-badge .badge-dot, .page-section.active .card, .val-tick,
+      .glance-spark.draw svg, .scroll-more.show.hint button { animation: none !important; }
+      .glance.flowing .glance-flow { display: none; }
+    }
+    @media (max-width: 760px) { .glance, .glance.has-ap { grid-template-columns: repeat(2, minmax(0, 1fr)); } .glance.has-ap #glance-memory { grid-column: 1 / -1; } .goal-tile { min-height: auto; } }
     /* Goal launcher on the Status page */
     .goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-3); }
     .goal-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; width: 100%;
@@ -2239,6 +2309,7 @@
           <p class="page-subtitle" id="status-updated">Last updated just now</p>
         </div>
         <div class="page-header-actions">
+          <span class="status-rate" id="status-rate" hidden title="Average uplink rate since the previous refresh"></span>
           <span class="badge badge-neutral" id="overall-badge">
             <span class="badge-dot"></span>
             Loading…
@@ -2249,7 +2320,9 @@
       <!-- Primary feature: Selective Tailnet Service Gateway -->
       <!-- At-a-glance strip: the four facts that matter first, on every screen size -->
       <div class="glance" id="status-glance" aria-label="Summary">
+        <span class="glance-line" aria-hidden="true"></span><span class="glance-flow" aria-hidden="true"><span class="glance-runner"><span class="glance-orb"></span></span></span>
         <div class="glance-item" id="glance-uplink"><span class="glance-label">Uplink</span><strong>—</strong></div>
+        <div class="glance-item" id="glance-ap" hidden><span class="glance-label">Client WiFi</span><strong>—</strong></div>
         <div class="glance-item" id="glance-tailnet"><span class="glance-label">Tailnet</span><strong>—</strong></div>
         <div class="glance-item" id="glance-peers"><span class="glance-label">Peers online</span><strong>—</strong></div>
         <div class="glance-item" id="glance-memory" title="Internal RAM is the scarce resource; external PSRAM is shown in the System card"><span class="glance-label">Free internal RAM</span><strong>—</strong></div>
@@ -4869,9 +4942,13 @@
         var sta=data&&data.sta||{},ts=data&&data.tailscale||{};
         set('glance-uplink',sta.connected?(sta.ssid||'Connected'):'Not connected',sta.connected?'ok':'bad');
         set('glance-tailnet',!ts.enabled?'Off':ts.connected?(ts.authority_ready===false?'Policy pending':'Connected'):(ts.startup_retrying?'Retrying':'Not connected'),!ts.enabled?'':ts.connected?(ts.authority_ready===false?'warn':'ok'):'bad');
-        set('glance-peers',Number.isFinite(ts.peers_online)?ts.peers_online+' / '+(ts.peers_total||0):'—','');
+        set('glance-peers',Number.isFinite(ts.peers_online)?ts.peers_online+' / '+(ts.peers_total||0):'—',ts.connected&&ts.peers_online>0?'ok':'');
         var kb=Number.isFinite(data&&data.mem_internal_free)?Math.round(data.mem_internal_free/1024):null;
         set('glance-memory',kb==null?'—':kb+' KB',kb!=null&&kb<10?'warn':'');
+        /* Client WiFi node only while the gateway access point runs. */
+        var ap=data&&data.ap||{},apOn=ap.enabled!==false,apEl=document.getElementById('glance-ap'),gl=document.getElementById('status-glance');
+        if(apEl){apEl.hidden=!apOn;if(apOn)set('glance-ap',(ap.ssid||'On')+(typeof ap.clients==='number'?' · '+ap.clients+' client'+(ap.clients!==1?'s':''):''),'ok');}
+        if(gl){gl.classList.toggle('has-ap',apOn);gl.classList.toggle('flowing',!!sta.connected&&!!ts.connected&&ts.authority_ready!==false);}
       })();
       // STA (uplink)
       var ul = data.sta || {};
@@ -4882,6 +4959,21 @@
       document.getElementById('uplink-rssi').textContent    = (ul.rssi != null ? ul.rssi + ' dBm' : '—');
       document.getElementById('uplink-channel').textContent = ul.channel != null ? String(ul.channel) : '—';
       document.getElementById('uplink-traffic').textContent = formatTraffic(ul.bytes_in, ul.bytes_out);
+      /* Header rate: uplink counters averaged over the time since the last
+       * refresh (at least 5 s); hidden until two readings exist. */
+      (function () {
+        var el = document.getElementById('status-rate'), now = Date.now(), prev = window.s_rate_prev;
+        if (!el) return;
+        if (typeof ul.bytes_in !== 'number' || typeof ul.bytes_out !== 'number') { el.hidden = true; window.s_rate_prev = null; return; }
+        function fmt(bps) { var k = bps / 1000; return k >= 1000 ? (k / 1000).toFixed(1) + ' Mbit/s' : k.toFixed(k >= 100 ? 0 : 1) + ' kbit/s'; }
+        if (prev && now - prev.t >= 5000 && ul.bytes_in >= prev.i && ul.bytes_out >= prev.o) {
+          var dt = (now - prev.t) / 1000, d = document.createElement('b'), u = document.createElement('b');
+          d.textContent = '\u2193'; u.textContent = '\u2191';
+          el.replaceChildren(d, fmt((ul.bytes_in - prev.i) * 8 / dt), u, fmt((ul.bytes_out - prev.o) * 8 / dt));
+          el.hidden = false;
+        }
+        if (!prev || now - prev.t >= 5000 || ul.bytes_in < prev.i || ul.bytes_out < prev.o) window.s_rate_prev = {t: now, i: ul.bytes_in, o: ul.bytes_out};
+      })();
       var lanName = document.getElementById('uplink-lan-name');
       if (ul.lan_name) { lanName.textContent = ul.lan_name + '.local'; lanName.href = 'http://' + ul.lan_name + '.local/'; }
       else { lanName.textContent = '—'; lanName.removeAttribute('href'); }
@@ -7678,6 +7770,10 @@
           });
           tiles.appendChild(b);
         });
+        if (window.glanceSparks) window.glanceSparks(function (id) {
+          var gm = MEASURES.filter(function (x) { return x.id === id; })[0];
+          return gm ? seriesValues(gm, pts, step)[0] : null;
+        }, spark);
         var m = MEASURES.filter(function (x) { return x.id === s_trend.measure; })[0] || MEASURES[0];
         var values = seriesValues(m, pts, step), any = values.some(function (v) { return v.filter(function (x) { return x !== null; }).length >= 2; });
         el('trend-main').hidden = !any;
@@ -7706,10 +7802,10 @@
         }).then(function (d) {
           var card = el('trend-card');
           card.hidden = !d;
-          if (!d) return;
+          if (!d) { if (window.glanceSparks) window.glanceSparks(null); return; }
           var on = !!(d.config && d.config.metrics);
           el('trend-off').hidden = on; el('trend-on').hidden = !on; el('trend-range').disabled = !on;
-          if (!on) return;
+          if (!on) { if (window.glanceSparks) window.glanceSparks(null); return; }
           s_trend.data = d;
           renderTrends();
         }).catch(function (e) { el('trend-status').textContent = 'Unavailable: ' + e.message; });
@@ -12397,6 +12493,52 @@
       if (typeof loadDhcpLeases === 'function') loadDhcpLeases();
     }, 10000);
 
+  /* Status motion: card entrance order, a soft highlight when a shown value
+   * changes, sparklines on the summary line while trends are on, and paused
+   * loops while the browser tab is hidden. */
+  (function () {
+    function order() {
+      document.querySelectorAll('.page-section').forEach(function (sec) {
+        sec.querySelectorAll('.card').forEach(function (c, i) { c.style.setProperty('--ci', String(Math.min(i, 10))); });
+      });
+    }
+    var seen = new WeakMap();
+    function watch() {
+      var root = document.getElementById('page-status');
+      if (!root || !window.MutationObserver) return;
+      new MutationObserver(function (list) {
+        list.forEach(function (m) {
+          var el = m.target.nodeType === 3 ? m.target.parentElement : m.target;
+          if (!el || !el.matches || !el.matches('.stat-value, .glance-item strong')) return;
+          var t = el.textContent, old = seen.get(el);
+          seen.set(el, t);
+          if (old === undefined || old === t || old === '\u2014' || t === '\u2014') return;
+          el.classList.remove('val-tick'); void el.offsetWidth; el.classList.add('val-tick');
+        });
+      }).observe(root, {subtree: true, childList: true, characterData: true});
+      root.addEventListener('animationend', function (e) { if (e.animationName === 'valTick') e.target.classList.remove('val-tick'); });
+    }
+    var drawn = {};
+    window.glanceSparks = function (series, spark) {
+      [['glance-uplink', 'signal'], ['glance-peers', 'peers'], ['glance-memory', 'memory']].forEach(function (pair) {
+        var item = document.getElementById(pair[0]);
+        if (!item) return;
+        var old = item.querySelector('.glance-spark'), vals = series ? series(pair[1]) : null;
+        var ok = vals && vals.filter(function (v) { return v !== null; }).length >= 2;
+        if (!ok) { if (old) old.remove(); return; }
+        var box = document.createElement('span');
+        box.className = 'glance-spark' + (drawn[pair[0]] ? '' : ' draw');
+        box.setAttribute('aria-hidden', 'true');
+        box.appendChild(spark(vals));
+        drawn[pair[0]] = true;
+        if (old) old.replaceWith(box); else item.appendChild(box);
+      });
+    };
+    document.addEventListener('visibilitychange', function () { document.documentElement.classList.toggle('ui-hidden', document.hidden); });
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { order(); watch(); });
+    else { order(); watch(); }
+  })();
+
   /* Horizontal tab rows: tell the user when sections are out of view. */
   (function () {
     function setup(row) {
@@ -12419,12 +12561,30 @@
       var left = arrow('left'), right = arrow('right');
       row.parentNode.insertBefore(left, row);
       row.parentNode.insertBefore(right, row.nextSibling);
+      function hidden(side) {
+        var box = row.getBoundingClientRect(), n = 0;
+        Array.prototype.forEach.call(row.children, function (c) {
+          if (c.offsetParent === null) return;
+          var b = c.getBoundingClientRect();
+          if (side === 'right' ? b.right > box.right - 40 : b.left < box.left + 40) n++;
+        });
+        return n;
+      }
+      function label(wrap, dir, n) {
+        var b = wrap.firstChild, text = dir === 'left' ? '\u2039' + (n ? ' +' + n : '') : (n ? '+' + n + ' ' : '') + '\u203A';
+        if (b.textContent !== text) b.textContent = text;
+        var aria = (n ? n + ' more' : 'More') + ' sections on the ' + dir;
+        b.setAttribute('aria-label', aria); b.title = aria;
+      }
       function update() {
         var max = row.scrollWidth - row.clientWidth;
         var horizontal = getComputedStyle(row).flexDirection !== 'column' && max > 2;
         var l = horizontal && row.scrollLeft > 2, r = horizontal && row.scrollLeft < max - 2;
         row.classList.toggle('more-left', l); row.classList.toggle('more-right', r);
         left.classList.toggle('show', l); right.classList.toggle('show', r);
+        if (l) label(left, 'left', hidden('left'));
+        if (r) label(right, 'right', hidden('right'));
+        if (r && !row.dataset.hinted) { row.dataset.hinted = '1'; right.classList.add('hint'); }
       }
       row.addEventListener('scroll', update, {passive: true});
       window.addEventListener('resize', update);
@@ -12435,12 +12595,15 @@
     function revealActive() {
       document.querySelectorAll('.nav-tabs, .subnav').forEach(function (row) {
         var a = row.querySelector('.active, [aria-selected="true"]');
-        if (a && row.scrollWidth > row.clientWidth && getComputedStyle(row).flexDirection !== 'column') {
-          var r = a.getBoundingClientRect(), box = row.getBoundingClientRect();
-          if (r.left < box.left || r.right > box.right)
-            row.scrollBy({left: r.left < box.left ? r.left - box.left - 40 : r.right - box.right + 40});
+        /* Twice: showing or hiding a chip changes the row width. */
+        for (var pass = 0; pass < 2; pass++) {
+          if (a && row.scrollWidth > row.clientWidth && getComputedStyle(row).flexDirection !== 'column') {
+            var r = a.getBoundingClientRect(), box = row.getBoundingClientRect();
+            if (r.left < box.left || r.right > box.right)
+              row.scrollBy({left: r.left < box.left ? r.left - box.left - 40 : r.right - box.right + 40});
+          }
+          if (row._moreUpdate) row._moreUpdate();
         }
-        if (row._moreUpdate) row._moreUpdate();
       });
     }
     function init() {
