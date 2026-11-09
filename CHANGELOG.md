@@ -6,6 +6,29 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.14-beta.1] — 2026-11-09 (pre-release)
+
+### Added
+- MagicDNS: the gateway answers its own tailnet name as well as its peers'.
+- Tailnet DNS settings (new switch, off by default): extra records and
+  split DNS from the Tailscale or Headscale admin console are answered or
+  sent to their DNS server; with "Override local DNS" set there, other names
+  go to the tailnet's DNS server while the tunnel is up. DNS over HTTPS/TLS
+  and IPv6 servers are skipped and counted.
+- The gateway's own connections (MQTT, ntfy, email, HTTP) can use a MagicDNS
+  name as their server (new switch, off by default). Tailnet names never go
+  to the public resolver.
+- Status page: the summary is one signal line from the home WiFi to the
+  tailnet, with a Client WiFi node while the access point runs, the uplink
+  rate next to the state and small trend lines when trends are on.
+
+### Changed
+- Status page cards mark their state with a short bar in the corner; values
+  that change are briefly highlighted; cards settle in softly. Motion pauses
+  in hidden tabs and stops when the system asks for reduced motion.
+- Top bar: when sections do not fit, a chip next to them shows how many are
+  hidden and scrolls to them; on phones it is a full-size touch target.
+
 ## [3.0.13] — 2026-11-08
 
 ### Changed
