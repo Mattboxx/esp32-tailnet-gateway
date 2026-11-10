@@ -11,6 +11,7 @@
  */
 
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "lwip/ip4_addr.h"
@@ -302,6 +303,17 @@ bool tailscale_in_subnet(uint32_t ip)
 {
     if (tailscale_subnet_mask == 0) return false;
     return (ip & tailscale_subnet_mask) == tailscale_subnet_ip;
+}
+
+bool tailscale_is_login_host(const char *name)
+{
+    const char *host = s_active_login_server;
+    if (!host || !*host) return false;
+    const char *scheme_end = strstr(host, "://");
+    if (scheme_end) host = scheme_end + 3;
+    size_t len = strcspn(host, ":/");
+    if (len && host[len - 1] == '.') len--;
+    return len && strlen(name) == len && strncasecmp(host, name, len) == 0;
 }
 
 static void tailscale_dns_state(microlink_t *ml, microlink_state_t state, void *arg)

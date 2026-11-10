@@ -398,6 +398,9 @@ int lwip_hook_netconn_external_resolve(const char *name, ip_addr_t *addr, u8_t a
     if (!l || l >= sizeof n) return 0;
     for (size_t i = 0; i < l; i++) n[i] = lower(name[i]);
     n[l] = 0;
+    /* A self-hosted control endpoint can share the private suffix. Resolve
+     * that exact configured hostname to bring the tunnel up. */
+    if ((!ml || !microlink_is_connected(ml)) && tailscale_is_login_host(n)) return 0;
     uint32_t ip = 0, server = 0;
     bool in_domain = false;
     bool found = ml && (extra_record(n, &ip) || tailnet_names_match(n, next_peer, ml, &ip, &in_domain));
