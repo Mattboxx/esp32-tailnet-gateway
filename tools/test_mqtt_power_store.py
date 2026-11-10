@@ -20,6 +20,12 @@ program = r'''
 #include <stdlib.h>
 #include <string.h>
 #include "json_guard.h"
+#include "remote_commands.h"
+static int homelab_ops_set_recovery_allowed(ops_recovery_origin_t origin,bool allowed){
+    (void)origin;(void)allowed;
+    assert(!"An update without allow_recovery must preserve recovery permissions");
+    return -1;
+}
 typedef int esp_err_t;
 #define ESP_OK 0
 #define ESP_FAIL -1

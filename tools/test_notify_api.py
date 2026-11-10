@@ -15,6 +15,12 @@ handlers = source[source.index('static bool copy_string('):source.index('static 
 fixture = r'''
 #include "cJSON.h"
 #include "json_guard.h"
+#include "remote_commands.h"
+static int homelab_ops_set_recovery_allowed(ops_recovery_origin_t origin,bool allowed){
+    (void)origin;(void)allowed;
+    assert(!"An update without allow_recovery must preserve recovery permissions");
+    return -1;
+}
 #define portMAX_DELAY 0
 #define MALLOC_CAP_SPIRAM 0
 typedef struct {const char *body;int content_len,offset,status;bool authorized;} httpd_req_t;
