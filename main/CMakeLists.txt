@@ -181,7 +181,9 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE LWIP_MDNS_RESPONDER=1 MDNS_R
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip_napt_forward")
 # Pull the policy entry point out of the static archive even when lwIP is
 # scanned after main and its only reference is rewritten by the linker.
-target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip4_input,--undefined=__wrap_ip4_input")
+target_link_libraries(${COMPONENT_LIB} INTERFACE
+    "-Wl,--wrap=ip4_input"
+    "-Wl,--undefined=__wrap_ip4_input")
 
 # Phase 1.9l: wrap ip4_route_src_hook to add CGNAT-→-WG routing and
 # the exit-node LAN-bypass + self-traffic fallback on top of the
