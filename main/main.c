@@ -924,9 +924,12 @@ static void startup_settings_failed(esp_err_t error)
     ESP_LOGE("storage", "Configuration unavailable (%s); retained for recovery", esp_err_to_name(error));
     const esp_partition_t *running = esp_ota_get_running_partition();
     esp_ota_img_states_t state;
+    /* A legacy recovery image may erase unreadable NVS on boot. Keep this
+     * image selected so an automatic rollback cannot destroy those settings. */
     if (running && esp_ota_get_state_partition(running, &state) == ESP_OK &&
-        state == ESP_OTA_IMG_PENDING_VERIFY && esp_ota_check_rollback_is_possible())
-        (void)esp_ota_mark_app_invalid_rollback_and_reboot();
+        state == ESP_OTA_IMG_PENDING_VERIFY &&
+        esp_ota_mark_app_valid_cancel_rollback() != ESP_OK)
+        ESP_LOGE("storage", "Could not retain the diagnostic image; inspect OTA state before restarting");
 }
 
 void app_main(void)
