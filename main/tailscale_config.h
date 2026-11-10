@@ -83,6 +83,7 @@ esp_err_t tailscale_connect(void);
 // because routing/automation consumers retain its handle for the boot lifetime.
 void tailscale_disconnect(void);
 bool tailscale_is_connected(void);
+bool tailscale_is_login_host(const char *name);  /* configured control endpoint, without scheme or port */
 esp_err_t tailscale_request_connect(void);
 
 // Routing-decision helpers (called from netif hooks)

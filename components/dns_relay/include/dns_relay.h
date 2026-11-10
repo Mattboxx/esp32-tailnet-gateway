@@ -93,6 +93,12 @@ bool dns_relay_lan_listening(void);
 typedef int (*dns_relay_local_cb_t)(const uint8_t *query, int len, uint8_t *out, int cap);
 void dns_relay_set_local_resolver(dns_relay_local_cb_t cb);
 
+/* Optional upstream choice per forwarded query (e.g. a split-DNS route of
+ * the tailnet): returns an IPv4 resolver (network byte order) or 0 for the
+ * usual upstream. Runs on the relay listener task; must not block. */
+typedef uint32_t (*dns_relay_route_cb_t)(const uint8_t *query, int len);
+void dns_relay_set_route(dns_relay_route_cb_t cb);
+
 #ifdef __cplusplus
 }
 #endif

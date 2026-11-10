@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>ESP32 Tailnet Gateway</title>
   <script>
     /* Ask for the visitor's language as early as possible: the page lists
@@ -151,7 +151,10 @@
        ===================================================================== */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    html { font-size: 16px; }
+    /* The page never scrolls sideways: wide rows scroll inside themselves,
+     * and a swipe at an edge does not drag or bounce the whole page. */
+    html { font-size: 16px; overflow-x: clip; overscroll-behavior-x: none; touch-action: pan-x pan-y; }   /* no pinch zoom (owner's choice) */
+    html.scroll-locked, html.scroll-locked body { overflow: hidden; overscroll-behavior: none; }
 
     body {
       font-family: var(--font-ui);
@@ -161,6 +164,8 @@
       color: var(--fg-primary);
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
+      overflow-x: clip;
+      overscroll-behavior-x: none;
     }
 
     a { color: var(--accent); text-decoration: none; }
@@ -226,8 +231,31 @@
       overflow-x: auto;
       scrollbar-width: none;
       -ms-overflow-style: none;
+      overscroll-behavior-x: contain;
     }
     .nav-tabs::-webkit-scrollbar { display: none; }
+    /* Horizontal rows that do not fit (top bar on narrower desktops, the
+     * sub-section bars): the hidden side fades and an arrow shows that more
+     * sections follow; the arrow scrolls by most of a screen. */
+    .nav-tabs.more-right, .subnav.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 76px), transparent); }
+    .nav-tabs.more-left, .subnav.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 76px), transparent); }
+    .nav-tabs.more-left.more-right, .subnav.more-left.more-right {
+      mask-image: linear-gradient(to right, transparent, #000 76px, #000 calc(100% - 76px), transparent); }
+    /* The chip sits right after the faded edge, where the hidden sections are. */
+    .scroll-more { position: relative; z-index: 2; display: none; align-items: center; flex: 0 0 auto; }
+    .scroll-more.show { display: inline-flex; }
+    .scroll-more button {
+      height: 26px; min-width: 26px; padding: 0 9px; border-radius: var(--radius-pill); border: 1px solid var(--accent-border);
+      background: var(--bg-elevated); color: var(--accent); cursor: pointer; font: 600 12px/1 var(--font-ui);
+      display: inline-flex; align-items: center; gap: 3px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+      transition: background var(--transition-fast); }
+    .scroll-more button:hover { background: var(--accent-muted); }
+    .scroll-more button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    @media (max-width: 760px), (pointer: coarse) { .scroll-more button { height: 36px; min-width: 36px; padding: 0 11px; } }
+    .scroll-more-right.show.hint button { animation: moreNudgeR 1.4s ease-in-out .8s 2; }
+    .scroll-more-left.show.hint button { animation: moreNudgeL 1.4s ease-in-out .8s 2; }
+    @keyframes moreNudgeR { 0%, 100% { transform: none; } 50% { transform: translateX(3px); } }
+    @keyframes moreNudgeL { 0%, 100% { transform: none; } 50% { transform: translateX(-3px); } }
 
     .nav-tab {
       display: flex;
@@ -328,7 +356,11 @@
 
     /* Page section (each tab is a section) */
     .page-section { display: none; }
-    .page-section.active { display: block; }
+    .page-section.active { display: block; animation: pageIn .16s ease-out; }
+    /* A page or sub-section that opens fades in briefly (opacity only, no
+     * delay): the same light motion everywhere, nothing waits for it. */
+    .subpage { animation: pageIn .16s ease-out; }
+    @keyframes pageIn { from { opacity: 0; } }
 
     /* Page header */
     .page-header {
@@ -510,11 +542,16 @@
     }
 
     /* Left-border accent stripe variant */
-    .card-stripe-success { border-left: 3px solid var(--success); }
-    .card-stripe-warning { border-left: 3px solid var(--warning); }
-    .card-stripe-danger  { border-left: 3px solid var(--danger);  }
-    .card-stripe-info    { border-left: 3px solid var(--info);    }
-    .card-stripe-accent  { border-left: 3px solid var(--accent);  }
+    /* State accent: a short bar in the card's top-left corner (Mattboxx
+     * signature) instead of a full left stripe. */
+    .card-stripe-success { --stripe: var(--success); }
+    .card-stripe-warning { --stripe: var(--warning); }
+    .card-stripe-danger  { --stripe: var(--danger);  }
+    .card-stripe-info    { --stripe: var(--info);    }
+    .card-stripe-accent  { --stripe: var(--accent);  }
+    .card[class*="card-stripe-"] { position: relative; }
+    .card[class*="card-stripe-"]::before { content: ""; position: absolute; top: 0; left: 0; width: 56px; height: 3px;
+      background: var(--stripe); border-bottom-right-radius: 3px; pointer-events: none; transition: background .6s ease; }
 
     .card-header {
       display: flex;
@@ -536,7 +573,9 @@
     }
 
     .card-header-icon {
-      color: var(--fg-muted);
+      width: 24px; height: 24px; border-radius: 7px; justify-content: center; flex: 0 0 auto;
+      background: var(--accent-muted); border: 1px solid var(--accent-border);
+      color: var(--accent);
       display: flex;
       align-items: center;
     }
@@ -1444,7 +1483,7 @@
         gap: 0.3rem;
         overflow-y: auto;
       }
-      .nav-tabs.open       { display: flex; }
+      .nav-tabs.open       { display: flex; overscroll-behavior: contain; }
       .nav-tabs .nav-tab   {
         padding: 14px 18px;
         font-size: 16px;
@@ -1680,12 +1719,70 @@
     .adv-note { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; justify-content: space-between;
       border: 1px dashed var(--border); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: var(--sp-4);
       color: var(--fg-secondary); font-size: var(--text-md); }
-    .glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-4); margin-bottom: var(--sp-4); }
+    .glance { --edge: 12.5%; position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-4); margin-bottom: var(--sp-4); }
+    .glance.has-ap { --edge: 10%; grid-template-columns: repeat(5, minmax(0, 1fr)); }
     .glance-item { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--border); border-radius: var(--radius-md); padding: 10px 14px; min-width: 0; }
-    .glance-item strong { display: block; font-size: var(--text-md); color: var(--fg-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .glance-item[hidden] { display: none; }
+    .glance-item strong { display: block; font-size: var(--text-md); color: var(--fg-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .glance-label { font-size: 0.75rem; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .04em; }
     .glance-item.ok { border-left-color: var(--success); } .glance-item.bad { border-left-color: var(--danger); } .glance-item.warn { border-left-color: var(--warning); }
-    @media (max-width: 760px) { .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); } .goal-tile { min-height: auto; } }
+    .glance-line { display: none; }
+    .glance-spark { display: block; width: min(120px, 100%); height: 18px; margin-top: 6px; opacity: .9; }
+    .glance-spark svg { display: block; width: 100%; height: 18px; }
+    .glance-spark.draw svg { animation: sparkReveal 1.6s cubic-bezier(.3, .6, .3, 1) .2s backwards; }
+    @keyframes sparkReveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+    /* Wide screens: the facts sit on one signal line, LAN to tailnet. */
+    @media (min-width: 761px) {
+      .glance { gap: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl); padding: 18px 8px 16px; }
+      .glance-item { position: relative; z-index: 1; background: none; border: 0; border-radius: 0; padding: 26px 10px 0; text-align: center; }
+      .glance-item::before { content: ""; position: absolute; top: 0; left: 50%; width: 16px; height: 16px; margin-left: -8px; box-sizing: border-box;
+        border-radius: 50%; background: var(--bg-card); border: 3px solid var(--border); transition: border-color .8s ease, box-shadow .8s ease; }
+      .glance-item.ok::before { border-color: var(--success); box-shadow: 0 0 0 4px rgba(34, 197, 94, .10); }
+      .glance-item.bad::before { border-color: var(--danger); } .glance-item.warn::before { border-color: var(--warning); }
+      .glance-spark { margin: 6px auto 0; }
+      .glance-line { display: block; position: absolute; left: var(--edge); right: var(--edge); top: 25px; height: 2px; border-radius: 2px;
+        background: linear-gradient(90deg, var(--border), var(--accent-border) 30%, var(--accent-border)); }
+    }
+    /* Settings search palette (built on first use). */
+    .nav-search { width: 40px; height: 40px; }
+    .search-pal { position: fixed; inset: 0; z-index: 900; background: rgba(5, 7, 10, .55); display: flex; justify-content: center;
+      align-items: flex-start; padding: 72px 16px 16px; animation: pageIn .12s ease-out; }
+    .search-pal[hidden] { display: none; }
+    .search-box { width: min(620px, 100%); max-height: calc(100vh - 96px); display: flex; flex-direction: column; background: var(--bg-elevated);
+      border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: 0 18px 50px rgba(0, 0, 0, .45); overflow: hidden; }
+    .search-field { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--fg-muted); }
+    .search-field input { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: var(--fg-primary); font: inherit; font-size: 16px; }
+    .search-field kbd { font: 600 11px/1 var(--font-mono, monospace); color: var(--fg-muted); border: 1px solid var(--border); border-radius: 5px; padding: 3px 5px; }
+    .search-list { list-style: none; overflow-y: auto; padding: 6px; }
+    .search-item { display: flex; flex-direction: column; gap: 2px; padding: 9px 12px; border-radius: 9px; cursor: pointer; }
+    .search-item.active, .search-item:hover { background: var(--accent-muted); }
+    .search-title { font-size: var(--text-sm); font-weight: var(--weight-semibold); color: var(--fg-primary); display: flex; align-items: center; gap: 8px; }
+    .search-path { font-size: var(--text-xs); color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .search-tag { font-size: 10px; font-weight: 600; color: var(--warning); border: 1px solid currentColor; border-radius: 999px; padding: 1px 6px; }
+    .search-empty { padding: 14px 16px; font-size: var(--text-sm); color: var(--fg-muted); }
+    .search-empty[hidden] { display: none; }
+    .search-hit { animation: searchHit 1.8s ease-out; border-radius: var(--radius-md); }
+    @keyframes searchHit { 0%, 30% { box-shadow: 0 0 0 2px var(--accent), 0 0 18px rgba(31, 201, 122, .35); } 100% { box-shadow: 0 0 0 2px transparent; } }
+    .status-rate { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .status-rate b { color: var(--accent); font-weight: var(--weight-semibold); margin: 0 2px 0 8px; }
+    .status-rate b:first-child { margin-left: 0; }
+    #page-status .page-header-actions { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; justify-content: flex-end; }
+    #overall-badge.badge-success .badge-dot { animation: dotBreathe 4.5s ease-in-out infinite; }
+    @keyframes dotBreathe { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+    @media (hover: hover) { .page-section .card { transition: border-color .25s ease, box-shadow .25s ease; }
+      .page-section .card:hover { border-color: var(--fg-faint, #3a4350); box-shadow: 0 6px 22px rgba(0, 0, 0, .22); }
+      .stat-list .stat-row:hover { background: rgba(255, 255, 255, .02); } }
+    .stat-value { font-variant-numeric: tabular-nums; }
+    .val-tick { animation: valTick 1.8s ease-out; }
+    @keyframes valTick { 0% { color: var(--accent); text-shadow: 0 0 10px rgba(31, 201, 122, .35); } 100% { text-shadow: none; } }
+    /* Two columns of facts when the Uplink card spans the full width. */
+    @media (min-width: 1000px) { #card-uplink.col-span-2 > .stat-list { display: grid; grid-template-columns: 1fr 1fr; column-gap: var(--sp-6); } }
+    html.ui-hidden #overall-badge .badge-dot { animation-play-state: paused; }
+    @media (prefers-reduced-motion: reduce) {
+      #overall-badge .badge-dot, .val-tick, .glance-spark.draw svg, .scroll-more.show.hint button, .page-section.active, .subpage,
+      .search-pal, .search-hit { animation: none !important; }
+    }
+    @media (max-width: 760px) { .glance, .glance.has-ap { grid-template-columns: repeat(2, minmax(0, 1fr)); } .glance.has-ap #glance-memory { grid-column: 1 / -1; } .goal-tile { min-height: auto; } }
     /* Goal launcher on the Status page */
     .goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--sp-3); }
     .goal-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left; width: 100%;
@@ -1746,7 +1843,7 @@
     /* Sub-sections of the long pages: one group of cards at a time. */
     .subnav {
       position: sticky; top: 56px; z-index: 20;
-      display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
+      display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain;
       margin: 0 0 var(--sp-5); padding: 4px;
       background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl);
       box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.6);
@@ -1806,8 +1903,19 @@
      * its top while reading or typing; it is one swipe up when needed. */
     @media (max-width: 767px) {
       html { scroll-padding-top: 64px; }
-      .subnav { position: static; box-shadow: none; }
+      .subnav, .subnav-row { position: static; box-shadow: none; }
     }
+    /* A section bar with its "more" chips: one row that carries the card
+     * look and the sticky position, so the chip never wraps below the bar. */
+    .subnav-row {
+      position: sticky; top: 56px; z-index: 20; display: flex; align-items: center; gap: 4px;
+      margin: 0 0 var(--sp-5); padding: 4px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-xl);
+      box-shadow: 0 6px 16px -12px rgba(0, 0, 0, 0.6);
+    }
+    .subnav-row > .subnav { position: static; flex: 1 1 auto; min-width: 0; margin: 0; padding: 0;
+      background: none; border: 0; border-radius: 0; box-shadow: none; }
+    .subnav-row:has(> .subnav[hidden]) { display: none; }
     .subnav-tab {
       flex: 0 0 auto; min-height: 36px; padding: 0 var(--sp-4);
       border: 0; border-radius: var(--radius-lg); background: transparent;
@@ -1820,7 +1928,8 @@
     .subpage { display: flex; flex-direction: column; gap: var(--sp-4); }
     .subpage > * { margin-top: 0 !important; margin-bottom: 0 !important; }
     @media (max-width: 640px) {
-      .subnav { top: 52px; margin-left: calc(-1 * var(--sp-1)); margin-right: calc(-1 * var(--sp-1)); }
+      .subnav, .subnav-row { top: 52px; margin-left: calc(-1 * var(--sp-1)); margin-right: calc(-1 * var(--sp-1)); }
+      .subnav-row > .subnav { margin: 0; }
       .subnav-tab { padding: 0 var(--sp-3); }
     }
     /* Trends (history of resources and traffic) */
@@ -1924,6 +2033,9 @@
     </div>
 
     <div class="nav-actions">
+      <button class="btn btn-ghost btn-icon nav-search" id="searchBtn" type="button" title="Search settings (Ctrl K or /)" aria-label="Search settings" aria-haspopup="dialog">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      </button>
       <a id="nav-support-link" class="btn btn-md mod-support-button nav-support" href="https://ko-fi.com/mattboxx"
          target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer"
          title="Optional tips support the Mattboxx mod — all features stay free"
@@ -2223,6 +2335,7 @@
           <p class="page-subtitle" id="status-updated">Last updated just now</p>
         </div>
         <div class="page-header-actions">
+          <span class="status-rate" id="status-rate" hidden title="Average uplink rate since the previous refresh"></span>
           <span class="badge badge-neutral" id="overall-badge">
             <span class="badge-dot"></span>
             Loading…
@@ -2233,7 +2346,9 @@
       <!-- Primary feature: Selective Tailnet Service Gateway -->
       <!-- At-a-glance strip: the four facts that matter first, on every screen size -->
       <div class="glance" id="status-glance" aria-label="Summary">
+        <span class="glance-line" aria-hidden="true"></span>
         <div class="glance-item" id="glance-uplink"><span class="glance-label">Uplink</span><strong>—</strong></div>
+        <div class="glance-item" id="glance-ap" hidden><span class="glance-label">Client WiFi</span><strong>—</strong></div>
         <div class="glance-item" id="glance-tailnet"><span class="glance-label">Tailnet</span><strong>—</strong></div>
         <div class="glance-item" id="glance-peers"><span class="glance-label">Peers online</span><strong>—</strong></div>
         <div class="glance-item" id="glance-memory" title="Internal RAM is the scarce resource; external PSRAM is shown in the System card"><span class="glance-label">Free internal RAM</span><strong>—</strong></div>
@@ -2248,8 +2363,7 @@
             <div class="card-header-left">
               <span class="card-header-icon">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M1.42 9a16 16 0 0121.16 0M5 12.55a11 11 0 0114.08 0M10.95 16.55L12 18l1.05-1.45"/>
-                  <circle cx="12" cy="20" r="1"/>
+                  <path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M8.53 16.11a6 6 0 0 1 6.94 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>
                 </svg>
               </span>
               <span class="card-title">Uplink WiFi</span>
@@ -2307,7 +2421,7 @@
             <div class="card-header-left">
               <span class="card-header-icon">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M10.95 16.55L12 18l1.05-1.45"/>
+                  <circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49M7.76 16.24a6 6 0 0 1 0-8.49M19.07 4.93a10 10 0 0 1 0 14.14M4.93 19.07a10 10 0 0 1 0-14.14"/>
                 </svg>
               </span>
               <span class="card-title">Client WiFi / Tailnet gateway</span>
@@ -3171,7 +3285,7 @@
       <div class="subpage" data-sub="options" role="tabpanel" aria-label="Options">
       <!-- Tailnet (MagicDNS) names for devices behind the gateway -->
       <div class="card mt-4" id="tsn-card">
-        <div class="card-header"><div class="card-header-left"><span class="card-title">Tailnet names for local devices</span></div><span class="badge badge-neutral" id="tsn-badge">Off</span></div>
+        <div class="card-header"><div class="card-header-left"><span class="card-title">Tailnet names (MagicDNS)</span></div><span class="badge badge-neutral" id="tsn-badge">Off</span></div>
         <div class="card-body">
           <p class="form-hint">Devices on this gateway's access point can reach tailnet peers by name: <code>nas</code> or <code>nas.tail1234.ts.net</code> resolves to the peer's 100.x address, without a Tailscale client on the device. Unknown names inside the tailnet domain are answered "not found" and never sent to the public resolver. A name is not access: reaching the peer still depends on this gateway's routes, firewall and the tailnet policy. Off by default.</p>
           <div class="form-group">
@@ -3181,6 +3295,14 @@
           <div class="form-group">
             <label class="feature-switch"><input type="checkbox" id="tsn-lan"><span class="feature-switch-track" aria-hidden="true"></span><span>Also answer devices on the home network</span></label>
             <span class="form-hint">Listens for DNS on the WiFi uplink address too. Useful only for LAN devices that use this gateway as their DNS server and reach 100.64.0.0/10 through it (a route on your router); all their other lookups are forwarded as well.</span>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="tsn-dns"><span class="feature-switch-track" aria-hidden="true"></span><span>Use the tailnet's DNS settings</span></label>
+            <span class="form-hint">Extra records and split DNS set in the Tailscale (or Headscale) admin console are answered or sent to their DNS server; with "Override local DNS" set there, other names go to the tailnet's DNS server while the tunnel is up. DNS over HTTPS/TLS and IPv6 servers are skipped.</span>
+          </div>
+          <div class="form-group">
+            <label class="feature-switch"><input type="checkbox" id="tsn-self"><span class="feature-switch-track" aria-hidden="true"></span><span>This gateway uses tailnet names too</span></label>
+            <span class="form-hint">MQTT, ntfy, email and other connections of this gateway can use a MagicDNS name such as <code>ha.tail1234.ts.net</code> as their server. Tailnet names never go to the public resolver; everything else resolves as before.</span>
           </div>
           <div class="page-header-actions"><button class="btn btn-primary" id="tsn-save" type="button" disabled>Save</button></div>
           <p class="form-hint" id="tsn-status" role="status">Loading…</p>
@@ -4628,13 +4750,13 @@
         if (!navTabs) return;
         document.body.appendChild(navTabs);
         navTabs.classList.add('open');
-        document.body.style.overflow = 'hidden';
+        lockPageScroll(navTabs);
         if (hamBtn) { hamBtn.setAttribute('aria-expanded', 'true'); hamBtn.setAttribute('aria-label', 'Close menu'); hamBtn.textContent = '✕'; }
       }
       function closeHamMenu() {
         if (!navTabs) return;
         navTabs.classList.remove('open');
-        document.body.style.overflow = '';
+        unlockPageScroll();
         if (navOrigParent && navTabs.parentNode !== navOrigParent) {
           navOrigParent.insertBefore(navTabs, navOrigNext);
         }
@@ -4853,9 +4975,13 @@
         var sta=data&&data.sta||{},ts=data&&data.tailscale||{};
         set('glance-uplink',sta.connected?(sta.ssid||'Connected'):'Not connected',sta.connected?'ok':'bad');
         set('glance-tailnet',!ts.enabled?'Off':ts.connected?(ts.authority_ready===false?'Policy pending':'Connected'):(ts.startup_retrying?'Retrying':'Not connected'),!ts.enabled?'':ts.connected?(ts.authority_ready===false?'warn':'ok'):'bad');
-        set('glance-peers',Number.isFinite(ts.peers_online)?ts.peers_online+' / '+(ts.peers_total||0):'—','');
+        set('glance-peers',Number.isFinite(ts.peers_online)?ts.peers_online+' / '+(ts.peers_total||0):'—',ts.connected&&ts.peers_online>0?'ok':'');
         var kb=Number.isFinite(data&&data.mem_internal_free)?Math.round(data.mem_internal_free/1024):null;
-        set('glance-memory',kb==null?'—':kb+' KB',kb!=null&&kb<10?'warn':'');
+        set('glance-memory',kb==null?'—':kb+' KB',kb==null?'':kb<10?'warn':'ok');
+        /* Client WiFi node only while the gateway access point runs. */
+        var ap=data&&data.ap||{},apOn=ap.enabled!==false,apEl=document.getElementById('glance-ap'),gl=document.getElementById('status-glance');
+        if(apEl){apEl.hidden=!apOn;if(apOn)set('glance-ap',(ap.ssid||'On')+(typeof ap.clients==='number'?' · '+ap.clients+' client'+(ap.clients!==1?'s':''):''),'ok');}
+        if(gl)gl.classList.toggle('has-ap',apOn);
       })();
       // STA (uplink)
       var ul = data.sta || {};
@@ -4866,6 +4992,21 @@
       document.getElementById('uplink-rssi').textContent    = (ul.rssi != null ? ul.rssi + ' dBm' : '—');
       document.getElementById('uplink-channel').textContent = ul.channel != null ? String(ul.channel) : '—';
       document.getElementById('uplink-traffic').textContent = formatTraffic(ul.bytes_in, ul.bytes_out);
+      /* Header rate: uplink counters averaged over the time since the last
+       * refresh (at least 5 s); hidden until two readings exist. */
+      (function () {
+        var el = document.getElementById('status-rate'), now = Date.now(), prev = window.s_rate_prev;
+        if (!el) return;
+        if (typeof ul.bytes_in !== 'number' || typeof ul.bytes_out !== 'number') { el.hidden = true; window.s_rate_prev = null; return; }
+        function fmt(bps) { var k = bps / 1000; return k >= 1000 ? (k / 1000).toFixed(1) + ' Mbit/s' : k.toFixed(k >= 100 ? 0 : 1) + ' kbit/s'; }
+        if (prev && now - prev.t >= 5000 && ul.bytes_in >= prev.i && ul.bytes_out >= prev.o) {
+          var dt = (now - prev.t) / 1000, d = document.createElement('b'), u = document.createElement('b');
+          d.textContent = '\u2193'; u.textContent = '\u2191';
+          el.replaceChildren(d, fmt((ul.bytes_in - prev.i) * 8 / dt), u, fmt((ul.bytes_out - prev.o) * 8 / dt));
+          el.hidden = false;
+        }
+        if (!prev || now - prev.t >= 5000 || ul.bytes_in < prev.i || ul.bytes_out < prev.o) window.s_rate_prev = {t: now, i: ul.bytes_in, o: ul.bytes_out};
+      })();
       var lanName = document.getElementById('uplink-lan-name');
       if (ul.lan_name) { lanName.textContent = ul.lan_name + '.local'; lanName.href = 'http://' + ul.lan_name + '.local/'; }
       else { lanName.textContent = '—'; lanName.removeAttribute('href'); }
@@ -5462,7 +5603,41 @@
       };
     }
 
+    /* While a drawer or dialog is open the page under it must not move: the
+     * lock sits on <html> (the page's scroller), and on touch screens a drag
+     * outside the open panel is ignored (iOS scrolls past overflow:hidden). */
+    var s_scroll_panel = null;
+    function blockOutsideDrag(e) { if (s_scroll_panel && !s_scroll_panel.contains(e.target)) e.preventDefault(); }
+    function lockPageScroll(panel) {
+      s_scroll_panel = panel || null;
+      document.documentElement.classList.add('scroll-locked');
+      document.addEventListener('touchmove', blockOutsideDrag, {passive: false});
+    }
+    function unlockPageScroll() {
+      s_scroll_panel = null;
+      document.documentElement.classList.remove('scroll-locked');
+      document.removeEventListener('touchmove', blockOutsideDrag, {passive: false});
+    }
+
+    /* Identical GETs in flight share one request: the gateway's web server
+     * answers one request at a time, so the duplicates of a page load
+     * (several cards asking for the same data) only delay everything else.
+     * A request made after the answer arrived (Reload) is always new. Each
+     * caller gets its own copy of the response. */
+    var s_inflight = {};
     function apiFetch(url, opts) {
+      var method = String((opts && opts.method) || 'GET').toUpperCase();
+      var share = method === 'GET' && !(opts && (opts.body || opts.signal));
+      if (!share) return apiFetchOnce(url, opts);
+      var p = s_inflight[url];
+      if (!p) {
+        p = s_inflight[url] = apiFetchOnce(url, opts);
+        var done = function () { if (s_inflight[url] === p) delete s_inflight[url]; };
+        p.then(done, done);
+      }
+      return p.then(function (r) { return r.clone(); });
+    }
+    function apiFetchOnce(url, opts) {
       /* cache: 'no-store' on every request — the backend never sets
        * Cache-Control headers and Chrome/Firefox happily serve stale
        * /api/tailscale responses out of HTTP cache, which made the
@@ -5863,7 +6038,7 @@
       if (card) card.hidden = !(s_sg_enabled > 0 || s_sg_open > 0);
     }
     function applySetupChoices() {
-      fetch('/api/system', { credentials: 'same-origin' }).then(function (r) { return r.json(); }).then(function (d) {
+      apiFetch('/api/system').then(function (r) { return r.json(); }).then(function (d) {
         var roles = String(d.setup_roles || '').split(',').filter(Boolean);
         s_setup_roles = roles; updateServiceGatewayCard();
         try { if (localStorage.getItem('ui-advanced') === null && d.ui_advanced_default) setUiAdvanced(true); } catch (e) {}
@@ -5973,7 +6148,7 @@
           n.eap = {
             method:      eapMethod,
             phase2:      parseInt(row.querySelector('.net-eap-phase2').value, 10) || 0,
-            cert_bundle: row.querySelector('.net-eap-cb').checked,
+            cert_bundle: true,
             identity:    row.querySelector('.net-eap-id').value,
             username:    row.querySelector('.net-eap-un').value,
             has_password: (n.eap && n.eap.has_password) || !!eapPw
@@ -6054,11 +6229,7 @@
                   +     '</div>'
                   +   '</div>'
                   +   '<div class="form-group" style="margin:0;">'
-                  +     '<label class="feature-switch">'
-                  +       '<input type="checkbox" class="net-eap-cb"' + (eap.cert_bundle ? ' checked' : '') + '><span class="feature-switch-track" aria-hidden="true"></span>'
-                  +       '<span>Verify server certificate against the bundled Mozilla CA store</span>'
-                  +     '</label>'
-                  +     '<span class="form-hint">Off = trust the server unconditionally. Turn on for eduroam-class deployments that present a publicly-trusted RADIUS cert.</span>'
+                  +     '<span class="form-hint">Enterprise Wi-Fi requires a server certificate trusted by the bundled CA store.</span>'
                   +   '</div>'
                   + '</div>';
                 })()
@@ -7442,20 +7613,47 @@
         if (!d) { document.getElementById('tsn-card').hidden = true; return; }
         document.getElementById('tsn-enabled').checked = d.enabled;
         document.getElementById('tsn-lan').checked = d.lan;
+        var hasExt = typeof d.dns_config === 'boolean';
+        document.getElementById('tsn-dns').checked = !!d.dns_config;
+        document.getElementById('tsn-self').checked = !!d.self_resolve;
+        document.getElementById('tsn-dns').closest('.form-group').hidden = !hasExt;
+        document.getElementById('tsn-self').closest('.form-group').hidden = !hasExt;
         document.getElementById('tsn-save').disabled = true;
-        var b = document.getElementById('tsn-badge');
-        b.textContent = d.enabled ? 'On' : 'Off'; b.className = 'badge ' + (d.enabled ? 'badge-success' : 'badge-neutral');
-        document.getElementById('tsn-status').textContent = !d.enabled ? 'Off: name lookups are forwarded as before.' :
-          !d.relay ? 'On, but the DNS relay is off: switch it on under Network.' :
-          (d.peers + ' tailnet peers known.') + (d.lan ? (d.lan_listening ? ' Also listening on the uplink address.' : ' Waiting for the uplink address.') : '');
+        var on = d.enabled || !!d.self_resolve, b = document.getElementById('tsn-badge');
+        b.textContent = on ? 'On' : 'Off'; b.className = 'badge ' + (on ? 'badge-success' : 'badge-neutral');
+        /* Whole sentences and "Label:" + value pairs as separate text nodes,
+         * so every language translates them; numbers and names stay. */
+        var t = d.tailnet_dns || {}, items = [];
+        if (!d.enabled) items.push([d.self_resolve ? 'Devices: off.' : 'Off: name lookups are forwarded as before.']);
+        else if (!d.relay) items.push(['On, but the DNS relay is off: switch it on under Network.']);
+        else {
+          items.push(['Tailnet peers known:', String(d.peers)]);
+          if (d.lan) items.push([d.lan_listening ? 'Also listening on the uplink address.' : 'Waiting for the uplink address.']);
+        }
+        if (d.self_resolve) items.push(['This gateway resolves tailnet names for its own connections.']);
+        if (t.self) items.push(['This gateway:', t.self]);
+        if (t.present) {
+          items.push(['Tailnet DNS records:', String(t.records)], ['Split-DNS routes:', String(t.routes)], ['DNS servers:', String(t.resolvers)]);
+          if (t.ignored) items.push(['Entries skipped:', String(t.ignored)]);
+          if (!t.magic_dns) items.push(['MagicDNS is off in the admin console.']);
+        }
+        var st = document.getElementById('tsn-status');
+        st.replaceChildren();
+        items.forEach(function (item, i) {
+          if (i) st.appendChild(document.createTextNode(' · '));
+          item.forEach(function (p, k) { if (k) st.appendChild(document.createTextNode(' ')); st.appendChild(document.createTextNode(p)); });
+        });
       }).catch(function (e) { document.getElementById('tsn-status').textContent = 'Unavailable: ' + e.message; });
     }
-    ['tsn-enabled', 'tsn-lan'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { document.getElementById('tsn-save').disabled = false; }); });
+    ['tsn-enabled', 'tsn-lan', 'tsn-dns', 'tsn-self'].forEach(function (id) { document.getElementById(id).addEventListener('change', function () { document.getElementById('tsn-save').disabled = false; }); });
     document.getElementById('tsn-save').addEventListener('click', async function () {
       var btn = this; btn.disabled = true;
       try {
         var r = await apiFetch('/api/tailnet-names', {method: 'POST', headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({enabled: document.getElementById('tsn-enabled').checked, lan: document.getElementById('tsn-lan').checked})});
+          body: JSON.stringify(Object.assign({enabled: document.getElementById('tsn-enabled').checked, lan: document.getElementById('tsn-lan').checked},
+            /* Only to firmware that reports these switches. */
+            document.getElementById('tsn-self').closest('.form-group').hidden ? {} :
+            {dns_config: document.getElementById('tsn-dns').checked, self_resolve: document.getElementById('tsn-self').checked}))});
         if (!r.ok) throw new Error('HTTP ' + r.status);
         await loadTailnetNames();
       } catch (e) { document.getElementById('tsn-status').textContent = 'Not saved: ' + e.message; btn.disabled = false; }
@@ -7662,6 +7860,10 @@
           });
           tiles.appendChild(b);
         });
+        if (window.glanceSparks) window.glanceSparks(function (id) {
+          var gm = MEASURES.filter(function (x) { return x.id === id; })[0];
+          return gm ? seriesValues(gm, pts, step)[0] : null;
+        }, spark);
         var m = MEASURES.filter(function (x) { return x.id === s_trend.measure; })[0] || MEASURES[0];
         var values = seriesValues(m, pts, step), any = values.some(function (v) { return v.filter(function (x) { return x !== null; }).length >= 2; });
         el('trend-main').hidden = !any;
@@ -7690,10 +7892,10 @@
         }).then(function (d) {
           var card = el('trend-card');
           card.hidden = !d;
-          if (!d) return;
+          if (!d) { if (window.glanceSparks) window.glanceSparks(null); return; }
           var on = !!(d.config && d.config.metrics);
           el('trend-off').hidden = on; el('trend-on').hidden = !on; el('trend-range').disabled = !on;
-          if (!on) return;
+          if (!on) { if (window.glanceSparks) window.glanceSparks(null); return; }
           s_trend.data = d;
           renderTrends();
         }).catch(function (e) { el('trend-status').textContent = 'Unavailable: ' + e.message; });
@@ -12380,6 +12582,341 @@
       if (setupVisible || loginVisible) return;
       if (typeof loadDhcpLeases === 'function') loadDhcpLeases();
     }, 10000);
+
+  /* Motion: a soft highlight when a shown value changes (every page),
+   * sparklines on the Status summary line while trends are on, and paused
+   * loops while the browser tab is hidden. */
+  (function () {
+    var seen = new WeakMap();
+    function watch() {
+      var root = document.querySelector('.page-section') ? document.querySelector('.page-section').parentElement : null;
+      if (!root || !window.MutationObserver) return;
+      new MutationObserver(function (list) {
+        list.forEach(function (m) {
+          var el = m.target.nodeType === 3 ? m.target.parentElement : m.target;
+          if (!el || !el.matches || !el.matches('.stat-value, .glance-item strong')) return;
+          var t = el.textContent, old = seen.get(el);
+          seen.set(el, t);
+          if (old === undefined || old === t || old === '\u2014' || t === '\u2014') return;
+          el.classList.remove('val-tick'); void el.offsetWidth; el.classList.add('val-tick');
+        });
+      }).observe(root, {subtree: true, childList: true, characterData: true});
+      root.addEventListener('animationend', function (e) { if (e.animationName === 'valTick') e.target.classList.remove('val-tick'); });
+    }
+    var drawn = {};
+    window.glanceSparks = function (series, spark) {
+      [['glance-uplink', 'signal'], ['glance-peers', 'peers'], ['glance-memory', 'memory']].forEach(function (pair) {
+        var item = document.getElementById(pair[0]);
+        if (!item) return;
+        var old = item.querySelector('.glance-spark'), vals = series ? series(pair[1]) : null;
+        var ok = vals && vals.filter(function (v) { return v !== null; }).length >= 2;
+        if (!ok) { if (old) old.remove(); return; }
+        var box = document.createElement('span');
+        box.className = 'glance-spark' + (drawn[pair[0]] ? '' : ' draw');
+        box.setAttribute('aria-hidden', 'true');
+        box.appendChild(spark(vals));
+        drawn[pair[0]] = true;
+        if (old) old.replaceWith(box); else item.appendChild(box);
+      });
+    };
+    document.addEventListener('visibilitychange', function () { document.documentElement.classList.toggle('ui-hidden', document.hidden); });
+    /* Older iOS ignores user-scalable=no: block the pinch gesture there too. */
+    document.addEventListener('gesturestart', function (e) { e.preventDefault(); }, {passive: false});
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch);
+    else watch();
+  })();
+
+  /* Settings search (Ctrl+K, "/" or the magnifier). Nothing is built at page
+   * load: the list of pages, sections, cards and options is read from the
+   * page the first time the search opens, in the language shown, and again
+   * on each opening (a few milliseconds). Matching ignores case and accents,
+   * accepts word beginnings, one typo in longer words and common synonyms
+   * (English and Italian); titles rank above options, options above hints. */
+  (function () {
+    var SYN = [
+      ['wifi', 'wi', 'wlan', 'wireless', 'ssid', 'rete', 'network', 'uplink', 'netzwerk', 'reseau', 'red', '网络', '无线'],
+      ['password', 'pass', 'pwd', 'parola', 'credenziali', 'login', 'accesso', 'access', 'auth', 'sessione', 'session', 'passwort', 'kennwort', 'anmeldung', 'motdepasse', 'contrasena', 'clave', '密码', '登录'],
+      ['update', 'updates', 'aggiornamento', 'aggiornamenti', 'aggiorna', 'firmware', 'ota', 'versione', 'version', 'aktualisierung', 'actualisation', 'actualizacion', 'actualizar', '更新', '固件'],
+      ['tailscale', 'tailnet', 'vpn', 'headscale', 'tunnel'],
+      ['dns', 'magicdns', 'nomi', 'names', 'resolver', 'relay'],
+      ['wol', 'wake', 'risveglio', 'sveglia', 'accendi', 'accensione', 'power'],
+      ['restart', 'reboot', 'riavvia', 'riavvio', 'reset', 'neustart', 'redemarrage', 'reiniciar', 'reinicio', '重启'],
+      ['backup', 'copia', 'copie', 'salvataggio', 'snapshot', 'ripristino', 'restore', 'export', 'esporta', 'sicherung', 'sauvegarde', 'respaldo', '备份'],
+      ['notification', 'notifications', 'notifiche', 'notifica', 'avvisi', 'alert', 'alerts', 'ntfy', 'telegram', 'email', 'mail', 'benachrichtigung', 'benachrichtigungen', 'notificacion', 'notificaciones', 'avisos', '通知'],
+      ['firewall', 'regole', 'rules', 'acl', 'blocco', 'block'],
+      ['ap', 'hotspot', 'access', 'point', 'client', 'clients', 'gateway'],
+      ['exit', 'uscita'],
+      ['log', 'logs', 'registro', 'eventi', 'events', 'history', 'cronologia', 'storico'],
+      ['mqtt', 'home', 'assistant', 'ha', 'domotica'],
+      ['ip', 'indirizzo', 'address', 'addresses', 'subnet', 'route', 'routes', 'rotte'],
+      ['speed', 'velocita', 'throughput', 'speedtest', 'banda', 'bandwidth'],
+      ['language', 'lingua', 'idioma', 'sprache', 'langue', '语言'],
+      ['time', 'ora', 'orario', 'ntp', 'clock', 'timezone', 'fuso', 'zeit', 'uhrzeit', 'heure', 'hora', '时间'],
+      ['port', 'porta', 'porte', 'ports'],
+      ['trend', 'trends', 'grafici', 'grafico', 'chart', 'andamento'],
+      ['dhcp', 'lease', 'leases', 'dispositivi', 'devices'],
+      ['snmp', 'monitor', 'monitoraggio', 'health', 'salute']
+    ];
+    var GENERIC = /^(save|cancel|close|reload|refresh|ok|apply|edit|remove|delete|add|back|next|show|hide|copy|done|yes|no|start|stop|clear|change|more|less|salva|annulla|chiudi|ricarica|aggiorna|applica|modifica|rimuovi|elimina|aggiungi|indietro|avanti|mostra|nascondi|copia|fatto|si|sì)$/i;
+    var CJK = /[぀-ヿ㐀-鿿가-힯]/;
+    var synOf = {};
+    SYN.forEach(function (g) { g.forEach(function (w) { (synOf[w] = synOf[w] || []).push(g); }); });
+
+    function norm(s) {
+      /* Letters of every script stay (Chinese, Cyrillic…), accents go. */
+      return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    }
+    function words(s) { var n = norm(s); return n ? n.split(' ') : []; }
+    function clean(el) { return String(el.textContent || '').replace(/\s+/g, ' ').trim(); }
+    /* One insertion, deletion, substitution or swap of neighbours. */
+    function oneEdit(a, b) {
+      if (a === b) return true;
+      var la = a.length, lb = b.length;
+      if (Math.abs(la - lb) > 1) return false;
+      var i = 0; while (i < la && i < lb && a[i] === b[i]) i++;
+      if (la === lb) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+      return la > lb ? a.slice(i + 1) === b.slice(i) : a.slice(i) === b.slice(i + 1);
+    }
+    function wordScore(t, list) {
+      var best = 0;
+      for (var i = 0; i < list.length && best < 3; i++) {
+        var w = list[i];
+        if (w === t) best = 3;
+        else if (w.indexOf(t) === 0) best = Math.max(best, 2.2);
+        else if ((t.length >= 3 || CJK.test(t)) && w.indexOf(t) > 0) best = Math.max(best, 1.3);   /* CJK words are not space-separated */
+        else if (t.length >= 4 && (oneEdit(t, w) || oneEdit(t, w.slice(0, t.length)))) best = Math.max(best, 1.1);
+      }
+      return best;
+    }
+    function tokenScore(t, item) {
+      var s = Math.max(wordScore(t, item.w) * item.weight, wordScore(t, item.h) * 0.45);
+      (synOf[t] || []).forEach(function (g) {
+        g.forEach(function (alt) {
+          if (alt !== t) s = Math.max(s, Math.max(wordScore(alt, item.w) * item.weight, wordScore(alt, item.h) * 0.45) * 0.8);
+        });
+      });
+      return s;
+    }
+
+    function shownIn(el, stop) {
+      for (var n = el; n && n !== stop; n = n.parentElement) {
+        if (n.hidden && !n.classList.contains('subpage')) return false;
+        if (n.style && n.style.display === 'none') return false;
+      }
+      return true;
+    }
+    function pageLabel(page) {
+      var tab = document.querySelector('.nav-tab[data-page="' + page + '"]');
+      return tab ? clean(tab) : page;
+    }
+    function build() {
+      var items = [], seen = {};
+      function add(text, path, hash, el, weight, adv, hint) {
+        var key = norm(text) + '|' + hash;
+        if (!text || seen[key]) return;
+        seen[key] = 1;
+        items.push({text: text, path: path, hash: hash, el: el, weight: weight, adv: adv, w: words(text), h: words(path + ' ' + (hint || ''))});
+      }
+      document.querySelectorAll('.nav-tab[data-page]').forEach(function (t) { add(clean(t), '', t.getAttribute('data-page'), null, 1.4, false, ''); });
+      document.querySelectorAll('.subnav[data-page] [data-sub]').forEach(function (t) {
+        var page = t.closest('.subnav').getAttribute('data-page');
+        add(clean(t), pageLabel(page), page + '/' + t.getAttribute('data-sub'), null, 1.3, false, '');
+      });
+      document.querySelectorAll('.page-section').forEach(function (sec) {
+        var page = sec.id.replace(/^page-/, '');
+        sec.querySelectorAll('.card').forEach(function (card) {
+          if (!shownIn(card, sec)) return;
+          var sp = card.closest('.subpage'), hash = page + (sp && sp.getAttribute('data-sub') ? '/' + sp.getAttribute('data-sub') : '');
+          var crumb = pageLabel(page) + (sp ? ' › ' + (sp.getAttribute('aria-label') || '') : '');
+          var titleEl = card.querySelector('.card-title'), title = titleEl ? clean(titleEl) : '';
+          var adv = !!card.closest('[data-advanced]');
+          var intro = card.querySelector('.card-body > .form-hint, .card-body > p');
+          if (title) add(title, crumb, hash, card, 1.2, adv || !!titleEl.closest('[data-advanced]'), intro ? clean(intro).slice(0, 240) : '');
+          card.querySelectorAll('label, .stat-label, .section-heading, .form-label, button.btn').forEach(function (e) {
+            if (!shownIn(e, card) || e.closest('.card') !== card) return;
+            var t = clean(e);
+            if (t.length < 2 || t.length > 90 || GENERIC.test(t)) return;
+            var group = e.closest('.form-group, .stat-row') || e, hintEl = group.querySelector && group.querySelector('.form-hint');
+            add(t, crumb + (title ? ' › ' + title : ''), hash, group, 1, adv || !!e.closest('[data-advanced]'), hintEl ? clean(hintEl).slice(0, 240) : '');
+          });
+        });
+      });
+      return items;
+    }
+    function search(items, q) {
+      var toks = words(q);
+      if (!toks.length) return [];
+      var out = [];
+      items.forEach(function (it) {
+        var total = 0;
+        for (var i = 0; i < toks.length; i++) { var s = tokenScore(toks[i], it); if (!s) return; total += s; }
+        if (norm(it.text).indexOf(toks.join(' ')) === 0) total += 1.5;
+        if (it.adv && document.body.classList.contains('ui-simple')) total -= 0.2;
+        out.push({it: it, s: total});
+      });
+      return out.sort(function (a, b) { return b.s - a.s || a.it.text.length - b.it.text.length; }).slice(0, 8).map(function (x) { return x.it; });
+    }
+
+    var pal = null, input = null, list = null, empty = null, items = [], results = [], sel = 0, opener = null;
+    function render() {
+      list.replaceChildren();
+      results.forEach(function (it, i) {
+        var li = document.createElement('li');
+        li.className = 'search-item' + (i === sel ? ' active' : '');
+        li.id = 'search-opt-' + i; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', i === sel ? 'true' : 'false');
+        var t = document.createElement('span'); t.className = 'search-title'; t.textContent = it.text;
+        if (it.adv) { var a = document.createElement('span'); a.className = 'search-tag'; a.textContent = 'Advanced'; t.appendChild(a); }
+        var p = document.createElement('span'); p.className = 'search-path'; p.textContent = it.path || 'Page';
+        li.append(t, p);
+        li.addEventListener('mousedown', function (e) { e.preventDefault(); go(it); });
+        list.appendChild(li);
+      });
+      empty.hidden = !!results.length;
+      empty.textContent = input.value.trim() ? 'Nothing found. Try another word, e.g. password, MagicDNS or Wi-Fi.' : 'Type a setting, e.g. password, MagicDNS, Wi-Fi or update.';
+      input.setAttribute('aria-activedescendant', results.length ? 'search-opt-' + sel : '');
+    }
+    function close() {
+      if (!pal || pal.hidden) return;
+      pal.hidden = true;
+      if (typeof unlockPageScroll === 'function') unlockPageScroll();
+      if (opener && opener.focus) opener.focus();
+    }
+    function go(it) {
+      close();
+      if (it.adv && document.body.classList.contains('ui-simple') && typeof setUiAdvanced === 'function') setUiAdvanced(true);
+      if ((location.hash || '').replace(/^#/, '') !== it.hash) location.hash = it.hash;
+      if (!it.el) return;
+      setTimeout(function () {
+        it.el.scrollIntoView({block: 'center', behavior: 'smooth'});
+        it.el.classList.remove('search-hit'); void it.el.offsetWidth; it.el.classList.add('search-hit');
+        var field = it.el.matches && it.el.matches('input, select, textarea, button') ? it.el : it.el.querySelector && it.el.querySelector('input:not([type=hidden]), select, textarea');
+        if (field && field.focus) field.focus({preventScroll: true});
+      }, 120);
+    }
+    function make() {
+      pal = document.createElement('div');
+      pal.className = 'search-pal'; pal.hidden = true;
+      pal.innerHTML = '<div class="search-box" role="dialog" aria-modal="true" aria-label="Search settings">' +
+        '<div class="search-field"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>' +
+        '<input type="search" id="search-input" placeholder="Search settings" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="true" aria-controls="search-list" aria-autocomplete="list"><kbd>Esc</kbd></div>' +
+        '<ul class="search-list" id="search-list" role="listbox" aria-label="Results"></ul><p class="search-empty" role="status"></p></div>';
+      document.body.appendChild(pal);
+      input = pal.querySelector('input'); list = pal.querySelector('ul'); empty = pal.querySelector('.search-empty');
+      pal.addEventListener('mousedown', function (e) { if (e.target === pal) close(); });
+      input.addEventListener('input', function () { results = search(items, input.value); sel = 0; render(); });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (results.length) sel = (sel + (e.key === 'ArrowDown' ? 1 : results.length - 1)) % results.length;
+          render();
+          var a = list.children[sel]; if (a && a.scrollIntoView) a.scrollIntoView({block: 'nearest'});
+        } else if (e.key === 'Enter') { e.preventDefault(); if (results[sel]) go(results[sel]); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+      });
+    }
+    function open() {
+      if (!pal) make();
+      opener = document.activeElement;
+      items = build();
+      window.s_search_items = items.length;
+      pal.hidden = false;
+      if (typeof lockPageScroll === 'function') lockPageScroll(pal.querySelector('.search-box'));
+      input.value = ''; results = []; sel = 0; render();
+      input.focus();
+    }
+    window.openSettingsSearch = open;
+    var btn = document.getElementById('searchBtn');
+    if (btn) btn.addEventListener('click', open);
+    document.addEventListener('keydown', function (e) {
+      var t = e.target, typing = t && (t.isContentEditable || /^(textarea|select)$/i.test(t.tagName) ||
+        (/^input$/i.test(t.tagName) && !/^(checkbox|radio|button|submit|reset|range|color|file)$/i.test(t.type)));
+      if ((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) { e.preventDefault(); open(); }
+      else if (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); open(); }
+    });
+  })();
+
+  /* Horizontal tab rows: tell the user when sections are out of view. */
+  (function () {
+    function setup(row) {
+      if (!row || row.dataset.moreReady) return;
+      row.dataset.moreReady = '1';
+      /* Section bars sit in a block: wrap them in a flex row so the chips stay
+       * on the same line (the top bar already is a flex row). */
+      if (row.classList.contains('subnav') && !row.parentNode.classList.contains('subnav-row')) {
+        var line = document.createElement('div');
+        line.className = 'subnav-row';
+        row.parentNode.insertBefore(line, row);
+        line.appendChild(row);
+      }
+      function arrow(dir) {
+        var wrap = document.createElement('span');
+        wrap.className = 'scroll-more scroll-more-' + dir;
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = dir === 'left' ? '\u2039' : '\u203A';
+        b.setAttribute('aria-label', dir === 'left' ? 'More sections on the left' : 'More sections on the right');
+        b.title = b.getAttribute('aria-label');
+        b.addEventListener('click', function () {
+          row.scrollBy({left: (dir === 'left' ? -1 : 1) * Math.max(120, row.clientWidth * 0.7), behavior: 'smooth'});
+        });
+        wrap.appendChild(b);
+        return wrap;
+      }
+      var left = arrow('left'), right = arrow('right');
+      row.parentNode.insertBefore(left, row);
+      row.parentNode.insertBefore(right, row.nextSibling);
+      function hidden(side) {
+        var box = row.getBoundingClientRect(), n = 0;
+        Array.prototype.forEach.call(row.children, function (c) {
+          if (c.offsetParent === null) return;
+          var b = c.getBoundingClientRect();
+          if (side === 'right' ? b.right > box.right - 40 : b.left < box.left + 40) n++;
+        });
+        return n;
+      }
+      function label(wrap, dir, n) {
+        var b = wrap.firstChild, text = dir === 'left' ? '\u2039' + (n ? ' +' + n : '') : (n ? '+' + n + ' ' : '') + '\u203A';
+        if (b.textContent !== text) b.textContent = text;
+        var aria = (n ? n + ' more' : 'More') + ' sections on the ' + dir;
+        b.setAttribute('aria-label', aria); b.title = aria;
+      }
+      function update() {
+        var max = row.scrollWidth - row.clientWidth;
+        var horizontal = getComputedStyle(row).flexDirection !== 'column' && max > 2;
+        var l = horizontal && row.scrollLeft > 2, r = horizontal && row.scrollLeft < max - 2;
+        row.classList.toggle('more-left', l); row.classList.toggle('more-right', r);
+        left.classList.toggle('show', l); right.classList.toggle('show', r);
+        if (l) label(left, 'left', hidden('left'));
+        if (r) label(right, 'right', hidden('right'));
+        if (r && !row.dataset.hinted) { row.dataset.hinted = '1'; right.classList.add('hint'); }
+      }
+      row.addEventListener('scroll', update, {passive: true});
+      window.addEventListener('resize', update);
+      if (window.ResizeObserver) new ResizeObserver(update).observe(row);
+      row._moreUpdate = update;
+      update();
+    }
+    function revealActive() {
+      document.querySelectorAll('.nav-tabs, .subnav').forEach(function (row) {
+        var a = row.querySelector('.active, [aria-selected="true"]');
+        /* Twice: showing or hiding a chip changes the row width. */
+        for (var pass = 0; pass < 2; pass++) {
+          if (a && row.scrollWidth > row.clientWidth && getComputedStyle(row).flexDirection !== 'column') {
+            var r = a.getBoundingClientRect(), box = row.getBoundingClientRect();
+            if (r.left < box.left || r.right > box.right)
+              row.scrollBy({left: r.left < box.left ? r.left - box.left - 40 : r.right - box.right + 40});
+          }
+          if (row._moreUpdate) row._moreUpdate();
+        }
+      });
+    }
+    function init() {
+      document.querySelectorAll('.nav-tabs, .subnav').forEach(setup);
+      revealActive();
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+    window.addEventListener('hashchange', function () { setTimeout(revealActive, 0); });
+  })();
   </script>
 
 </body>
