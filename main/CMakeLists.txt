@@ -133,10 +133,11 @@ idf_component_register(SRCS "main.c" ${_tsr_optional}
                                   acl sdlog remote_console
                                   web_password net_diag dhcpserver
                                   espcoredump dns_relay snmp_agent cli task_reaper
-                                  app_update spi_flash
+                                  app_update spi_flash esp_partition esp_psram
                                   mqtt
                                   esp_http_client
                                   esp_eth esp_driver_spi esp_driver_gpio esp_driver_uart
+                                  esp_driver_tsens
                     INCLUDE_DIRS ".")
 
 # Phase 1.9k: wrap ip_napt_forward to skip NAPT for tailnet CGNAT
