@@ -848,6 +848,7 @@
     #page-operations .card-body > .feature-switch:first-of-type { margin-top: 0; }
     #page-operations .card-body > .btn + p,
     #page-operations .card-body > .btn-row + p { margin-top: var(--sp-3); }
+    .ops-recovery-links { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--border); }
     .ops-monitor-paused { margin: 0; color: var(--text-muted); }
     #page-operations .card-body > pre:empty { display: none; }
     .ops-guard-warning { color: var(--warning); }
@@ -3747,14 +3748,10 @@
         <div class="form-row"><div class="form-group"><label class="form-label" for="ops-interval">Monitor interval (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600" placeholder="e.g. 60"><span class="form-hint">How often monitored devices are checked.</span></div></div>
         <button class="btn btn-secondary" id="ops-settings-save" type="button" disabled>Save monitoring settings</button>
         <span class="form-hint" id="ops-settings-save-status" role="status"></span>
-        <details>
-          <summary>Remote recovery</summary>
-          <label class="feature-switch"><input type="checkbox" id="ops-remote"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow MQTT / ntfy recovery commands</span></label>
-          <p class="form-hint">Remote commands require a trusted broker/topic and existing integration permissions.</p>
+        <div class="ops-recovery-links">
+          <p class="form-hint">Configure remote commands in the integration you use.</p>
           <p><a href="#automation/mqtt">MQTT &amp; Home Assistant</a> · <a href="#automation/notifications">Notifications</a></p>
-          <button class="btn btn-secondary" id="ops-remote-save" type="button" disabled>Save remote recovery</button>
-          <span class="form-hint" id="ops-remote-save-status" role="status"></span>
-        </details>
+        </div>
         <p id="ops-job" role="status">No observation loaded</p><button class="btn btn-secondary" id="ops-cancel" disabled>Cancel active recovery</button><div id="ops-devices"></div>
         <pre class="mono" id="ops-events" style="white-space:pre-wrap"></pre>
       </div></div>
@@ -3826,6 +3823,7 @@
             <div class="form-group"><label class="form-label" for="mqtt-watchdog-target">Broker WOL device</label><select class="input" id="mqtt-watchdog-target"><option value="">— save a WOL device first —</option></select></div>
           </div>
           <div class="form-hint mono" id="mqtt-watchdog-status">—</div>
+          <div class="form-group"><label class="feature-switch"><input type="checkbox" id="mqtt-recovery"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow verified recovery over MQTT</span></label></div>
           <div class="form-hint mono" id="mqtt-topics-help">—</div>
         </div>
         <div class="form-footer">
@@ -3859,7 +3857,7 @@
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-system-events"><span class="feature-switch-track" aria-hidden="true"></span><span>Other restarts, Tailscale restored after an alert, update available</span></label><span class="form-hint">Off by default. Separate from power-on alerts below. Updates are announced, never installed by this option.</span></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-poweron-events"><span class="feature-switch-track" aria-hidden="true"></span><span>Blackout: notify when power returns</span></label><span class="form-hint">Reports a power-on reset, not a crash or software restart. First power-up and reconnecting the cable can look the same. Sent when the uplink is available; outage duration is unknown.</span></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-alerts"><span class="feature-switch-track" aria-hidden="true"></span><span>Alert when internet works but Tailscale stays down</span></label><div class="feature-inline-dependent" id="ntfy-alert-settings"><label class="form-label" for="ntfy-delay" style="margin-top:0.5rem;">Failure delay (seconds)</label><input class="input mono" type="number" id="ntfy-delay" min="15" max="3600" value="120"></div></div>
-            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-commands"><span class="feature-switch-track" aria-hidden="true"></span><span>Receive remote commands</span></label><div class="feature-inline-dependent" id="ntfy-command-settings"><label class="form-label" for="ntfy-poll" style="margin-top:0.5rem;">Poll interval (seconds)</label><input class="input mono" type="number" id="ntfy-poll" min="5" max="300" value="15"></div></div>
+            <div class="form-group"><label class="form-label" for="ntfy-commands">Remote commands</label><select class="input" id="ntfy-commands"><option value="off">Disabled</option><option value="basic">Info and Wake-on-LAN</option><option value="recovery">Info, Wake-on-LAN and verified recovery</option></select><div class="feature-inline-dependent" id="ntfy-command-settings"><label class="form-label" for="ntfy-poll" style="margin-top:0.5rem;">Poll interval (seconds)</label><input class="input mono" type="number" id="ntfy-poll" min="5" max="300" value="15"></div></div>
           </div>
           <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-down-only"><span class="feature-switch-track" aria-hidden="true"></span><span>Poll commands only while Tailscale is down</span></label></div>
           <div class="form-group"><label class="feature-switch"><input type="checkbox" id="ntfy-info"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow <code class="mono">info</code> command</span></label><span class="form-hint">Replies with operational state and counts. Credentials and tokens are always excluded.</span></div>
@@ -3898,7 +3896,7 @@
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-poweron"><span class="feature-switch-track" aria-hidden="true"></span><span>Blackout: notify when power returns</span></label><span class="form-hint">Reports a power-on reset, separate from a crash. First power-up or reconnecting the cable can look the same. Sent after power returns and the network is available; outage duration is unknown.</span></div>
             <h4 style="font-size:var(--text-sm); margin:1rem 0 0.35rem 0;">Remote commands</h4>
             <p class="form-hint" style="margin-top:0;">Send <code class="mono">info</code>, <code class="mono">wol NAME</code>, <code class="mono">recover NAME</code> or <code class="mono">check NAME</code> to your bot (with or without a leading <code class="mono">/</code>). Only messages from the chat above are executed; commands sent before they were switched on, or more than 10 minutes old, are ignored.</p>
-            <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd"><span class="feature-switch-track" aria-hidden="true"></span><span>Receive remote commands</span></label><div class="feature-inline-dependent" id="nt-tg-cmd-settings"><label class="form-label" for="nt-tg-cmd-poll" style="margin-top:0.5rem;">Poll interval (seconds)</label><input class="input mono" type="number" id="nt-tg-cmd-poll" min="5" max="300" value="15"></div></div>
+            <div class="form-group"><label class="form-label" for="nt-tg-cmd">Remote commands</label><select class="input" id="nt-tg-cmd"><option value="off">Disabled</option><option value="basic">Info and Wake-on-LAN</option><option value="recovery">Info, Wake-on-LAN and verified recovery</option></select><div class="feature-inline-dependent" id="nt-tg-cmd-settings"><label class="form-label" for="nt-tg-cmd-poll" style="margin-top:0.5rem;">Poll interval (seconds)</label><input class="input mono" type="number" id="nt-tg-cmd-poll" min="5" max="300" value="15"></div></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-down"><span class="feature-switch-track" aria-hidden="true"></span><span>Poll commands only while Tailscale is down</span></label></div>
             <div class="form-group"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-info"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow <code class="mono">info</code> command</span></label><span class="form-hint">Replies with operational state and counts. Credentials and tokens are always excluded.</span></div>
             <div class="form-group feature-inline-dependent" id="nt-tg-cmd-details-setting"><label class="feature-switch"><input type="checkbox" id="nt-tg-cmd-details"><span class="feature-switch-track" aria-hidden="true"></span><span>Include private network details in <code class="mono">info</code></span></label><span class="form-hint">Off by default. Enabling this includes SSID, IPs, routes, peer names, AP-client MACs and saved WOL targets in Telegram messages.</span></div>
@@ -6767,6 +6765,9 @@
     var OPS_STATE_TEXT={idle:'Not checked yet',precheck:'Checking…','sending-wol':'Sending WoL…','waiting-for-host':'Waiting for the device…','checking-service':'Checking the service…',
       reachable:'Reachable','not-reachable':'Not reachable',inconclusive:'Inconclusive',cancelled:'Cancelled','resource-deferred':'Deferred: low resources','service-access-closed':'Service access closed'};
     var s_ops_badges={},s_ops_pause_notes={},s_ops_poll=null,s_ops_polls=0;
+    function remoteCommandMode(enabled, recovery) {
+      return !enabled ? 'off' : recovery ? 'recovery' : 'basic';
+    }
     function opsShowMonitoring(data) {
       if(!Array.isArray(data.devices))return;
       data.devices.forEach(function(d) {
@@ -6811,7 +6812,7 @@
       var ready=!!s_ops_state&&!s_ops_busy&&!s_ops_loading;
       var recovery=s_ops_capabilities&&s_ops_capabilities['smart-recovery'];
       document.querySelectorAll('#ops-devices button').forEach(function(b){b.disabled=!ready||!recovery||!recovery.compiled||recovery.hardware_supported!==true;});
-      ['ops-settings-save','ops-guard-save','ops-remote-save'].forEach(function(id){
+      ['ops-settings-save','ops-guard-save'].forEach(function(id){
         document.getElementById(id).disabled=!ready;
       });
       document.getElementById('ops-lease-save').disabled=!s_ops_lease_loaded||s_ops_busy||s_ops_loading;
@@ -7531,7 +7532,7 @@
           el('nt-tg-startup').checked = t.notify_startup === undefined ? (t.events || d.events) === 'all' : !!t.notify_startup;
           el('nt-tg-token').value = ''; el('nt-tg-clear').checked = false;
           var tc = t.commands || {};
-          el('nt-tg-cmd').checked = !!tc.enabled; el('nt-tg-cmd-down').checked = tc.only_when_tailscale_down !== false;
+          el('nt-tg-cmd').value = remoteCommandMode(tc.enabled, tc.allow_recovery); el('nt-tg-cmd-down').checked = tc.only_when_tailscale_down !== false;
           el('nt-tg-cmd-info').checked = tc.info_enabled !== false; el('nt-tg-cmd-details').checked = !!tc.info_include_details;
           el('nt-tg-cmd-mac').checked = !!tc.allow_direct_mac; el('nt-tg-cmd-poll').value = tc.poll_interval_seconds || 15;
           tgCommandStates();
@@ -7578,7 +7579,7 @@
         var body = ch === 'tg'
           ? {telegram: {enabled: el('nt-tg-enabled').checked, chat: el('nt-tg-chat').value.trim(), token: el('nt-tg-token').value.trim(),
                         clear_token: el('nt-tg-clear').checked, events: el('nt-tg-events').value, notify_startup: el('nt-tg-startup').checked, notify_poweron: el('nt-tg-poweron').checked,
-                        commands: {enabled: el('nt-tg-cmd').checked, only_when_tailscale_down: el('nt-tg-cmd-down').checked, allow_direct_mac: el('nt-tg-cmd-mac').checked,
+                        commands: {enabled: el('nt-tg-cmd').value !== 'off', allow_recovery: el('nt-tg-cmd').value === 'recovery', only_when_tailscale_down: el('nt-tg-cmd-down').checked, allow_direct_mac: el('nt-tg-cmd-mac').checked,
                                    info_enabled: el('nt-tg-cmd-info').checked, info_include_details: el('nt-tg-cmd-details').checked, poll_interval_seconds: Number(el('nt-tg-cmd-poll').value)}}}
           : {email: {enabled: el('nt-mail-enabled').checked, host: el('nt-mail-host').value.trim(), port: Number(el('nt-mail-port').value),
                      security: el('nt-mail-security').value, user: el('nt-mail-user').value.trim(), password: el('nt-mail-pass').value,
@@ -7612,13 +7613,13 @@
       });
       /* Dependent fields follow their switches, like the ntfy card. */
       function tgCommandStates() {
-        setFeatureDependentState('nt-tg-cmd-settings', el('nt-tg-cmd').checked);
+        setFeatureDependentState('nt-tg-cmd-settings', el('nt-tg-cmd').value !== 'off');
         setFeatureDependentState('nt-tg-cmd-details-setting', el('nt-tg-cmd-info').checked);
       }
       ['nt-tg-cmd', 'nt-tg-cmd-info'].forEach(function (id) { el(id).addEventListener('change', tgCommandStates); });
       el('nt-tg-save').addEventListener('click', function () {
         var poll = Number(el('nt-tg-cmd-poll').value);
-        if (el('nt-tg-cmd').checked && (!Number.isInteger(poll) || poll < 5 || poll > 300)) { el('nt-tg-note').textContent = 'Poll interval: use 5 to 300 whole seconds.'; return; }
+        if (el('nt-tg-cmd').value !== 'off' && (!Number.isInteger(poll) || poll < 5 || poll > 300)) { el('nt-tg-note').textContent = 'Poll interval: use 5 to 300 whole seconds.'; return; }
         save('tg');
       });
       el('nt-mail-save').addEventListener('click', function () { save('mail'); });
@@ -8107,7 +8108,7 @@
         s_ops_state=data;
         document.getElementById('ops-summary').textContent='Control: '+(data.control_connected?'connected':'not connected')+' · policy authority: '+(data.authority_ready==null?'unknown':data.authority_ready?'ready (not a port grant)':'blocked / incomplete')+' · sockets '+data.sockets_used+'/'+data.socket_limit+(Number.isInteger(data.internal_free)?' · free internal '+data.internal_free+' B':'')+' · internal minimum '+data.internal_min+' B · largest block '+data.internal_largest+' B';
         document.getElementById('ops-guard-warning').hidden=data.guard_deferring!==true;
-        document.getElementById('ops-monitoring').checked=data.monitoring;document.getElementById('ops-guard').checked=data.guard;document.getElementById('ops-remote').checked=data.remote_commands;
+        document.getElementById('ops-monitoring').checked=data.monitoring;document.getElementById('ops-guard').checked=data.guard;
         [['ops-min','minimum_internal'],['ops-largest','minimum_largest'],['ops-sockets','socket_reserve'],['ops-interval','interval_s']].forEach(function(pair){document.getElementById(pair[0]).value=data[pair[1]];});
         opsShowJob(data);
         var list=document.getElementById('ops-devices');list.replaceChildren();s_ops_badges={};s_ops_pause_notes={};
@@ -8187,7 +8188,6 @@
     var opsSettingGroups={
       'ops-settings-save':{'ops-monitoring':'monitoring','ops-interval':'interval_s'},
       'ops-guard-save':{'ops-guard':'guard','ops-min':'minimum_internal','ops-largest':'minimum_largest','ops-sockets':'socket_reserve'},
-      'ops-remote-save':{'ops-remote':'remote_commands'},
       'ops-lease-save':{'ops-lease-notify':'lease_notifications'}
     };
     Object.entries(opsSettingGroups).forEach(function(entry){
@@ -10273,6 +10273,7 @@
       document.getElementById('mqtt-password-clear').checked = false;
       document.getElementById('mqtt-interval').value = d.interval_seconds || 30;
       document.getElementById('mqtt-ha-enabled').checked = !!d.home_assistant_discovery;
+      document.getElementById('mqtt-recovery').checked = d.allow_recovery === true;
       document.getElementById('mqtt-poweron-events').checked = !!d.poweron_events;
       setFeatureDependentState('mqtt-ha-settings', !!d.enabled && !!d.home_assistant_discovery);
       document.getElementById('mqtt-ha-prefix').value = d.discovery_prefix || 'homeassistant';
@@ -10298,7 +10299,7 @@
     }
 
     ['mqtt-enabled', 'mqtt-uri', 'mqtt-topic', 'mqtt-user', 'mqtt-password',
-     'mqtt-password-clear', 'mqtt-interval', 'mqtt-ha-enabled', 'mqtt-ha-prefix', 'mqtt-poweron-events',
+     'mqtt-password-clear', 'mqtt-interval', 'mqtt-ha-enabled', 'mqtt-ha-prefix', 'mqtt-poweron-events', 'mqtt-recovery',
      'mqtt-watchdog-enabled', 'mqtt-watchdog-timeout', 'mqtt-watchdog-target'].forEach(function (id) {
       var element = document.getElementById(id);
       element.addEventListener(element.type === 'checkbox' ? 'change' : 'input', function () {
@@ -10336,6 +10337,7 @@
         interval_seconds: parseInt(document.getElementById('mqtt-interval').value, 10),
         home_assistant_discovery: document.getElementById('mqtt-ha-enabled').checked,
         poweron_events: document.getElementById('mqtt-poweron-events').checked,
+        allow_recovery: document.getElementById('mqtt-recovery').checked,
         discovery_prefix: document.getElementById('mqtt-ha-prefix').value.trim().replace(/\/+$/, ''),
         clear_password: document.getElementById('mqtt-password-clear').checked,
         broker_watchdog_enabled: document.getElementById('mqtt-watchdog-enabled').checked,
@@ -10385,7 +10387,7 @@
       var enabled = document.getElementById('ntfy-enabled').checked;
       setFeatureCardState('ntfy-card', enabled);
       setFeatureDependentState('ntfy-alert-settings', enabled && document.getElementById('ntfy-alerts').checked);
-      setFeatureDependentState('ntfy-command-settings', enabled && document.getElementById('ntfy-commands').checked);
+      setFeatureDependentState('ntfy-command-settings', enabled && document.getElementById('ntfy-commands').value !== 'off');
       setFeatureDependentState('ntfy-info-details-setting', enabled && document.getElementById('ntfy-info').checked);
       var server = document.getElementById('ntfy-server').value.trim().toLowerCase();
       document.getElementById('ntfy-transport-warning').style.display =
@@ -10404,7 +10406,7 @@
         document.getElementById('ntfy-alerts').checked = !!d.tailscale_alerts;
         document.getElementById('ntfy-system-events').checked = !!d.system_events;
         document.getElementById('ntfy-poweron-events').checked = d.poweron_events === undefined ? !!d.system_events : !!d.poweron_events;
-        document.getElementById('ntfy-commands').checked = !!d.commands_enabled;
+        document.getElementById('ntfy-commands').value = remoteCommandMode(d.commands_enabled, d.allow_recovery);
         document.getElementById('ntfy-down-only').checked = !!d.commands_only_when_tailscale_down;
         document.getElementById('ntfy-direct-mac').checked = !!d.allow_direct_mac;
         document.getElementById('ntfy-info').checked = !!d.info_enabled;
@@ -10454,7 +10456,8 @@
         tailscale_alerts:document.getElementById('ntfy-alerts').checked,
         system_events:document.getElementById('ntfy-system-events').checked,
         poweron_events:document.getElementById('ntfy-poweron-events').checked,
-        commands_enabled:document.getElementById('ntfy-commands').checked,
+        commands_enabled:document.getElementById('ntfy-commands').value !== 'off',
+        allow_recovery:document.getElementById('ntfy-commands').value === 'recovery',
         commands_only_when_tailscale_down:document.getElementById('ntfy-down-only').checked,
         allow_direct_mac:document.getElementById('ntfy-direct-mac').checked,
         info_enabled:document.getElementById('ntfy-info').checked,

@@ -1,5 +1,20 @@
 # Maintainer continuation
 
+## Current handover — per-integration recovery controls
+
+On branch `fix/recovery-command-controls`, Device Registry links to the
+integration controls, separated from the monitoring save by standard spacing.
+Telegram and ntfy command modes are off, basic, or basic plus verified recovery.
+MQTT has its own verified-recovery permission. Existing command polling,
+chat/topic restrictions, info options and saved-device checks still apply.
+
+An absent `ops_recovery` key inherits the old shared bit. The first
+channel-specific permission save persists all three effective permissions
+together, changing only the selected channel. An invalid record denies remote
+recovery. Firmware rollback to 3.0.16 reads its old shared bit. Use the retained
+settings copy for full configuration rollback. Validate migration and
+independent grant/revocation on physical hardware before a release.
+
 ## Current handover — Health & Resources layout (local)
 
 Based on published Main at ca7649aca66da0b4b4a6c82ea65b7c0241201f06.

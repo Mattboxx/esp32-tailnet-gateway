@@ -1,5 +1,10 @@
 # Validation records
 
+Per-integration recovery controls: ESP32-S3 build, five host command/operations
+drivers, Telegram UI and 105 Chromium automation scenarios passed. Host tests
+cover legacy inheritance, channel isolation, revocation and a failed permission
+write with synthetic NVS. Real NVS upgrade and remote command checks are pending.
+
 Health & Resources layout (post-3.0.15): 104 Chromium scenarios passed on
 the generated Web UI with synthetic APIs, including 390 px placement,
 independent saves and the per-device pause indicator. The settings-search

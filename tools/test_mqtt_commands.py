@@ -53,7 +53,8 @@ static esp_err_t health_monitor_set_enabled(bool v){health_on=v;health_sets++;re
 static esp_err_t tailnet_forward_set_enabled_bound(int i,uint32_t t,bool e){forward_calls++;forward_index=i;forward_token=t;forward_enabled=e;return ESP_OK;}
 static esp_err_t service_check_request(int i,uint32_t t){test_calls++;test_index=i;test_token=t;return ESP_OK;}
 static esp_err_t wol_send_saved_mac_text(const char *m){wol_calls++;snprintf(wol_mac,sizeof wol_mac,"%s",m);return ESP_OK;}
-static esp_err_t homelab_ops_command(const char *m,bool remote){recover_calls++;recover_remote=remote;snprintf(recover_mac,sizeof recover_mac,"%s",m);return ESP_OK;}
+#include "remote_commands.h"
+static esp_err_t homelab_ops_command(const char *m,bool wake,ops_recovery_origin_t origin){assert(origin==OPS_RECOVERY_MQTT);recover_calls++;recover_remote=wake;snprintf(recover_mac,sizeof recover_mac,"%s",m);return ESP_OK;}
 static void service_watch_get(service_watch_config_t *o){*o=watch;}
 static esp_err_t service_watch_set(const service_watch_config_t *c){watch_sets++;watch=*c;return ESP_OK;}
 ''' + function('static bool set_tailscale_flag(') + function('static void handle_command(') + r'''

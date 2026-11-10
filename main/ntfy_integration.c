@@ -532,7 +532,7 @@ static esp_err_t wake_argument(bool allow_direct_mac, const char *argument)
 
 /* One remote command, shared by ntfy and Telegram (remote_commands.h). */
 remote_cmd_kind_t remote_command_run(const char *message, bool info_enabled, bool allow_direct_mac,
-                                     char *reply, size_t cap, const char **title)
+                                     ops_recovery_origin_t origin, char *reply, size_t cap, const char **title)
 {
     if (reply && cap) reply[0] = '\0';
     if (title) *title = NULL;
@@ -551,10 +551,10 @@ remote_cmd_kind_t remote_command_run(const char *message, bool info_enabled, boo
     if (strncasecmp(message,"recover ",8)==0 || strncasecmp(message,"check ",6)==0) {
         bool wake=strncasecmp(message,"recover ",8)==0;
         const char *selector=message+(wake?8:6);uint8_t mac[6];
-        if(wol_parse_mac(selector,mac))err=homelab_ops_command(selector,wake);
+        if(wol_parse_mac(selector,mac))err=homelab_ops_command(selector,wake,origin);
         else for(int i=0;i<wol_count();i++){
             wol_device_t d;if(wol_get(i,&d)&&d.name[0]&&!strcasecmp(selector,d.name)){
-                char address[18];wol_format_mac(d.mac,address);err=homelab_ops_command(address,wake);break;
+                char address[18];wol_format_mac(d.mac,address);err=homelab_ops_command(address,wake,origin);break;
             }
         }
         if (title) *title = "ESP32 recovery response";
@@ -575,7 +575,7 @@ static NTFY_NOINLINE void handle_command(const ntfy_integration_config_t *c, con
     char reply[160];
     const char *title = NULL;
     remote_cmd_kind_t kind = remote_command_run(message, c->info_enabled, c->allow_direct_mac,
-                                                reply, sizeof reply, &title);
+                                                OPS_RECOVERY_NTFY, reply, sizeof reply, &title);
     if (kind == REMOTE_CMD_NONE) return;
     esp_err_t err = kind == REMOTE_CMD_OK ? ESP_OK : ESP_FAIL;
     if (kind == REMOTE_CMD_INFO) err = send_info(c);

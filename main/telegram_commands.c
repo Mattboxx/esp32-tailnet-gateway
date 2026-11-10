@@ -212,7 +212,7 @@ static void run(const telegram_commands_config_t *c, const char *command)
 {
     char text[160];
     const char *title = NULL;
-    remote_cmd_kind_t kind = remote_command_run(command, c->info_enabled, c->allow_direct_mac, text, sizeof text, &title);
+    remote_cmd_kind_t kind = remote_command_run(command, c->info_enabled, c->allow_direct_mac, OPS_RECOVERY_TELEGRAM, text, sizeof text, &title);
     if (kind == REMOTE_CMD_NONE) return;
     if (kind == REMOTE_CMD_INFO) send_info(c);
     else if (text[0]) reply(text);

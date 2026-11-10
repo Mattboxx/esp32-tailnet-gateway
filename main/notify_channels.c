@@ -325,6 +325,7 @@ done:
 #include "nvs.h"
 #include "nvs_params.h"
 #include "telegram_commands.h"
+#include "homelab_ops.h"
 #include <stdlib.h>
 #include <time.h>
 
@@ -934,6 +935,7 @@ static esp_err_t get_notify(httpd_req_t *req)
         cJSON *cm = cJSON_AddObjectToObject(tg, "commands");
         if (cm) {
             cJSON_AddBoolToObject(cm, "enabled", tc.commands_enabled);
+            cJSON_AddBoolToObject(cm, "allow_recovery", homelab_ops_recovery_allowed(OPS_RECOVERY_TELEGRAM));
             cJSON_AddBoolToObject(cm, "only_when_tailscale_down", tc.commands_only_when_tailscale_down);
             cJSON_AddBoolToObject(cm, "allow_direct_mac", tc.allow_direct_mac);
             cJSON_AddBoolToObject(cm, "info_enabled", tc.info_enabled);
@@ -1020,6 +1022,7 @@ static esp_err_t post_notify(httpd_req_t *req)
     telegram_commands_config_t tcmd;
     telegram_commands_get_config(&tcmd);
     bool have_tcmd = false;
+    bool save_recovery = false, allow_recovery = false;
     const cJSON *events = cJSON_GetObjectItemCaseSensitive(root, "events");
     ok = cJSON_IsObject(root) && !cJSON_HasObjectItem(root, "connectivity_grace_seconds") &&
          (!tg || cJSON_IsObject(tg)) && (!mail || cJSON_IsObject(mail)) &&
@@ -1068,6 +1071,10 @@ static esp_err_t post_notify(httpd_req_t *req)
             }
             if (ok) tcmd.poll_interval_seconds = poll->valuedouble >= 0 && poll->valuedouble <= 65535 ? (uint16_t)poll->valuedouble : 0;
             if (ok && !telegram_commands_config_valid(&tcmd)) {ok = false; snprintf(why, sizeof why, "Telegram commands: poll interval must be 5-300 seconds");}
+            const cJSON *recovery = cJSON_GetObjectItemCaseSensitive(cm, "allow_recovery");
+            if (recovery && !cJSON_IsBool(recovery)) ok = false;
+            save_recovery = recovery != NULL;
+            allow_recovery = cJSON_IsTrue(recovery);
             have_tcmd = ok;
         }
     }
@@ -1094,7 +1101,9 @@ static esp_err_t post_notify(httpd_req_t *req)
     }
     esp_err_t err = ESP_OK;
     if (ok && !notify_config_valid(next, why, sizeof why)) ok = false;
-    if (ok) err = store_save(next, mail_level, startup_channels); /* one record, before publishing */
+    if (ok && save_recovery && !allow_recovery)
+        err = homelab_ops_set_recovery_allowed(OPS_RECOVERY_TELEGRAM, false);
+    if (ok && !err) err = store_save(next, mail_level, startup_channels); /* one record, before publishing */
     if (ok && !err && have_tcmd) err = telegram_commands_set_config(&tcmd);   /* its own keys */
     if (ok && !err) {
         xSemaphoreTake(s_lock, portMAX_DELAY);
@@ -1104,6 +1113,8 @@ static esp_err_t post_notify(httpd_req_t *req)
         apply_locked();
         xSemaphoreGive(s_lock);
         telegram_commands_refresh();   /* starts or stops the command poller */
+        if (save_recovery && allow_recovery)
+            err = homelab_ops_set_recovery_allowed(OPS_RECOVERY_TELEGRAM, true);
     }
     memset(next, 0, sizeof *next); free(next); free(body);
     httpd_resp_set_type(req, "application/json");

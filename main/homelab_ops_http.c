@@ -191,7 +191,7 @@ static esp_err_t post_ops(httpd_req_t *req) {
             const cJSON *mac=cJSON_GetObjectItemCaseSensitive(root,"mac");uint8_t expected[6];wol_device_t d;
             if(cJSON_IsString(mac) && wol_parse_mac(mac->valuestring,expected) && wol_get(index,&d) && !memcmp(expected,d.mac,6)){
                 if(!strcmp(action->valuestring,"recover") || !strcmp(action->valuestring,"check"))
-                    err=homelab_ops_request(index,!strcmp(action->valuestring,"recover"),false);
+                    err=homelab_ops_request(index,!strcmp(action->valuestring,"recover"),OPS_RECOVERY_LOCAL);
                 else if(!strcmp(action->valuestring,"device")){
                     ops_device_t p={0};unsigned host,service,timeout,interval,checks,kind,scope;
                     const cJSON *target=cJSON_GetObjectItemCaseSensitive(root,"target");

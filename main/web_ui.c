@@ -2019,6 +2019,7 @@ static esp_err_t mqtt_handler(httpd_req_t *req)
     if (!root) { httpd_resp_send_500(req); return ESP_FAIL; }
     cJSON_AddBoolToObject(root, "enabled", config.enabled);
     cJSON_AddBoolToObject(root, "connected", mqtt_integration_connected());
+    cJSON_AddBoolToObject(root, "allow_recovery", homelab_ops_recovery_allowed(OPS_RECOVERY_MQTT));
     mqtt_integration_status_t mqtt_status;
     mqtt_integration_get_status(&mqtt_status);
     cJSON *status = cJSON_AddObjectToObject(root, "status");
@@ -2109,6 +2110,14 @@ static esp_err_t mqtt_save_handler(httpd_req_t *req)
     if (cJSON_IsBool(item)) config.broker_watchdog_enabled = cJSON_IsTrue(item);
     item = cJSON_GetObjectItem(root, "broker_watchdog_timeout_seconds");
     if (cJSON_IsNumber(item)) config.broker_watchdog_timeout_seconds = (uint32_t)item->valuedouble;
+    item = cJSON_GetObjectItemCaseSensitive(root, "allow_recovery");
+    if (item && !cJSON_IsBool(item)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "allow_recovery must be boolean");
+        return ESP_FAIL;
+    }
+    const bool save_recovery = item != NULL;
+    const bool allow_recovery = cJSON_IsTrue(item);
     cJSON_Delete(root);
 
     bool valid_uri = !config.enabled
@@ -2138,7 +2147,12 @@ static esp_err_t mqtt_save_handler(httpd_req_t *req)
         }
         wol_format_mac(mac, config.broker_watchdog_wol_mac);
     }
-    esp_err_t err = mqtt_integration_set_config(&config);
+    esp_err_t err = ESP_OK;
+    if (save_recovery && !allow_recovery)
+        err = homelab_ops_set_recovery_allowed(OPS_RECOVERY_MQTT, false);
+    if (err == ESP_OK) err = mqtt_integration_set_config(&config);
+    if (err == ESP_OK && save_recovery && allow_recovery)
+        err = homelab_ops_set_recovery_allowed(OPS_RECOVERY_MQTT, true);
     httpd_resp_set_type(req, "application/json");
     if (err != ESP_OK) {
         httpd_resp_set_status(req, "500 Internal Server Error");
@@ -2181,6 +2195,7 @@ static esp_err_t ntfy_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "has_token", c.token[0] != '\0');
     cJSON_AddBoolToObject(root, "tailscale_alerts", c.tailscale_alerts);
     cJSON_AddBoolToObject(root, "commands_enabled", c.commands_enabled);
+    cJSON_AddBoolToObject(root, "allow_recovery", homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
     cJSON_AddBoolToObject(root, "commands_only_when_tailscale_down",
                           c.commands_only_when_tailscale_down);
     cJSON_AddBoolToObject(root, "allow_direct_mac", c.allow_direct_mac);
@@ -2237,8 +2252,21 @@ static esp_err_t ntfy_save_handler(httpd_req_t *req)
     if(cJSON_IsNumber(item)) c.failure_delay_seconds=(uint16_t)item->valueint;
     item=cJSON_GetObjectItem(root,"poll_interval_seconds");
     if(cJSON_IsNumber(item)) c.poll_interval_seconds=(uint16_t)item->valueint;
+    item = cJSON_GetObjectItemCaseSensitive(root, "allow_recovery");
+    if (item && !cJSON_IsBool(item)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "allow_recovery must be boolean");
+        return ESP_FAIL;
+    }
+    const bool save_recovery = item != NULL;
+    const bool allow_recovery = cJSON_IsTrue(item);
     cJSON_Delete(root);
-    esp_err_t err = ntfy_integration_set_config(&c);
+    esp_err_t err = ESP_OK;
+    if (save_recovery && !allow_recovery)
+        err = homelab_ops_set_recovery_allowed(OPS_RECOVERY_NTFY, false);
+    if (err == ESP_OK) err = ntfy_integration_set_config(&c);
+    if (err == ESP_OK && save_recovery && allow_recovery)
+        err = homelab_ops_set_recovery_allowed(OPS_RECOVERY_NTFY, true);
     if (err != ESP_OK) {
         if (err == ESP_ERR_INVALID_ARG)
             httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid ntfy settings");

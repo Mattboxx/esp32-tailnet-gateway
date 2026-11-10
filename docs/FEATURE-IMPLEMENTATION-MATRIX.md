@@ -1,5 +1,10 @@
 # Feature implementation and validation matrix
 
+Recovery UI follow-up (F30 and automation): ntfy and Telegram expose command
+modes and MQTT has its own recovery permission. Legacy permissions are preserved
+until channel-specific settings are saved. Build, host and browser checks passed.
+Physical migration and remote command validation are pending.
+
 Post-3.0.15 UI follow-up (F10, F22, F30): operations controls grouped by task,
 with section-specific saves and a visible global-monitoring pause on selected
 devices. Chromium and localization checks passed. Physical UI validation is pending.

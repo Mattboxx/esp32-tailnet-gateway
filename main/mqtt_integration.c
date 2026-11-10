@@ -757,7 +757,7 @@ static void handle_command(const char *topic, const char *payload)
         const char *compact=command+9;char mac[18];
         if(strlen(compact)==12 && (!strcmp(payload,"PRESS") || !strcmp(payload,"1"))){
             snprintf(mac,sizeof mac,"%.2s:%.2s:%.2s:%.2s:%.2s:%.2s",compact,compact+2,compact+4,compact+6,compact+8,compact+10);
-            (void)homelab_ops_command(mac,true);
+            (void)homelab_ops_command(mac,true,OPS_RECOVERY_MQTT);
         }
         s_publish_requested=true;
     } else if (!strcmp(command, "restart")) {

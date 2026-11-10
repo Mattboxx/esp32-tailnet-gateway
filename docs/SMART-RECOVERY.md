@@ -16,9 +16,12 @@ TCP acceptance is not application health. Confirmed local WoL send is not
 delivery/power-on; partial UDP-send failures are not separately counted. Finite
 SDK DNS retries may delay cancellation. Results/history are boot-local/bounded.
 
-Monitoring/guard/remote commands/notifications start OFF. Guard thresholds are
-uncalibrated engineering values. Remote MQTT/ntfy recovery requires the extra
-permission and existing integration controls; protect broker/topic ACLs.
-ntfy: `recover SAVED_NAME` / `check SAVED_NAME` or saved MAC. HA recovery buttons
-use saved MACs. Local recovery does not require MQTT, HA or the managed NAS.
+Monitoring, the guard, remote commands and notifications start off. Guard
+thresholds are engineering defaults. Under **Automation → Notifications**,
+choose the command mode separately for ntfy and Telegram. The verified
+recovery mode adds `recover SAVED_NAME` and `check SAVED_NAME` (or a saved MAC)
+to the basic commands. The info, destination and polling options still apply.
+Under **Automation → Home Assistant**, the MQTT recovery switch permits the
+MQTT recovery command for saved MACs. Protect your broker and topic permissions.
+Local recovery works independently of these integrations.
 Full security/physical NVS/OTA/resource/fault/browser/soak validation is pending.

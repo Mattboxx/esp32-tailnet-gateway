@@ -24,16 +24,25 @@ fixture=r'''
 #include <string.h>
 #include <stdlib.h>
 #include "module_supervisor.h"
+#include "remote_commands.h"
 #define WOL_MAX_DEVICES 12
 #define TAILNET_FORWARD_MAX 8
 #define CONFIG_LWIP_MAX_SOCKETS 31
 #define ESP_OK 0
+#define ESP_ERR_INVALID_ARG 3
 #define NVS_READWRITE 1
 #define NVS_NAMESPACE "fixture"
 #define LOCK() ((void)0)
 #define UNLOCK() ((void)0)
 typedef int esp_err_t,nvs_handle_t;
 static unsigned fault,stage,commits;
+static uint8_t saved_permissions;
+static int nvs_param_set_u8(const char *key,uint8_t value){
+    assert(!strcmp(key,"ops_recovery"));
+    if(fault)return -1;
+    saved_permissions=value;
+    return ESP_OK;
+}
 static int nvs_open(const char *s,int mode,nvs_handle_t *h){(void)s;(void)mode;*h=1;return ++stage==fault?-1:0;}
 static int nvs_set_blob(int h,const char *key,const void *v,size_t n){(void)h;(void)key;(void)v;assert(n>0);return ++stage==fault?-1:0;}
 static int nvs_commit(int h){(void)h;commits++;return ++stage==fault?-1:0;}
@@ -58,6 +67,29 @@ int main(void){
     }
     ops_store_t candidate={.magic=OPS_MAGIC,.version=1};fault=stage=0;assert(save_locked(&candidate)==ESP_OK);
     assert(store.magic==OPS_MAGIC && store.checksum==checksum(&store));
+    assert(homelab_ops_recovery_allowed(OPS_RECOVERY_LOCAL));
+    assert(!homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
+    store.settings.remote_commands=1;
+    assert(homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
+    assert(homelab_ops_recovery_allowed(OPS_RECOVERY_TELEGRAM));
+    fault=1;
+    assert(homelab_ops_set_recovery_allowed(OPS_RECOVERY_NTFY,false)!=ESP_OK);
+    assert(homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
+    fault=0;
+    assert(homelab_ops_set_recovery_allowed(OPS_RECOVERY_NTFY,false)==ESP_OK);
+    recovery_permissions=saved_permissions; /* persisted byte after restart */
+    assert(!homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
+    assert(homelab_ops_recovery_allowed(OPS_RECOVERY_MQTT));
+    assert(homelab_ops_recovery_allowed(OPS_RECOVERY_TELEGRAM));
+    store.settings.remote_commands=0;
+    assert(homelab_ops_recovery_allowed(OPS_RECOVERY_TELEGRAM));
+    job=(job_t){.id=3,.state=J_PRECHECK,.origin=OPS_RECOVERY_NTFY,.deadline=99999};
+    job_t revoked=job;
+    apply_probe_locked(&revoked,1,30);
+    assert(job.state==J_CANCELLED);
+    assert(homelab_ops_set_recovery_allowed(OPS_RECOVERY_NTFY,true)==ESP_OK);
+    assert(homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
+    assert(!homelab_ops_recovery_allowed((ops_recovery_origin_t)4));
     homelab_ops_service_closed(1);assert(service_closures==1&&event_publishes==1&&!event_notifies);
     store.settings.lease_notifications=1;homelab_ops_service_closed(2);assert(service_closures==3&&event_notifies==1);
     homelab_ops_service_closed(0);homelab_ops_service_closed(9);assert(service_closures==3);
@@ -91,7 +123,7 @@ with tempfile.TemporaryDirectory(prefix='ops-core-') as directory:
     adapters='static ops_resources_t resources;\nstatic void homelab_ops_settings(ops_settings_t *out){*out=store.settings;}\nstatic void homelab_ops_resources(ops_resources_t *out){*out=resources;}\n'
     program.write_text(fixture+woltype+types+globals+adapters+''.join(function(n) for n in (
         'static uint32_t checksum(', 'static bool valid_settings(', 'static bool valid_profile(',
-        'static void event_locked(', 'static esp_err_t save_locked(', 'void homelab_ops_service_closed(', 'static bool guard_allows(', 'bool homelab_ops_admit(', 'bool homelab_ops_guard_deferring(', 'static void finish_locked(', 'static void apply_probe_locked('))+body,encoding='utf-8')
+        'static void event_locked(', 'static esp_err_t save_locked(', 'void homelab_ops_service_closed(', 'static bool guard_allows(', 'bool homelab_ops_admit(', 'bool homelab_ops_guard_deferring(', 'static uint8_t recovery_bit(', 'static uint8_t recovery_mask_locked(', 'static bool recovery_allowed_locked(', 'bool homelab_ops_recovery_allowed(', 'esp_err_t homelab_ops_set_recovery_allowed(', 'static void finish_locked(', 'static void apply_probe_locked('))+body,encoding='utf-8')
     flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-variable','-Wno-misleading-indentation','-g','-I',str(ROOT/'main')]
     if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run(['gcc',*flags,str(program),'-o',str(binary)],check=True)

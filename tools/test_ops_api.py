@@ -58,7 +58,8 @@ static const char *esp_err_to_name(int e){(void)e;return "fixture-error";}
 adapters=r'''
 static bool wol_get(int index,wol_device_t *d){if(index)return false;memset(d,0,sizeof *d);d->mac[0]=2;d->mac[5]=1;return true;}
 static int homelab_ops_cancel(void){mutations++;return module_error;}
-static int homelab_ops_request(int i,bool wake,bool remote){assert(!i&&!remote);(void)wake;mutations++;return module_error;}
+#include "remote_commands.h"
+static int homelab_ops_request(int i,bool wake,ops_recovery_origin_t origin){assert(!i&&origin==OPS_RECOVERY_LOCAL);(void)wake;mutations++;return module_error;}
 static int homelab_ops_set_settings(const ops_settings_t *s){assert(s);mutations++;return module_error;}
 static int health_monitor_set(const health_config_t *c){assert(c);mutations++;return module_error;}
 static int homelab_ops_set_device(int i,const ops_device_t *p){assert(!i&&p&&p->mac[0]==2);mutations++;return module_error;}
