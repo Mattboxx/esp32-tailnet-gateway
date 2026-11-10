@@ -133,8 +133,9 @@ pages.unshift('');
       await dialog.waitFor({ state: 'visible' });
       for (const url of providerUrls) {
         const [popup] = await Promise.all([context.waitForEvent('page'), dialog.locator(`a[href="${url}"]`).click()]);
-        await popup.waitForLoadState('domcontentloaded');
-        if (popup.url() !== url) failures.push(`${width}: provider choice opened wrong address`);
+        // Chrome can finish the initial blank document before the provider navigation.
+        try { await popup.waitForURL(url, { waitUntil: 'domcontentloaded', timeout: 5000 }); }
+        catch { failures.push(`${width}: provider choice opened wrong address`); }
         await popup.close();
       }
       await dialog.locator('.support-close').click();

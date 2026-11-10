@@ -133,10 +133,11 @@ idf_component_register(SRCS "main.c" ${_tsr_optional}
                                   acl sdlog remote_console
                                   web_password net_diag dhcpserver
                                   espcoredump dns_relay snmp_agent cli task_reaper
-                                  app_update
+                                  app_update spi_flash esp_partition esp_psram
                                   mqtt
                                   esp_http_client
                                   esp_eth esp_driver_spi esp_driver_gpio esp_driver_uart
+                                  esp_driver_tsens
                     INCLUDE_DIRS ".")
 
 # Phase 1.9k: wrap ip_napt_forward to skip NAPT for tailnet CGNAT
@@ -178,7 +179,11 @@ endforeach()
 target_compile_definitions(${COMPONENT_LIB} PRIVATE LWIP_MDNS_RESPONDER=1 MDNS_RESP_USENETIF_EXTCALLBACK=0)
 
 target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip_napt_forward")
-target_link_libraries(${COMPONENT_LIB} INTERFACE "-Wl,--wrap=ip4_input")
+# Pull the policy entry point out of the static archive even when lwIP is
+# scanned after main and its only reference is rewritten by the linker.
+target_link_libraries(${COMPONENT_LIB} INTERFACE
+    "-Wl,--wrap=ip4_input"
+    "-Wl,--undefined=__wrap_ip4_input")
 
 # Phase 1.9l: wrap ip4_route_src_hook to add CGNAT-→-WG routing and
 # the exit-node LAN-bypass + self-traffic fallback on top of the

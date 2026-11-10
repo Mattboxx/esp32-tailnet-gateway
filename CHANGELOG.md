@@ -6,6 +6,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.17] - 2026-11-10
+
+- Update to ESP-IDF 5.5.6 and require DERP certificate verification.
+- Preserve configuration on NVS startup failures and report failed factory erases.
+- Use the active LAN uplink for the updater, notification polling and local checks.
+- Keep Tailnet-only recovery lookups off uplink DNS and reject stale Telegram polls.
+- Save integration command modes and channel settings together.
+
 ## [3.0.16] - 2026-11-10
 
 ### Changed

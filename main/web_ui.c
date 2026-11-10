@@ -1682,10 +1682,8 @@ static const httpd_uri_t uri_firewall = {
 static int parse_acl_index(const cJSON *body)
 {
     const cJSON *idx = body ? cJSON_GetObjectItem(body, "acl") : NULL;
-    if (!cJSON_IsNumber(idx)) return -1;
-    int n = (int)idx->valuedouble;
-    if (n < 0 || n >= MAX_ACL_LISTS) return -1;
-    return n;
+    uint32_t n=0;
+    return idx && json_guard_uint(idx,0,MAX_ACL_LISTS-1,&n) ? (int)n : -1;
 }
 
 static esp_err_t firewall_add_handler(httpd_req_t *req)
@@ -1719,10 +1717,15 @@ static esp_err_t firewall_add_handler(httpd_req_t *req)
     const cJSON *dp = cJSON_GetObjectItem(body, "d_port");
     const cJSON *ac = cJSON_GetObjectItem(body, "action");
 
-    uint8_t  proto  = cJSON_IsNumber(pr) ? (uint8_t) pr->valuedouble : 0;
-    uint16_t s_port = cJSON_IsNumber(sp) ? (uint16_t)sp->valuedouble : 0;
-    uint16_t d_port = cJSON_IsNumber(dp) ? (uint16_t)dp->valuedouble : 0;
-    uint8_t  allow  = cJSON_IsNumber(ac) ? (uint8_t) ac->valuedouble : ACL_ALLOW;
+    uint32_t proto=0,s_port=0,d_port=0,allow=ACL_ALLOW;
+    if (!json_guard_uint(pr,0,UINT8_MAX,&proto) ||
+        !json_guard_uint(sp,0,UINT16_MAX,&s_port) ||
+        !json_guard_uint(dp,0,UINT16_MAX,&d_port) ||
+        !json_guard_uint(ac,0,1,&allow)) {
+        cJSON_Delete(body);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid ACL protocol, ports or action");
+        return ESP_FAIL;
+    }
 
     bool ok = acl_add((uint8_t)acl_no, src, s_mask, dest, d_mask,
                       proto, s_port, d_port, allow);
@@ -1747,16 +1750,15 @@ static esp_err_t firewall_delete_handler(httpd_req_t *req)
     cJSON *body = json_guard_parse(body_buf);
     int acl_no = parse_acl_index(body);
     const cJSON *rule_j = body ? cJSON_GetObjectItem(body, "index") : NULL;
-    if (acl_no < 0 || !cJSON_IsNumber(rule_j)) {
+    uint32_t rule_idx=0;
+    if (acl_no < 0 || !rule_j || !json_guard_uint(rule_j,0,MAX_ACL_ENTRIES-1,&rule_idx)) {
         cJSON_Delete(body);
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "missing acl/index");
         return ESP_FAIL;
     }
-    int rule_idx = (int)rule_j->valuedouble;
     cJSON_Delete(body);
 
-    if (rule_idx < 0 || rule_idx >= MAX_ACL_ENTRIES
-        || !acl_delete((uint8_t)acl_no, (uint8_t)rule_idx)) {
+    if (!acl_delete((uint8_t)acl_no, (uint8_t)rule_idx)) {
         httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid index");
         return ESP_FAIL;
     }
@@ -2019,6 +2021,7 @@ static esp_err_t mqtt_handler(httpd_req_t *req)
     if (!root) { httpd_resp_send_500(req); return ESP_FAIL; }
     cJSON_AddBoolToObject(root, "enabled", config.enabled);
     cJSON_AddBoolToObject(root, "connected", mqtt_integration_connected());
+    cJSON_AddBoolToObject(root, "allow_recovery", homelab_ops_recovery_allowed(OPS_RECOVERY_MQTT));
     mqtt_integration_status_t mqtt_status;
     mqtt_integration_get_status(&mqtt_status);
     cJSON *status = cJSON_AddObjectToObject(root, "status");
@@ -2103,12 +2106,21 @@ static esp_err_t mqtt_save_handler(httpd_req_t *req)
         return ESP_FAIL;
     }
     if (item) config.poweron_events = cJSON_IsTrue(item);
-    item = cJSON_GetObjectItem(root, "interval_seconds");
-    if (cJSON_IsNumber(item)) config.interval_seconds = (uint16_t)item->valueint;
+    uint32_t interval=config.interval_seconds, watchdog=config.broker_watchdog_timeout_seconds;
+    bool numeric_valid=json_guard_uint(cJSON_GetObjectItem(root,"interval_seconds"),5,3600,&interval)
+        && json_guard_uint(cJSON_GetObjectItem(root,"broker_watchdog_timeout_seconds"),30,86400,&watchdog);
     item = cJSON_GetObjectItem(root, "broker_watchdog_enabled");
     if (cJSON_IsBool(item)) config.broker_watchdog_enabled = cJSON_IsTrue(item);
-    item = cJSON_GetObjectItem(root, "broker_watchdog_timeout_seconds");
-    if (cJSON_IsNumber(item)) config.broker_watchdog_timeout_seconds = (uint32_t)item->valuedouble;
+    config.interval_seconds=(uint16_t)interval;
+    config.broker_watchdog_timeout_seconds=watchdog;
+    item = cJSON_GetObjectItemCaseSensitive(root, "allow_recovery");
+    if (item && !cJSON_IsBool(item)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "allow_recovery must be boolean");
+        return ESP_FAIL;
+    }
+    const bool save_recovery = item != NULL;
+    const bool allow_recovery = cJSON_IsTrue(item);
     cJSON_Delete(root);
 
     bool valid_uri = !config.enabled
@@ -2120,7 +2132,7 @@ static esp_err_t mqtt_save_handler(httpd_req_t *req)
              * from confusing the URI parser, user-info here would be echoed
              * by diagnostics and logs as part of the broker URI. */
             && strpbrk(config.uri, "@\r\n\t ") == NULL);
-    if (!valid_uri || !config.base_topic[0] || strchr(config.base_topic, '#')
+    if (!numeric_valid || !valid_uri || !config.base_topic[0] || strchr(config.base_topic, '#')
         || strchr(config.base_topic, '+') || config.interval_seconds < 5
         || config.interval_seconds > 3600
         || config.broker_watchdog_timeout_seconds < 30
@@ -2138,7 +2150,7 @@ static esp_err_t mqtt_save_handler(httpd_req_t *req)
         }
         wol_format_mac(mac, config.broker_watchdog_wol_mac);
     }
-    esp_err_t err = mqtt_integration_set_config(&config);
+    esp_err_t err = mqtt_integration_set_config_recovery(&config,save_recovery ? allow_recovery : -1);
     httpd_resp_set_type(req, "application/json");
     if (err != ESP_OK) {
         httpd_resp_set_status(req, "500 Internal Server Error");
@@ -2181,6 +2193,7 @@ static esp_err_t ntfy_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "has_token", c.token[0] != '\0');
     cJSON_AddBoolToObject(root, "tailscale_alerts", c.tailscale_alerts);
     cJSON_AddBoolToObject(root, "commands_enabled", c.commands_enabled);
+    cJSON_AddBoolToObject(root, "allow_recovery", homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
     cJSON_AddBoolToObject(root, "commands_only_when_tailscale_down",
                           c.commands_only_when_tailscale_down);
     cJSON_AddBoolToObject(root, "allow_direct_mac", c.allow_direct_mac);
@@ -2233,12 +2246,25 @@ static esp_err_t ntfy_save_handler(httpd_req_t *req)
     NTFY_BOOL("info_include_details", c.info_include_details);
 #undef NTFY_STRING
 #undef NTFY_BOOL
-    item=cJSON_GetObjectItem(root,"failure_delay_seconds");
-    if(cJSON_IsNumber(item)) c.failure_delay_seconds=(uint16_t)item->valueint;
-    item=cJSON_GetObjectItem(root,"poll_interval_seconds");
-    if(cJSON_IsNumber(item)) c.poll_interval_seconds=(uint16_t)item->valueint;
+    uint32_t delay=c.failure_delay_seconds,poll=c.poll_interval_seconds;
+    if (!json_guard_uint(cJSON_GetObjectItem(root,"failure_delay_seconds"),15,3600,&delay) ||
+        !json_guard_uint(cJSON_GetObjectItem(root,"poll_interval_seconds"),5,300,&poll)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid ntfy timing");
+        return ESP_FAIL;
+    }
+    c.failure_delay_seconds=(uint16_t)delay;
+    c.poll_interval_seconds=(uint16_t)poll;
+    item = cJSON_GetObjectItemCaseSensitive(root, "allow_recovery");
+    if (item && !cJSON_IsBool(item)) {
+        cJSON_Delete(root);
+        httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "allow_recovery must be boolean");
+        return ESP_FAIL;
+    }
+    const bool save_recovery = item != NULL;
+    const bool allow_recovery = cJSON_IsTrue(item);
     cJSON_Delete(root);
-    esp_err_t err = ntfy_integration_set_config(&c);
+    esp_err_t err = ntfy_integration_set_config_recovery(&c,save_recovery ? allow_recovery : -1);
     if (err != ESP_OK) {
         if (err == ESP_ERR_INVALID_ARG)
             httpd_resp_send_err(req, HTTPD_400_BAD_REQUEST, "invalid ntfy settings");
@@ -4093,7 +4119,10 @@ static esp_err_t system_restart_handler(httpd_req_t *req)
 static esp_err_t system_factory_reset_handler(httpd_req_t *req)
 {
     if (require_password_session(req) != ESP_OK) return ESP_FAIL;
-    nvs_param_erase_all();
+    if (nvs_param_erase_all() != ESP_OK) {
+        httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Could not erase settings; stored copies retained");
+        return ESP_FAIL;
+    }
     /* The settings copies hold the same secrets: erase them (and the
      * history) too, before reporting success. 2.x layout: nothing to erase. */
     esp_err_t wiped = storage_store_erase_all();

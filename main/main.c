@@ -919,6 +919,19 @@ static void remove_legacy_outbound_settings(void)
     ESP_LOGI("privacy", "legacy telemetry and automatic-update settings removed");
 }
 
+static void startup_settings_failed(esp_err_t error)
+{
+    ESP_LOGE("storage", "Configuration unavailable (%s); retained for recovery", esp_err_to_name(error));
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t state;
+    /* A legacy recovery image may erase unreadable NVS on boot. Keep this
+     * image selected so an automatic rollback cannot destroy those settings. */
+    if (running && esp_ota_get_state_partition(running, &state) == ESP_OK &&
+        state == ESP_OTA_IMG_PENDING_VERIFY &&
+        esp_ota_mark_app_valid_cancel_rollback() != ESP_OK)
+        ESP_LOGE("storage", "Could not retain the diagnostic image; inspect OTA state before restarting");
+}
+
 void app_main(void)
 {
     boot_timeline_mark(BOOT_TL_APP_MAIN);
@@ -931,16 +944,14 @@ void app_main(void)
      * NVS is opened (one 4-byte flash read when none is pending). */
     settings_snapshot_boot();
 
-    //Initialize NVS
+    /* Preserve NVS when initialization or journal recovery fails. Starting
+     * services with partially recovered credentials or policy is unsafe. */
     esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
+    if (ret == ESP_OK) ret = nvs_param_txn_recover();
+    if (ret != ESP_OK) {
+        startup_settings_failed(ret);
+        return;
     }
-    ESP_ERROR_CHECK(ret);
-    /* Undo a multi-key settings save cut short by a power loss before any
-     * setting is read (see nvs_params.h). */
-    (void)nvs_param_txn_recover();
     boot_timeline_mark(BOOT_TL_NVS);
     microlink_json_memory_init();
     remove_legacy_outbound_settings();

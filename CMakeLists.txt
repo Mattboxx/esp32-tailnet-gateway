@@ -28,7 +28,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 # PROJECT_VER lands in the esp_app_desc_t struct so the running firmware
 # can report its version via the OTA APIs and the web UI's Status page.
-set(PROJECT_VER "3.0.16")
+set(PROJECT_VER "3.0.17")
 # The migration bridge (env esp32-s3-bridge, CONFIG_TSR_MIGRATION_BRIDGE) is a
 # 2.x-line release so that 2.x updaters install it like any other update.
 set(TSR_BRIDGE_VER "2.1.0")
@@ -60,7 +60,7 @@ project(esp32_tsr)
 # Fail configuration on an unreviewed SDK change: task ownership must be checked
 # before applying the same paired allocation adapter to another version.
 file(SHA256 "$ENV{IDF_PATH}/components/mqtt/esp-mqtt/mqtt_client.c" _mqtt_source_hash)
-if(NOT _mqtt_source_hash STREQUAL "3e558fa88e7bd98d4342bd19fe6d99c56031d04ff7a26405ab1bcd09408cf6f3")
+if(NOT _mqtt_source_hash STREQUAL "0651edbb34dee8bf9babc684ba4ccf231ed562fdab6218f0aa5b4d80f6a990fb")
     message(FATAL_ERROR "Unreviewed esp-mqtt source: review task ownership before updating mqtt_task_memory.h adapter")
 endif()
 idf_component_get_property(_mqtt_component_lib mqtt COMPONENT_LIB)

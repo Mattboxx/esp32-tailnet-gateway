@@ -1,5 +1,35 @@
 # Maintainer continuation
 
+## Current handover — 3.0.17-beta.1 audit candidate
+
+Local branch `fix/audit-3.0.17` contains source fixes from the November audit.
+ESP-IDF 5.5.6 is pinned to the pioarduino archive with its digest documented
+in PlatformIO. MicroLink has a local commit that requires DERP TLS validation.
+The NVS layout and OTA application identity are unchanged. NVS initialization
+or journal recovery failure stops startup without erasing settings. A pending
+OTA is kept selected in that state to avoid rebooting into a legacy image that
+could erase the same NVS. Recovery then requires serial diagnostics and backup.
+
+Before release: check physical NVS failure and downgrade, Wi-Fi and W5500
+failover, split DNS, Telegram live target/permission change and independent
+Tailnet paths. The ignored build checkpoint records exact artifacts and tests.
+Publish the MicroLink commit before the parent only with release authorization.
+
+## Current handover — per-integration recovery controls
+
+On branch `fix/recovery-command-controls`, Device Registry links to the
+integration controls, separated from the monitoring save by standard spacing.
+Telegram and ntfy command modes are off, basic, or basic plus verified recovery.
+MQTT has its own verified-recovery permission. Existing command polling,
+chat/topic restrictions, info options and saved-device checks still apply.
+
+An absent `ops_recovery` key inherits the old shared bit. The first
+channel-specific permission save persists all three effective permissions
+together, changing only the selected channel. An invalid record denies remote
+recovery. Firmware rollback to 3.0.16 reads its old shared bit. Use the retained
+settings copy for full configuration rollback. Validate migration and
+independent grant/revocation on physical hardware before a release.
+
 ## Current handover — Health & Resources layout (local)
 
 Based on published Main at ca7649aca66da0b4b4a6c82ea65b7c0241201f06.

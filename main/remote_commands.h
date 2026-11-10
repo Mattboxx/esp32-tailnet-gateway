@@ -14,6 +14,10 @@
 #include <stddef.h>
 
 typedef enum {
+    OPS_RECOVERY_LOCAL, OPS_RECOVERY_MQTT, OPS_RECOVERY_NTFY, OPS_RECOVERY_TELEGRAM
+} ops_recovery_origin_t;
+
+typedef enum {
     REMOTE_CMD_NONE,    /* not a command: ignore, count nothing */
     REMOTE_CMD_INFO,    /* the caller sends remote_info_text() */
     REMOTE_CMD_OK,      /* done; reply/title describe it */
@@ -21,7 +25,7 @@ typedef enum {
 } remote_cmd_kind_t;
 
 remote_cmd_kind_t remote_command_run(const char *message, bool info_enabled, bool allow_direct_mac,
-                                     char *reply, size_t cap, const char **title);
+                                     ops_recovery_origin_t origin, char *reply, size_t cap, const char **title);
 
 /* Heap text of the info reply (about 8 KB at most); the caller frees it.
  * Never contains passwords, Wi-Fi keys, Tailscale keys or service tokens. */

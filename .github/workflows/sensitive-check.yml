@@ -20,11 +20,11 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           submodules: recursive
-      - name: Pinned ESP-IDF 5.5.3 lwIP for real packet-path regressions
+      - name: Pinned ESP-IDF 5.5.6 lwIP for real packet-path regressions
         uses: actions/checkout@v7
         with:
           repository: espressif/esp-lwip
-          ref: fd432e4ee2cfb7f7f1c7eb7227e0173412e7b84e
+          ref: c6f2f878e7b0f86033214b85547d579be43351e3
           path: .test-deps/esp-lwip
           persist-credentials: false
       - name: Install scanner dependency
@@ -32,27 +32,27 @@ jobs:
           python3 -m pip install PyYAML==6.0.2
           sudo apt-get update
           sudo apt-get install -y libcjson-dev
-      - name: Pinned ESP-IDF 5.5.3 MQTT task ownership regressions
+      - name: Pinned ESP-IDF 5.5.6 MQTT task ownership regressions
         uses: actions/checkout@v7
         with:
           repository: espressif/esp-mqtt
-          ref: 6af4446a48ea7fa54948edc4e62277ed70abb6e1
+          ref: 0e9ec171b448db2101ea537300976b7ffe595941
           path: .test-deps/esp-mqtt
           persist-credentials: false
-      - name: Espressif mbedTLS 3.6.5 for first-boot setup crypto regressions (AES-GCM/SHA-256 only)
+      - name: Espressif mbedTLS for first-boot setup crypto regressions (AES-GCM/SHA-256 only)
         uses: actions/checkout@v7
         with:
           repository: espressif/mbedtls
-          ref: c3db4124ce35e6a698019bd62a281f16ddb677a6
+          ref: 2b96dd8eebe880f304c69976b3c2fa0c5100cbb6
           path: .test-deps/mbedtls
           persist-credentials: false
       - name: Independent client crypto for first-boot setup regressions
         run: python3 -m pip install cryptography==44.0.2
-      - name: Pinned ESP-IDF 5.5.3 partition generator for migration regressions
+      - name: Pinned ESP-IDF 5.5.6 partition generator for migration regressions
         uses: actions/checkout@v7
         with:
           repository: espressif/esp-idf
-          ref: 2c211b236707889e8400c4dc5644dd5c4ee071e0
+          ref: 880a203ae603d08a94d06aa01e0d6761958e5e9e
           sparse-checkout: |
             components/partition_table
             components/mbedtls/esp_crt_bundle

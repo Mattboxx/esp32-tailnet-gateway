@@ -69,7 +69,7 @@ static bool wol_parse_mac(const char *s,uint8_t out[6]){(void)s;(void)out;return
 static int wol_count(void){return 0;}
 static bool wol_get(int i,wol_device_t *d){(void)i;(void)d;return false;}
 static void wol_format_mac(const uint8_t mac[6],char out[18]){(void)mac;strcpy(out,"00:00:00:00:00:01");}
-static int homelab_ops_command(const char *s,bool wake){(void)s;(void)wake;return ESP_FAIL;}
+static int homelab_ops_command(const char *s,bool wake,ops_recovery_origin_t origin){(void)s;(void)wake;assert(origin==OPS_RECOVERY_NTFY);return ESP_FAIL;}
 static const char *esp_err_to_name(esp_err_t e) { (void)e; return "fixture error"; }
 '''
 boot_fixture = r'''

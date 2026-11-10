@@ -37,13 +37,13 @@ const notify = {
       return json({});
     });
     await page.goto('http://esp32.test/#automation/notifications');
-    await page.waitForFunction(() => document.getElementById('nt-tg-cmd') && document.getElementById('nt-tg-cmd').checked);
+    await page.waitForFunction(() => document.getElementById('nt-tg-cmd').value === 'basic');
     const v = await page.evaluate(() => ({
-      cmd: document.getElementById('nt-tg-cmd').checked, down: document.getElementById('nt-tg-cmd-down').checked,
+      cmd: document.getElementById('nt-tg-cmd').value, down: document.getElementById('nt-tg-cmd-down').checked,
       info: document.getElementById('nt-tg-cmd-info').checked, details: document.getElementById('nt-tg-cmd-details').checked,
       mac: document.getElementById('nt-tg-cmd-mac').checked, poll: document.getElementById('nt-tg-cmd-poll').value,
       status: document.getElementById('nt-tg-status').textContent }));
-    assert.deepEqual([v.cmd, v.down, v.info, v.details, v.mac, v.poll], [true, false, true, false, false, '20']);
+    assert.deepEqual([v.cmd, v.down, v.info, v.details, v.mac, v.poll], ['basic', false, true, false, false, '20']);
     assert.match(v.status, /commands on: 4 run, 1 refused, 2 from other chats ignored/);
 
     /* invalid interval: not saved */
@@ -55,6 +55,7 @@ const notify = {
 
     /* valid change: every option sent under telegram.commands */
     await page.fill('#nt-tg-cmd-poll', '30');
+    await page.selectOption('#nt-tg-cmd','recovery');
     await page.check('#nt-tg-cmd-mac', { force: true });
     await page.check('#nt-tg-cmd-down', { force: true });
     await page.click('#nt-tg-save');
@@ -62,7 +63,7 @@ const notify = {
     await page.waitForTimeout(400);
     assert.equal(posts.length, 1);
     const t = posts[0].telegram;
-    assert.deepEqual(t.commands, { enabled: true, only_when_tailscale_down: true, allow_direct_mac: true, info_enabled: true,
+    assert.deepEqual(t.commands, { enabled: true, allow_recovery: true, only_when_tailscale_down: true, allow_direct_mac: true, info_enabled: true,
                                    info_include_details: false, poll_interval_seconds: 30 });
     assert.equal(t.chat, '42'); assert.equal(t.token, '');
 

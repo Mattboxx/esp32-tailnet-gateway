@@ -8,6 +8,7 @@
 #include "esp_err.h"
 #include "esp_http_server.h"
 #include "wol.h"
+#include "remote_commands.h"
 #include "cJSON.h"
 
 typedef struct {
@@ -40,12 +41,18 @@ bool homelab_ops_device(int index,ops_device_t *out);
 esp_err_t homelab_ops_set_device(int index,const ops_device_t *profile);
 void homelab_ops_settings(ops_settings_t *out);
 esp_err_t homelab_ops_set_settings(const ops_settings_t *settings);
-esp_err_t homelab_ops_request(int index,bool wake,bool remote);
+esp_err_t homelab_ops_request(int index,bool wake,ops_recovery_origin_t origin);
 esp_err_t homelab_ops_cancel(void);
 /* Coalesced closure event: no names/addresses/credentials; no packet-path I/O. */
 void homelab_ops_service_closed(unsigned count);
 /* MAC-address selectors prevent a reordered address book retargeting a command. */
-esp_err_t homelab_ops_command(const char *selector,bool wake);
+esp_err_t homelab_ops_command(const char *selector,bool wake,ops_recovery_origin_t origin);
+/* The legacy shared permission is used until the first channel-specific save. */
+bool homelab_ops_recovery_allowed(ops_recovery_origin_t origin);
+/* Stage inside the integration's settings transaction, publish after commit.
+ * choice: -1 keeps the current permission; 0 denies; 1 allows. */
+esp_err_t homelab_ops_stage_recovery(ops_recovery_origin_t origin,int choice,uint8_t *staged);
+void homelab_ops_publish_recovery(uint8_t staged);
 /* Local JSON: detailed contains saved targets; sanitized never includes them. */
 cJSON *homelab_ops_snapshot(bool detailed);
 cJSON *homelab_ops_capabilities(void);

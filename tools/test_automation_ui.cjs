@@ -911,8 +911,7 @@ async function main() {
     await f.page.waitForFunction(()=>!document.getElementById('ops-settings-save').disabled);
     assert.equal(await f.page.locator('#ops-guard').isHidden(),true);
     assert.equal(await f.page.locator('.card:has(#ops-devices) #ops-monitoring').count(),1);
-    await f.page.getByText('Remote recovery',{exact:true}).click();
-    await f.page.locator('label:has(#ops-remote)').click();
+    assert.equal(await f.page.locator('#ops-remote').count(),0);
     await f.page.locator('label:has(#ops-monitoring)').click();
     await f.page.locator('#ops-interval').fill('300');
     await f.page.locator('#ops-settings-save').click();
@@ -920,14 +919,9 @@ async function main() {
     assert.equal(f.state.savedOperation.monitoring,false);
     assert.equal(f.state.savedOperation.interval_s,300);
     assert.equal(f.state.savedOperation.remote_commands,false);
-    assert.equal(await f.page.locator('#ops-remote').isChecked(),true);
     assert.equal(await f.page.locator('.ops-monitor-paused').nth(0).isVisible(),true);
     assert.equal(await f.page.locator('.ops-monitor-paused').nth(1).isHidden(),true);
     assert.equal(await f.page.getByText('Monitor this device',{exact:true}).nth(0).locator('..').locator('input').isChecked(),true);
-    await f.page.locator('#ops-remote-save').click();
-    await f.page.waitForFunction(()=>document.getElementById('ops-remote-save-status').textContent==='Settings saved.');
-    assert.equal(f.state.savedOperation.remote_commands,true);
-    assert.equal(f.state.savedOperation.monitoring,false);
     await f.page.evaluate(()=>location.hash='#network/services');
     await f.page.locator('#temporary-access summary').click();
     await f.page.waitForFunction(()=>!document.getElementById('ops-lease-save').disabled);
@@ -935,8 +929,21 @@ async function main() {
     await f.page.locator('#ops-lease-save').click();
     await f.page.waitForFunction(()=>document.getElementById('ops-lease-save-status').textContent==='Settings saved.');
     assert.equal(f.state.savedOperation.lease_notifications,true);
-    assert.equal(f.state.savedOperation.remote_commands,true);
+    assert.equal(f.state.savedOperation.remote_commands,false);
     assert.equal(f.state.savedOperation.monitoring,false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    f=await fixture(browser,{page:'automation/notifications',ntfyBody:{...ntfy,allow_recovery:false}});
+    await f.page.waitForFunction(()=>document.getElementById('ntfy-commands').value==='basic');
+    await f.page.selectOption('#ntfy-commands','recovery');
+    await f.page.click('#ntfy-save');
+    await f.page.waitForFunction(()=>document.getElementById('ntfy-save').disabled);
+    assert.equal(f.state.savedNtfy.commands_enabled,true);
+    assert.equal(f.state.savedNtfy.allow_recovery,true);
+    await f.page.selectOption('#ntfy-commands','off');
+    await f.page.click('#ntfy-save');
+    await f.page.waitForFunction(()=>document.getElementById('ntfy-save').disabled);
+    assert.equal(f.state.savedNtfy.commands_enabled,false);
+    assert.equal(f.state.savedNtfy.allow_recovery,false);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // A running check is followed live: badges and the job line update without
     // a reload, unsaved edits stay, and polling stops when the job ends.

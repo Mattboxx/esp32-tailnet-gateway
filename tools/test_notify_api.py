@@ -15,6 +15,15 @@ handlers = source[source.index('static bool copy_string('):source.index('static 
 fixture = r'''
 #include "cJSON.h"
 #include "json_guard.h"
+#include "remote_commands.h"
+static int homelab_ops_stage_recovery(ops_recovery_origin_t origin,int choice,uint8_t *staged){
+    (void)origin;(void)choice;(void)staged;
+    assert(!"An update without allow_recovery must preserve recovery permissions");
+    return -1;
+}
+static void homelab_ops_publish_recovery(uint8_t staged){assert(!staged);}
+static int nvs_param_txn_begin(void){return ESP_OK;}
+static int nvs_param_txn_end(bool keep){(void)keep;return ESP_OK;}
 #define portMAX_DELAY 0
 #define MALLOC_CAP_SPIRAM 0
 typedef struct {const char *body;int content_len,offset,status;bool authorized;} httpd_req_t;
@@ -44,7 +53,8 @@ static int tg_set, tg_refresh, tg_set_error;
 void telegram_commands_get_config(telegram_commands_config_t *c){*c=tg_cmd;}
 void telegram_commands_get_status(telegram_commands_status_t *s){memset(s,0,sizeof *s);}
 bool telegram_commands_config_valid(const telegram_commands_config_t *c){return c&&c->poll_interval_seconds>=5&&c->poll_interval_seconds<=300;}
-esp_err_t telegram_commands_set_config(const telegram_commands_config_t *c){if(tg_set_error)return ESP_FAIL;tg_cmd=*c;tg_set++;return ESP_OK;}
+esp_err_t telegram_commands_store_config(const telegram_commands_config_t *c){(void)c;return tg_set_error?ESP_FAIL:ESP_OK;}
+void telegram_commands_apply_config(const telegram_commands_config_t *c){tg_cmd=*c;tg_set++;tg_refresh++;}
 void telegram_commands_refresh(void){tg_refresh++;}
 '''
 tests = r'''

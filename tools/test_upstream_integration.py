@@ -53,7 +53,8 @@ class UpstreamIntegrationTests(unittest.TestCase):
     def test_network_limits_and_ui(self):
         defaults = self.text("sdkconfig.defaults")
         self.assertIn("CONFIG_LWIP_MAX_SOCKETS=31", defaults)
-        self.assertIn("platform = espressif32@6.13.0", self.text("platformio.ini"))
+        self.assertIn("framework-espidf @ https://github.com/pioarduino/esp-idf/releases/download/v5.5.6/esp-idf-v5.5.6.tar.xz",
+                      self.text("platformio.ini"))
         self.assertIn("CONFIG_LWIP_MAX_ACTIVE_TCP=24", defaults)
         self.assertIn("CONFIG_LWIP_TCP_OOSEQ_MAX_PBUFS=4", defaults)
         self.assertIn("#define TS_MTU_TAILSCALE       1280", self.text("main/tailscale_mtu.h"))

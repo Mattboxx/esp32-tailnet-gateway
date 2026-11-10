@@ -10,7 +10,7 @@ h = (ROOT / 'main/mqtt_integration.h').read_text(encoding='utf-8')
 w = (ROOT / 'main/web_ui.c').read_text(encoding='utf-8')
 config = 'typedef struct {' + h.split('typedef struct {', 1)[1].split('} mqtt_integration_config_t;', 1)[0] + '} mqtt_integration_config_t;\n'
 load = s[s.index('static void config_defaults'):s.index('static int publish(')]
-save = s[s.index('esp_err_t mqtt_integration_set_config('):s.index('bool mqtt_integration_connected(')]
+save = s[s.index('esp_err_t mqtt_integration_set_config_recovery('):s.index('bool mqtt_integration_connected(')]
 api = w[w.index('static esp_err_t mqtt_save_handler('):w.index('static const httpd_uri_t uri_mqtt =')]
 program = r'''
 #include <assert.h>
@@ -20,6 +20,16 @@ program = r'''
 #include <stdlib.h>
 #include <string.h>
 #include "json_guard.h"
+#include "remote_commands.h"
+static bool recovery_failure,recovery_allowed;
+static int homelab_ops_stage_recovery(ops_recovery_origin_t origin,int choice,uint8_t *staged){
+    assert(origin==OPS_RECOVERY_MQTT);
+    *staged=0;
+    if(choice==-1)return 0;
+    if(recovery_failure)return -1;
+    *staged=choice?2:1;return 0;
+}
+static void homelab_ops_publish_recovery(uint8_t staged){if(staged)recovery_allowed=staged==2;}
 typedef int esp_err_t;
 #define ESP_OK 0
 #define ESP_FAIL -1
@@ -82,6 +92,13 @@ int main(void){
  httpd_req_t on={"{\"poweron_events\":true}",true,200};mqtt_save_handler(&on);assert(on.status==200&&s_config.poweron_events&&stored_power==1);
  httpd_req_t legacy={"{}",true,200};mqtt_save_handler(&legacy);assert(legacy.status==200&&s_config.poweron_events); /* omitted keeps current */
  httpd_req_t off={"{\"poweron_events\":false}",true,200};mqtt_save_handler(&off);assert(off.status==200&&!s_config.poweron_events&&stored_power==0);
+ httpd_req_t rec={"{\"allow_recovery\":true,\"poweron_events\":true}",true,200};
+ recovery_failure=true;mqtt_save_handler(&rec);
+ assert(rec.status==500&&!s_config.poweron_events&&!stored_power&&!recovery_allowed);
+ recovery_failure=false;rec.status=200;mqtt_save_handler(&rec);
+ assert(rec.status==200&&s_config.poweron_events&&stored_power==1&&recovery_allowed);
+ httpd_req_t invalid_interval={"{\"interval_seconds\":1.5}",true,200};
+ mqtt_save_handler(&invalid_interval);assert(invalid_interval.status==400);
  puts("PASS: actual MQTT load/store/API, absent/invalid key OFF, all NVS write faults and commit failure keep RAM/state, strict authenticated bool, omitted flag retained, config496B");
 }
 '''

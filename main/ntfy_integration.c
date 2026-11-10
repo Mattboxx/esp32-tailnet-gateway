@@ -25,6 +25,7 @@
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
+#include "eth_uplink.h"
 #include "esp_netif.h"
 #include "esp_system.h"
 #include "esp_timer.h"
@@ -212,14 +213,7 @@ static NTFY_NOINLINE esp_err_t save_state(const ntfy_integration_config_t *c,
     strlcpy(saved.topic, c->topic, sizeof saved.topic);
     strlcpy(saved.token, c->token, sizeof saved.token);
     strlcpy(saved.cursor, cursor, sizeof saved.cursor);
-    nvs_handle_t nvs;
-    esp_err_t err = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &nvs);
-    if (err == ESP_OK) {
-        err = nvs_set_blob(nvs, "ntfy_state_v1", &saved, sizeof saved);
-        if (err == ESP_OK) err = nvs_commit(nvs);
-        nvs_close(nvs);
-    }
-    return err;
+    return nvs_param_set_blob("ntfy_state_v1", &saved, sizeof saved);
 }
 
 static void load_state(ntfy_integration_config_t *c)
@@ -532,7 +526,7 @@ static esp_err_t wake_argument(bool allow_direct_mac, const char *argument)
 
 /* One remote command, shared by ntfy and Telegram (remote_commands.h). */
 remote_cmd_kind_t remote_command_run(const char *message, bool info_enabled, bool allow_direct_mac,
-                                     char *reply, size_t cap, const char **title)
+                                     ops_recovery_origin_t origin, char *reply, size_t cap, const char **title)
 {
     if (reply && cap) reply[0] = '\0';
     if (title) *title = NULL;
@@ -551,10 +545,10 @@ remote_cmd_kind_t remote_command_run(const char *message, bool info_enabled, boo
     if (strncasecmp(message,"recover ",8)==0 || strncasecmp(message,"check ",6)==0) {
         bool wake=strncasecmp(message,"recover ",8)==0;
         const char *selector=message+(wake?8:6);uint8_t mac[6];
-        if(wol_parse_mac(selector,mac))err=homelab_ops_command(selector,wake);
+        if(wol_parse_mac(selector,mac))err=homelab_ops_command(selector,wake,origin);
         else for(int i=0;i<wol_count();i++){
             wol_device_t d;if(wol_get(i,&d)&&d.name[0]&&!strcasecmp(selector,d.name)){
-                char address[18];wol_format_mac(d.mac,address);err=homelab_ops_command(address,wake);break;
+                char address[18];wol_format_mac(d.mac,address);err=homelab_ops_command(address,wake,origin);break;
             }
         }
         if (title) *title = "ESP32 recovery response";
@@ -575,7 +569,7 @@ static NTFY_NOINLINE void handle_command(const ntfy_integration_config_t *c, con
     char reply[160];
     const char *title = NULL;
     remote_cmd_kind_t kind = remote_command_run(message, c->info_enabled, c->allow_direct_mac,
-                                                reply, sizeof reply, &title);
+                                                OPS_RECOVERY_NTFY, reply, sizeof reply, &title);
     if (kind == REMOTE_CMD_NONE) return;
     esp_err_t err = kind == REMOTE_CMD_OK ? ESP_OK : ESP_FAIL;
     if (kind == REMOTE_CMD_INFO) err = send_info(c);
@@ -720,9 +714,9 @@ static NTFY_NOINLINE bool poll_commands(const ntfy_integration_config_t *c)
 
 static bool uplink_connected(void)
 {
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_t *sta = eth_uplink_service_netif();
     esp_netif_ip_info_t ip = {0};
-    return sta && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr != 0;
+    return sta && esp_netif_is_netif_up(sta) && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr != 0;
 }
 
 static NTFY_NOINLINE esp_err_t send_tailscale_alert(const ntfy_integration_config_t *c)
@@ -879,10 +873,12 @@ void ntfy_integration_get_status(ntfy_integration_status_t *out)
     out->stack_min_free_bytes = s_task ? uxTaskGetStackHighWaterMark(s_task) : 0;
 }
 
-esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *c)
+esp_err_t ntfy_integration_set_config_recovery(const ntfy_integration_config_t *c,int recovery)
 {
     if (!config_valid(c)) return ESP_ERR_INVALID_ARG;
     if (!s_lock || !s_task) return ESP_ERR_INVALID_STATE;
+    esp_err_t e=nvs_param_txn_begin();
+    if(e!=ESP_OK)return e;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     bool endpoint_changed = strcmp(s_config.server, c->server) != 0
                          || strcmp(s_config.topic, c->topic) != 0;
@@ -893,17 +889,25 @@ esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *c)
     uint8_t flags = ntfy_events_options(c->system_events, c->poweron_events);
     uint8_t old_flags = ntfy_events_options(s_config.system_events, s_config.poweron_events);
     bool events_changed = flags != old_flags;
-    esp_err_t e = events_changed ? nvs_param_set_u8("ntfy_sysev", flags) : ESP_OK;
-    if (e != ESP_OK) {xSemaphoreGive(s_lock); return e;}
-    e = save_state(c, endpoint_changed ? "" : s_last_event_id);
-    if (e != ESP_OK && events_changed) (void)nvs_param_set_u8("ntfy_sysev", old_flags);
+    uint8_t staged=0;
+    if(events_changed)e=nvs_param_set_u8("ntfy_sysev",flags);
+    if(e==ESP_OK)e=save_state(c,endpoint_changed ? "" : s_last_event_id);
+    if(e==ESP_OK)e=homelab_ops_stage_recovery(OPS_RECOVERY_NTFY,recovery,&staged);
+    esp_err_t end=nvs_param_txn_end(e==ESP_OK);
+    if(e==ESP_OK)e=end;
     if (e == ESP_OK) {
         memcpy(&s_config, c, sizeof *c);
+        homelab_ops_publish_recovery(staged);
         s_config_generation++;
         if (endpoint_changed) s_last_event_id[0] = '\0';
     }
     xSemaphoreGive(s_lock);
     return e;
+}
+
+esp_err_t ntfy_integration_set_config(const ntfy_integration_config_t *c)
+{
+    return ntfy_integration_set_config_recovery(c,-1);
 }
 
 esp_err_t ntfy_integration_send_test(void)
