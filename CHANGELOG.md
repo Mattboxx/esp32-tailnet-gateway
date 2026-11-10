@@ -6,6 +6,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.16] - 2026-11-10
+
+### Changed
+
+- Device monitoring settings now appear in Device Registry. Selected devices show when global monitoring is paused.
+- Remote recovery commands, temporary-access expiry notifications and resource guard controls are grouped with their respective functions and saved separately.
+
 ## [3.0.15] - 2026-11-10
 
 ### Fixed
