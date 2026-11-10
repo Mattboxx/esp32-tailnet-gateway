@@ -296,17 +296,21 @@ static bool wifi_apply_eap(const wifi_network_t *n)
     /* About to install EAP credentials; clear any leftover state from
      * a previous EAP session for a different SSID first. */
     esp_wifi_sta_enterprise_disable();
+    s_eap_active = false;
     if (n->eap_username[0] == '\0') {
-        ESP_LOGW("WiFi Sta", "EAP requested for '%s' but no username — falling back to PSK", n->ssid);
+        ESP_LOGW("WiFi Sta", "Enterprise Wi-Fi requires a username");
         return false;
     }
 
     /* Outer identity defaults to the username when blank — what eduroam-
      * style setups expect when there's no anonymous-identity policy. */
     const char *outer = n->eap_identity[0] ? n->eap_identity : n->eap_username;
-    esp_eap_client_set_identity((const uint8_t *)outer, strlen(outer));
-    esp_eap_client_set_username((const uint8_t *)n->eap_username, strlen(n->eap_username));
-    esp_eap_client_set_password((const uint8_t *)n->eap_password, strlen(n->eap_password));
+    if (esp_eap_client_set_identity((const uint8_t *)outer, strlen(outer)) != ESP_OK ||
+        esp_eap_client_set_username((const uint8_t *)n->eap_username, strlen(n->eap_username)) != ESP_OK ||
+        esp_eap_client_set_password((const uint8_t *)n->eap_password, strlen(n->eap_password)) != ESP_OK) {
+        ESP_LOGE("WiFi Sta", "Could not configure Enterprise Wi-Fi credentials");
+        return false;
+    }
 
     if (n->eap_method == WIFI_EAP_PEAP || n->eap_method == WIFI_EAP_TTLS) {
         switch (n->eap_phase2) {
@@ -328,16 +332,15 @@ static bool wifi_apply_eap(const wifi_network_t *n)
     }
 
 #ifdef CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
-    if (n->eap_use_cert_bundle) {
-        esp_eap_client_use_default_cert_bundle(true);
+    if (esp_eap_client_use_default_cert_bundle(true) == ESP_OK &&
+        esp_wifi_sta_enterprise_enable() == ESP_OK) {
+        s_eap_active = true;
+        ESP_LOGI("WiFi Sta", "Enterprise Wi-Fi enabled with server certificate verification");
+        return true;
     }
 #endif
-
-    esp_wifi_sta_enterprise_enable();
-    s_eap_active = true;
-    ESP_LOGI("WiFi Sta", "EAP enabled for '%s' (method=%u phase2=%u outer='%s')",
-             n->ssid, (unsigned)n->eap_method, (unsigned)n->eap_phase2, outer);
-    return true;
+    ESP_LOGE("WiFi Sta", "Enterprise Wi-Fi requires server certificate verification");
+    return false;
 }
 
 /* Push a network entry (SSID/password + per-network static IP) into the
@@ -367,10 +370,10 @@ static void wifi_apply_entry(const wifi_network_t *entry, int idx)
             .sae_pwe_h2e        = WPA3_SAE_PWE_BOTH,
         },
     };
-    strlcpy((char *)cfg.sta.ssid, n.ssid, sizeof cfg.sta.ssid);
     bool ent = wifi_apply_eap(&n);
-    if (!ent) {
-        strlcpy((char *)cfg.sta.password, n.passwd, sizeof cfg.sta.password);
+    if (ent || n.eap_method == WIFI_EAP_DISABLED) {
+        strlcpy((char *)cfg.sta.ssid, n.ssid, sizeof cfg.sta.ssid);
+        if (!ent) strlcpy((char *)cfg.sta.password, n.passwd, sizeof cfg.sta.password);
     }
     esp_wifi_set_config(WIFI_IF_STA, &cfg);
 

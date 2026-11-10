@@ -119,10 +119,16 @@ int main(void){
     uint8_t out[64];
     static const uint8_t q[] = {0x12,0x34,1,0,0,1,0,0,0,0,0,0,3,'n','a','s',0,0,1,0,1};
     assert(tailnet_names_answer(NULL, 21, out, 64, peer, NULL) == 0 && tailnet_names_answer(q, 21, NULL, 64, peer, NULL) == 0);
-    assert(tailnet_names_answer(q, 21, out, 64, NULL, NULL) == 0 && tailnet_names_answer(q, 600, out, 64, peer, NULL) == 0);
+    assert(tailnet_names_answer(q, 21, out, 64, NULL, NULL) == 0 && tailnet_names_answer(q, 1025, out, 64, peer, NULL) == 0);
     calls = 0; static const uint8_t pub[] = {1,2,1,0,0,1,0,0,0,0,0,0,7,'e','x','a','m','p','l','e',3,'c','o','m',0,0,1,0,1};
     assert(tailnet_names_answer(pub, sizeof pub, out, 64, peer, NULL) == 0 && calls == 0);   /* one dot: no peer scan */
-    printf("tailnet names: %d cases ok\n", CASECOUNT);
+    assert(tailnet_names_private_zone("nas.tail1234.ts.net", NULL, ""));
+    assert(tailnet_names_private_zone("nas.vpn.example.org", NULL, "vpn.example.org"));
+    assert(!tailnet_names_private_zone("nas.other.example.org", NULL, "vpn.example.org"));
+    assert(tailnet_names_private_zone("vpn.example.org", "vpn.example.org", NULL));
+    assert(!tailnet_names_private_zone("nas.other.ts.net", "tail1234.ts.net", NULL));
+    assert(!tailnet_names_private_zone("nas.notvpn.example.org", NULL, "vpn.example.org"));
+    printf("tailnet names: %d cases and private zones ok\n", CASECOUNT);
     return 0;
 }
 '''.replace('CASECOUNT', str(len(CASES)))

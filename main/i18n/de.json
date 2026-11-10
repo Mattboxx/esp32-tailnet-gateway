@@ -1740,7 +1740,7 @@
  "Value required.": "Wert erforderlich.",
  "Verified — device rebooting…": "Geprüft – Gerät startet neu…",
  "Verify a host and its service, not just a sent magic packet.": "Einen Host und seinen Dienst prüfen, nicht nur ein gesendetes Magic Packet.",
- "Verify server certificate against the bundled Mozilla CA store": "Serverzertifikat mit dem mitgelieferten Mozilla-CA-Speicher prüfen",
+ "Enterprise Wi-Fi requires a server certificate trusted by the bundled CA store.": "Enterprise-WLAN erfordert ein Serverzertifikat, dem der integrierte CA-Speicher vertraut.",
  "Verifying the written 3.0 image": "Geschriebenes 3.0-Image wird geprüft",
  "WPA2 password is at least 8 characters.": "Das WPA2-Passwort muss mindestens 8 Zeichen haben.",
  "WPA2 password is at most 63 characters.": "Das WPA2-Passwort hat höchstens 63 Zeichen.",

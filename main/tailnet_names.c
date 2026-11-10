@@ -34,12 +34,25 @@ static int read_question(const uint8_t *q, int len, char *name, size_t cap, uint
 
 int tailnet_names_question(const uint8_t *q, int len, char name[TN_QNAME_MAX], uint16_t *type)
 {
-    if (!q || len < 17 || len > 512) return 0;
+    if (!q || len < 17 || len > 1024) return 0;
     /* A standard query with one question and no answers. */
     if ((q[2] & 0xF8) != 0 || q[4] != 0 || q[5] != 1 || q[6] || q[7] || q[8] || q[9]) return 0;
     uint16_t cls;
     int end = read_question(q, len, name, TN_QNAME_MAX, type, &cls);
     return end && cls == 1 ? end : 0;
+}
+
+static bool in_zone(const char *name, const char *zone)
+{
+    size_t n = strlen(name), z = strlen(zone);
+    return z && n >= z && !strcmp(name + n - z, zone) &&
+           (n == z || name[n - z - 1] == '.');
+}
+
+bool tailnet_names_private_zone(const char *name, const char *live_zone, const char *saved_zone)
+{
+    if (live_zone && *live_zone) return in_zone(name, live_zone);
+    return (saved_zone && in_zone(name, saved_zone)) || in_zone(name, "ts.net");
 }
 
 bool tailnet_names_match(const char *name, tn_peer_fn peer, void *ctx, uint32_t *ip_out, bool *in_domain)
@@ -185,11 +198,40 @@ int tailnet_names_parse_a(const uint8_t *r, int rlen, const uint8_t *query, int 
 #include "lwip/ip_addr.h"
 #include "lwip/api.h"
 #include <stdio.h>
+#include <stdlib.h>
 
 static bool s_enabled, s_lan;
 static volatile bool s_dnscfg, s_self;
 static volatile uint32_t s_uplink;
+static char s_saved_zone[ML_DNS_NAME_MAX];
+static portMUX_TYPE s_zone_lock = portMUX_INITIALIZER_UNLOCKED;
 static SemaphoreHandle_t s_query_sem;   /* one routed lookup of the gateway's own at a time */
+
+static bool private_name(const char *name)
+{
+    char self[ML_DNS_NAME_MAX], saved[ML_DNS_NAME_MAX];
+    const char *dot = ml_dns_self_name(self) ? strchr(self, '.') : NULL;
+    if (dot) return tailnet_names_private_zone(name, dot + 1, NULL);
+    taskENTER_CRITICAL(&s_zone_lock);
+    memcpy(saved, s_saved_zone, sizeof saved);
+    taskEXIT_CRITICAL(&s_zone_lock);
+    return tailnet_names_private_zone(name, NULL, saved);
+}
+
+void tailnet_names_remember_zone(void)
+{
+    char self[ML_DNS_NAME_MAX];
+    const char *dot = ml_dns_self_name(self) ? strchr(self, '.') : NULL;
+    if (!dot || !dot[1]) return;
+    const char *zone = dot + 1;
+    taskENTER_CRITICAL(&s_zone_lock);
+    bool changed = strcmp(s_saved_zone, zone) != 0;
+    taskEXIT_CRITICAL(&s_zone_lock);
+    if (!changed || nvs_param_set_str("tsn_zone", zone) != ESP_OK) return;
+    taskENTER_CRITICAL(&s_zone_lock);
+    strlcpy(s_saved_zone, zone, sizeof s_saved_zone);
+    taskEXIT_CRITICAL(&s_zone_lock);
+}
 
 /* Peers, then this gateway itself (its own MagicDNS name). */
 static bool next_peer(void *ctx, int index, char fqdn[TN_NAME_MAX], uint32_t *ip)
@@ -222,18 +264,22 @@ static bool extra_record(const char *name, uint32_t *ip)
 static int resolve(const uint8_t *q, int len, uint8_t *out, int cap)
 {
     microlink_t *ml = tailscale_get_microlink();
-    if (!ml) return 0;
     char name[TN_QNAME_MAX];
     uint16_t type;
     int end = tailnet_names_question(q, len, name, &type);
     if (!end) return 0;
     uint32_t ip = 0;
-    if (extra_record(name, &ip)) return tailnet_names_reply(q, end, out, cap, true, ip, type);
-    bool in_domain, found = tailnet_names_match(name, next_peer, ml, &ip, &in_domain);
+    if (ml && extra_record(name, &ip)) return tailnet_names_reply(q, end, out, cap, true, ip, type);
+    bool in_domain = false;
+    bool found = ml && tailnet_names_match(name, next_peer, ml, &ip, &in_domain);
     if (found || in_domain) return tailnet_names_reply(q, end, out, cap, found, ip, type);
-    /* A split-DNS route without resolvers is answered by MagicDNS only. */
-    if (s_dnscfg && ml_dns_route(name, NULL) == ML_DNS_ROUTE_LOCAL) return tailnet_names_reply(q, end, out, cap, false, 0, type);
-    return 0;
+    int split = ml && s_dnscfg ? ml_dns_route(name, NULL) : ML_DNS_ROUTE_NONE;
+    if (split == ML_DNS_ROUTE_LOCAL) return tailnet_names_reply(q, end, out, cap, false, 0, type);
+    if (split == ML_DNS_ROUTE_FWD || !private_name(name)) return 0;
+    /* During bootstrap use SERVFAIL so clients can retry after the netmap arrives. */
+    int reply = tailnet_names_reply(q, end, out, cap, false, 0, type);
+    if (reply > 0) out[3] = (out[3] & 0xf0) | 2;
+    return reply;
 }
 
 /* Upstream for a forwarded query: a split-DNS route's resolver, else the
@@ -269,6 +315,9 @@ const nvs_flags_t tailnet_names_ext_flags = {.record = "tsn_ext", .legacy = EXT_
 
 void tailnet_names_init(void)
 {
+    char *zone = nvs_param_get_str("tsn_zone");
+    if (zone && strlen(zone) < sizeof s_saved_zone) strlcpy(s_saved_zone, zone, sizeof s_saved_zone);
+    free(zone);
     uint8_t bits = nvs_flags_load(&tailnet_names_flags), ext = nvs_flags_load(&tailnet_names_ext_flags);
     s_enabled = bits & 1; s_lan = bits >> 1 & 1;
     s_dnscfg = ext & 1; s_self = ext >> 1 & 1;
@@ -278,7 +327,7 @@ void tailnet_names_init(void)
 void tailnet_names_uplink(uint32_t ip_nbo)
 {
     s_uplink = ip_nbo;
-    if (s_enabled && s_lan) dns_relay_set_lan(true, ip_nbo);
+    dns_relay_set_lan(s_enabled && s_lan, ip_nbo);
 }
 
 void tailnet_names_get(bool *enabled, bool *lan) {*enabled = s_enabled; *lan = s_lan;}
@@ -341,29 +390,31 @@ static int ask_resolver(uint32_t server, const char *name, uint32_t *ip)
  * the public resolver; everything else goes on as before. */
 int lwip_hook_netconn_external_resolve(const char *name, ip_addr_t *addr, u8_t addrtype, err_t *err)
 {
-    if (!s_self || !name || !addr || !err || addrtype == NETCONN_DNS_IPV6) return 0;
+    if (!s_self || !name || !addr || !err) return 0;
     microlink_t *ml = tailscale_get_microlink();
     char n[TN_QNAME_MAX];
     size_t l = strlen(name);
     while (l && name[l - 1] == '.') l--;
-    if (!ml || !l || l >= sizeof n) return 0;
+    if (!l || l >= sizeof n) return 0;
     for (size_t i = 0; i < l; i++) n[i] = lower(name[i]);
     n[l] = 0;
     uint32_t ip = 0, server = 0;
     bool in_domain = false;
-    int found = extra_record(n, &ip) || tailnet_names_match(n, next_peer, ml, &ip, &in_domain);
-    if (!found && !in_domain && s_dnscfg) {
+    bool found = ml && (extra_record(n, &ip) || tailnet_names_match(n, next_peer, ml, &ip, &in_domain));
+    if (!found && !in_domain && ml && s_dnscfg) {
         int kind = ml_dns_route(n, &server);
         if (kind == ML_DNS_ROUTE_LOCAL) in_domain = true;
         else if (kind == ML_DNS_ROUTE_FWD) {
+            if (addrtype == NETCONN_DNS_IPV6) {*err = ERR_VAL; return 1;}
             int r = ask_resolver(server, n, &ip);
             if (r < 0) {*err = ERR_TIMEOUT; return 1;}
             found = r;
             in_domain = true;
         }
     }
-    if (found) {ip_addr_set_ip4_u32(addr, ip); *err = ERR_OK; return 1;}
-    if (in_domain) {*err = ERR_VAL; return 1;}
+    if (found && addrtype != NETCONN_DNS_IPV6) {ip_addr_set_ip4_u32(addr, ip); *err = ERR_OK; return 1;}
+    if (found || in_domain) {*err = ERR_VAL; return 1;}
+    if (private_name(n)) {*err = ERR_TIMEOUT; return 1;}
     return 0;
 }
 

@@ -72,6 +72,20 @@ images. Review releases manually if that risk is unacceptable. No settings,
 keys or logs are uploaded, but GitHub sees the source public IP and generic
 User-Agent. See [update policy and validation limits](docs/UPDATES.md).
 
+## Wi-Fi Enterprise and MagicDNS (3.0.15)
+
+Enterprise profiles require server certificate verification with the built-in
+public CA bundle. This applies to existing profiles with the former
+verification toggle off. Check the RADIUS certificate chain and a recovery
+path before upgrading an Enterprise-only gateway. Private CA installation
+and a configured RADIUS hostname remain future work.
+
+MagicDNS remembers the last private DNS suffix learned from a connected
+netmap. During startup, known private zones and ts.net queries wait for the
+map when their resolver is unavailable. A new Headscale installation learns
+its custom suffix at its first successful connection. Forwarded DNS cache
+entries are scoped to the selected resolver and the current uplink/settings.
+
 ## ntfy transport boundary (1.10 development)
 
 Publishing and command polling do not follow redirects. Use the final server

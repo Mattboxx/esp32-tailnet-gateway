@@ -22,6 +22,7 @@
 #include "dns_relay.h"
 
 #include <string.h>
+#include <stdatomic.h>
 #include <errno.h>
 
 #include "freertos/FreeRTOS.h"
@@ -107,7 +108,8 @@ typedef struct {
     struct sockaddr_in client;
     socklen_t          client_len;
     bool               lan;            /* reply through the LAN listener */
-    uint32_t           upstream;       /* chosen per query (route), 0 = usual */
+    uint32_t           upstream;       /* effective resolver selected by the listener */
+    uint32_t           cache_epoch;
     int                qlen;
     uint8_t            q[DNS_RELAY_BUF_SIZE];
 } dns_work_t;
@@ -116,6 +118,8 @@ static QueueHandle_t s_workq = NULL;
 /* ---- SPIRAM direct-mapped response cache ---- */
 typedef struct {
     int64_t  expiry_us;                 /* esp_timer_get_time() deadline; 0 = empty slot */
+    uint32_t upstream;
+    uint32_t epoch;
     uint16_t key_len;
     uint16_t resp_len;
     uint8_t  key[DNS_CACHE_KEY_MAX];    /* question section (from offset 12): qname+qtype+qclass */
@@ -123,6 +127,7 @@ typedef struct {
 } dns_cache_entry_t;
 static dns_cache_entry_t *s_cache = NULL;       /* SPIRAM */
 static SemaphoreHandle_t  s_cache_mtx = NULL;
+static atomic_uint s_cache_epoch;
 
 /* Diagnostics counters. Unlocked: a torn increment only skews a stat by one,
  * which is irrelevant — the cache *data* is what the mutex protects. */
@@ -137,7 +142,8 @@ static uint32_t pick_upstream(void)
     esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     if (sta) {
         esp_netif_dns_info_t info = {0};
-        if (esp_netif_get_dns_info(sta, ESP_NETIF_DNS_MAIN, &info) == ESP_OK) {
+        if (esp_netif_get_dns_info(sta, ESP_NETIF_DNS_MAIN, &info) == ESP_OK &&
+            info.ip.type == ESP_IPADDR_TYPE_V4) {
             uint32_t a = info.ip.u_addr.ip4.addr;
             if (a != 0) return a;
         }
@@ -249,7 +255,8 @@ static uint32_t fnv1a(const uint8_t *d, int n)
 
 /* Look the question up. On hit, copies the response to out (*out_len set) and
  * rewrites the txid to the querying client's. Returns true on hit. */
-static bool cache_get(const uint8_t *q, int key_len, uint8_t *out, int *out_len)
+static bool cache_get(const uint8_t *q, int key_len, uint32_t upstream, uint32_t epoch,
+                      uint8_t *out, int *out_len)
 {
     if (!s_cache || !s_cache_mtx) return false;
     uint32_t slot = fnv1a(q + 12, key_len) % DNS_CACHE_ENTRIES;
@@ -257,6 +264,7 @@ static bool cache_get(const uint8_t *q, int key_len, uint8_t *out, int *out_len)
     xSemaphoreTake(s_cache_mtx, portMAX_DELAY);
     dns_cache_entry_t *e = &s_cache[slot];
     if (e->expiry_us != 0 && e->key_len == key_len &&
+        e->upstream == upstream && e->epoch == epoch &&
         esp_timer_get_time() < e->expiry_us &&
         memcmp(e->key, q + 12, key_len) == 0) {
         memcpy(out, e->resp, e->resp_len);
@@ -268,7 +276,7 @@ static bool cache_get(const uint8_t *q, int key_len, uint8_t *out, int *out_len)
     return hit;
 }
 
-static void cache_put(const uint8_t *q, int key_len,
+static void cache_put(const uint8_t *q, int key_len, uint32_t upstream, uint32_t epoch,
                       const uint8_t *resp, int resp_len, uint32_t ttl_s)
 {
     if (!s_cache || !s_cache_mtx) return;
@@ -280,6 +288,8 @@ static void cache_put(const uint8_t *q, int key_len,
     bool was_other = (e->expiry_us != 0 &&
                       !(e->key_len == key_len && memcmp(e->key, q + 12, key_len) == 0));
     e->expiry_us = esp_timer_get_time() + (int64_t)ttl_s * 1000000;
+    e->upstream  = upstream;
+    e->epoch     = epoch;
     e->key_len   = (uint16_t)key_len;
     memcpy(e->key, q + 12, key_len);
     e->resp_len  = (uint16_t)resp_len;
@@ -355,9 +365,8 @@ static void worker_task(void *arg)
         }
         if (up < 0) { heap_caps_free(w); continue; }
 
-        uint32_t upstream = w->upstream ? w->upstream : pick_upstream();
-        if (upstream == 0) {
-            ESP_LOGW(TAG, "no upstream DNS available; dropping query");
+        uint32_t upstream = w->upstream;
+        if (w->cache_epoch != atomic_load(&s_cache_epoch)) {
             heap_caps_free(w);
             continue;
         }
@@ -397,6 +406,10 @@ static void worker_task(void *arg)
             heap_caps_free(w);
             continue;
         }
+        if (w->cache_epoch != atomic_load(&s_cache_epoch)) {
+            heap_caps_free(w);
+            continue;
+        }
         rbuf[0] = client_id[0];
         rbuf[1] = client_id[1];
 
@@ -409,7 +422,7 @@ static void worker_task(void *arg)
         int kl = dns_is_std_query(w->q, w->qlen) ? dns_question_len(w->q, w->qlen) : 0;
         if (kl > 0) {
             uint32_t ttl = dns_resp_ttl(rbuf, rlen, kl);
-            if (ttl) cache_put(w->q, kl, rbuf, rlen, ttl);
+            if (ttl) cache_put(w->q, kl, upstream, w->cache_epoch, rbuf, rlen, ttl);
         }
         heap_caps_free(w);
     }
@@ -543,11 +556,18 @@ static void listener_task(void *arg)
             }
         }
 
-        /* Cache fast-path: serve repeats straight from SPIRAM, no worker. */
+        /* Select the resolver before checking the cache. A question may
+         * have a different answer after a split-DNS or uplink change. */
+        uint32_t epoch = atomic_load(&s_cache_epoch);
+        dns_relay_route_cb_t route = s_route_cb;
+        uint32_t upstream = route ? route(qbuf, qlen) : 0;
+        if (!upstream) upstream = pick_upstream();
+        if (!upstream) continue;
         int kl = dns_is_std_query(qbuf, qlen) ? dns_question_len(qbuf, qlen) : 0;
         if (kl > 0) {
             int rl = 0;
-            if (cache_get(qbuf, kl, cbuf, &rl)) {
+            if (cache_get(qbuf, kl, upstream, epoch, cbuf, &rl) &&
+                epoch == atomic_load(&s_cache_epoch)) {
                 st_hits++;
                 sendto(sock, cbuf, rl, 0, (struct sockaddr *)&client, client_len);
                 continue;
@@ -561,8 +581,8 @@ static void listener_task(void *arg)
         w->client     = client;
         w->client_len = client_len;
         w->lan        = from_lan;
-        dns_relay_route_cb_t route = s_route_cb;
-        w->upstream   = route ? route(qbuf, qlen) : 0;
+        w->upstream   = upstream;
+        w->cache_epoch = epoch;
         w->qlen       = qlen;
         memcpy(w->q, qbuf, qlen);
         if (xQueueSend(s_workq, &w, 0) != pdTRUE) {
@@ -705,9 +725,14 @@ void dns_relay_set_lan(bool on, uint32_t ip_nbo)
     s_lan_on = on;
     s_lan_nbo = ip_nbo;
     s_lan_dirty = true;
+    atomic_fetch_add(&s_cache_epoch, 1);
 }
 
 bool dns_relay_lan_listening(void) { return s_lan_sock >= 0; }
 
 void dns_relay_set_local_resolver(dns_relay_local_cb_t cb) { s_local_cb = cb; }
-void dns_relay_set_route(dns_relay_route_cb_t cb) { s_route_cb = cb; }
+void dns_relay_set_route(dns_relay_route_cb_t cb)
+{
+    s_route_cb = cb;
+    atomic_fetch_add(&s_cache_epoch, 1);
+}

@@ -1784,7 +1784,7 @@
  "Value required.": "必须填写值。",
  "Verified — device rebooting…": "已校验——设备正在重启…",
  "Verify a host and its service, not just a sent magic packet.": "验证主机及其服务，而不仅仅是发送魔术包。",
- "Verify server certificate against the bundled Mozilla CA store": "使用内置的 Mozilla CA 证书库验证服务器证书",
+ "Enterprise Wi-Fi requires a server certificate trusted by the bundled CA store.": "企业级 Wi-Fi 要求服务器使用内置 CA 证书库信任的证书。",
  "Verifying the written 3.0 image": "正在校验写入的 3.0 镜像",
  "WPA2 password is at least 8 characters.": "WPA2 密码至少 8 个字符。",
  "WPA2 password is at most 63 characters.": "WPA2 密码最多 63 个字符。",

@@ -6148,7 +6148,7 @@
           n.eap = {
             method:      eapMethod,
             phase2:      parseInt(row.querySelector('.net-eap-phase2').value, 10) || 0,
-            cert_bundle: row.querySelector('.net-eap-cb').checked,
+            cert_bundle: true,
             identity:    row.querySelector('.net-eap-id').value,
             username:    row.querySelector('.net-eap-un').value,
             has_password: (n.eap && n.eap.has_password) || !!eapPw
@@ -6229,11 +6229,7 @@
                   +     '</div>'
                   +   '</div>'
                   +   '<div class="form-group" style="margin:0;">'
-                  +     '<label class="feature-switch">'
-                  +       '<input type="checkbox" class="net-eap-cb"' + (eap.cert_bundle ? ' checked' : '') + '><span class="feature-switch-track" aria-hidden="true"></span>'
-                  +       '<span>Verify server certificate against the bundled Mozilla CA store</span>'
-                  +     '</label>'
-                  +     '<span class="form-hint">Off = trust the server unconditionally. Turn on for eduroam-class deployments that present a publicly-trusted RADIUS cert.</span>'
+                  +     '<span class="form-hint">Enterprise Wi-Fi requires a server certificate trusted by the bundled CA store.</span>'
                   +   '</div>'
                   + '</div>';
                 })()

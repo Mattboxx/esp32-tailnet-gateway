@@ -38,6 +38,9 @@ int tailnet_names_answer(const uint8_t *query, int len, uint8_t *out, int cap, t
 /* Question of a standard one-question query (lower case, no final dot);
  * the offset after it, or 0. */
 int tailnet_names_question(const uint8_t *q, int len, char name[TN_QNAME_MAX], uint16_t *type);
+/* Protect the live private zone, or the saved zone and ts.net before the netmap. */
+bool tailnet_names_private_zone(const char *name, const char *live_zone, const char *saved_zone);
+
 /* A peer (short or full name); `in_domain` tells an unknown name inside the
  * tailnet domain, which must never be forwarded. */
 bool tailnet_names_match(const char *name, tn_peer_fn peer, void *ctx, uint32_t *ip_nbo, bool *in_domain);
@@ -52,6 +55,7 @@ int tailnet_names_parse_a(const uint8_t *r, int rlen, const uint8_t *query, int 
 
 /* Firmware. */
 void tailnet_names_init(void);                 /* after dns_relay_init */
+void tailnet_names_remember_zone(void);        /* after a validated netmap */
 void tailnet_names_uplink(uint32_t ip_nbo);    /* uplink address, 0 when down */
 void tailnet_names_get(bool *enabled, bool *lan);
 esp_err_t tailnet_names_set(bool enabled, bool lan);   /* persist, then apply */
