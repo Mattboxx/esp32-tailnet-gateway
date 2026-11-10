@@ -6,6 +6,18 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.14] - 2026-11-09
+
+### Added
+
+- Settings search in all six interface languages.
+- MagicDNS for the gateway's own name, optional split DNS and extra records.
+- Status summary with uplink, tailnet, traffic rate and Client WiFi.
+
+### Fixed
+
+- The mobile page stays in place while the menu or settings search is open.
+
 ## [3.0.13] — 2026-11-08
 
 ### Changed
