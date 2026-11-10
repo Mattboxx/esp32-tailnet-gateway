@@ -103,6 +103,7 @@
  "Add at least one network with an SSID.": "请至少添加一个带 SSID 的网络。",
  "Add failed": "添加失败",
  "Add or edit MAC addresses in": "添加或编辑 MAC 地址，位置：",
+ "Add or edit MAC addresses in the Wake-on-LAN card above. Profiles remain linked to the saved MAC, not its row number. Checks use IPv4 DNS or cached Tailnet names. TCP connection success proves the selected port answered, not application health.": "请在上方的 Wake-on-LAN 卡片中添加或修改 MAC 地址。配置文件绑定到保存的 MAC，而不是行号。检查使用 IPv4 DNS 或缓存的 Tailnet 名称。TCP 连接成功只证明所选端口有响应，不代表应用健康。",
  "Add rule": "添加规则",
  "Add to denylist and kick — client cannot reassociate": "加入拒绝列表并踢出——客户端无法重新连接",
  "Added to the AP denylist immediately": "已立即加入 AP 拒绝列表",

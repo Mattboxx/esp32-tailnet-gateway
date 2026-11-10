@@ -21,6 +21,7 @@
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
+#include "eth_uplink.h"
 #include "esp_netif.h"
 #include "esp_ota_ops.h"
 #include "esp_system.h"
@@ -372,9 +373,10 @@ static void worker(void *unused)
         if (!requested && !due && !pending_auto) { xSemaphoreGive(s_lock); continue; }
         s_state.busy = true;
         xSemaphoreGive(s_lock);
-        esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-        if (!sta || !esp_netif_is_netif_up(sta)) {
-            status_set("Waiting for WiFi uplink");
+        esp_netif_t *sta = eth_uplink_service_netif();
+        esp_netif_ip_info_t ip = {0};
+        if (!sta || !esp_netif_is_netif_up(sta) || esp_netif_get_ip_info(sta,&ip) != ESP_OK || !ip.ip.addr) {
+            status_set("Waiting for an uplink");
             xSemaphoreTake(s_lock, portMAX_DELAY); s_state.busy = false; xSemaphoreGive(s_lock);
             continue;
         }

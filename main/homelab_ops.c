@@ -263,15 +263,24 @@ static bool recovery_allowed_locked(ops_recovery_origin_t origin) {
 bool homelab_ops_recovery_allowed(ops_recovery_origin_t origin) {
     homelab_ops_init();LOCK();bool allowed=recovery_allowed_locked(origin);UNLOCK();return allowed;
 }
-esp_err_t homelab_ops_set_recovery_allowed(ops_recovery_origin_t origin,bool allowed) {
+esp_err_t homelab_ops_stage_recovery(ops_recovery_origin_t origin,int choice,uint8_t *staged) {
+    *staged=0;
+    if(choice==-1)return ESP_OK;
     uint8_t bit=recovery_bit(origin);
-    if(!bit)return ESP_ERR_INVALID_ARG;
+    if(!bit || (choice!=0 && choice!=1))return ESP_ERR_INVALID_ARG;
     homelab_ops_init();LOCK();
     uint8_t mask=recovery_mask_locked();
-    uint8_t next=OPS_RECOVERY_EXPLICIT | (allowed ? mask|bit : mask&~bit);
+    uint8_t next=OPS_RECOVERY_EXPLICIT | (choice ? mask|bit : mask&~bit);
     esp_err_t err=next==recovery_permissions?ESP_OK:nvs_param_set_u8("ops_recovery",next);
-    if(err==ESP_OK)recovery_permissions=next;
+    if(err==ESP_OK)*staged=next;
     UNLOCK();return err;
+}
+void homelab_ops_publish_recovery(uint8_t staged) {
+    if(!staged)return;
+    LOCK();
+    recovery_permissions=staged;
+    if(active(job.state) && !recovery_allowed_locked(job.origin))job.cancel=true;
+    UNLOCK();
 }
 esp_err_t homelab_ops_request(int index,bool wake,ops_recovery_origin_t origin) {
     ops_device_t profile;wol_device_t device;
@@ -312,6 +321,7 @@ static int connect_probe(const ops_device_t *p,uint16_t port,uint32_t *latency) 
         microlink_t *ml=tailscale_get_microlink();uint32_t ip=ml?microlink_resolve(ml,p->target):0;
         if(ip)address.sin_addr.s_addr=htonl(ip);
         else{
+            if(p->reserved[0]==2)return -1; /* Tailnet scope never uses uplink DNS. */
             struct addrinfo hints={.ai_family=AF_INET,.ai_socktype=SOCK_STREAM},*answer=NULL;
             if(getaddrinfo(p->target,NULL,&hints,&answer)!=0 || !answer){if(answer)freeaddrinfo(answer);return -1;}
             address.sin_addr=((struct sockaddr_in*)answer->ai_addr)->sin_addr;freeaddrinfo(answer);
@@ -320,7 +330,7 @@ static int connect_probe(const ops_device_t *p,uint16_t port,uint32_t *latency) 
     uint32_t ip=ntohl(address.sin_addr.s_addr);
     if(!ip || (ip>>24)==127 || (ip>>24)>=224 || (ip>>24)==0)return -1;
     if(p->reserved[0]==1){
-        esp_netif_t *sta=esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");esp_netif_ip_info_t info={0};
+        esp_netif_t *sta=eth_uplink_service_netif();esp_netif_ip_info_t info={0};
         if(!sta || !esp_netif_is_netif_up(sta) || esp_netif_get_ip_info(sta,&info)!=ESP_OK
             || !info.ip.addr || (address.sin_addr.s_addr&info.netmask.addr)!=(info.ip.addr&info.netmask.addr))return -1;
     }else if(p->reserved[0]==2 && (!tailscale_is_connected() || (ip&0xffc00000u)!=0x64400000u))return -1;

@@ -63,6 +63,8 @@ bool telegram_commands_config_valid(const telegram_commands_config_t *c);
 void telegram_commands_init(void);
 void telegram_commands_get_config(telegram_commands_config_t *out);
 void telegram_commands_get_status(telegram_commands_status_t *out);
-esp_err_t telegram_commands_set_config(const telegram_commands_config_t *c);
+/* Both settings keys are staged in the caller's NVS transaction. */
+esp_err_t telegram_commands_store_config(const telegram_commands_config_t *c);
+void telegram_commands_apply_config(const telegram_commands_config_t *c);
 /* Called when the Telegram notification settings change. */
 void telegram_commands_refresh(void);

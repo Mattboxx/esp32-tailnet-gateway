@@ -72,11 +72,15 @@ int main(void){
     store.settings.remote_commands=1;
     assert(homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
     assert(homelab_ops_recovery_allowed(OPS_RECOVERY_TELEGRAM));
+    uint8_t staged=0;
     fault=1;
-    assert(homelab_ops_set_recovery_allowed(OPS_RECOVERY_NTFY,false)!=ESP_OK);
+    assert(homelab_ops_stage_recovery(OPS_RECOVERY_NTFY,0,&staged)!=ESP_OK);
+    assert(!staged);
     assert(homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
     fault=0;
-    assert(homelab_ops_set_recovery_allowed(OPS_RECOVERY_NTFY,false)==ESP_OK);
+    assert(homelab_ops_stage_recovery(OPS_RECOVERY_NTFY,0,&staged)==ESP_OK);
+    assert(homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
+    homelab_ops_publish_recovery(staged);
     recovery_permissions=saved_permissions; /* persisted byte after restart */
     assert(!homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
     assert(homelab_ops_recovery_allowed(OPS_RECOVERY_MQTT));
@@ -87,7 +91,8 @@ int main(void){
     job_t revoked=job;
     apply_probe_locked(&revoked,1,30);
     assert(job.state==J_CANCELLED);
-    assert(homelab_ops_set_recovery_allowed(OPS_RECOVERY_NTFY,true)==ESP_OK);
+    assert(homelab_ops_stage_recovery(OPS_RECOVERY_NTFY,1,&staged)==ESP_OK);
+    homelab_ops_publish_recovery(staged);
     assert(homelab_ops_recovery_allowed(OPS_RECOVERY_NTFY));
     assert(!homelab_ops_recovery_allowed((ops_recovery_origin_t)4));
     homelab_ops_service_closed(1);assert(service_closures==1&&event_publishes==1&&!event_notifies);
@@ -120,10 +125,10 @@ int main(void){
 '''
 with tempfile.TemporaryDirectory(prefix='ops-core-') as directory:
     path=Path(directory);program=path/'test.c';binary=path/('test.exe' if os.name=='nt' else 'test')
-    adapters='static ops_resources_t resources;\nstatic void homelab_ops_settings(ops_settings_t *out){*out=store.settings;}\nstatic void homelab_ops_resources(ops_resources_t *out){*out=resources;}\n'
+    adapters='static bool active(job_state_t s){return s>=J_PRECHECK&&s<=J_SERVICE;}\nstatic ops_resources_t resources;\nstatic void homelab_ops_settings(ops_settings_t *out){*out=store.settings;}\nstatic void homelab_ops_resources(ops_resources_t *out){*out=resources;}\n'
     program.write_text(fixture+woltype+types+globals+adapters+''.join(function(n) for n in (
         'static uint32_t checksum(', 'static bool valid_settings(', 'static bool valid_profile(',
-        'static void event_locked(', 'static esp_err_t save_locked(', 'void homelab_ops_service_closed(', 'static bool guard_allows(', 'bool homelab_ops_admit(', 'bool homelab_ops_guard_deferring(', 'static uint8_t recovery_bit(', 'static uint8_t recovery_mask_locked(', 'static bool recovery_allowed_locked(', 'bool homelab_ops_recovery_allowed(', 'esp_err_t homelab_ops_set_recovery_allowed(', 'static void finish_locked(', 'static void apply_probe_locked('))+body,encoding='utf-8')
+        'static void event_locked(', 'static esp_err_t save_locked(', 'void homelab_ops_service_closed(', 'static bool guard_allows(', 'bool homelab_ops_admit(', 'bool homelab_ops_guard_deferring(', 'static uint8_t recovery_bit(', 'static uint8_t recovery_mask_locked(', 'static bool recovery_allowed_locked(', 'bool homelab_ops_recovery_allowed(', 'esp_err_t homelab_ops_stage_recovery(', 'void homelab_ops_publish_recovery(', 'static void finish_locked(', 'static void apply_probe_locked('))+body,encoding='utf-8')
     flags=['-std=c11','-Wall','-Wextra','-Werror','-Wno-unused-variable','-Wno-misleading-indentation','-g','-I',str(ROOT/'main')]
     if os.environ.get('OPS_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     subprocess.run(['gcc',*flags,str(program),'-o',str(binary)],check=True)

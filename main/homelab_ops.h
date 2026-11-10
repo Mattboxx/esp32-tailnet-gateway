@@ -49,7 +49,10 @@ void homelab_ops_service_closed(unsigned count);
 esp_err_t homelab_ops_command(const char *selector,bool wake,ops_recovery_origin_t origin);
 /* The legacy shared permission is used until the first channel-specific save. */
 bool homelab_ops_recovery_allowed(ops_recovery_origin_t origin);
-esp_err_t homelab_ops_set_recovery_allowed(ops_recovery_origin_t origin,bool allowed);
+/* Stage inside the integration's settings transaction, publish after commit.
+ * choice: -1 keeps the current permission; 0 denies; 1 allows. */
+esp_err_t homelab_ops_stage_recovery(ops_recovery_origin_t origin,int choice,uint8_t *staged);
+void homelab_ops_publish_recovery(uint8_t staged);
 /* Local JSON: detailed contains saved targets; sanitized never includes them. */
 cJSON *homelab_ops_snapshot(bool detailed);
 cJSON *homelab_ops_capabilities(void);

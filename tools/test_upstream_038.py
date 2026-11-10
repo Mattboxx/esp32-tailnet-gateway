@@ -191,11 +191,11 @@ int main(void){
 ''')
 
 derp = (ML / 'src/ml_derp.c').read_text(encoding='utf-8')
-tls = '    bool verify_tls =' + derp.split('    bool verify_tls =', 1)[1].split('    mbedtls_ssl_conf_rng(', 1)[0]
+tls = '    const char *tls_name =' + derp.split('    const char *tls_name =', 1)[1].split('    mbedtls_ssl_conf_rng(', 1)[0]
 run('actual DERP TLS policy: trusted verification default, CertName and CA-attach failure without fallback', r'''
 #define MBEDTLS_SSL_VERIFY_REQUIRED 2
 #define MBEDTLS_SSL_VERIFY_NONE 0
-typedef struct {bool insecure_for_tests;char cert_name[80];} ml_derp_node_t;
+typedef struct {char cert_name[80];} ml_derp_node_t;
 typedef struct {struct {int ssl_conf;} derp;} microlink_t;
 static int mode,attach_error,attaches;
 static void mbedtls_ssl_conf_authmode(int *conf,int value){(void)conf;mode=value;}
@@ -211,8 +211,8 @@ int main(void){
  ml_derp_node_t node={0};strcpy(node.cert_name,"certificate.example");
  assert(!configure(&node,"relay.example")&&mode==2&&attaches==2);
  attach_error=1;assert(configure(&node,"relay.example")==-1&&mode==2);
- attach_error=0;node.insecure_for_tests=true;int before=attaches;
- assert(!configure(&node,"relay.example")&&mode==0&&attaches==before);
+ attach_error=0;int before=attaches;
+ assert(!configure(&node,"relay.example")&&mode==2&&attaches==before+1);
 }
 ''')
 

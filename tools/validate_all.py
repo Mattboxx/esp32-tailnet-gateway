@@ -58,12 +58,26 @@ def main():
     parser.add_argument('--only',help='Comma-separated driver stems, for targeted reruns')
     args=parser.parse_args()
     folder=ROOT/'build'/('validation-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f'));folder.mkdir(parents=True)
-    env=os.environ.copy();sdk=Path.home()/'.platformio/packages/framework-espidf@3.50503.0/components'
-    if sdk.is_dir():
+    env=os.environ.copy()
+    packages=Path.home()/'.platformio/packages'
+    sdk=None
+    for package in sorted(packages.glob('framework-espidf*')):
+        version_file=package/'tools/cmake/version.cmake'
+        if not version_file.is_file():
+            continue
+        version=version_file.read_text(encoding='utf-8')
+        if all(f'set(IDF_VERSION_{key} {value})' in version
+               for key,value in (('MAJOR',5),('MINOR',5),('PATCH',6))):
+            sdk=package/'components'
+            break
+    if sdk and sdk.is_dir():
         env.setdefault('CJSON_SOURCE',str(sdk/'json/cJSON/cJSON.c'))
         env.setdefault('LWIP_SOURCE',str(sdk/'lwip/lwip'))
         env.setdefault('MQTT_SOURCE',str(sdk/'mqtt/esp-mqtt/mqtt_client.c'))
         env.setdefault('MBEDTLS_DIR',str(sdk/'mbedtls/mbedtls'))
+        env.setdefault('ESP_SYSTEM_H',str(sdk/'esp_system/include/esp_system.h'))
+        env.setdefault('PARTITION_TABLE_SOURCE',str(sdk/'partition_table/gen_esp32part.py'))
+        env.setdefault('CRT_BUNDLE',str(sdk/'mbedtls/esp_crt_bundle/cacrt_all.pem'))
     if args.sanitizers:
         if os.name=='nt':parser.error('Use Linux ASan/UBSan; do not mark unavailable Windows sanitizers as passed')
         for prefix in SANITIZERS:env[prefix+'_SANITIZE']='1'

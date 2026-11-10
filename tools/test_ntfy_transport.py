@@ -163,6 +163,20 @@ static esp_err_t nvs_commit(nvs_handle_t n) {
 }
 static void nvs_close(nvs_handle_t n) {(void)n;nvs_closes++;pending_size=0;}
 static uint8_t sysev_value=0xff;static int sysev_failure;
+#include "remote_commands.h"
+static esp_err_t nvs_param_set_blob(const char *key,const void *data,size_t size){
+    nvs_handle_t h;esp_err_t e=nvs_open(NVS_NAMESPACE,NVS_READWRITE,&h);
+    if(e!=ESP_OK)return e;
+    e=nvs_set_blob(h,key,data,size);if(e==ESP_OK)e=nvs_commit(h);
+    nvs_close(h);return e;
+}
+static uint8_t original_sysev;
+static esp_err_t nvs_param_txn_begin(void){original_sysev=sysev_value;return ESP_OK;}
+static esp_err_t nvs_param_txn_end(bool keep){if(!keep)sysev_value=original_sysev;return ESP_OK;}
+static esp_err_t homelab_ops_stage_recovery(ops_recovery_origin_t origin,int choice,uint8_t *staged){
+    assert(origin==OPS_RECOVERY_NTFY&&choice==-1);*staged=0;return ESP_OK;
+}
+static void homelab_ops_publish_recovery(uint8_t staged){assert(!staged);}
 static esp_err_t nvs_param_set_u8(const char *k,uint8_t v){assert(!strcmp(k,"ntfy_sysev")&&v<=3);if(sysev_failure)return ESP_FAIL;sysev_value=v;return ESP_OK;}
 static esp_err_t nvs_param_get_u8(const char *k,uint8_t *out) {
     if(!legacy_present)return ESP_ERR_NVS_NOT_FOUND;
@@ -353,7 +367,7 @@ int main(void) {
      * unchanged; a failed main record reverts the separate key. */
     ntfy_integration_config_t events=changed;events.system_events=true;
     sysev_failure=1;assert(ntfy_integration_set_config(&events)!=ESP_OK&&!s_config.system_events&&sysev_value==0xff);sysev_failure=0;
-    write_failure=1;assert(ntfy_integration_set_config(&events)!=ESP_OK&&!s_config.system_events&&sysev_value==0);write_failure=0;
+    write_failure=1;assert(ntfy_integration_set_config(&events)!=ESP_OK&&!s_config.system_events&&sysev_value==0xff);write_failure=0;
     assert(ntfy_integration_set_config(&events)==ESP_OK&&s_config.system_events&&sysev_value==3);
     sysev_value=0x55;assert(ntfy_integration_set_config(&events)==ESP_OK&&sysev_value==0x55); /* unchanged flag: no extra write */
     events.system_events=false;assert(ntfy_integration_set_config(&events)==ESP_OK&&sysev_value==0&&!s_config.system_events);

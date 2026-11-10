@@ -24,21 +24,35 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = (ROOT / 'main/telegram_commands.c').read_text(encoding='utf-8').replace('\r\n', '\n')
 fw = SRC[SRC.index('#ifndef TG_COMMANDS_HOST_TEST'):]
 assert 'offset=-1&limit=1&timeout=0' in fw and 's_have_offset = true' in fw
-run_at = fw.index('for (int i = 0; i < u.count; i++) run(c, u.cmd[i].text);')
+run_at = fw.index('run(c, u.cmd[i].text);')
+assert 'if (!poll_current(generation, token, chat)) break;\n            run(c, u.cmd[i].text);' in fw
 assert fw.rindex('if (u.last_update_id > s_last_update) s_last_update = u.last_update_id;', 0, run_at) < run_at
 assert 'if ((size_t)total >= cap - 1 || !esp_http_client_is_complete_data_received(*client)) total = -1;' in fw
 assert 'timeout=%d' in fw and '.keep_alive_enable = true' in fw   # long polling on one connection
 assert 'memset(url, 0, sizeof url);' in fw and 'memset(token, 0, sizeof token);' in fw
-assert 'MALLOC_CAP_SPIRAM) == pdPASS' in fw and 'nvs_param_set' not in fw[:fw.index('esp_err_t telegram_commands_set_config')]
+assert 'MALLOC_CAP_SPIRAM) == pdPASS' in fw and 'nvs_param_set' not in fw[:fw.index('esp_err_t telegram_commands_store_config')]
 ntfy = (ROOT / 'main/ntfy_integration.c').read_text(encoding='utf-8')
 assert 'remote_command_run(message, c->info_enabled, c->allow_direct_mac' in ntfy
 assert 'remote_command_run(command, c->info_enabled, c->allow_direct_mac' in SRC
 
+poll_current = fw[fw.index('static bool poll_current('):fw.index('static bool poll_once(')]
 PROGRAM = r'''
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include "telegram_commands.h"
+#define portMAX_DELAY 0
+static int s_lock;
+static uint32_t s_generation=4;
+static telegram_commands_config_t s_cfg={.commands_enabled=true};
+static bool tailscale_enabled=true,connected,target_present=true;
+static void xSemaphoreTake(int lock,int timeout){(void)lock;(void)timeout;}
+static void xSemaphoreGive(int lock){(void)lock;}
+static bool tailscale_is_connected(void){return connected;}
+static bool notify_telegram_target(char *token,size_t tc,char *chat,size_t cc){
+    snprintf(token,tc,"fixture");snprintf(chat,cc,"42");return target_present;
+}
+''' + poll_current + r'''
 static const char *msg(char *buf, size_t cap, long long uid, long long chat, long date, const char *text) {
     snprintf(buf, cap, "{\"update_id\":%lld,\"message\":{\"message_id\":1,\"chat\":{\"id\":%lld,\"type\":\"private\"},\"date\":%ld,\"text\":\"%s\"}}", uid, chat, date, text);
     return buf;
@@ -46,6 +60,16 @@ static const char *msg(char *buf, size_t cap, long long uid, long long chat, lon
 int main(void) {
     char a[600], b[600], c[600], d[600], all[4096];
     tg_updates_t u;
+    assert(poll_current(4,"fixture","42"));
+    assert(!poll_current(3,"fixture","42"));
+    assert(!poll_current(4,"previous","42"));
+    assert(!poll_current(4,"fixture","1"));
+    s_cfg.commands_only_when_tailscale_down=true;connected=true;
+    assert(!poll_current(4,"fixture","42"));
+    connected=false;assert(poll_current(4,"fixture","42"));
+    target_present=false;assert(!poll_current(4,"fixture","42"));
+    target_present=true;s_cfg.commands_enabled=false;
+    assert(!poll_current(4,"fixture","42"));
     const long now = 1800000000;
     snprintf(all, sizeof all, "{\"ok\":true,\"result\":[%s,%s,%s,%s,{\"update_id\":905,\"message\":{\"chat\":{\"id\":42},\"sticker\":{}}}]}",
              msg(a, sizeof a, 901, 42, now - 5, "/wol@MyBot nas"), msg(b, sizeof b, 902, 77, now - 5, "info"),

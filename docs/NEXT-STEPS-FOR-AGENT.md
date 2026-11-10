@@ -1,5 +1,19 @@
 # Maintainer continuation
 
+## Current handover — 3.0.17-beta.1 audit candidate
+
+Local branch `fix/audit-3.0.17` contains source fixes from the November audit.
+ESP-IDF 5.5.6 is pinned to the pioarduino archive with its digest documented
+in PlatformIO. MicroLink has a local commit that requires DERP TLS validation.
+The NVS layout and OTA application identity are unchanged. NVS initialization
+or journal recovery failure stops startup without erasing settings; a pending
+OTA can roll back if a valid recovery image is available.
+
+Before release: check physical NVS failure and downgrade, Wi-Fi and W5500
+failover, split DNS, Telegram live target/permission change and independent
+Tailnet paths. The ignored build checkpoint records exact artifacts and tests.
+Publish the MicroLink commit before the parent only with release authorization.
+
 ## Current handover — per-integration recovery controls
 
 On branch `fix/recovery-command-controls`, Device Registry links to the

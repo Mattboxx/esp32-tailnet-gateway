@@ -43,6 +43,16 @@ static inline cJSON *json_guard_parse(const char *text){
     if(root&&!json_guard_unique(root)){cJSON_Delete(root);return NULL;}
     return root;
 }
+/* Validate before narrowing. A missing optional field leaves the default. */
+static inline bool json_guard_uint(const cJSON *item,uint32_t lo,uint32_t hi,uint32_t *out){
+    if(!item)return true;
+    if(!cJSON_IsNumber(item))return false;
+    double d=item->valuedouble;
+    if(!(d>=lo&&d<=hi))return false;
+    uint32_t v=(uint32_t)d;
+    if(d!=(double)v)return false;
+    *out=v;return true;
+}
 static inline bool json_guard_port(const cJSON *item,uint16_t *out){
     if(!out)return false;
     unsigned value=0;

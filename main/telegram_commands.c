@@ -76,6 +76,7 @@ bool telegram_commands_config_valid(const telegram_commands_config_t *c)
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
+#include "eth_uplink.h"
 #include "esp_netif.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/idf_additions.h"
@@ -100,6 +101,8 @@ static telegram_commands_status_t s_st;
 static TaskHandle_t s_task;
 static uint32_t s_last_update;      /* RAM only: a restart skips the backlog */
 static bool s_have_offset;
+static uint32_t s_generation;
+static void start_or_wake_locked(void);
 
 static void defaults(telegram_commands_config_t *c)
 {
@@ -128,9 +131,9 @@ static uint32_t wall(void) { time_t t = time(NULL); return t > 1700000000 ? (uin
 
 static bool uplink_up(void)
 {
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_t *sta = eth_uplink_service_netif();
     esp_netif_ip_info_t ip = {0};
-    return sta && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr;
+    return sta && esp_netif_is_netif_up(sta) && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr;
 }
 
 static void set_error(const char *why)
@@ -224,7 +227,21 @@ static void run(const telegram_commands_config_t *c, const char *command)
 
 /* One getUpdates round; false when Telegram could not be read (the caller
  * then waits the poll interval before trying again). */
-static bool poll_once(esp_http_client_handle_t *client, const telegram_commands_config_t *c, const char *token, const char *chat)
+static bool poll_current(uint32_t generation, const char *token, const char *chat)
+{
+    char current_token[96], current_chat[40];
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    bool enabled = generation == s_generation && s_cfg.commands_enabled &&
+        (!s_cfg.commands_only_when_tailscale_down || (tailscale_enabled && !tailscale_is_connected()));
+    bool current = enabled && notify_telegram_target(current_token, sizeof current_token,
+        current_chat, sizeof current_chat) && !strcmp(current_token, token) && !strcmp(current_chat, chat);
+    xSemaphoreGive(s_lock);
+    memset(current_token, 0, sizeof current_token);
+    return current;
+}
+
+static bool poll_once(esp_http_client_handle_t *client, const telegram_commands_config_t *c,
+                      const char *token, const char *chat, uint32_t generation)
 {
     char *answer = heap_caps_malloc(TG_ANSWER_MAX, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!answer) { set_error("not enough memory"); return false; }
@@ -234,6 +251,7 @@ static bool poll_once(esp_http_client_handle_t *client, const telegram_commands_
     if (!s_have_offset) {
         /* First poll: skip everything sent before (never run old commands). */
         int n = fetch(client, token, "offset=-1&limit=1&timeout=0", answer, TG_ANSWER_MAX);
+        if (n > 0 && !poll_current(generation, token, chat)) { free(answer); return false; }
         if (n > 0) {
             tg_updates_parse(answer, (size_t)n, chat, 0, &u);
             if (u.valid) { s_last_update = u.last_update_id; s_have_offset = true; set_error(""); ok = true; }
@@ -248,6 +266,7 @@ static bool poll_once(esp_http_client_handle_t *client, const telegram_commands_
                  (unsigned long)s_last_update + 1, attempt ? 1 : 5, attempt ? 0 : TG_LONG_POLL_S);
         int n = fetch(client, token, query, answer, TG_ANSWER_MAX);
         if (n <= 0) { set_error("cannot reach api.telegram.org"); break; }
+        if (!poll_current(generation, token, chat)) break;
         tg_updates_parse(answer, (size_t)n, chat, wall(), &u);
         if (!u.valid && attempt == 0) continue;      /* retry one update at a time */
         if (!u.valid) {
@@ -264,7 +283,10 @@ static bool poll_once(esp_http_client_handle_t *client, const telegram_commands_
         s_st.skipped_other_chats += (uint32_t)u.other_chats;
         s_st.last_error[0] = 0;
         xSemaphoreGive(s_lock);
-        for (int i = 0; i < u.count; i++) run(c, u.cmd[i].text);
+        for (int i = 0; i < u.count; i++) {
+            if (!poll_current(generation, token, chat)) break;
+            run(c, u.cmd[i].text);
+        }
         ok = true;
         break;
     }
@@ -276,11 +298,18 @@ static void task_main(void *arg)
 {
     (void)arg;
     esp_http_client_handle_t client = NULL;   /* kept across long polls */
+    uint32_t previous_generation = 0;
     for (;;) {
         telegram_commands_config_t c;
         xSemaphoreTake(s_lock, portMAX_DELAY);
         c = s_cfg;
+        uint32_t generation = s_generation;
         xSemaphoreGive(s_lock);
+        if (generation != previous_generation) {
+            s_have_offset = false;
+            s_last_update = 0;
+            previous_generation = generation;
+        }
         char token[96], chat[40];
         bool target = notify_telegram_target(token, sizeof token, chat, sizeof chat);
         if (!c.commands_enabled || !target) {
@@ -288,7 +317,7 @@ static void task_main(void *arg)
             break;
         }
         bool due = !c.commands_only_when_tailscale_down || (tailscale_enabled && !tailscale_is_connected());
-        bool polled = due && uplink_up() && poll_once(&client, &c, token, chat);
+        bool polled = due && uplink_up() && poll_once(&client, &c, token, chat, generation);
         memset(token, 0, sizeof token);
         if (!due && client) { esp_http_client_cleanup(client); client = NULL; }   /* idle: no open connection */
         /* After a long poll the next one starts at once (a settings change is
@@ -300,6 +329,7 @@ static void task_main(void *arg)
     s_task = NULL;
     s_st.running = false;
     s_have_offset = false;
+    start_or_wake_locked(); /* handle re-enable while the old task was exiting */
     xSemaphoreGive(s_lock);
     task_reaper_self_delete();
 }
@@ -332,6 +362,7 @@ void telegram_commands_refresh(void)
 {
     if (!s_lock) return;
     xSemaphoreTake(s_lock, portMAX_DELAY);
+    s_generation++;
     start_or_wake_locked();
     xSemaphoreGive(s_lock);
 }
@@ -351,18 +382,22 @@ void telegram_commands_get_status(telegram_commands_status_t *out)
     xSemaphoreGive(s_lock);
 }
 
-esp_err_t telegram_commands_set_config(const telegram_commands_config_t *c)
+esp_err_t telegram_commands_store_config(const telegram_commands_config_t *c)
 {
     if (!telegram_commands_config_valid(c)) return ESP_ERR_INVALID_ARG;
     uint8_t f = (c->commands_enabled ? 1 : 0) | (c->commands_only_when_tailscale_down ? 2 : 0) |
                 (c->allow_direct_mac ? 4 : 0) | (c->info_enabled ? 8 : 0) | (c->info_include_details ? 16 : 0);
     esp_err_t err = nvs_param_set_u8("tg_cflags", f);
     if (err == ESP_OK) err = nvs_param_set_u16("tg_cpoll", c->poll_interval_seconds);
-    if (err != ESP_OK) return err;                     /* persisted before it applies */
+    return err;
+}
+
+void telegram_commands_apply_config(const telegram_commands_config_t *c)
+{
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_cfg = *c;
+    s_generation++;
     start_or_wake_locked();
     xSemaphoreGive(s_lock);
-    return ESP_OK;
 }
 #endif

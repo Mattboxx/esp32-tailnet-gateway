@@ -27,7 +27,7 @@ def src(path):
 
 main_c = src(ROOT / 'main/main.c')
 for mark, anchor in (('BOOT_TL_APP_MAIN', 'void app_main(void)\n{\n    boot_timeline_mark(BOOT_TL_APP_MAIN);'),
-                     ('BOOT_TL_NVS', '(void)nvs_param_txn_recover();\n    boot_timeline_mark(BOOT_TL_NVS);'),
+                     ('BOOT_TL_NVS', 'startup_settings_failed(ret);\n        return;\n    }\n    boot_timeline_mark(BOOT_TL_NVS);'),
                      ('BOOT_TL_WIFI_START', 'ESP_ERROR_CHECK(esp_wifi_start() );\n    boot_timeline_mark(BOOT_TL_WIFI_START);'),
                      ('BOOT_TL_WIFI_ASSOC', 'WIFI_EVENT_STA_CONNECTED) {\n        boot_timeline_mark(BOOT_TL_WIFI_ASSOC);'),
                      ('BOOT_TL_IP', 'event_data;\n        boot_timeline_mark(BOOT_TL_IP);'),

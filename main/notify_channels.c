@@ -433,15 +433,7 @@ static esp_err_t store_save(const notify_config_t *c, uint8_t mail_level, uint8_
     r->magic = CFG_MAGIC; r->version = 1; r->config = *c; r->mail_level_plus1 = (uint8_t)(mail_level + 1);
     r->startup_flags = (uint8_t)(0x80 | startup_channels);
     r->checksum = record_checksum(r);
-    nvs_handle_t h;
-    esp_err_t err = nvs_open("tsr", NVS_READWRITE, &h);
-    if (!err) {
-        err = nvs_set_blob(h, "notify_cfg", r, sizeof *r);
-        if (!err) err = nvs_commit(h);
-        /* For a rollback to 3.0.1 only; failing here changes nothing. */
-        if (!err && nvs_set_u8(h, "ntf_mlv", mail_level) == ESP_OK) nvs_commit(h);
-        nvs_close(h);
-    }
+    esp_err_t err = nvs_param_set_blob("notify_cfg", r, sizeof *r);
     memset(r, 0, sizeof *r);
     free(r);
     return err;
@@ -1063,13 +1055,14 @@ static esp_err_t post_notify(httpd_req_t *req)
             static const char *const keys[] = {"enabled", "only_when_tailscale_down", "allow_direct_mac", "info_enabled", "info_include_details"};
             bool *dst[] = {&tcmd.commands_enabled, &tcmd.commands_only_when_tailscale_down, &tcmd.allow_direct_mac, &tcmd.info_enabled, &tcmd.info_include_details};
             const cJSON *poll = cJSON_GetObjectItemCaseSensitive(cm, "poll_interval_seconds");
-            ok = cJSON_IsObject(cm) && cJSON_IsNumber(poll) && poll->valuedouble == (int)poll->valuedouble;
+            uint32_t interval=0;
+            ok = cJSON_IsObject(cm) && poll && json_guard_uint(poll,5,300,&interval);
             for (unsigned k = 0; ok && k < sizeof keys / sizeof keys[0]; k++) {
                 const cJSON *v = cJSON_GetObjectItemCaseSensitive(cm, keys[k]);
                 ok = cJSON_IsBool(v);
                 if (ok) *dst[k] = cJSON_IsTrue(v);
             }
-            if (ok) tcmd.poll_interval_seconds = poll->valuedouble >= 0 && poll->valuedouble <= 65535 ? (uint16_t)poll->valuedouble : 0;
+            if (ok) tcmd.poll_interval_seconds = (uint16_t)interval;
             if (ok && !telegram_commands_config_valid(&tcmd)) {ok = false; snprintf(why, sizeof why, "Telegram commands: poll interval must be 5-300 seconds");}
             const cJSON *recovery = cJSON_GetObjectItemCaseSensitive(cm, "allow_recovery");
             if (recovery && !cJSON_IsBool(recovery)) ok = false;
@@ -1101,10 +1094,18 @@ static esp_err_t post_notify(httpd_req_t *req)
     }
     esp_err_t err = ESP_OK;
     if (ok && !notify_config_valid(next, why, sizeof why)) ok = false;
-    if (ok && save_recovery && !allow_recovery)
-        err = homelab_ops_set_recovery_allowed(OPS_RECOVERY_TELEGRAM, false);
-    if (ok && !err) err = store_save(next, mail_level, startup_channels); /* one record, before publishing */
-    if (ok && !err && have_tcmd) err = telegram_commands_set_config(&tcmd);   /* its own keys */
+    uint8_t staged=0;
+    if (ok) {
+        err=nvs_param_txn_begin();
+        if(err==ESP_OK) {
+            err=store_save(next,mail_level,startup_channels);
+            if(err==ESP_OK && have_tcmd)err=telegram_commands_store_config(&tcmd);
+            if(err==ESP_OK && save_recovery)
+                err=homelab_ops_stage_recovery(OPS_RECOVERY_TELEGRAM,allow_recovery,&staged);
+            esp_err_t end=nvs_param_txn_end(err==ESP_OK);
+            if(err==ESP_OK)err=end;
+        }
+    }
     if (ok && !err) {
         xSemaphoreTake(s_lock, portMAX_DELAY);
         s_cfg = *next;
@@ -1112,9 +1113,10 @@ static esp_err_t post_notify(httpd_req_t *req)
         s_startup_channels = startup_channels;
         apply_locked();
         xSemaphoreGive(s_lock);
-        telegram_commands_refresh();   /* starts or stops the command poller */
-        if (save_recovery && allow_recovery)
-            err = homelab_ops_set_recovery_allowed(OPS_RECOVERY_TELEGRAM, true);
+        if (have_tcmd) telegram_commands_apply_config(&tcmd);
+        else telegram_commands_refresh();
+        homelab_ops_publish_recovery(staged);
+        (void)nvs_param_set_u8("ntf_mlv",mail_level); /* compatibility with 3.0.1 */
     }
     memset(next, 0, sizeof *next); free(next); free(body);
     httpd_resp_set_type(req, "application/json");

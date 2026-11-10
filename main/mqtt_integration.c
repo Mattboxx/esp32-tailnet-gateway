@@ -19,6 +19,7 @@
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "eth_uplink.h"
 #include "esp_netif.h"
 #include "esp_system.h"
 #include "esp_random.h"
@@ -567,7 +568,7 @@ static void publish_state(const mqtt_power_event_t *power, bool poweron_events)
     char uplink_ip[16] = "";
     char ssid[33] = "";
     int rssi = 0;
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_t *sta = eth_uplink_service_netif();
     esp_netif_ip_info_t ip = {0};
     if (sta && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr) {
         uplink = true;
@@ -1114,7 +1115,7 @@ void mqtt_integration_get_config(mqtt_integration_config_t *out)
     xSemaphoreGive(s_lock);
 }
 
-esp_err_t mqtt_integration_set_config(const mqtt_integration_config_t *config)
+esp_err_t mqtt_integration_set_config_recovery(const mqtt_integration_config_t *config,int recovery)
 {
     if (!config || config->interval_seconds < 5 || config->interval_seconds > 3600)
         return ESP_ERR_INVALID_ARG;
@@ -1145,14 +1146,22 @@ esp_err_t mqtt_integration_set_config(const mqtt_integration_config_t *config)
     if (err == ESP_OK) err = nvs_param_set_u16("mqtt_int", config->interval_seconds);
     if (err == ESP_OK) err = nvs_param_set_u8("mqtt_wdog", config->broker_watchdog_enabled ? 1 : 0);
     if (err == ESP_OK) err = nvs_param_set_u32("mqtt_wdto", config->broker_watchdog_timeout_seconds);
+    uint8_t staged=0;
+    if(err==ESP_OK)err=homelab_ops_stage_recovery(OPS_RECOVERY_MQTT,recovery,&staged);
     esp_err_t end = nvs_param_txn_end(err == ESP_OK);
     if (err == ESP_OK) err = end;
     if (err != ESP_OK) return err;
     xSemaphoreTake(s_lock, portMAX_DELAY);
     memcpy(&s_config, config, sizeof s_config);
+    homelab_ops_publish_recovery(staged);
     xSemaphoreGive(s_lock);
     if (s_manager_task) xTaskNotifyGive(s_manager_task);
     return ESP_OK;
+}
+
+esp_err_t mqtt_integration_set_config(const mqtt_integration_config_t *config)
+{
+    return mqtt_integration_set_config_recovery(config,-1);
 }
 
 bool mqtt_integration_connected(void)

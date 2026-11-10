@@ -103,6 +103,7 @@
  "Add at least one network with an SSID.": "Aggiungi almeno una rete con un SSID.",
  "Add failed": "Aggiunta non riuscita",
  "Add or edit MAC addresses in": "Aggiungi o modifica gli indirizzi MAC in",
+ "Add or edit MAC addresses in the Wake-on-LAN card above. Profiles remain linked to the saved MAC, not its row number. Checks use IPv4 DNS or cached Tailnet names. TCP connection success proves the selected port answered, not application health.": "Aggiungi o modifica gli indirizzi MAC nel riquadro Wake-on-LAN qui sopra. I profili restano legati al MAC salvato, non al numero di riga. I controlli usano DNS IPv4 o nomi Tailnet in cache. Una connessione TCP riuscita dimostra che la porta scelta risponde, non che l'applicazione funzioni.",
  "Add rule": "Aggiungi regola",
  "Add to denylist and kick — client cannot reassociate": "Aggiungi alla blocklist e disconnetti — il client non potrà riassociarsi",
  "Added to the AP denylist immediately": "Aggiunto subito alla blocklist dell'AP",
