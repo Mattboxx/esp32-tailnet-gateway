@@ -1,7 +1,7 @@
 """Actual SDK MQTT startup / teardown and project startup-task behavior tests.
 
 Host allocator/RTOS fixtures, NOT hardware fragmentation or full MQTT testing.
-MQTT_SOURCE selects the reviewed ESP-IDF 5.5.3 source. TASKMEM_SANITIZE=1 adds
+MQTT_SOURCE selects the reviewed ESP-IDF 5.5.6 source. TASKMEM_SANITIZE=1 adds
 Linux ASan/UBSan. No device access, downloads or SDK modifications.
 """
 from pathlib import Path
@@ -11,9 +11,9 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SDK_HASH = '3e558fa88e7bd98d4342bd19fe6d99c56031d04ff7a26405ab1bcd09408cf6f3'
+SDK_HASH = '0651edbb34dee8bf9babc684ba4ccf231ed562fdab6218f0aa5b4d80f6a990fb'
 sdk_path = Path(os.environ.get('MQTT_SOURCE', str(Path.home() /
-    '.platformio/packages/framework-espidf@3.50503.0/components/mqtt/esp-mqtt/mqtt_client.c')))
+    '.platformio/packages/framework-espidf/components/mqtt/esp-mqtt/mqtt_client.c')))
 sdk_bytes = sdk_path.read_bytes()
 assert hashlib.sha256(sdk_bytes).hexdigest() == SDK_HASH, 'Unreviewed MQTT source'
 sdk = sdk_bytes.decode('utf-8')
