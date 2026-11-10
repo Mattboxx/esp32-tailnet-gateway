@@ -1,5 +1,11 @@
 # Validation records
 
+Health & Resources layout (post-3.0.15): 104 Chromium scenarios passed on
+the generated Web UI with synthetic APIs, including 390 px placement,
+independent saves and the per-device pause indicator. The settings-search
+regression passed, including opening the collapsed guard controls. All language tables
+pass `python tools/i18n_extract.py --check 100`. Hardware verification pending.
+
 2026-10-29: [Performance/load exploration](PERFORMANCE-EXPLORATION-ROADMAP.md)
 is active. Twelve harness host tests, actual RX ownership tests, real SDK pbuf
 lifetime tests and existing authorization/SDK-forwarding targeted checks pass

@@ -41,11 +41,15 @@ async function fixture(browser, options = {}) {
     } else if (url.pathname === '/api/operations') {
       if(route.request().method()==='POST') {
         state.savedOperation=route.request().postDataJSON();body={ok:true};
+        if(state.savedOperation.action==='settings'){
+          const {action,...settings}=state.savedOperation;
+          state.operationsBody={...state.operationsBody,...settings};
+        }
       } else {if(state.operationsDelay) await new Promise(resolve=>setTimeout(resolve,state.operationsDelay));
         if(state.operationsFailures){state.operationsFailures--;status=503;}
-        body=state.operationsBody || {devices:[],events:[],monitoring:false,guard:false,remote_commands:false,
+        body={devices:[],events:[],monitoring:false,guard:false,remote_commands:false,lease_notifications:false,
         recovery_state:'idle',sockets_used:12,socket_limit:31,internal_min:14000,internal_largest:12000,
-        minimum_internal:16384,minimum_largest:8192,socket_reserve:4,interval_s:60,control_connected:true};}
+        minimum_internal:16384,minimum_largest:8192,socket_reserve:4,interval_s:60,control_connected:true,...state.operationsBody};}
     } else if (url.pathname === '/api/capabilities') {
       if(state.capabilityFailures){state.capabilityFailures--;status=503;}
       body=state.capabilityBody || {schema:2,features:[{id:'smart-recovery',compiled:true,hardware_supported:true,configured:true,active:false,verified:false,experimental:true,evidence:'Fixture: no hardware qualification'}]};
@@ -897,6 +901,42 @@ async function main() {
     assert.equal(await f.page.locator('#ops-cancel').isDisabled(),true);
     await f.page.locator('#ops-refresh').click();await f.page.waitForFunction(()=>!document.getElementById('ops-settings-save').disabled);
     for(const button of await f.page.locator('#ops-devices button').all()) assert.equal(await button.isDisabled(),false);
+    assert.deepEqual(f.errors,[]);await f.context.close();count++;
+    // Settings belong to their respective cards. Independent saves must not
+    // apply unsaved drafts, and paused monitoring must keep each selection.
+    const monitored={index:0,mac:'02:00:00:00:00:01',name:'NAS',target:'192.0.2.1',monitor:true,notify:false,
+      host_port:22,service_port:0,timeout_s:60,interval_s:60,max_checks:10,kind:0,scope:0,state:'idle'};
+    f=await fixture(browser,{page:'operations',viewport:{width:390,height:844},simpleMode:true,
+      operationsBody:{monitoring:true,devices:[monitored,{...monitored,index:1,mac:'02:00:00:00:00:02',monitor:false}]}});
+    await f.page.waitForFunction(()=>!document.getElementById('ops-settings-save').disabled);
+    assert.equal(await f.page.locator('#ops-guard').isHidden(),true);
+    assert.equal(await f.page.locator('.card:has(#ops-devices) #ops-monitoring').count(),1);
+    await f.page.getByText('Remote recovery',{exact:true}).click();
+    await f.page.locator('label:has(#ops-remote)').click();
+    await f.page.locator('label:has(#ops-monitoring)').click();
+    await f.page.locator('#ops-interval').fill('300');
+    await f.page.locator('#ops-settings-save').click();
+    await f.page.waitForFunction(()=>document.getElementById('ops-settings-save-status').textContent==='Settings saved.');
+    assert.equal(f.state.savedOperation.monitoring,false);
+    assert.equal(f.state.savedOperation.interval_s,300);
+    assert.equal(f.state.savedOperation.remote_commands,false);
+    assert.equal(await f.page.locator('#ops-remote').isChecked(),true);
+    assert.equal(await f.page.locator('.ops-monitor-paused').nth(0).isVisible(),true);
+    assert.equal(await f.page.locator('.ops-monitor-paused').nth(1).isHidden(),true);
+    assert.equal(await f.page.getByText('Monitor this device',{exact:true}).nth(0).locator('..').locator('input').isChecked(),true);
+    await f.page.locator('#ops-remote-save').click();
+    await f.page.waitForFunction(()=>document.getElementById('ops-remote-save-status').textContent==='Settings saved.');
+    assert.equal(f.state.savedOperation.remote_commands,true);
+    assert.equal(f.state.savedOperation.monitoring,false);
+    await f.page.evaluate(()=>location.hash='#network/services');
+    await f.page.locator('#temporary-access summary').click();
+    await f.page.waitForFunction(()=>!document.getElementById('ops-lease-save').disabled);
+    await f.page.locator('label:has(#ops-lease-notify)').click();
+    await f.page.locator('#ops-lease-save').click();
+    await f.page.waitForFunction(()=>document.getElementById('ops-lease-save-status').textContent==='Settings saved.');
+    assert.equal(f.state.savedOperation.lease_notifications,true);
+    assert.equal(f.state.savedOperation.remote_commands,true);
+    assert.equal(f.state.savedOperation.monitoring,false);
     assert.deepEqual(f.errors,[]);await f.context.close();count++;
     // A running check is followed live: badges and the job line update without
     // a reload, unsaved edits stay, and polling stops when the job ends.

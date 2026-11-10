@@ -1,5 +1,9 @@
 # Feature implementation and validation matrix
 
+Post-3.0.15 UI follow-up (F10, F22, F30): operations controls grouped by task,
+with section-specific saves and a visible global-monitoring pause on selected
+devices. Chromium and localization checks passed. Physical UI validation is pending.
+
 2026-10-29 performance follow-up: F21/F33 investigation packages PERF-01–09 are
 tracked independently in
 [Performance exploration](PERFORMANCE-EXPLORATION-ROADMAP.md). The owner permits

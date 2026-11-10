@@ -107,6 +107,19 @@ async function type(page, text) { await page.fill('#search-input', text); await 
       await f.context.close();
     }
     {
+      /* A result inside the collapsed advanced guard must open its section. */
+      const f = await open(browser, { advanced: false });
+      await f.page.click('#searchBtn');
+      const r = await type(f.page, 'minimum largest block');
+      const i = r.findIndex(x => x.title === 'Minimum largest block');
+      assert.ok(i >= 0 && r[i].adv, JSON.stringify(r));
+      await f.page.click('#search-opt-' + i);
+      await f.page.waitForFunction(() => document.activeElement.id === 'ops-largest');
+      assert.equal(await f.page.locator('#ops-largest').isVisible(), true);
+      assert.deepEqual(f.errors, []);
+      await f.context.close();
+    }
+    {
       /* Phone: the palette fits the screen, the input does not trigger zoom. */
       const f = await open(browser, { width: 375 });
       await f.page.click('#searchBtn');

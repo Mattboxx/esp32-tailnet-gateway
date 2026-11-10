@@ -848,6 +848,7 @@
     #page-operations .card-body > .feature-switch:first-of-type { margin-top: 0; }
     #page-operations .card-body > .btn + p,
     #page-operations .card-body > .btn-row + p { margin-top: var(--sp-3); }
+    .ops-monitor-paused { margin: 0; color: var(--text-muted); }
     #page-operations .card-body > pre:empty { display: none; }
     .ops-guard-warning { color: var(--warning); }
     #page-operations .card-body > pre { margin: var(--sp-2) 0 0; }
@@ -3037,7 +3038,12 @@
             <label><input type="checkbox" id="tf-import-confirm" disabled> Replace the saved LAN → Tailnet rules with this disabled configuration</label>
             <button class="btn btn-primary" id="tf-import-apply" type="button" disabled>Apply reviewed import</button>
           </details>
-          <details style="margin-top:1rem"><summary>Temporary exposure and expiry</summary><p class="form-hint">Save the rules first. Timers require a synchronized clock, survive restart and do not enable a disabled rule. Reordering keeps the timer with its rule. After first timer use, new or edited bindings need explicit timer/permanent confirmation. Expired rules stay closed; optional deletion also releases their configured ports.</p><button class="btn btn-secondary" id="leases-refresh">Refresh timers</button><div id="service-leases" role="status">Not loaded</div></details>
+          <details id="temporary-access" style="margin-top:1rem"><summary>Temporary exposure and expiry</summary><p class="form-hint">Save the rules first. Timers require a synchronized clock, survive restart and do not enable a disabled rule. Reordering keeps the timer with its rule. After first timer use, new or edited bindings need explicit timer/permanent confirmation. Expired rules stay closed; optional deletion also releases their configured ports.</p><button class="btn btn-secondary" id="leases-refresh">Refresh timers</button><div id="service-leases" role="status">Not loaded</div>
+            <label class="feature-switch"><input type="checkbox" id="ops-lease-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify via ntfy when temporary service access closes</span></label>
+            <p class="form-hint">OFF by default. Notifications are best-effort; local access closes even when ntfy is unavailable. No rule addresses or names are sent.</p>
+            <button class="btn btn-secondary" id="ops-lease-save" type="button" disabled>Save expiry notifications</button>
+            <span class="form-hint" id="ops-lease-save-status" role="status"></span>
+          </details>
         </div>
         <div class="form-footer"><span class="form-footer-hint">A source CIDR is mandatory. Up to 8 TCP/UDP rules; listen ports must be unique per protocol.</span><div class="form-footer-actions"><button class="btn btn-secondary btn-md" id="tf-reload">Reload</button><button class="btn btn-primary btn-md" id="tf-save" disabled>Save</button></div></div>
       </div>
@@ -3707,17 +3713,17 @@
         <p id="ops-summary" role="status">Not loaded</p>
         <p class="form-hint ops-guard-warning" id="ops-guard-warning" role="status" hidden>The resource admission guard is pausing optional work now: MQTT, ntfy, device checks and recovery wait until free internal RAM, its largest block and free sockets are above the thresholds. Lower the thresholds (advanced settings) or turn the guard off.</p><p class="form-hint">Control connected does not prove the tunnel or a remote service works. No public Internet probe runs automatically.</p>
         <details><summary>Actual firmware capabilities</summary><p id="ops-capability-status" role="status">Not loaded</p><ul id="ops-capabilities"></ul></details>
-        <label class="feature-switch"><input type="checkbox" id="ops-monitoring"><span class="feature-switch-track" aria-hidden="true"></span><span>Monitor configured devices</span></label>
-        <label class="feature-switch"><input type="checkbox" id="ops-guard"><span class="feature-switch-track" aria-hidden="true"></span><span>Resource admission guard</span></label>
-        <label class="feature-switch"><input type="checkbox" id="ops-remote"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow MQTT / ntfy recovery commands</span></label>
-        <label class="feature-switch"><input type="checkbox" id="ops-lease-notify"><span class="feature-switch-track" aria-hidden="true"></span><span>Notify via ntfy when temporary service access closes</span></label>
-        <p class="form-hint">OFF by default. Notifications are best-effort; local access closes even when ntfy is unavailable. No rule addresses or names are sent.</p>
-        <div class="form-hint" data-advanced>Guard thresholds are engineering defaults, not calibrated device limits. Remote commands require a trusted broker/topic and existing integration permissions.</div>
-        <div class="form-row" data-advanced><div class="form-group"><label class="form-label" for="ops-min">Minimum internal free bytes</label><input class="input" id="ops-min" type="number" min="0" max="262144" placeholder="e.g. 16384"><span class="form-hint">Below this free internal RAM new checks wait (resource guard).</span></div>
+        <details data-advanced>
+          <summary>Resource guard settings</summary>
+          <label class="feature-switch"><input type="checkbox" id="ops-guard"><span class="feature-switch-track" aria-hidden="true"></span><span>Resource admission guard</span></label>
+          <p class="form-hint">Guard thresholds are engineering defaults, not calibrated device limits.</p>
+          <div class="form-row"><div class="form-group"><label class="form-label" for="ops-min">Minimum internal free bytes</label><input class="input" id="ops-min" type="number" min="0" max="262144" placeholder="e.g. 16384"><span class="form-hint">Below this free internal RAM new checks wait (resource guard).</span></div>
           <div class="form-group"><label class="form-label" for="ops-largest">Minimum largest block</label><input class="input" id="ops-largest" type="number" min="0" max="131072" placeholder="e.g. 8192"></div>
           <div class="form-group"><label class="form-label" for="ops-sockets">Reserved socket slots</label><input class="input" id="ops-sockets" type="number" min="0" max="31" placeholder="e.g. 4"><span class="form-hint">Sockets kept free for the VPN and this web page.</span></div>
-          <div class="form-group"><label class="form-label" for="ops-interval">Monitor interval (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600" placeholder="e.g. 60"><span class="form-hint">How often monitored devices are checked.</span></div></div>
-        <button class="btn btn-primary" id="ops-settings-save" disabled>Save monitoring settings</button>
+          </div>
+          <button class="btn btn-secondary" id="ops-guard-save" type="button" disabled>Save resource guard</button>
+          <span class="form-hint" id="ops-guard-save-status" role="status"></span>
+        </details>
       </div></div>
       <div class="card mb-4" data-capability="health"><div class="card-header"><span class="card-title">Layered connectivity checks</span></div><div class="card-body">
         <p class="form-hint">Optional, OFF by default. No built-in cloud target. One check every configured interval, sharing the recovery worker. A closed gateway port does not prove the router is down; a TCP connection does not verify application health. DNS answers may be cached.</p>
@@ -3737,6 +3743,18 @@
       </div></div>
       <div class="card mb-4" data-capability="smart-recovery"><div class="card-header"><span class="card-title">Device registry</span></div><div class="card-body">
         <p class="form-hint">Add or edit MAC addresses in <a href="#automation">Automation → Wake-on-LAN</a>. Profiles remain linked to the saved MAC, not its row number. Checks use IPv4 DNS or cached Tailnet names. TCP connection success proves the selected port answered, not application health.</p>
+        <label class="feature-switch"><input type="checkbox" id="ops-monitoring"><span class="feature-switch-track" aria-hidden="true"></span><span>Monitor configured devices</span></label>
+        <div class="form-row"><div class="form-group"><label class="form-label" for="ops-interval">Monitor interval (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600" placeholder="e.g. 60"><span class="form-hint">How often monitored devices are checked.</span></div></div>
+        <button class="btn btn-secondary" id="ops-settings-save" type="button" disabled>Save monitoring settings</button>
+        <span class="form-hint" id="ops-settings-save-status" role="status"></span>
+        <details>
+          <summary>Remote recovery</summary>
+          <label class="feature-switch"><input type="checkbox" id="ops-remote"><span class="feature-switch-track" aria-hidden="true"></span><span>Allow MQTT / ntfy recovery commands</span></label>
+          <p class="form-hint">Remote commands require a trusted broker/topic and existing integration permissions.</p>
+          <p><a href="#automation/mqtt">MQTT &amp; Home Assistant</a> · <a href="#automation/notifications">Notifications</a></p>
+          <button class="btn btn-secondary" id="ops-remote-save" type="button" disabled>Save remote recovery</button>
+          <span class="form-hint" id="ops-remote-save-status" role="status"></span>
+        </details>
         <p id="ops-job" role="status">No observation loaded</p><button class="btn btn-secondary" id="ops-cancel" disabled>Cancel active recovery</button><div id="ops-devices"></div>
         <pre class="mono" id="ops-events" style="white-space:pre-wrap"></pre>
       </div></div>
@@ -6737,6 +6755,7 @@
     var s_ops_state = null;
     var s_ops_busy = false;
     var s_ops_loading = false;
+    var s_ops_lease_loaded = false;
     var s_ops_sequence = 0;
     var s_ops_capabilities = null;
     var s_health_state = null;
@@ -6747,7 +6766,14 @@
     var OPS_ACTIVE=['precheck','sending-wol','waiting-for-host','checking-service'];
     var OPS_STATE_TEXT={idle:'Not checked yet',precheck:'Checking…','sending-wol':'Sending WoL…','waiting-for-host':'Waiting for the device…','checking-service':'Checking the service…',
       reachable:'Reachable','not-reachable':'Not reachable',inconclusive:'Inconclusive',cancelled:'Cancelled','resource-deferred':'Deferred: low resources','service-access-closed':'Service access closed'};
-    var s_ops_badges={},s_ops_poll=null,s_ops_polls=0;
+    var s_ops_badges={},s_ops_pause_notes={},s_ops_poll=null,s_ops_polls=0;
+    function opsShowMonitoring(data) {
+      if(!Array.isArray(data.devices))return;
+      data.devices.forEach(function(d) {
+        var note=d&&s_ops_pause_notes[d.mac];
+        if(note) note.hidden=data.monitoring!==false||d.monitor!==true;
+      });
+    }
     function opsBadge(badge,d,data){
       var live=OPS_ACTIVE.indexOf(data.recovery_state)>=0&&data.device_index===d.index,s=live?data.recovery_state:d.state;
       badge.className='badge '+(live?'badge-info':s==='reachable'?'badge-success':s==='not-reachable'?'badge-danger':s==='inconclusive'||s==='resource-deferred'?'badge-warning':'badge-neutral');
@@ -6774,6 +6800,7 @@
         var data=await response.json();
         if(sequence!==s_ops_sequence||!s_ops_state)return;
         if(!data||typeof data.recovery_state!=='string'||!Array.isArray(data.devices)||!Array.isArray(data.events))throw new Error('Incomplete operational response');
+        opsShowMonitoring(data);
         ['recovery_state','job_id','device_index','packet_sent','host_verified','service_verified'].forEach(function(k){s_ops_state[k]=data[k];});
         opsShowJob(data);
         data.devices.forEach(function(d){var badge=d&&s_ops_badges[d.mac];if(badge&&typeof d.state==='string')opsBadge(badge,d,data);});
@@ -6784,7 +6811,10 @@
       var ready=!!s_ops_state&&!s_ops_busy&&!s_ops_loading;
       var recovery=s_ops_capabilities&&s_ops_capabilities['smart-recovery'];
       document.querySelectorAll('#ops-devices button').forEach(function(b){b.disabled=!ready||!recovery||!recovery.compiled||recovery.hardware_supported!==true;});
-      document.getElementById('ops-settings-save').disabled=!ready;
+      ['ops-settings-save','ops-guard-save','ops-remote-save'].forEach(function(id){
+        document.getElementById(id).disabled=!ready;
+      });
+      document.getElementById('ops-lease-save').disabled=!s_ops_lease_loaded||s_ops_busy||s_ops_loading;
       document.getElementById('ops-cancel').disabled=!ready||['precheck','sending-wol','waiting-for-host','checking-service'].indexOf(s_ops_state.recovery_state)<0;
       document.getElementById('ops-refresh').disabled=s_ops_busy||s_ops_loading;
       document.getElementById('health-save').disabled=!ready||!s_health_state;
@@ -8078,10 +8108,9 @@
         document.getElementById('ops-summary').textContent='Control: '+(data.control_connected?'connected':'not connected')+' · policy authority: '+(data.authority_ready==null?'unknown':data.authority_ready?'ready (not a port grant)':'blocked / incomplete')+' · sockets '+data.sockets_used+'/'+data.socket_limit+(Number.isInteger(data.internal_free)?' · free internal '+data.internal_free+' B':'')+' · internal minimum '+data.internal_min+' B · largest block '+data.internal_largest+' B';
         document.getElementById('ops-guard-warning').hidden=data.guard_deferring!==true;
         document.getElementById('ops-monitoring').checked=data.monitoring;document.getElementById('ops-guard').checked=data.guard;document.getElementById('ops-remote').checked=data.remote_commands;
-        document.getElementById('ops-lease-notify').checked=data.lease_notifications===true;
         [['ops-min','minimum_internal'],['ops-largest','minimum_largest'],['ops-sockets','socket_reserve'],['ops-interval','interval_s']].forEach(function(pair){document.getElementById(pair[0]).value=data[pair[1]];});
         opsShowJob(data);
-        var list=document.getElementById('ops-devices');list.replaceChildren();s_ops_badges={};
+        var list=document.getElementById('ops-devices');list.replaceChildren();s_ops_badges={};s_ops_pause_notes={};
         data.devices.forEach(function(d){
           var row=document.createElement('div');row.className='card ops-device';
           var head=document.createElement('div');head.className='card-header';
@@ -8104,6 +8133,12 @@
           var switches=document.createElement('div');switches.className='switch-stack';body.appendChild(switches);
           function toggle(text,checked){var label=document.createElement('label');label.className='feature-switch';var input=document.createElement('input');input.type='checkbox';input.checked=checked;var track=document.createElement('span');track.className='feature-switch-track';track.setAttribute('aria-hidden','true');var caption=document.createElement('span');caption.textContent=text;label.append(input,track,caption);switches.appendChild(label);return input;}
           var checkbox=toggle('Monitor this device',d.monitor);
+          var pauseNote=document.createElement('p');
+          pauseNote.className='ops-monitor-paused';
+          pauseNote.hidden=true;
+          pauseNote.textContent='Global device monitoring is paused.';
+          s_ops_pause_notes[d.mac]=pauseNote;
+          switches.appendChild(pauseNote);
           var notification=toggle('Notify result through enabled ntfy',d.notify);
           var actions=document.createElement('div');actions.className='btn-row';actions.style.marginTop='var(--sp-3)';body.appendChild(actions);
           [['Save profile','device'],['Check now','check'],['Recover with WoL','recover']].forEach(function(pair){var button=document.createElement('button');button.className='btn '+(pair[1]==='recover'?'btn-primary':'btn-secondary');button.textContent=pair[0];button.type='button';button.onclick=function(){
@@ -8114,6 +8149,7 @@
             opsAction(payload);}catch(e){document.getElementById('ops-job').textContent=e.message;}
           };actions.appendChild(button);});list.appendChild(row);
         });
+        opsShowMonitoring(data);
         s_ops_polls=0;opsSchedulePoll(data);
         await Promise.all([loadHealth(),loadCapabilities(sequence)]);
       }catch(e){if(sequence===s_ops_sequence){document.getElementById('ops-summary').textContent=e.message+' — saved view is stale; refresh before actions';s_ops_state=null;}}
@@ -8121,7 +8157,76 @@
     }
     document.getElementById('ops-refresh').onclick=loadOperations;
     document.getElementById('ops-cancel').onclick=function(){opsAction({action:'cancel'});};
-    document.getElementById('ops-settings-save').onclick=function(){try{if(!s_ops_state)return;opsAction({action:'settings',monitoring:document.getElementById('ops-monitoring').checked,guard:document.getElementById('ops-guard').checked,remote_commands:document.getElementById('ops-remote').checked,lease_notifications:document.getElementById('ops-lease-notify').checked,minimum_internal:opsNumber('ops-min'),minimum_largest:opsNumber('ops-largest'),socket_reserve:opsNumber('ops-sockets'),interval_s:opsNumber('ops-interval')});}catch(e){document.getElementById('ops-summary').textContent=e.message;}};
+    async function readOpsSettings() {
+      var response=await fetch('/api/operations',{cache:'no-store'});
+      if(!response.ok) throw new Error('Could not load saved settings.');
+      var data=await response.json();
+      var settings={action:'settings'};
+      for(const key of ['monitoring','guard','remote_commands','lease_notifications']) {
+        if(typeof data[key]!=='boolean') throw new Error('Could not load saved settings.');
+        settings[key]=data[key];
+      }
+      for(const key of ['minimum_internal','minimum_largest','socket_reserve','interval_s']) {
+        if(!Number.isInteger(data[key])||data[key]<0) throw new Error('Could not load saved settings.');
+        settings[key]=data[key];
+      }
+      return {data:data,settings:settings};
+    }
+    async function loadExpiryNotifications() {
+      var status=document.getElementById('ops-lease-save-status');
+      s_ops_lease_loaded=false;
+      opsControls();
+      try {
+        var current=await readOpsSettings();
+        document.getElementById('ops-lease-notify').checked=current.settings.lease_notifications;
+        s_ops_lease_loaded=true;
+        status.textContent='';
+      } catch(e) {status.textContent=e.message;}
+      finally {opsControls();}
+    }
+    var opsSettingGroups={
+      'ops-settings-save':{'ops-monitoring':'monitoring','ops-interval':'interval_s'},
+      'ops-guard-save':{'ops-guard':'guard','ops-min':'minimum_internal','ops-largest':'minimum_largest','ops-sockets':'socket_reserve'},
+      'ops-remote-save':{'ops-remote':'remote_commands'},
+      'ops-lease-save':{'ops-lease-notify':'lease_notifications'}
+    };
+    Object.entries(opsSettingGroups).forEach(function(entry){
+      var button=document.getElementById(entry[0]);
+      var status=document.getElementById(button.id+'-status');
+      button.onclick=async function(){
+        if(button.disabled||s_ops_busy)return;
+        s_ops_busy=true;opsControls();
+        try {
+          var changes={};
+          for(const id of Object.keys(entry[1])) {
+            var input=document.getElementById(id);
+            changes[entry[1][id]]=input.type==='checkbox'?input.checked:opsNumber(id);
+          }
+          var current=await readOpsSettings();
+          var settings=Object.assign(current.settings,changes);
+          var response=await fetch('/api/operations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(settings)});
+          var result=await response.json();
+          if(!response.ok||!result.ok)throw new Error(result.error||'Operation rejected');
+          if(s_ops_state) {
+            Object.assign(s_ops_state,settings);
+            opsShowMonitoring(Object.assign(current.data,{monitoring:settings.monitoring}));
+          }
+          if(button.id==='ops-guard-save'){
+            var data=current.data;
+            document.getElementById('ops-guard-warning').hidden=!settings.guard||
+              (data.internal_free>=settings.minimum_internal&&data.internal_largest>=settings.minimum_largest&&data.socket_limit-data.sockets_used>settings.socket_reserve);
+          }
+          status.textContent='Settings saved.';
+        } catch(e) {status.textContent=e.message;}
+        finally {s_ops_busy=false;opsControls();}
+      };
+    });
+    document.getElementById('temporary-access').addEventListener('toggle',function(){
+      if(this.open&&!s_ops_lease_loaded) loadExpiryNotifications();
+    });
+    document.getElementById('leases-refresh').addEventListener('click',function(){
+      if(!s_ops_busy) loadExpiryNotifications();
+    });
     async function loadHealth(){
       var sequence=++s_health_sequence;
       try{var response=await fetch('/api/health',{cache:'no-store'});if(!response.ok)throw new Error('Connectivity checks unavailable');
@@ -12787,6 +12892,9 @@
       if ((location.hash || '').replace(/^#/, '') !== it.hash) location.hash = it.hash;
       if (!it.el) return;
       setTimeout(function () {
+        for (var parent = it.el.parentElement; parent; parent = parent.parentElement) {
+          if (parent.tagName === 'DETAILS') parent.open = true;
+        }
         it.el.scrollIntoView({block: 'center', behavior: 'smooth'});
         it.el.classList.remove('search-hit'); void it.el.offsetWidth; it.el.classList.add('search-hit');
         var field = it.el.matches && it.el.matches('input, select, textarea, button') ? it.el : it.el.querySelector && it.el.querySelector('input:not([type=hidden]), select, textarea');
