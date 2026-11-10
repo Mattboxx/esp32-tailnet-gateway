@@ -1,5 +1,16 @@
 # Maintainer continuation
 
+## Current handover — Health & Resources layout (local)
+
+Based on published Main at ca7649aca66da0b4b4a6c82ea65b7c0241201f06.
+In the local `fix/health-resource-layout` branch, monitoring belongs to Device
+Registry, remote commands sit with recovery, expiry notifications sit with
+temporary Service Gateway access, and the resource guard is advanced.
+Section saves use the existing operations API and preserve unrelated settings
+and drafts. Selected devices show an explicit pause when global monitoring
+is off. No NVS, version, flash or publication changes. Next: include in a
+future authorized candidate and verify on a real device.
+
 ## Current handover — 2026-11-09 (after 3.0.13)
 
 3.0.14-beta.3 published as a GitHub pre-release (tag on b7ee3f8, MicroLink

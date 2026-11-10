@@ -27,7 +27,7 @@ license:
 ## MicroLink: actual dependency and fork chain
 
 - **Dependency used by this project:** https://github.com/Mattboxx/microlink,
-  branch `mattboxx`, pinned by the `external/microlink` gitlink. Firmware 3.0.15 uses
+  branch `mattboxx`, pinned by the `external/microlink` gitlink. Firmware 3.0.16 uses
   revision `4ea68d1ce84f149156d810aba5be2138b1b7ab72`. The original license audit
   revision is `a709f473137dfd73d9d79ee0577db9c3decd4c29` (identical files to
   `fa3153b6892d00d0c9a9c42f11c8f1a89c6ea910`, see

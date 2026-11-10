@@ -9,7 +9,7 @@ abstract: >-
   optional MQTT, Home Assistant, ntfy and SNMP integration.
 authors:
   - alias: Mattboxx
-version: 3.0.15
+version: 3.0.16
 date-released: 2026-11-10
 license: GPL-3.0-only
 repository-code: "https://github.com/Mattboxx/esp32-tailnet-gateway"
