@@ -6,6 +6,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.15] - 2026-11-10
+
+### Fixed
+
+- Enterprise Wi-Fi requires a server certificate trusted by the built-in CA bundle. Enterprise-only installations should verify their RADIUS certificate chain and recovery access before updating.
+- DNS answers cached under one resolver or uplink configuration are kept separate.
+- MagicDNS keeps known private names local while the gateway connects. Headscale's private suffix is remembered after its first connection.
+
 ## [3.0.14] - 2026-11-09
 
 ### Added
