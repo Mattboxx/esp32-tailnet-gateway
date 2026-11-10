@@ -133,7 +133,7 @@ idf_component_register(SRCS "main.c" ${_tsr_optional}
                                   acl sdlog remote_console
                                   web_password net_diag dhcpserver
                                   espcoredump dns_relay snmp_agent cli task_reaper
-                                  app_update
+                                  app_update spi_flash
                                   mqtt
                                   esp_http_client
                                   esp_eth esp_driver_spi esp_driver_gpio esp_driver_uart
