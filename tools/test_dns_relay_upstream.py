@@ -38,6 +38,8 @@ assert 'recvfrom(up, rbuf, DNS_RELAY_BUF_SIZE, 0, NULL, NULL)' not in source
 helpers = (function('static int dns_question_len(') + function('static uint32_t dns_resp_ttl(')
            + function('static bool dns_reply_matches(') + function('static int upstream_recv('))
 checked = re.sub(r'\bp\[([^\]]+)\]', r'AT(\1)', helpers)
+cache_decl = source.split('/* ---- SPIRAM direct-mapped response cache ---- */', 1)[1].split('static atomic_uint s_cache_epoch;', 1)[0]
+cache_helpers = cache_decl + function('static uint32_t fnv1a(') + function('static bool cache_get(') + function('static void cache_put(')
 
 PROGRAM = r'''
 #include <errno.h>
@@ -48,6 +50,7 @@ PROGRAM = r'''
 #include <string.h>
 #define DNS_RELAY_BUF_SIZE 1024
 #define DNS_CACHE_KEY_MAX 256
+#define DNS_CACHE_ENTRIES 4
 #define DNS_CACHE_TTL_NEG_S 30
 #define DNS_CACHE_TTL_MIN_S 10
 #define DNS_CACHE_TTL_MAX_S 3600
@@ -78,6 +81,13 @@ static int recvfrom(int s, void *buf, size_t cap, int fl, struct sockaddr *from,
     int n = d->len < (int)cap ? d->len : (int)cap; memcpy(buf, d->d, n); return n;
 }
 @@HELPERS@@
+typedef void *SemaphoreHandle_t;
+#define portMAX_DELAY 0
+#define xSemaphoreTake(mutex, ticks) ((void)(mutex), (void)(ticks))
+#define xSemaphoreGive(mutex) ((void)(mutex))
+static int64_t esp_timer_get_time(void) { return 1000000; }
+static uint32_t st_inserts, st_evictions;
+@@CACHE@@
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d\n", __LINE__); return 1; } } while (0)
 static uint8_t q[64]; static int qlen;
 static uint8_t r[600]; static int rlen;
@@ -101,6 +111,14 @@ int main(void) {
     uint8_t buf[DNS_RELAY_BUF_SIZE];
     const uint32_t SRV = 0x0101A8C0; const uint16_t P53 = 53;
     build_q(0xBEEF, "www.example.com"); build_r(300);
+    dns_cache_entry_t entries[DNS_CACHE_ENTRIES] = {0};
+    s_cache = entries;
+    s_cache_mtx = entries;
+    int key_len = qlen - 12, cached_len = 0;
+    cache_put(q, key_len, SRV, 1, r, rlen, 300);
+    CHECK(cache_get(q, key_len, SRV, 1, buf, &cached_len) && cached_len == rlen);
+    CHECK(!cache_get(q, key_len, SRV + 1, 1, buf, &cached_len));
+    CHECK(!cache_get(q, key_len, SRV, 2, buf, &cached_len));
 
     nscript = spos = 0; add(r, rlen, SRV, P53);
     CHECK(recv_now(buf) == rlen && memcmp(buf, r, rlen) == 0);
@@ -164,7 +182,7 @@ int main(void) {
 def run(code):
     with tempfile.TemporaryDirectory() as tmp:
         c = Path(tmp) / 'relay.c'
-        c.write_text(PROGRAM.replace('@@HELPERS@@', code), encoding='utf-8')
+        c.write_text(PROGRAM.replace('@@HELPERS@@', code).replace('@@CACHE@@', cache_helpers), encoding='utf-8')
         exe = Path(tmp) / ('relay.exe' if os.name == 'nt' else 'relay')
         subprocess.run(['gcc', '-std=c11', '-O1', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-Wno-unused-parameter', '-Wno-unused-variable', str(c), '-o', str(exe)], check=True)
         return subprocess.run([str(exe)], capture_output=True, text=True)

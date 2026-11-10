@@ -6,6 +6,93 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.15] - 2026-11-10
+
+### Fixed
+
+- Enterprise Wi-Fi requires a server certificate trusted by the built-in CA bundle. Enterprise-only installations should verify their RADIUS certificate chain and recovery access before updating.
+- DNS answers cached under one resolver or uplink configuration are kept separate.
+- MagicDNS keeps known private names local while the gateway connects. Headscale's private suffix is remembered after its first connection.
+
+## [3.0.14] - 2026-11-09
+
+### Added
+
+- Settings search in all six interface languages.
+- MagicDNS for the gateway's own name, optional split DNS and extra records.
+- Status summary with uplink, tailnet, traffic rate and Client WiFi.
+
+### Fixed
+
+- The mobile page stays in place while the menu or settings search is open.
+
+## [3.0.14-beta.4] — 2026-11-09 (pre-release)
+
+### Fixed
+- Phones: with the side menu open, the page underneath kept scrolling and
+  jumped (a regression of beta.2). The page is locked while the menu or the
+  settings search is open; drags outside the open panel are ignored.
+- The chip that counts hidden sections stays on the same line as the
+  section bar on every page (it wrapped below it, e.g. System on phones).
+- Settings search works in Chinese (the page text was dropped when matching)
+  and knows common German, French, Spanish and Chinese synonyms.
+
+### Changed
+- Italian, German, French, Spanish and Chinese: every text of the
+  interface is translated (65 new strings, among them the settings search,
+  MagicDNS, Telegram user id help, update progress and support choices);
+  the MagicDNS status line is now built from translatable pieces.
+
+## [3.0.14-beta.3] — 2026-11-09 (pre-release)
+
+### Added
+- Settings search: the magnifier in the top bar, Ctrl+K or "/" opens it.
+  It finds pages, sections, cards and options as you type, ignoring case and
+  accents, with word beginnings, one typo in longer words and common
+  synonyms in English and Italian (for example "aggiornamento" finds the
+  firmware update). Enter opens the page and section, highlights the setting
+  and puts the cursor in its first field; advanced settings are marked and
+  shown when chosen. The list is read from the page only when the search
+  opens, so page loading is unchanged.
+
+## [3.0.14-beta.2] — 2026-11-09 (pre-release)
+
+### Changed
+- The Web UI loads as fast as 3.0.13: no staggered card entrance and no
+  travelling light on the summary line; identical requests made at the same
+  time are sent once.
+- The free internal RAM node uses the same colours as the others.
+- Uplink WiFi and access-point card icons corrected.
+- The same light motion on every page: a short fade when a page or section
+  opens, card hover, and a brief highlight on values that change.
+
+### Fixed
+- After swiping the section bar, the page could be dragged sideways past
+  its edges; the page no longer scrolls sideways and cannot be pinch-zoomed.
+
+## [3.0.14-beta.1] — 2026-11-09 (pre-release)
+
+### Added
+- MagicDNS: the gateway answers its own tailnet name as well as its peers'.
+- Tailnet DNS settings (new switch, off by default): extra records and
+  split DNS from the Tailscale or Headscale admin console are answered or
+  sent to their DNS server; with "Override local DNS" set there, other names
+  go to the tailnet's DNS server while the tunnel is up. DNS over HTTPS/TLS
+  and IPv6 servers are skipped and counted.
+- The gateway's own connections (MQTT, ntfy, email, HTTP) can use a MagicDNS
+  name as their server (new switch, off by default). Tailnet names never go
+  to the public resolver.
+- Status page: the summary is one signal line from the home WiFi to the
+  tailnet, with a Client WiFi node while the access point runs, the uplink
+  rate next to the state and small trend lines when trends are on.
+
+### Changed
+- Status page cards mark their state with a short bar in the corner; values
+  that change are briefly highlighted; cards settle in softly. Motion pauses
+  in hidden tabs and stops when the system asks for reduced motion.
+- Top bar: when sections do not fit, a chip next to them shows how many are
+  hidden and scrolls to them; on phones it is a full-size touch target.
+
 ## [3.0.13] — 2026-11-08
 
 ### Changed

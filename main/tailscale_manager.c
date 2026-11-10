@@ -11,6 +11,7 @@
  */
 
 #include <string.h>
+#include <strings.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include "lwip/ip4_addr.h"
@@ -36,6 +37,7 @@
 #include "web_ui.h"
 #include "task_reaper.h"
 #include "boot_timeline.h"
+#include "tailnet_names.h"
 
 /* Local helper: load a string from NVS, defaulting to an empty heap
  * buffer when the key isn't there. Other modules assume non-NULL. */
@@ -303,6 +305,24 @@ bool tailscale_in_subnet(uint32_t ip)
     return (ip & tailscale_subnet_mask) == tailscale_subnet_ip;
 }
 
+bool tailscale_is_login_host(const char *name)
+{
+    const char *host = s_active_login_server;
+    if (!host || !*host) return false;
+    const char *scheme_end = strstr(host, "://");
+    if (scheme_end) host = scheme_end + 3;
+    size_t len = strcspn(host, ":/");
+    if (len && host[len - 1] == '.') len--;
+    return len && strlen(name) == len && strncasecmp(host, name, len) == 0;
+}
+
+static void tailscale_dns_state(microlink_t *ml, microlink_state_t state, void *arg)
+{
+    (void)ml;
+    (void)arg;
+    if (state == ML_STATE_CONNECTED) tailnet_names_remember_zone();
+}
+
 static esp_err_t tailscale_connect_locked(void)
 {
     if (!tailscale_enabled) {
@@ -367,6 +387,7 @@ static esp_err_t tailscale_connect_locked(void)
 
     /* Publish only a successfully started instance. Readers must never see
      * an object that the start-failure path is about to destroy. */
+    microlink_set_state_callback(instance, tailscale_dns_state, NULL);
     esp_err_t err = microlink_start(instance);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "microlink_start failed: %s", esp_err_to_name(err));
