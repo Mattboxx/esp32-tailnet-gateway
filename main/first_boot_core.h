@@ -113,7 +113,7 @@ const char *fb_check_hostname(const char *name);
 /* Internet connection chosen in setup: "wifi", "ethernet" or "cellular".
  * Wi-Fi needs a network; with only a SIM the gateway is reached through
  * the tailnet, so an auth key is needed. NULL = acceptable. */
-const char *fb_check_uplink(const char *type, bool has_wifi, bool has_key, bool exit_node);
+const char *fb_check_uplink(const char *type, bool has_wifi);
 /* POSIX TZ rule as written by the Web UI (empty = UTC). */
 const char *fb_check_tz(const char *tz);
 

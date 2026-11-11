@@ -95,6 +95,8 @@ static int32_t tailscale_snat_subnet_routes;
 static bool tailscale_exit_server_active(void) { return exit_server_active; }
 static struct netif *selected_eth;
 static struct netif *eth_uplink_selected_lwip(void) { return selected_eth; }
+static struct netif *selected_ppp;
+static struct netif *cell_uplink_selected_lwip(void) { return selected_ppp; }
 static uint32_t binding;
 static bool tailnet_forward_is_routed_target(uint32_t uplink, int proto, uint32_t ip, uint16_t port) {
     return binding && uplink==binding && (proto==6 || proto==17) && ip==known_peer_nbo && port==22;
@@ -114,7 +116,7 @@ static void reset(void) {
     ap=(struct netif){.name={'a','p'},.num=2,.up=true,.link=true,.ip={swap32(0xc0a80401)},.mask={swap32(0xffffff00)}};
     wg=(struct netif){.name={'w','g'},.up=true,.link=true,.ip={swap32(0x6450463c)},.mask={swap32(0xffc00000)}};
     sta.next=&ap; ap.next=&wg; netif_list=&sta; netif_default=NULL;
-    selected_eth=NULL; binding=0;
+    selected_eth=NULL; selected_ppp=NULL; binding=0;
     tailscale_exit_node_ip=0; tailscale_lan_bypass=0; tailscale_accept_routes=0;
     publish_accepted_routes(NULL,0);
     memset(dns_servers,0,sizeof dns_servers); memset(&dhcp_state,0,sizeof dhcp_state); known_peer_nbo=0;
@@ -186,6 +188,25 @@ int main(void) {
         __wrap_ip_napt_forward(&packet,&header,&wg,&sta);
         assert(!napt_enabled_at_call);
     }
+    struct netif ppp={.name={'p','p'},.up=true,.link=true,.ip={swap32(0x64401014)},.mask={swap32(0xffffffff)}};
+    selected_ppp=&ppp;
+    tailscale_exit_node_ip=known_peer_nbo;
+    tailscale_lan_bypass=1;
+    expect(0,0x08080808,&ppp);                  /* control traffic stays outside the exit tunnel */
+    expect(0xc0a80402,0x08080808,&wg);        /* AP clients still use the exit tunnel */
+    expect(0,0x0a000001,&eth);                 /* local bypass stays on the physical LAN */
+    tailscale_exit_node_ip=0;
+    exit_server_active=true;
+    header=(struct ip_hdr){.dest={swap32(0x08080808)},.proto=6};
+    __wrap_ip_napt_forward(&packet,&header,&wg,&ppp);
+    assert(napt_enabled_at_call && !wg.napt);
+    exit_server_active=false;
+    tailscale_snat_subnet_routes=1;
+    __wrap_ip_napt_forward(&packet,&header,&wg,&ppp);
+    assert(!napt_enabled_at_call);             /* PPP is not a local subnet listener */
+    __wrap_ip_napt_forward(&packet,&header,&wg,&eth);
+    assert(napt_enabled_at_call && !wg.napt);
+    tailscale_snat_subnet_routes=0;
     reset();
     set_default_via_tcpip(&sta); assert(netif_default==&sta);
     queue_fails=true; set_default_via_tcpip(&wg); assert(netif_default==&sta);

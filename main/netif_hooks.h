@@ -41,6 +41,8 @@ bool netif_hooks_install_ppp(struct netif *nif);
 bool netif_hooks_ppp_input_allowed(struct pbuf *p, struct netif *input);
 uint64_t netif_hooks_get_ppp_bytes_in (void);
 uint64_t netif_hooks_get_ppp_bytes_out(void);
+uint64_t netif_hooks_get_eth_bytes_in(void);
+uint64_t netif_hooks_get_eth_bytes_out(void);
 
 /* Wire-byte counters — accumulated in the four hook tap points before
  * the ACL check, so they represent everything that actually hit the

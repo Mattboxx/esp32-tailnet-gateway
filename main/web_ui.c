@@ -63,6 +63,8 @@
 #include "perf_hooks.h"
 #include "service_evidence.h"
 #include "eth_uplink.h"
+#include "cell_uplink.h"
+#include "uplink_services.h"
 #include "service_diagnostics.h"
 #include "mac_deny.h"
 #include "reset_history.h"
@@ -423,6 +425,47 @@ static esp_err_t status_handler(httpd_req_t *req)
         cJSON_AddStringToObject(sta, "lan_name", lan);   /* "<lan_name>.local" on the uplink */
     }
     cJSON_AddItemToObject(root, "sta", sta);
+
+    esp_netif_t *wan = uplink_internet_netif();
+    esp_netif_ip_info_t active_ip = {0};
+    cJSON_AddBoolToObject(root, "lan_connected", uplink_address(eth_uplink_service_netif(), &active_ip));
+    cJSON_AddBoolToObject(root, "local_connected", uplink_address(uplink_local_netif(), &active_ip));
+    if (wan && wan != sta_if) {
+        bool ethernet = wan == eth_uplink_netif();
+        cJSON *uplink = cJSON_AddObjectToObject(root, "uplink");
+        if (uplink) {
+            bool connected = uplink_address(wan, &active_ip);
+            cJSON_AddBoolToObject(uplink, "connected", connected);
+            cJSON_AddStringToObject(uplink, "type", ethernet ? "ethernet" : "cellular");
+            char name[LAN_NAME_MAX + 1];
+            lan_name_active(name, sizeof name);
+            cJSON_AddStringToObject(uplink, "lan_name", name);
+            if (connected) {
+                char address[16];
+                ip4_to_str(active_ip.ip.addr, address, sizeof address);
+                cJSON_AddStringToObject(uplink, "ip", address);
+                ip4_to_str(active_ip.gw.addr, address, sizeof address);
+                cJSON_AddStringToObject(uplink, "gateway", address);
+                int prefix = subnet_mask_prefix_len(active_ip.netmask.addr);
+                if (prefix >= 0) cJSON_AddNumberToObject(uplink, "prefix", prefix);
+                esp_netif_dns_info_t dns = {0};
+                if (esp_netif_get_dns_info(wan, ESP_NETIF_DNS_MAIN, &dns) == ESP_OK &&
+                    dns.ip.type == ESP_IPADDR_TYPE_V4 && dns.ip.u_addr.ip4.addr) {
+                    ip4_to_str(dns.ip.u_addr.ip4.addr, address, sizeof address);
+                    cJSON_AddStringToObject(uplink, "dns", address);
+                }
+            }
+            cJSON_AddNumberToObject(uplink, "bytes_in", ethernet ?
+                (double)netif_hooks_get_eth_bytes_in() : (double)netif_hooks_get_ppp_bytes_in());
+            cJSON_AddNumberToObject(uplink, "bytes_out", ethernet ?
+                (double)netif_hooks_get_eth_bytes_out() : (double)netif_hooks_get_ppp_bytes_out());
+            if (!ethernet) {
+                cell_status_t cell;
+                cell_uplink_get_status(&cell);
+                if (cell.rssi_dbm < 0) cJSON_AddNumberToObject(uplink, "rssi", cell.rssi_dbm);
+            }
+        }
+    }
 
     /* AP (downlink) — SSID + channel from live wifi_config, MAC, clients, IP. */
     cJSON *ap = cJSON_CreateObject();
@@ -2775,7 +2818,7 @@ static esp_err_t tailnet_forward_handler(httpd_req_t *req)
      * An IPv4 address is not proof of router/Internet/tunnel availability. */
     esp_netif_ip_info_t ip = {0};
     esp_netif_t *sta = eth_uplink_service_netif();  /* STA, or Ethernet while selected */
-    bool uplink = sta && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr;
+    bool uplink = sta && esp_netif_is_netif_up(sta) && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr;
     bool control = tailscale_is_connected();
     char uplink_ip[16] = "";
     if (uplink) snprintf(uplink_ip, sizeof uplink_ip, IPSTR, IP2STR(&ip.ip));

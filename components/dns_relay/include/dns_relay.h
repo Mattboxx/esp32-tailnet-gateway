@@ -17,6 +17,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "esp_netif.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,9 +48,11 @@ bool dns_relay_is_healthy(void);
  * relay availability. Pass NULL to clear. */
 typedef void (*dns_relay_state_cb_t)(bool healthy);
 void dns_relay_set_state_cb(dns_relay_state_cb_t cb);
+/* Install before init. Returns the current Internet-facing interface. */
+void dns_relay_set_uplink_provider(esp_netif_t *(*provider)(void));
 
 /* Override the upstream resolver (network byte order).
- * Pass 0 to fall back to the STA-learned DNS at forward time. */
+ * Pass 0 to fall back to the active uplink DNS at forward time. */
 void dns_relay_set_upstream(uint32_t ip_nbo);
 uint32_t dns_relay_get_upstream(void);
 

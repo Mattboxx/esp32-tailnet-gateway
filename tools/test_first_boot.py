@@ -143,13 +143,11 @@ int main(void) {
     assert(!fb_check_login_server("") && !fb_check_login_server("https://hs.example.com") && fb_check_login_server("ftp://x") && fb_check_login_server("https://a b"));
     assert(!fb_check_hostname("") && !fb_check_hostname("tailnet-gateway") && fb_check_hostname("-x") && fb_check_hostname("Upper") && fb_check_hostname("a_b"));
     /* Internet connection chosen in setup. */
-    assert(!fb_check_uplink(NULL, true, false, false) && fb_check_uplink(NULL, false, false, false));      /* 3.0 pages: Wi-Fi */
-    assert(!fb_check_uplink("wifi", true, false, true) && fb_check_uplink("wifi", false, true, false));
-    assert(!fb_check_uplink("ethernet", false, false, true) && !fb_check_uplink("ethernet", true, true, false));   /* Wi-Fi optional */
-    assert(fb_check_uplink("cellular", false, false, false));                                            /* SIM alone needs a key */
-    assert(!fb_check_uplink("cellular", false, true, false) && !fb_check_uplink("cellular", true, false, false));
-    assert(fb_check_uplink("cellular", true, true, true));                                               /* no exit node on mobile data */
-    assert(fb_check_uplink("satellite", true, true, false) && fb_check_uplink("", true, true, false));
+    assert(!fb_check_uplink(NULL, true) && fb_check_uplink(NULL, false)); /* 3.0 pages default to Wi-Fi */
+    assert(!fb_check_uplink("wifi", true) && fb_check_uplink("wifi", false));
+    assert(!fb_check_uplink("ethernet", false) && !fb_check_uplink("ethernet", true));
+    assert(!fb_check_uplink("cellular", false) && !fb_check_uplink("cellular", true));
+    assert(fb_check_uplink("satellite", true) && fb_check_uplink("", true));
     /* Time zone rules as the System page writes them. */
     assert(!fb_check_tz(NULL) && !fb_check_tz("") && !fb_check_tz("CET-1CEST,M3.5.0,M10.5.0/3") && !fb_check_tz("<+0545>-5:45"));
     assert(!fb_check_tz("ACST-9:30ACDT,M10.1.0,M4.1.0/3") && !fb_check_tz("UTC0"));
@@ -324,3 +322,46 @@ with tempfile.TemporaryDirectory(prefix='first-boot-', ignore_cleanup_errors=Tru
     (path / 'unit.c').write_text(UNIT, encoding='utf-8')
     subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'unit.c'), str(ROOT / 'main/first_boot_core.c'), '-o', str(unit)], check=True)
     subprocess.run([str(unit)], check=True)
+    main = (ROOT / 'main/main.c').read_text(encoding='utf-8')
+    start = main.index('bool wifi_setup_test_matches(')
+    proof = main[start:main.index('\n}', start)+2]
+    (path / 'proof.c').write_text(r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#define ESP_OK 0
+#define WIFI_IF_STA 0
+enum {FB_WIFI_IDLE, FB_WIFI_OK};
+typedef struct {struct {uint8_t ssid[32], password[64];} sta;} wifi_config_t;
+typedef struct {uint8_t ssid[33];} wifi_ap_record_t;
+typedef struct {struct {uint32_t addr;} ip;} esp_netif_ip_info_t;
+static int s_setup_test;
+static uint32_t s_setup_test_ip=1, live_ip=1;
+static bool connected=true;
+static wifi_config_t saved = {.sta={.ssid="Fixture",.password="example-pass"}};
+static wifi_ap_record_t ap={.ssid="Fixture"};
+static void *esp_netif_get_handle_from_ifkey(const char *key) {(void)key;return &saved;}
+static bool uplink_address(void *n,esp_netif_ip_info_t *i) {(void)n;i->ip.addr=live_ip;return connected;}
+static int esp_wifi_sta_get_ap_info(wifi_ap_record_t *a) {*a=ap;return ESP_OK;}
+static int esp_wifi_get_config(int i,wifi_config_t *out) {(void)i;*out=saved;return ESP_OK;}
+''' + proof + r'''
+int main(void) {
+    assert(!wifi_setup_test_matches("Fixture","example-pass"));
+    s_setup_test=FB_WIFI_OK;
+    assert(wifi_setup_test_matches("Fixture","example-pass"));
+    assert(!wifi_setup_test_matches("Fixture","changed-pass"));
+    assert(!wifi_setup_test_matches("Fixture 2","example-pass"));
+    connected=false;
+    assert(!wifi_setup_test_matches("Fixture","example-pass"));
+    connected=true; live_ip=2;
+    assert(!wifi_setup_test_matches("Fixture","example-pass"));
+    live_ip=1; ap.ssid[0]='O';
+    assert(!wifi_setup_test_matches("Fixture","example-pass"));
+    puts("PASS: setup proof requires a live tested address and matching Wi-Fi credentials");
+}
+''', encoding='utf-8')
+    proof_exe = path / ('proof.exe' if os.name == 'nt' else 'proof')
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'proof.c'), '-o', str(proof_exe)], check=True)
+    subprocess.run([str(proof_exe)], check=True)

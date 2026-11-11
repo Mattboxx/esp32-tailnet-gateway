@@ -26,6 +26,7 @@
 #include "esp_http_client.h"
 #include "esp_log.h"
 #include "eth_uplink.h"
+#include "uplink_services.h"
 #include "esp_netif.h"
 #include "esp_system.h"
 #include "esp_timer.h"
@@ -387,10 +388,9 @@ NTFY_NOINLINE char *remote_info_text(bool include_details, bool poweron_events)
         appendf(text,8192,"LAN→Tailnet rule %d lease: %s, %.0f seconds remaining\n",cJSON_IsNumber(index)?index->valueint+1:0,cJSON_IsString(status)?status->valuestring:"unknown",cJSON_IsNumber(remaining)?remaining->valuedouble:0);
     }cJSON_Delete(leases);}
 
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     esp_netif_ip_info_t ip = {0};
     wifi_ap_record_t ap = {0};
-    bool uplink = sta && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr;
+    bool uplink = uplink_address(uplink_internet_netif(), &ip);
     bool have_ap = esp_wifi_sta_get_ap_info(&ap) == ESP_OK;
     appendf(text, 8192, "\nUplink: %s\nRSSI: %d dBm\n",
             uplink ? "connected" : "disconnected", have_ap ? ap.rssi : 0);
@@ -714,7 +714,7 @@ static NTFY_NOINLINE bool poll_commands(const ntfy_integration_config_t *c)
 
 static bool uplink_connected(void)
 {
-    esp_netif_t *sta = eth_uplink_service_netif();
+    esp_netif_t *sta = uplink_internet_netif();
     esp_netif_ip_info_t ip = {0};
     return sta && esp_netif_is_netif_up(sta) && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr != 0;
 }

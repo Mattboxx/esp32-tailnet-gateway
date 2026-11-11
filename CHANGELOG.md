@@ -6,6 +6,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.18-beta.9] - 2026-11-11
+
+- Start Tailscale and follow the available Internet uplink on WiFi, W5500
+  and supported cellular modems. Remote updates, notification integrations,
+  health and DNS use that uplink. LAN service mappings stay on Ethernet or
+  WiFi, and the access point provides local access on cellular-only setups.
+- Wake-on-LAN and the local hostname follow the LAN interface. Updated the
+  Ethernet and cellular setup descriptions.
+- Require a successful WiFi connection test before setup can continue with
+  WiFi settings and show the assigned address with a copy button.
+- Send one recovery result to enabled notification channels per manual
+  operation. Scheduled device checks alert on a new loss of reachability.
+
 ## [3.0.18-beta.8] - 2026-11-11
 
 - Apply LAN-to-Tailnet TCP and UDP address translation on the selected

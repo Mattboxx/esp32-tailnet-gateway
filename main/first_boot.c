@@ -449,7 +449,7 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
     if (!type) type = "wifi";                                /* 3.0 pages */
     bool has_wifi = ssid && *ssid, eth_up = !strcmp(type, "ethernet"), cell_up = !strcmp(type, "cellular");
     const char *reason = fb_check_admin_password(admin, ssid);
-    if (!reason) reason = fb_check_uplink(type, has_wifi, key && *key, bool_of(cmd, "exit_node", false));
+    if (!reason) reason = fb_check_uplink(type, has_wifi);
     if (!reason && has_wifi) reason = fb_check_wifi(ssid, wpw ? wpw : "");
     if (!reason) reason = fb_check_tz(tz);
     /* Ethernet (W5500) or a SIM modem: the saved defaults plus the pins and
@@ -505,6 +505,10 @@ static esp_err_t finish(httpd_req_t *req, const cJSON *cmd)
     if (!reason) reason = fb_check_hostname(host);
     if (!reason && ap_pw && admin && !strcmp(ap_pw, admin)) reason = "use a different password for the access point";
     if (reason) return send_error(req, "400 Bad Request", "invalid", reason);
+    if (has_wifi && !wifi_setup_test_matches(ssid, wpw ? wpw : "")) {
+        return send_error(req, "409 Conflict", "wifi_test_required",
+                          "Run Test connection successfully with the current Wi-Fi settings before finishing setup.");
+    }
     bool share_lan = bool_of(cmd, "share_lan", false), share_ap = bool_of(cmd, "share_ap", false);
     bool exit_node = bool_of(cmd, "exit_node", false), ap_recovery = bool_of(cmd, "ap_recovery_only", true);
     char cidr[24] = "";

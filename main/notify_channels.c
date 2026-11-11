@@ -303,6 +303,7 @@ done:
 #include "esp_rom_crc.h"
 #include "lan_name.h"
 #include "tailscale_config.h"
+#include "uplink_services.h"
 #include "web_ui.h"
 #include "task_reaper.h"
 #include "esp_attr.h"
@@ -368,13 +369,12 @@ EXT_RAM_BSS_ATTR static channel_status_t s_tg, s_mail;
 static uint8_t s_tokens = 6;
 EXT_RAM_BSS_ATTR static uint32_t s_refill;
 /* Zero means an ordinary event. Links have independent bounded episodes. */
-enum {LINK_NONE, LINK_WIFI, LINK_TAILNET, LINK_END};
+enum {LINK_NONE, LINK_UPLINK, LINK_TAILNET, LINK_END};
 #define LINK_GRACE_DEFAULT_S 60u
 typedef struct {uint32_t since, episode; uint8_t delivered; bool down, announced, suppress_up;} link_state_t;
 EXT_RAM_BSS_ATTR static link_state_t s_links[LINK_END];
 EXT_RAM_BSS_ATTR static uint32_t s_note_id, s_worker_retry;
 static uint16_t s_worker_backoff = 30; /* capped at 300 seconds */
-extern volatile int ap_connect;
 
 /* --- notify store (begin) --- */
 /* One NVS record holds everything, so a save is all or nothing. The email
@@ -708,8 +708,8 @@ static note_t *limited_locked(uint8_t kind, uint8_t level, uint8_t channels, uin
 }
 
 static uint32_t notify_wall(void) {time_t t = time(NULL); return t > 1700000000 ? (uint32_t)t : 0;}
-static unsigned link_kind(unsigned link) {return link == LINK_WIFI ? HIST_EV_UPLINK : HIST_EV_TAILNET;}
-static const char *link_name(unsigned link) {return link == LINK_WIFI ? "Wi-Fi uplink" : "Tailnet connection";}
+static unsigned link_kind(unsigned link) {return link == LINK_UPLINK ? HIST_EV_UPLINK : HIST_EV_TAILNET;}
+static const char *link_name(unsigned link) {return link == LINK_UPLINK ? "Internet uplink" : "Tailnet connection";}
 
 static void link_recovered_locked(unsigned link, uint32_t now)
 {
@@ -752,8 +752,8 @@ static bool event_text_is(const char *text, const char *base)
 static bool connectivity_offer_locked(unsigned kind, unsigned level, const char *text, uint32_t now)
 {
     unsigned link = LINK_NONE; bool up = false;
-    if (kind == HIST_EV_UPLINK && level == HIST_WARN && !strncmp(text, "Wi-Fi uplink lost (", sizeof("Wi-Fi uplink lost (") - 1)) link = LINK_WIFI;
-    else if (kind == HIST_EV_UPLINK && level == HIST_INFO && !strncmp(text, "Wi-Fi uplink connected, ", sizeof("Wi-Fi uplink connected, ") - 1)) {link = LINK_WIFI; up = true;}
+    if (kind == HIST_EV_UPLINK && level == HIST_WARN && event_text_is(text, "Internet uplink lost")) link = LINK_UPLINK;
+    else if (kind == HIST_EV_UPLINK && level == HIST_INFO && event_text_is(text, "Internet uplink connected")) {link = LINK_UPLINK; up = true;}
     else if (kind == HIST_EV_TAILNET && level == HIST_WARN && event_text_is(text, "Tailnet connection lost")) link = LINK_TAILNET;
     else if (kind == HIST_EV_TAILNET && level == HIST_INFO && event_text_is(text, "Tailnet connected")) {link = LINK_TAILNET; up = true;}
     if (!link) return false;
@@ -797,14 +797,15 @@ static void update_poll_locked(uint32_t now)
 
 static void notify_poll(void)
 {
+    bool wan_ready = uplink_internet_ready();
     xSemaphoreTake(s_lock, portMAX_DELAY);
     uint32_t now = (uint32_t)(esp_timer_get_time() / 1000000);
     update_poll_locked(now);
-    for (unsigned link = LINK_WIFI; link < LINK_END; ++link) {
+    for (unsigned link = LINK_UPLINK; link < LINK_END; ++link) {
         link_state_t *s = &s_links[link];
         if (!s->down) continue;
         /* A dropped history line cannot leave a stale down alert pending. */
-        if ((link == LINK_WIFI && ap_connect) || (link == LINK_TAILNET && tailscale_is_connected())) {
+        if ((link == LINK_UPLINK && wan_ready) || (link == LINK_TAILNET && tailscale_is_connected())) {
             link_recovered_locked(link, now); continue;
         }
         if (!s->announced && now - s->since >= s_link_grace_s) {
@@ -895,7 +896,7 @@ static esp_err_t get_notify(httpd_req_t *req)
     uint16_t grace = s_link_grace_s;
     channel_status_t a = s_tg, b = s_mail;
     unsigned waiting = s_count, dropped = s_dropped, pending = 0;
-    for (unsigned i = LINK_WIFI; i < LINK_END; ++i) if (s_links[i].down && !s_links[i].announced) pending++;
+    for (unsigned i = LINK_UPLINK; i < LINK_END; ++i) if (s_links[i].down && !s_links[i].announced) pending++;
     bool worker_running = s_worker;
     xSemaphoreGive(s_lock);
     cJSON_AddStringToObject(root, "events", c.level == NOTIFY_ALL ? "all" : "problems");

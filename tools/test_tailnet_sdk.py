@@ -101,6 +101,7 @@ static struct netif sta,ap,wg;
 static bool ethernet_case;
 static struct netif *find_wg_netif(void) { return &wg; }
 static struct netif *eth_uplink_selected_lwip(void) { return ethernet_case ? &sta : NULL; }
+static struct netif *cell_uplink_selected_lwip(void) { return NULL; }
 static bool netif_is_sta(const struct netif *n) { (void)n; return false; }
 static bool ip_in_cgnat(uint32_t ip) { return (ip & 0xffc00000u) == 0x64400000u; }
 static bool tailscale_snat_subnet_routes;

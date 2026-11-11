@@ -16,6 +16,7 @@
 #include "service_lease.h"
 #include "health_monitor.h"
 #include "eth_uplink.h"
+#include "uplink_services.h"
 #if CONFIG_ETH_SPI_ETHERNET_W5500
 #define ETH_MANIFEST_SUMMARY "w5500-spi-conditional"
 #else
@@ -65,9 +66,11 @@ typedef struct {uint32_t magic,version;ops_settings_t settings;ops_device_t devi
 typedef enum {J_IDLE,J_PRECHECK,J_WAKE,J_WAIT,J_SERVICE,J_REACHABLE,J_TIMEOUT,J_UNKNOWN,J_CANCELLED,J_RESOURCE,J_LEASE_CLOSED} job_state_t;
 static const char *const states[]={"idle","precheck","sending-wol","waiting-for-host","checking-service","reachable","not-reachable","inconclusive","cancelled","resource-deferred","service-access-closed"};
 typedef struct {uint32_t seq;uint64_t uptime_ms;uint8_t state,index;} event_t;
-typedef struct {uint8_t mac[6],state;uint16_t checks;uint32_t latency_ms;uint64_t observed_ms;} result_t;
+enum {MONITOR_UNOBSERVED, MONITOR_REACHABLE, MONITOR_DOWN};
+typedef struct {uint8_t mac[6],state,monitor_state;uint16_t checks;uint32_t latency_ms;uint64_t observed_ms;} result_t;
 typedef struct {
     uint32_t id;int index;job_state_t state;bool wake,manual,cancel,host_seen,service_seen,packet_sent,probe_valid;
+    bool wake_attempted, notify_result;
     ops_recovery_origin_t origin;
     uint16_t checks;uint64_t started,deadline,next,finished;
     wol_device_t device;ops_device_t profile;
@@ -298,7 +301,7 @@ esp_err_t homelab_ops_request(int index,bool wake,ops_recovery_origin_t origin) 
         if(last_manual[i].time<last_manual[oldest].time)oldest=i;
     }
     /* One job at a time; each device at most once a minute by hand. */
-    if(active(job.state)){UNLOCK();return ESP_ERR_INVALID_STATE;}
+    if(active(job.state) || job.notify_result){UNLOCK();return ESP_ERR_INVALID_STATE;}
     if(cooldown>=0 && now-last_manual[cooldown].time<60000){UNLOCK();return ESP_ERR_TIMEOUT;}
     job=(job_t){.id=++job_seq,.index=index,.state=J_PRECHECK,.wake=wake,.manual=true,.origin=origin,.started=now,
         .deadline=now+(uint64_t)profile.timeout_s*1000,.device=device,.profile=profile};
@@ -330,9 +333,9 @@ static int connect_probe(const ops_device_t *p,uint16_t port,uint32_t *latency) 
     uint32_t ip=ntohl(address.sin_addr.s_addr);
     if(!ip || (ip>>24)==127 || (ip>>24)>=224 || (ip>>24)==0)return -1;
     if(p->reserved[0]==1){
-        esp_netif_t *sta=eth_uplink_service_netif();esp_netif_ip_info_t info={0};
-        if(!sta || !esp_netif_is_netif_up(sta) || esp_netif_get_ip_info(sta,&info)!=ESP_OK
-            || !info.ip.addr || (address.sin_addr.s_addr&info.netmask.addr)!=(info.ip.addr&info.netmask.addr))return -1;
+        esp_netif_ip_info_t info={0};
+        if(!uplink_address(uplink_local_netif(), &info) ||
+           (address.sin_addr.s_addr&info.netmask.addr)!=(info.ip.addr&info.netmask.addr))return -1;
     }else if(p->reserved[0]==2 && (!tailscale_is_connected() || (ip&0xffc00000u)!=0x64400000u))return -1;
     LOCK();bool proceed=!job.cancel && recovery_allowed_locked(job.origin) && now_ms()<job.deadline;UNLOCK();
     if(!proceed)return -1;
@@ -346,10 +349,35 @@ static int connect_probe(const ops_device_t *p,uint16_t port,uint32_t *latency) 
     *latency=(uint32_t)(now_ms()-began);close(fd);return ok?1:0;
 }
 static void finish_locked(job_state_t state) {
-    job.state=state;job.finished=now_ms();uint32_t latency=results[job.index].latency_ms;
-    results[job.index]=(result_t){.state=state,.checks=job.checks,.latency_ms=latency,.observed_ms=now_ms()};
-    memcpy(results[job.index].mac,job.device.mac,6);
+    job.state=state;job.finished=now_ms();
+    result_t *result = &results[job.index];
+    uint8_t monitor = memcmp(result->mac, job.device.mac, sizeof result->mac) ?
+                      MONITOR_UNOBSERVED : result->monitor_state;
+    bool outage = !job.manual && state == J_TIMEOUT && monitor == MONITOR_REACHABLE;
+    if (!job.manual && state == J_REACHABLE) monitor = MONITOR_REACHABLE;
+    if (!job.manual && state == J_TIMEOUT) monitor = MONITOR_DOWN;
+    job.notify_result = job.profile.notify && (job.manual || outage);
+    *result = (result_t){.state=state,.monitor_state=monitor,.checks=job.checks,
+                         .latency_ms=result->latency_ms,.observed_ms=job.finished};
+    memcpy(result->mac, job.device.mac, sizeof result->mac);
     event_locked(state,job.index);
+}
+
+static void notify_job_result(const job_t *done)
+{
+    char message[144];
+    if (!done->manual) {
+        snprintf(message, sizeof message, "Device %.32s stopped responding to its configured check.",
+                 done->device.name);
+    } else if (!done->wake) {
+        snprintf(message, sizeof message, "Check for %.32s: %s.", done->device.name, states[done->state]);
+    } else {
+        const char *wake = done->packet_sent ? "packet sent" : done->wake_attempted ? "send failed" : "not sent";
+        snprintf(message, sizeof message, "WoL recovery for %.32s: %s. WoL %s. Service verified: %s.",
+                 done->device.name, states[done->state], wake, done->service_seen ? "yes" : "no");
+    }
+    /* One event feeds ntfy and the existing Telegram/email history sink. */
+    (void)ntfy_integration_queue_event(message);
 }
 static void apply_probe_locked(const job_t *local,int result,uint32_t latency) {
     if(job.id!=local->id)return;
@@ -377,14 +405,13 @@ static void worker(void *arg) {
     for(;;){
         vTaskDelay(pdMS_TO_TICKS(200));
         uint64_t now=now_ms();job_t local;LOCK();bool ready=task!=NULL;local=job;ops_settings_t settings=store.settings;
+        if (ready && local.notify_result) job.notify_result = false;
         if(!recovery_allowed_locked(local.origin))local.cancel=true;
         UNLOCK();
         if(!ready)continue;
         if(local.id && !active(local.state) && local.id!=notified){
             notified=local.id;
-            if(local.profile.notify){char message[192];snprintf(message,sizeof message,"Recovery/check #%lu: %s. WoL send %s; host verified: %s; service verified: %s. Send is not proof of boot.",
-                (unsigned long)local.id,states[local.state],local.packet_sent?"confirmed locally":"not confirmed (partial send possible)",local.host_seen?"yes":"no",local.service_seen?"yes":"no");
-                (void)ntfy_integration_queue_event(message);}
+            if (local.notify_result) notify_job_result(&local);
             mqtt_integration_publish_now();
         }
         {   /* Optional integration workers that failed to start get bounded retries. */
@@ -418,7 +445,7 @@ static void worker(void *arg) {
         if(local.state==J_WAKE){
             LOCK();bool permitted=job.id==local.id && !job.cancel && recovery_allowed_locked(job.origin);UNLOCK();
             esp_err_t err=permitted?wol_send_mac(local.device.mac,local.device.broadcast,local.device.port):ESP_ERR_INVALID_STATE;
-            LOCK();if(job.id==local.id){job.packet_sent=err==ESP_OK;job.state=J_WAIT;job.next=now_ms()+3000;
+            LOCK();if(job.id==local.id){job.wake_attempted=permitted;job.packet_sent=err==ESP_OK;job.state=J_WAIT;job.next=now_ms()+3000;
                 if(err!=ESP_OK || !local.profile.target[0])finish_locked(J_UNKNOWN);else event_locked(J_WAIT,job.index);}UNLOCK();continue;
         }
         uint32_t latency=0;int result=connect_probe(&local.profile,local.state==J_SERVICE?local.profile.service_port:local.profile.host_port,&latency);
@@ -442,9 +469,9 @@ cJSON *homelab_ops_snapshot(bool detailed) {
     cJSON_AddNumberToObject(root,"return_flow_count",policy.return_flows);
     cJSON_AddNumberToObject(root,"socket_limit",r.socket_limit);cJSON_AddBoolToObject(root,"worker_running",r.worker_running);
     if(r.worker_running)cJSON_AddNumberToObject(root,"worker_stack_min_raw",r.worker_stack_min);
-    esp_netif_t *sta=esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");wifi_ap_record_t ap;
+    wifi_ap_record_t ap;
     cJSON_AddBoolToObject(root,"wifi_associated",esp_wifi_sta_get_ap_info(&ap)==ESP_OK);
-    cJSON_AddBoolToObject(root,"local_uplink_available",sta && esp_netif_is_netif_up(sta));
+    cJSON_AddBoolToObject(root,"local_uplink_available",uplink_internet_ready());
     cJSON_AddBoolToObject(root,"control_connected",tailscale_is_connected());
     cJSON_AddStringToObject(root,"data_plane","not-verified");
     cJSON *health=health_monitor_snapshot(detailed);

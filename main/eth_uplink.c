@@ -1,6 +1,7 @@
 /* Conditional SPI Ethernet uplink; see eth_uplink.h.
  * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "eth_uplink.h"
+#include "uplink_services.h"
 #include "sdkconfig.h"
 #include "json_guard.h"
 #include "nvs.h"
@@ -150,19 +151,16 @@ static void set_error(const char *text)
     xSemaphoreGive(s_lock);
 }
 
-/* Event-driven default-route application for when the route supervisor is
- * not running (Tailscale off). Never overrides an active exit-node route. */
+/* Select the LAN independently of the Internet uplink (which can be PPP). */
 static void apply_choice(void)
 {
-    if (tailscale_exit_node_ip != 0 || !s_netif) return;
+    if (!s_netif) return;
     esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     esp_netif_ip_info_t info = {0};
-    bool sta_ok = sta && esp_netif_is_netif_up(sta) && esp_netif_get_ip_info(sta, &info) == ESP_OK && info.ip.addr;
+    bool sta_ok = uplink_address(sta, &info);
     bool eth_ok = atomic_load(&s_link) && atomic_load(&s_has_ip);
     eth_selector_t immediate = {.eth_streak = ETH_STABLE_SAMPLES};
     int choice = eth_uplink_choose(&immediate, true, s_running.preference, sta_ok, eth_ok);
-    esp_netif_t *want = choice == ETH_CHOICE_ETH ? s_netif : sta_ok ? sta : NULL;
-    if (want) esp_netif_set_default_netif(want);
     bool eth = choice == ETH_CHOICE_ETH;
     if (atomic_exchange(&s_selected_eth, eth) != eth || eth) portmap_install_all();
 }
@@ -170,20 +168,27 @@ static void apply_choice(void)
 static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
 {
     (void)arg;
+    bool lost = false;
 #if CONFIG_ETH_SPI_ETHERNET_W5500
     if (base == ETH_EVENT && (id == ETHERNET_EVENT_CONNECTED || id == ETHERNET_EVENT_DISCONNECTED)) {
         bool up = id == ETHERNET_EVENT_CONNECTED;
+        lost = !up;
         atomic_store(&s_link, up);
         if (!up) atomic_store(&s_has_ip, false);
         xSemaphoreTake(s_lock, portMAX_DELAY);
         s_status.link_changes++;
-        if (!up) {s_status.ip = s_status.mask = s_status.gw = 0;}
+        if (up && s_running.ip_static) {
+            s_status.ip = s_running.ip; s_status.mask = s_running.mask; s_status.gw = s_running.gw;
+            atomic_store(&s_has_ip, true);
+        } else if (!up) {s_status.ip = s_status.mask = s_status.gw = 0;}
         xSemaphoreGive(s_lock);
         ESP_LOGI(TAG, "link %s", up ? "up" : "down");
-    }
+    } else
 #endif
     if (base == IP_EVENT && (id == IP_EVENT_ETH_GOT_IP || id == IP_EVENT_ETH_LOST_IP)) {
         bool got = id == IP_EVENT_ETH_GOT_IP;
+        if (got && ((const ip_event_got_ip_t *)data)->esp_netif != s_netif) return;
+        lost = !got;
         atomic_store(&s_has_ip, got);
         xSemaphoreTake(s_lock, portMAX_DELAY);
         if (got) {
@@ -191,9 +196,12 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
             s_status.ip = e->ip_info.ip.addr; s_status.mask = e->ip_info.netmask.addr; s_status.gw = e->ip_info.gw.addr;
         } else s_status.ip = s_status.mask = s_status.gw = 0;
         xSemaphoreGive(s_lock);
-    }
+    } else return;
     apply_choice();
+    uplink_services_refresh(lost);
 }
+
+void eth_uplink_wifi_changed(void) { apply_choice(); }
 
 #if CONFIG_ETH_SPI_ETHERNET_W5500
 static esp_err_t start_w5500(const eth_config_t *c)
@@ -286,6 +294,7 @@ void eth_uplink_start(void)
     if (!s_handle) return;
     /* Fail closed: without the ACL hooks the interface never carries traffic. */
     if (!netif_hooks_eth_protected()) {set_error("not started: firewall hooks unavailable"); return;}
+    s_lwip = esp_netif_get_netif_impl(s_netif);
     esp_err_t err = esp_eth_start(s_handle);
     if (err != ESP_OK) {
         char text[64];
@@ -293,7 +302,6 @@ void eth_uplink_start(void)
         set_error(text);
         return;
     }
-    s_lwip = esp_netif_get_netif_impl(s_netif);
     xSemaphoreTake(s_lock, portMAX_DELAY);
     s_status.driver_started = true;
     xSemaphoreGive(s_lock);
@@ -337,8 +345,7 @@ void eth_uplink_get_status(eth_status_t *out)
     xSemaphoreGive(s_lock);
     out->link_up = atomic_load(&s_link);
     out->has_ip = atomic_load(&s_has_ip);
-    esp_netif_t *def = esp_netif_get_default_netif();
-    out->selected = s_netif && def == s_netif;
+    out->selected = s_netif && uplink_internet_netif() == s_netif;
 }
 
 struct netif *eth_uplink_lwip_select(struct netif *sta)
@@ -349,7 +356,10 @@ struct netif *eth_uplink_lwip_select(struct netif *sta)
     int choice = eth_uplink_choose(&s_selector, true, s_running.preference, sta_ok, eth_ok);
     bool eth = choice == ETH_CHOICE_ETH;
     /* Already in TCP/IP context: rebind listeners in place, never queue-wait on ourselves. */
-    if (atomic_exchange(&s_selected_eth, eth) != eth) portmap_install_now();
+    if (atomic_exchange(&s_selected_eth, eth) != eth) {
+        portmap_install_now();
+        uplink_services_schedule_refresh();
+    }
     return eth ? s_lwip : sta;
 }
 
@@ -358,6 +368,8 @@ esp_netif_t *eth_uplink_service_netif(void)
     if (s_netif && atomic_load(&s_selected_eth) && atomic_load(&s_has_ip)) return s_netif;
     return esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
 }
+
+esp_netif_t *eth_uplink_netif(void) { return atomic_load(&s_has_ip) ? s_netif : NULL; }
 
 struct netif *eth_uplink_selected_lwip(void)
 {

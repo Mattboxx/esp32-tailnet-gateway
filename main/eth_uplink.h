@@ -54,3 +54,5 @@ esp_err_t eth_uplink_register_http(httpd_handle_t server);
 /* The uplink that LAN-to-Tailnet/AP-side bindings listen on: the Ethernet
  * netif while it is the selected uplink, otherwise the WiFi STA netif. */
 esp_netif_t *eth_uplink_service_netif(void);
+esp_netif_t *eth_uplink_netif(void);
+void eth_uplink_wifi_changed(void);

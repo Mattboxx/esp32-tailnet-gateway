@@ -54,6 +54,8 @@ static netif_output_fn      original_ppp_output      = NULL;
 static struct netif        *s_ppp                    = NULL;
 static volatile uint64_t    s_ppp_bytes_in           = 0;
 static volatile uint64_t    s_ppp_bytes_out          = 0;
+static volatile uint64_t    s_eth_bytes_in           = 0;
+static volatile uint64_t    s_eth_bytes_out          = 0;
 
 /* Wire-byte counters. Updated on the LWIP TCPIP task, read from the
  * HTTP server task. Display-only — torn reads at the 32-bit boundary
@@ -348,17 +350,21 @@ static err_t sta_linkoutput_hook(struct netif *netif, struct pbuf *p)
 
 static err_t eth_input_hook(struct pbuf *p, struct netif *netif)
 {
+    if (p) s_eth_bytes_in += p->tot_len;
     if (acl_drops(acl_check_and_tap(ACL_TO_ESP, p, false))) { pbuf_free(p); return ERR_OK; }
     return original_eth_input ? original_eth_input(p, netif) : ERR_VAL;
 }
 
 static err_t eth_linkoutput_hook(struct netif *netif, struct pbuf *p)
 {
+    if (p) s_eth_bytes_out += p->tot_len;
     if (acl_drops(acl_check_and_tap(ACL_FROM_ESP, p, false))) { return ERR_OK; }
     return original_eth_linkoutput ? original_eth_linkoutput(netif, p) : ERR_VAL;
 }
 
 bool netif_hooks_eth_protected(void) { return s_eth_protected; }
+uint64_t netif_hooks_get_eth_bytes_in(void) { return s_eth_bytes_in; }
+uint64_t netif_hooks_get_eth_bytes_out(void) { return s_eth_bytes_out; }
 
 /* PPP: raw IPv4, so the explicit IP parser, never the Ethernet guess. */
 static err_t ppp_output_hook(struct netif *netif, struct pbuf *p, const ip4_addr_t *ipaddr)

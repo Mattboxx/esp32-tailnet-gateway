@@ -1,6 +1,7 @@
 /* Optional cellular (GSM/LTE) uplink over a UART modem; see cell_uplink.h.
  * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "cell_uplink.h"
+#include "uplink_services.h"
 #include "eth_uplink.h"
 #include "json_guard.h"
 #include "netif_hooks.h"
@@ -178,6 +179,7 @@ static StaticSemaphore_t s_lock_storage;
 static cell_config_t s_saved, s_running;
 static cell_status_t s_status;
 static atomic_bool s_has_ip;
+static atomic_bool s_selected_cell;
 static atomic_bool s_link_dead __attribute__((unused));   /* PPP builds only */
 static esp_netif_t *s_netif;
 static struct netif *s_lwip;           /* read in TCP/IP context only after creation */
@@ -337,18 +339,14 @@ static esp_err_t cell_post_attach(esp_netif_t *netif, void *args)
     return esp_netif_set_driver_config(netif, &ifconfig);
 }
 
-/* Event-driven default-route choice for when the route supervisor is not
- * running (Tailscale off). Never overrides an active exit-node route. */
 static void apply_choice(void)
 {
-    if (tailscale_exit_node_ip != 0 || !s_netif) return;
-    esp_netif_t *other = eth_uplink_service_netif();
+    if (tailscale_exit_node_ip != 0) return;
+    esp_netif_t *want = uplink_internet_netif();
     esp_netif_ip_info_t info = {0};
-    bool other_ok = other && esp_netif_is_netif_up(other) && esp_netif_get_ip_info(other, &info) == ESP_OK && info.ip.addr;
-    cell_selector_t immediate = {.streak = CELL_STABLE_SAMPLES};
-    bool use = cell_uplink_choose(&immediate, s_running.mode, other_ok, atomic_load(&s_has_ip));
-    esp_netif_t *want = use ? s_netif : other_ok ? other : NULL;
-    if (want && esp_netif_get_default_netif() != want) esp_netif_set_default_netif(want);
+    if (uplink_address(want, &info) && esp_netif_get_default_netif() != want) {
+        uplink_services_schedule_refresh();
+    }
 }
 
 static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -360,14 +358,15 @@ static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
     }
     if (base == IP_EVENT && (id == IP_EVENT_PPP_GOT_IP || id == IP_EVENT_PPP_LOST_IP)) {
         bool got = id == IP_EVENT_PPP_GOT_IP;
+        if (got && ((const ip_event_got_ip_t *)data)->esp_netif != s_netif) return;
         atomic_store(&s_has_ip, got);
         if (!got) atomic_store(&s_link_dead, true);
         xSemaphoreTake(s_lock, portMAX_DELAY);
         s_status.ip = got ? ((const ip_event_got_ip_t *)data)->ip_info.ip.addr : 0;
         if (got) s_status.connects++;
         xSemaphoreGive(s_lock);
+        uplink_services_refresh(!got);
     }
-    apply_choice();
 }
 
 static esp_err_t create_netif(void)
@@ -582,7 +581,7 @@ void cell_uplink_get_status(cell_status_t *out)
     out->restart_required = memcmp(&s_saved, &s_running, sizeof s_saved) != 0;
     xSemaphoreGive(s_lock);
     out->has_ip = atomic_load(&s_has_ip);
-    out->selected = s_netif && esp_netif_get_default_netif() == s_netif;
+    out->selected = s_netif && uplink_internet_netif() == s_netif;
     out->bytes_in = netif_hooks_get_ppp_bytes_in();
     out->bytes_out = netif_hooks_get_ppp_bytes_out();
 }
@@ -591,8 +590,25 @@ struct netif *cell_uplink_lwip_select(struct netif *current)
 {
     if (!s_running.enabled || !s_lwip) return NULL;
     bool other_ok = current && netif_is_up(current) && netif_is_link_up(current) && ip4_addr_get_u32(netif_ip4_addr(current));
-    bool cell_ok = netif_is_up(s_lwip) && ip4_addr_get_u32(netif_ip4_addr(s_lwip));
-    return cell_uplink_choose(&s_selector, s_running.mode, other_ok, cell_ok) ? s_lwip : NULL;
+    bool cell_ok = atomic_load(&s_has_ip) && netif_is_up(s_lwip) && ip4_addr_get_u32(netif_ip4_addr(s_lwip));
+    bool use = cell_uplink_choose(&s_selector, s_running.mode, other_ok, cell_ok);
+    atomic_store(&s_selected_cell, use);
+    return use ? s_lwip : NULL;
+}
+
+struct netif *cell_uplink_selected_lwip(void)
+{
+    return s_lwip && atomic_load(&s_has_ip) && netif_is_up(s_lwip) &&
+           (atomic_load(&s_selected_cell) || netif_default == s_lwip) ? s_lwip : NULL;
+}
+
+esp_netif_t *cell_uplink_preferred_netif(esp_netif_t *lan)
+{
+    esp_netif_ip_info_t info = {0};
+    cell_selector_t immediate = {.streak = CELL_STABLE_SAMPLES};
+    bool use = s_netif && cell_uplink_choose(&immediate, s_running.mode,
+                                           uplink_address(lan, &info), atomic_load(&s_has_ip));
+    return use ? s_netif : lan;
 }
 
 /* --- HTTP --- */
