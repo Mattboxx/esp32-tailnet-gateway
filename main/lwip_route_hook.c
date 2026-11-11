@@ -111,6 +111,39 @@ static struct netif *find_sta_netif(void)
     return NULL;
 }
 
+/* Keep a Tailnet reply on the selected uplink if Wi-Fi and Ethernet
+ * share the destination prefix. Leave AP and more specific routes alone. */
+static struct netif *shared_uplink_route(const ip4_addr_t *src, const ip4_addr_t *dst)
+{
+    struct netif *eth = eth_uplink_selected_lwip();
+    if (!eth || !src || !netif_is_up(eth) || !netif_is_link_up(eth)) return NULL;
+    const ip4_addr_t *mask = netif_ip4_netmask(eth);
+    if (ip4_addr_isany_val(*mask) ||
+        !ip4_addr_netcmp(dst, netif_ip4_addr(eth), mask)) return NULL;
+    struct netif *sta = find_sta_netif();
+    if (!sta || !ip4_addr_cmp(mask, netif_ip4_netmask(sta)) ||
+        !ip4_addr_netcmp(dst, netif_ip4_addr(sta), mask)) return NULL;
+    for (struct netif *n = netif_list; n; n = n->next) {
+        if (n == sta || n == eth || netif_is_wg(n) ||
+            !netif_is_up(n) || !netif_is_link_up(n)) continue;
+        const ip4_addr_t *other_mask = netif_ip4_netmask(n);
+        if (lwip_ntohl(other_mask->addr) >= lwip_ntohl(mask->addr) &&
+            ip4_addr_netcmp(dst, netif_ip4_addr(n), other_mask)) return NULL;
+    }
+    return microlink_wg_has_peer_ip(find_wg_netif(), src->addr) ? eth : NULL;
+}
+
+typedef struct {
+    ip4_addr_t src, dst;
+    struct netif *uplink;
+} shared_uplink_query_t;
+
+static void shared_uplink_cb(void *ctx)
+{
+    shared_uplink_query_t *q = ctx;
+    q->uplink = shared_uplink_route(&q->src, &q->dst);
+}
+
 /* An uplink can live in 100.64.0.0/10 itself, or hand out a resolver from
  * it: Starlink, many LTE/5G routers and some ISPs do. "CGNAT destination ->
  * always the tunnel" then captures traffic only the uplink can carry -- the
@@ -610,6 +643,9 @@ static struct netif *route_src_hook(const ip4_addr_t *src, const ip4_addr_t *des
         }
     }
 
+    struct netif *shared_uplink = shared_uplink_route(src, dest);
+    if (shared_uplink) return shared_uplink;
+
     /* 2. Exit-node + lan_bypass: send LAN-class traffic to STA, not the
      * tunnel. Two passes, mirroring tailscale Go but extended:
      *   2a. Netif-prefix match — the upstream behaviour. Catches the
@@ -864,6 +900,13 @@ void route_explain(uint32_t src_hbo, uint32_t dst_hbo,
         }
     }
 
+    shared_uplink_query_t shared = {.src = {.addr = lwip_htonl(src_hbo)}, .dst = dst};
+    if (tcpip_callback_wait(shared_uplink_cb, &shared) == ERR_OK && shared.uplink) {
+        name_netif(shared.uplink, out_netif, out_netif_size);
+        snprintf(out, out_size, "selected Ethernet uplink on a shared LAN prefix");
+        return;
+    }
+
     /* 2. Exit-node + lan-bypass — netif prefix match, then RFC1918. */
     if (tailscale_exit_node_ip != 0 && tailscale_lan_bypass) {
         struct netif *sta_match = NULL;
@@ -1032,6 +1075,15 @@ extern err_t __real_ip_napt_forward(struct pbuf *p, struct ip_hdr *iphdr,
  *   outbound ICMP/UDP (AP → tailnet):works via NAPT (src rewritten as before)
  */
 static err_t napt_forward(struct pbuf *p, struct ip_hdr *iphdr, struct netif *inp, struct netif *outp);
+static bool service_uplink_matches(const struct netif *n, uint8_t proto,
+                                   uint32_t peer_nbo, uint16_t peer_port)
+{
+    struct netif *eth = eth_uplink_selected_lwip();
+    if (!n || (eth ? n != eth : !netif_is_sta(n))) return false;
+    return tailnet_forward_is_routed_target(ip4_addr_get_u32(netif_ip4_addr(n)),
+                                          proto, peer_nbo, peer_port);
+}
+
 err_t __wrap_ip_napt_forward(struct pbuf *p, struct ip_hdr *iphdr,
                                struct netif *inp, struct netif *outp)
 {
@@ -1052,11 +1104,11 @@ static err_t napt_forward(struct pbuf *p, struct ip_hdr *iphdr, struct netif *in
             src_port = lwip_ntohs(src_port); dest_port = lwip_ntohs(dest_port);
         }
         struct netif *wg = find_wg_netif();
-        if (inp && outp && inp != outp && proto &&
-            ((netif_is_sta(inp) && outp == wg &&
-              tailnet_forward_is_routed_target(proto, iphdr->dest.addr, dest_port)) ||
-             (inp == wg && netif_is_sta(outp) &&
-              tailnet_forward_is_routed_response(proto, iphdr->src.addr, src_port)))) {
+        if (wg && inp && outp && inp != outp &&
+            ((outp == wg && dest_port &&
+              service_uplink_matches(inp, proto, iphdr->dest.addr, dest_port)) ||
+             (inp == wg && src_port &&
+              service_uplink_matches(outp, proto, iphdr->src.addr, src_port)))) {
             uint8_t saved = inp->napt;
             inp->napt = 1;
             err_t r = __real_ip_napt_forward(p, iphdr, inp, outp);

@@ -66,6 +66,6 @@ bool tailnet_forward_allow_ipv4_packet(struct pbuf *packet, struct netif *input)
  * destination. The SDK applies receive-side DNAT only to that address. */
 bool tailnet_forward_allow_uplink_packet(struct pbuf *packet, uint32_t local_ip_nbo);
 bool tailnet_forward_allow_non_uplink_packet(struct pbuf *packet, bool has_ethernet_header, uint32_t local_ip_nbo);
-bool tailnet_forward_is_routed_target(uint8_t proto, uint32_t destination_nbo, uint16_t destination_port);
-bool tailnet_forward_is_routed_response(uint8_t proto, uint32_t source_nbo, uint16_t source_port);
+bool tailnet_forward_is_routed_target(uint32_t binding_ip_nbo, uint8_t proto,
+                                     uint32_t destination_nbo, uint16_t destination_port);
 void tailnet_forward_totals(uint32_t *enabled, uint32_t *installed, uint32_t *accepted, uint32_t *blocked);

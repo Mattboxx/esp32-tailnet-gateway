@@ -6,7 +6,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [3.0.18-beta.7] - 2026-11-11
+## [3.0.18-beta.8] - 2026-11-11
+
+- Apply LAN-to-Tailnet TCP and UDP address translation on the selected
+  W5500 uplink, including replies when Wi-Fi shares the same subnet.
 
 - Run the TCP/IP thread on core 1, separate from the Wi-Fi task on core 0.
 - Place the two FreeRTOS queue operations used for packet hand-offs in IRAM.

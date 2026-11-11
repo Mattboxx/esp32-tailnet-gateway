@@ -359,6 +359,12 @@ esp_netif_t *eth_uplink_service_netif(void)
     return esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
 }
 
+struct netif *eth_uplink_selected_lwip(void)
+{
+    if (!atomic_load(&s_selected_eth) || !atomic_load(&s_has_ip)) return NULL;
+    return s_lwip;
+}
+
 /* --- HTTP --- */
 static esp_err_t send_json(httpd_req_t *req, cJSON *root)
 {
