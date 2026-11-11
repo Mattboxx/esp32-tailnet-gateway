@@ -205,6 +205,8 @@ CONFIG_LWIP_TCP_ACCEPTMBOX_SIZE=12
 # WireGuard packets share the same mailbox. Refused TCP segments caused the
 # 8-12 s flow stalls and the ~22 % tunnel ping loss. Each entry is one pointer.
 CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=64
+# Keep the TCP/IP thread off the core that runs the Wi-Fi driver.
+CONFIG_LWIP_TCPIP_TASK_AFFINITY_CPU1=y
 # UDP sockets queue at most this many datagrams; lwIP drops the rest without
 # a counter. The MicroLink DISCO socket carries the WireGuard data plane, so
 # 6 (the default) lost incoming packets whenever the net I/O task was busy for
