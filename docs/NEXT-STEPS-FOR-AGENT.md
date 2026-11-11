@@ -20,16 +20,20 @@ its reaper. The TLS RNG path is conditional in MicroLink for Mbed TLS 4.
 Parent SHA operations now use public generic MD APIs. Setup GCM uses PSA;
 the SHA callback can fail closed. Newlib is retained during the migration.
 
-Next: finish the first IDF 6.1 build and repair remaining API/build
-incompatibilities. The SDK package is framework-espidf 4.60100.0,
-archive SHA-256 dabc3f2d16cc28c61d92fa378bb249da5dd4bc601c3564318a930bce3ddb63e7.
-Native extraction is under TEMP/mtg-idf61-sdk-native. PlatformIO's
-RISC-V tool install is pending; an official compiler download/extraction
-is logged locally. Verify logs before restarting any owned process.
-Never publish or install this beta before offline validation. A future
-beta install should preserve the current qualified 3.0.17 in ota_1.
-The owner explicitly authorized autonomous qualification and beta
-publication after success. Preserve all configuration and recovery paths.
+The SDK package is framework-espidf 4.60100.0 and the archive SHA-256 is
+dabc3f2d16cc28c61d92fa378bb249da5dd4bc601c3564318a930bce3ddb63e7.
+The verified local extraction is under TEMP/mtg-idf61-sdk-native.
+The local PlatformIO build uses the pinned GCC 15.2.0 toolchain.
+Noise and WireGuard byte-level checks and setup/password software crypto
+regressions passed. The final link requires the project's DHCP helpers
+to have internal linkage because the SDK defines names of its own.
+
+Next: verify the exact beta image, compare the OTA partition table and
+complete the offline and hardware gates. Install only the application
+into ota_0 while retaining the current qualified 3.0.17 in ota_1.
+The owner authorized qualification and beta publication after success.
+The beta package is for OTA with the existing bootloader.
+
 
 
 ## Current handover — 3.0.17-beta.1 audit candidate

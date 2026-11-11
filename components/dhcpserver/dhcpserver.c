@@ -408,7 +408,7 @@ static void node_insert_to_list(list_node **phead, list_node *pinsert)
  *                pdelete -- the remove node of the list
  * Returns      : none
 *******************************************************************************/
-void node_remove_from_list(list_node **phead, list_node *pdelete)
+static void node_remove_from_list(list_node **phead, list_node *pdelete)
 {
     list_node *plist = NULL;
 
@@ -637,7 +637,7 @@ static void dhcps_response_ip_set(dhcps_t *dhcps, struct dhcps_msg *m, ip4_addr_
 }
 
 
-struct pbuf * dhcps_pbuf_alloc(u16_t len)
+static struct pbuf * dhcps_pbuf_alloc(u16_t len)
 {
     u16_t mlen = sizeof(struct dhcps_msg);
 

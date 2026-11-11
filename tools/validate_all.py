@@ -31,7 +31,7 @@ DRIVERS+=['mqtt_activation']
 DRIVERS+=['mqtt_power_event']
 DRIVERS+=['mqtt_power_store']
 DRIVERS+=['task_reaper']
-DRIVERS+=['first_boot']
+DRIVERS+=['first_boot','password_crypto']
 DRIVERS+=['socket_origin','first_boot_reboot','lan_name','lan_mdns','index_variants','resp_headers','notify_store','nvs_flags','nvs_txn','release_list']
 DRIVERS+=['ota_flash']
 DRIVERS+=['ota_local']
@@ -48,7 +48,7 @@ SANITIZERS+=['MQTTPOWER']
 SANITIZERS+=['OTALOCAL']
 SANITIZERS+=['WG_RX']
 SANITIZERS+=['HOTLOOP']
-SANITIZERS+=['POWER_DIAG']
+SANITIZERS+=['POWER_DIAG','PASSWORD_CRYPTO']
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -122,7 +122,7 @@ def main():
         if results[-1]['status']=='PASS':run('image-provenance',[sys.executable,'tools/check_image_provenance.py',str(Path(env['PLATFORMIO_BUILD_DIR'])/'esp32-s3')])
     selected=args.only.split(',') if args.only else DRIVERS
     if any(name not in DRIVERS for name in selected):parser.error('Unknown offline driver')
-    if 'first_boot' in selected and env.get('MBEDTLS_DIR'):
+    if {'first_boot','password_crypto'}.intersection(selected) and env.get('MBEDTLS_DIR'):
         crypto_output=folder/'host-crypto'
         cmd=[sys.executable,str(ROOT/'tools/build_host_crypto.py'),
              '--mbedtls-dir',env['MBEDTLS_DIR'],'--output',str(crypto_output)]
