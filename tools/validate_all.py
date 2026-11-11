@@ -17,6 +17,7 @@ DRIVERS+=['json_guard','service_transfer','service_retry','capabilities','mqtt_d
 DRIVERS+=['soak_serial']
 DRIVERS+=['lab_echo']
 DRIVERS+=['gateway_benchmark']
+DRIVERS+=['dhcps_dns']
 # wg_rx_owned / wg_rx_sdk test the RX-ownership experiment (MicroLink branch
 # perf/owned-rx-pbuf-20261029); dev.3 leaves that change out (no measured gain).
 DRIVERS+=['wg_crypto_hotloop','ml_perf','wg_crypto_diff','wg_mgr_wake','poly1305_xtensa','chacha20_xtensa','forward_drop_counters','web_idle','sdlog_memory_sink','tailnet_event_text','control_loss_setting','tls_distrust','wg_rx_path','coord_session_end','derp_frame_read','stun_parse','dns_relay_upstream','wg_log_rate','fast_chksum','x25519','derp_rx_wait','wg_handshake','x25519_xtensa','x25519_pie','x25519_control','boot_timeline','netcheck_budget','notify_text','telegram_commands','tailnet_dns']
