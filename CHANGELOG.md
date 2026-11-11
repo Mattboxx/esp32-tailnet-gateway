@@ -6,6 +6,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Show current build information and concise author credits on System → About.
+- Preserve the GPLv3 and original upstream notices of the pinned Mattboxx MicroLink fork in firmware packages.
+
 ## [3.0.18-beta.3] - 2026-11-11
 
 - Keep the mobile menu and its close button visible when opened from a scrolled page.

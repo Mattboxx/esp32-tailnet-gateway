@@ -3832,15 +3832,11 @@ static esp_err_t system_handler(httpd_req_t *req)
         cJSON_AddStringToObject(root, "build_time", desc->time);
         cJSON_AddStringToObject(root, "idf_ver",    desc->idf_ver);
     }
-    /* Product identity and verified provenance (docs/upstream/UPSTREAM-0.1.38.md). */
+    /* Product identity and exact source revisions. */
     cJSON_AddStringToObject(root, "product", "ESP32 Tailnet Gateway");
     cJSON_AddStringToObject(root, "edition", "Mattboxx Edition");
     cJSON_AddStringToObject(root, "build_commit", MTG_BUILD_COMMIT);
-    cJSON_AddStringToObject(root, "based_on", "Csontikka/esp32-tailscale-subnet-router");
-    cJSON_AddStringToObject(root, "base_version", "v0.1.38");
-    cJSON_AddStringToObject(root, "base_commit", "42ec1081c5ab");
     cJSON_AddStringToObject(root, "microlink_commit", MTG_MICROLINK_COMMIT);
-    cJSON_AddStringToObject(root, "microlink_base", "Csontikka/microlink a85e8c42ee2e (v0.1.38)");
     /* First-boot wizard choices (roles to highlight, initial interface mode). */
     char *roles = nvs_param_get_str("ui_roles");
     cJSON_AddStringToObject(root, "setup_roles", roles ? roles : "");

@@ -2,10 +2,13 @@
 
 ## Active work — ESP-IDF 6.1 beta
 
-The v3.0.18-beta.2 OTA is public and was qualified on the Wi-Fi owner board.
-The beta.3 patch updates the embedded UI drawer and MicroLink credits. Use
-the same OTA-only packaging and record browser and image checks separately
-from the hardware evidence for beta.2. Keep v3.0.17 as the latest stable.
+The v3.0.18-beta.2 OTA was qualified on the Wi-Fi owner board. Beta.3 is
+public and contains the drawer fix and corrected MicroLink dependency link.
+Its exact image passed browser, asset and CI checks. The owner board was
+not updated to beta.3. The next build removes obsolete upstream version
+rows from About and pins the GPLv3 MicroLink licensing revision
+`763f5d45f69748322125839d30ee79925aff18d7`. Its original MIT and component
+notices must accompany future images. Keep v3.0.17 as the latest stable.
 
 The qualified native-IDF 5.5.6 image is public as v3.0.17. Source
 399ee031589d, BIN SHA-256 d715c960a67da1599056c4f92be46aa9f0272d6c1856d1f44b0b1a8f1d669f99.

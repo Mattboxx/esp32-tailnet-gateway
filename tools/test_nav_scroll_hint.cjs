@@ -60,11 +60,12 @@ async function checkDrawer(browser) {
     await page.evaluate(() => { location.hash = '#system/about'; });
     const about = page.locator('#page-system.active .subpage[data-sub="about"]:not([hidden])');
     await about.waitFor();
-    assert.deepEqual(await about.locator('a[href$="/microlink"]').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
+    assert.deepEqual(await about.locator('a[href$="/microlink"], a[href$="/esp32-tailscale-subnet-router"]').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
       'https://github.com/Mattboxx/microlink',
-      'https://github.com/Csontikka/microlink',
+      'https://github.com/Csontikka/esp32-tailscale-subnet-router',
       'https://github.com/CamM2325/microlink'
     ]);
+    assert.equal(await about.locator('#about-base, #about-microlink').count(), 0);
   } finally {
     await context.close();
   }

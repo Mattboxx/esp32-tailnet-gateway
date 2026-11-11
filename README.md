@@ -596,9 +596,12 @@ published under MIT and copies of them keep those terms. The original firmware's
 
 - **[Csontikka/esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)** —
   the original firmware this edition forks.
-- **[Mattboxx/microlink](https://github.com/Mattboxx/microlink)** — the actual
-  MIT-licensed dependency fork, through [Csontikka/microlink](https://github.com/Csontikka/microlink),
-  of **Cameron Malone's [original MicroLink](https://github.com/CamM2325/microlink)**.
+- **[Mattboxx/microlink](https://github.com/Mattboxx/microlink)** — the pinned
+  networking dependency, derived through [Csontikka's fork](https://github.com/Csontikka/microlink)
+  from **Cameron Malone's [original MicroLink](https://github.com/CamM2325/microlink)**.
+  The current fork uses GPL-3.0-only with an ESP-IDF linking permission and
+  preserves the original MIT and third-party notices. Previously published
+  firmware retains the terms of the MicroLink revision it shipped.
 - **[wireguard_lwip](https://github.com/smartalock/wireguard-lwip)** — Daniel Hope's
   userspace WireGuard for lwIP (BSD-3-Clause), with separately licensed crypto notices.
 - **[ESP-IDF](https://github.com/espressif/esp-idf)** — Espressif SDK (primarily

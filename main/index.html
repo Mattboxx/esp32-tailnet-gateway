@@ -4404,13 +4404,10 @@
           <div class="stat-row"><span class="stat-label">Firmware version</span><span class="stat-value mono" id="about-version">—</span></div>
           <div class="stat-row"><span class="stat-label">Build tag</span>       <span class="stat-value mono" id="about-build-tag" title="—">—</span></div>
           <div class="stat-row"><span class="stat-label">Build commit</span><span class="stat-value mono" id="about-commit">—</span></div>
-          <div class="stat-row"><span class="stat-label">Based on</span><span class="stat-value mono" id="about-base">—</span></div>
-          <div class="stat-row"><span class="stat-label">MicroLink</span><span class="stat-value mono" id="about-microlink">—</span></div>
+          <div class="stat-row"><span class="stat-label">MicroLink</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/microlink" target="_blank" rel="noopener">Mattboxx/microlink</a></span></div>
           <div class="stat-row"><span class="stat-label">Source</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailnet-gateway" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Mattboxx/esp32-tailnet-gateway</a></span></div>
           <div class="stat-row"><span class="stat-label">Issues</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailnet-gateway/issues" target="_blank" rel="noopener" style="color:var(--accent);">github.com/&hellip;/issues</a></span></div>
-          <div class="stat-row"><span class="stat-label">Original upstream</span><span class="stat-value mono"><a href="https://github.com/Csontikka/esp32-tailscale-subnet-router" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/esp32-tailscale-subnet-router</a></span></div>
-          <div class="stat-row"><span class="stat-label">Tailscale stack</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/microlink" target="_blank" rel="noopener" style="color:var(--accent);">Mattboxx/microlink</a> (userspace WireGuard + DERP + DISCO)</span></div>
-          <div class="stat-row"><span class="stat-label">MicroLink upstream</span><span class="stat-value mono"><a href="https://github.com/Csontikka/microlink" target="_blank" rel="noopener">Csontikka/microlink</a> · <a href="https://github.com/CamM2325/microlink" target="_blank" rel="noopener">Cameron Malone</a></span></div>
+          <div class="stat-row"><span class="stat-label">Credits</span><span class="stat-value"><a href="https://github.com/Csontikka/esp32-tailscale-subnet-router" target="_blank" rel="noopener">Csontikka</a> · <a href="https://github.com/CamM2325/microlink" target="_blank" rel="noopener">Cameron Malone</a></span></div>
           <div class="stat-row"><span class="stat-label">License</span><span class="stat-value mono">GPL-3.0 — see LICENSE and NOTICE.md in the repo</span></div>
           <div class="stat-row"><span class="stat-label">Privacy</span><span class="stat-value mono">No telemetry / GitHub updates opt-in only</span></div>
         </div>
@@ -10556,10 +10553,8 @@
           var ab2 = document.getElementById('about-build-tag');
           if (ab1) ab1.textContent = d.version || '—';
           if (ab2) { ab2.textContent = buildTag; ab2.title = builtStr; }
-          var setAbout = function (id, text) { var e = document.getElementById(id); if (e) e.textContent = text; };
-          setAbout('about-commit', d.build_commit || '—');
-          setAbout('about-base', d.based_on ? d.based_on + ' ' + (d.base_version || '') + ' (' + (d.base_commit || '?') + ')' : '—');
-          setAbout('about-microlink', d.microlink_commit ? d.microlink_commit + (d.microlink_base ? ' · base ' + d.microlink_base : '') : '—');
+          var aboutCommit = document.getElementById('about-commit');
+          if (aboutCommit) aboutCommit.textContent = d.build_commit || '—';
 
           document.getElementById('sys-ota-running').textContent = d.version || '—';
 

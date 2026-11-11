@@ -27,18 +27,18 @@ license:
 ## MicroLink: actual dependency and fork chain
 
 - **Dependency used by this project:** https://github.com/Mattboxx/microlink,
-  branch `mattboxx`, pinned by the `external/microlink` gitlink. Firmware 3.0.16 uses
-  revision `4ea68d1ce84f149156d810aba5be2138b1b7ab72`. The original license audit
-  revision is `a709f473137dfd73d9d79ee0577db9c3decd4c29` (identical files to
-  `fa3153b6892d00d0c9a9c42f11c8f1a89c6ea910`, see
-  [docs/RELEASE-COMMIT-IDS.md](docs/RELEASE-COMMIT-IDS.md)); the gitlink, not a
-  moving branch name, selects the code built into a release.
+  pinned by the `external/microlink` gitlink. The ESP-IDF 6.1 branch uses
+  revision `763f5d45f69748322125839d30ee79925aff18d7` for the licensing transition.
+  Published 3.0.17 and 3.0.18-beta.2/beta.3 still pin their original MIT snapshots.
+  Each release's source and notices identify its exact dependency revision.
 - **Immediate upstream:** https://github.com/Csontikka/microlink.
 - **Original project:** https://github.com/CamM2325/microlink, by
   **Cameron Malone**. Fork lineage: CamM2325 → Csontikka → Mattboxx.
-- **License:** MIT
+- **Current fork licence:** GPL-3.0-only with the ESP-IDF linking permission in
+  `external/microlink/LICENSE-EXCEPTION.md`. Original and third-party licences
+  remain applicable to the material they cover.
 - **Original copyright:** Copyright (c) 2025-2026 Cameron Malone, as preserved
-  in `external/microlink/LICENSE`. Mattboxx is not the original MicroLink author.
+  verbatim in `external/microlink/LICENSES/MicroLink-MIT.txt`.
 - **Use:** Tailscale-compatible `ts2021` control-plane + userspace
   WireGuard data-plane stack. Attached as a git submodule under
   `external/microlink`.
@@ -124,7 +124,8 @@ firmware keep their original notice (MIT, Csontikka) under a short notice
 saying that the Mattboxx Edition changes are GPL-3.0-only. Third-party copies
 keep only their own terms: the lwIP mDNS responder (`main/lwip_mdns/mdns.c`,
 BSD) and Espressif's DHCP server (`components/dhcpserver/`, Apache-2.0).
-MicroLink (`external/microlink`) is a separate MIT-licensed project.
+MicroLink (`external/microlink`) carries the licence and notices of the pinned
+dependency revision, independently of this repository's licensing terms.
 
 ## Mattboxx edition, branding and optional support
 

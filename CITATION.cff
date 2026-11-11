@@ -39,8 +39,8 @@ references:
     authors:
       - alias: Mattboxx
     repository-code: "https://github.com/Mattboxx/microlink"
-    commit: 4ea68d1ce84f149156d810aba5be2138b1b7ab72
-    notes: "Actual submodule dependency. Fork of Csontikka/microlink, descended from Cameron Malone's original MicroLink; not an independently authored VPN stack."
+    commit: 8a22f3d20211d0a410f091b18d49f5d47278cdce
+    notes: "Submodule revision shipped with the cited stable 3.0.17. Mattboxx's fork descends from Cameron Malone's original MicroLink through Csontikka's fork."
   - type: software
     title: "MicroLink — Csontikka fork"
     authors:

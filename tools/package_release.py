@@ -68,10 +68,14 @@ def collect_release_notices(root, sdkbuild):
     root = root.resolve()
     description = json.loads((sdkbuild / 'project_description.json').read_text(encoding='utf-8'))
     idf = Path(description['idf_path']).resolve()
+    microlink = root / 'external/microlink'
     files = {root / 'LICENSE', root / 'LICENSE-EXCEPTION.md', root / 'NOTICE.md', idf / 'LICENSE',
              root / 'licenses/upstream/esp32-tailscale-subnet-router-MIT.txt',
-             root / 'external/microlink/LICENSE', root / 'external/microlink/x25519-license.txt',
-             root / 'external/microlink/components/microlink/components/wireguard_lwip/LICENSE'}
+             microlink / 'LICENSE', microlink / 'x25519-license.txt',
+             microlink / 'components/microlink/components/wireguard_lwip/LICENSE'}
+    if (microlink / 'LICENSE').read_text(encoding='utf-8').lstrip().startswith('GNU GENERAL PUBLIC LICENSE'):
+        files.update({microlink / 'LICENSE-EXCEPTION.md', microlink / 'NOTICE.md',
+                      microlink / 'LICENSES/MicroLink-MIT.txt'})
     assert all(path.is_file() for path in files), 'Required upstream license missing'
     for directory in description['build_component_paths']:
         if not directory:
