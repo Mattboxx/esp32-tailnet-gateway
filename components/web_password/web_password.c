@@ -13,6 +13,7 @@
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
 #include "mbedtls/md.h"
+#include "psa/crypto.h"
 #include "nvs.h"
 
 #include "web_password.h"
@@ -125,9 +126,7 @@ static bool compute_hash(const uint8_t *salt, size_t salt_len,
     return rc == 0;
 }
 
-/* PBKDF2-HMAC-SHA256, one 32-byte block.  Keeping the implementation here
- * avoids depending on Mbed TLS private headers in IDF 5.3.  The reusable HMAC
- * context preserves the keyed inner/outer pads across iterations. */
+/* Preserve the stored PBKDF2-HMAC-SHA256 record and its iteration limits. */
 static bool compute_pbkdf2(const uint8_t *salt, size_t salt_len,
                            const char *plaintext, uint32_t iterations,
                            uint8_t hash_out[PW_HASH_LEN])
@@ -135,36 +134,19 @@ static bool compute_pbkdf2(const uint8_t *salt, size_t salt_len,
     if (!salt || !plaintext || iterations < PW_PBKDF2_ITERS_MIN
         || iterations > PW_PBKDF2_ITERS_MAX) return false;
 
-    const mbedtls_md_info_t *md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-    if (!md) return false;
-    mbedtls_md_context_t ctx;
-    mbedtls_md_init(&ctx);
-    if (mbedtls_md_setup(&ctx, md, 1) != 0
-        || mbedtls_md_hmac_starts(&ctx, (const unsigned char *)plaintext,
-                                  strlen(plaintext)) != 0) {
-        mbedtls_md_free(&ctx);
-        return false;
-    }
-
-    static const uint8_t block_one[4] = {0, 0, 0, 1};
-    uint8_t u[PW_HASH_LEN];
-    int rc = mbedtls_md_hmac_update(&ctx, salt, salt_len);
-    if (rc == 0) rc = mbedtls_md_hmac_update(&ctx, block_one, sizeof block_one);
-    if (rc == 0) rc = mbedtls_md_hmac_finish(&ctx, u);
-    if (rc == 0) memcpy(hash_out, u, sizeof u);
-
-    for (uint32_t i = 1; rc == 0 && i < iterations; i++) {
-        rc = mbedtls_md_hmac_reset(&ctx);
-        if (rc == 0) rc = mbedtls_md_hmac_update(&ctx, u, sizeof u);
-        if (rc == 0) rc = mbedtls_md_hmac_finish(&ctx, u);
-        if (rc == 0) {
-            for (size_t j = 0; j < sizeof u; j++) hash_out[j] ^= u[j];
-        }
-    }
-    volatile uint8_t *wipe = u;
-    for (size_t i = 0; i < sizeof u; i++) wipe[i] = 0;
-    mbedtls_md_free(&ctx);
-    return rc == 0;
+    psa_key_derivation_operation_t operation = PSA_KEY_DERIVATION_OPERATION_INIT;
+    psa_status_t status = psa_key_derivation_setup(&operation, PSA_ALG_PBKDF2_HMAC(PSA_ALG_SHA_256));
+    if (status == PSA_SUCCESS)
+        status = psa_key_derivation_input_integer(&operation, PSA_KEY_DERIVATION_INPUT_COST, iterations);
+    if (status == PSA_SUCCESS)
+        status = psa_key_derivation_input_bytes(&operation, PSA_KEY_DERIVATION_INPUT_SALT, salt, salt_len);
+    if (status == PSA_SUCCESS)
+        status = psa_key_derivation_input_bytes(&operation, PSA_KEY_DERIVATION_INPUT_PASSWORD,
+                                                (const uint8_t *)plaintext, strlen(plaintext));
+    if (status == PSA_SUCCESS)
+        status = psa_key_derivation_output_bytes(&operation, hash_out, PW_HASH_LEN);
+    if (psa_key_derivation_abort(&operation) != PSA_SUCCESS) return false;
+    return status == PSA_SUCCESS;
 }
 
 static bool hashes_equal(const uint8_t a[PW_HASH_LEN],
@@ -311,22 +293,27 @@ bool verify_web_password_proof(const uint8_t *message, size_t message_len,
     char *stored = nvs_dup_str(PW_NVS_KEY);
     uint32_t iterations = 0;
     uint8_t salt[PW_SALT_LEN] = {0}, verifier[PW_HASH_LEN] = {0};
-    uint8_t expected[PW_HASH_LEN] = {0};
     bool ok = parse_pbkdf2_record(stored, &iterations, salt, verifier);
     free(stored);
     (void)iterations;
     if (ok) {
-        const mbedtls_md_info_t *md = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
-        ok = md && mbedtls_md_hmac(md, verifier, sizeof verifier,
-                                   message, message_len, expected) == 0
-             && hashes_equal(expected, proof);
+        const psa_algorithm_t algorithm = PSA_ALG_HMAC(PSA_ALG_SHA_256);
+        psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+        psa_set_key_type(&attributes, PSA_KEY_TYPE_HMAC);
+        psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_VERIFY_MESSAGE);
+        psa_set_key_algorithm(&attributes, algorithm);
+        psa_key_id_t key = 0;
+        ok = psa_import_key(&attributes, verifier, sizeof verifier, &key) == PSA_SUCCESS;
+        if (ok)
+            ok = psa_mac_verify(key, algorithm, message, message_len,
+                                proof, WEB_PASSWORD_PROOF_LEN) == PSA_SUCCESS;
+        if (key && psa_destroy_key(key) != PSA_SUCCESS) ok = false;
+        psa_reset_key_attributes(&attributes);
     }
     volatile uint8_t *wipe_salt = salt;
     volatile uint8_t *wipe_verifier = verifier;
-    volatile uint8_t *wipe_expected = expected;
     for (size_t i = 0; i < sizeof verifier; i++) {
         wipe_verifier[i] = 0;
-        wipe_expected[i] = 0;
         if (i < sizeof salt) wipe_salt[i] = 0;
     }
     return ok;
