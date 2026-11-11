@@ -6,7 +6,7 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [3.0.18] - 2026-11-11
+### Planned for 3.0.18
 
 - Migrate to ESP-IDF 6.1, preserve DHCP DNS in recovery mode, and separate
   the TCP/IP and WiFi tasks across the two cores.
@@ -24,6 +24,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   WiFi settings and show the assigned address with a copy button.
 - Send one recovery result to enabled notification channels per manual
   operation. Scheduled device checks alert on a new loss of reachability.
+- Cancel pending mDNS work on the old interface during uplink changes to
+  prevent a reboot after Wi-Fi connects.
 
 ## [3.0.18-beta.8] - 2026-11-11
 

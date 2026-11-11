@@ -78,7 +78,7 @@ choice of its author. Use the notices from the exact SDK/toolchain used for
 the image.
 
 `main/lwip_mdns/mdns.c` preserves its original BSD source notice and identifies
-the local modification. The firmware notice generator additionally carries
+the local probing and interface teardown modifications. The firmware notice generator additionally carries
 source-header notices from the configured build sources into binary packages.
 The local `components/dhcpserver/dhcpserver.c` and `dhcpserver.h` differ from
 the SDK originals and carry explicit modification notices without replacing
