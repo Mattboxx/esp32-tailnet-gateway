@@ -6,6 +6,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.18-beta.4] - 2026-11-11
+
+- Place the two FreeRTOS queue operations used for packet hand-offs in IRAM.
 - Keep DHCP DNS available to setup and recovery AP clients under ESP-IDF 6.1.
 - Show current build information and concise author credits on System → About.
 - Preserve the GPLv3 and original upstream notices of the pinned Mattboxx MicroLink fork in firmware packages.
