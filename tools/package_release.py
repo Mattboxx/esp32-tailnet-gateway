@@ -73,10 +73,12 @@ def collect_release_notices(root, sdkbuild):
              root / 'licenses/upstream/esp32-tailscale-subnet-router-MIT.txt',
              microlink / 'LICENSE', microlink / 'x25519-license.txt',
              microlink / 'components/microlink/components/wireguard_lwip/LICENSE'}
-    if (microlink / 'LICENSE').read_text(encoding='utf-8').lstrip().startswith('GNU GENERAL PUBLIC LICENSE'):
-        files.update({microlink / 'LICENSE-EXCEPTION.md', microlink / 'NOTICE.md',
-                      microlink / 'LICENSES/MicroLink-MIT.txt'})
     assert all(path.is_file() for path in files), 'Required upstream license missing'
+    if (microlink / 'LICENSE').read_text(encoding='utf-8').lstrip().startswith('GNU GENERAL PUBLIC LICENSE'):
+        fork_notices = {microlink / 'LICENSE-EXCEPTION.md', microlink / 'NOTICE.md',
+                        microlink / 'LICENSES/MicroLink-MIT.txt'}
+        assert all(path.is_file() for path in fork_notices), 'Required MicroLink GPL or MIT notice missing'
+        files.update(fork_notices)
     for directory in description['build_component_paths']:
         if not directory:
             continue
@@ -305,7 +307,7 @@ def main():
     for name in names:
         assert not credential_findings((out / name).read_bytes(), True), f'Credential pattern in {name}'
     manifest = ''.join(f'{sha(out / name)}  {name}\n' for name in names)
-    (out / 'SHA256SUMS.txt').write_text(manifest, encoding='ascii')
+    (out / 'SHA256SUMS.txt').write_text(manifest, encoding='ascii', newline='\n')
     archive = out / f'ESP32-Tailnet-Gateway-{version}{suffix}-windows.zip'
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for name in names + ['SHA256SUMS.txt']:
@@ -319,7 +321,8 @@ def main():
             assert hashlib.sha256(z.read(name)).hexdigest() == digest
     shutil.copyfile(args.tool_sources, out / SOURCE_NAME)
     assets = [out / ota_name, out / factory_name, archive, out / 'FIRMWARE-LICENSES.txt', out / 'release-manifest.json', out / SOURCE_NAME]
-    (out / 'RELEASE-SHA256SUMS.txt').write_text(''.join(f'{sha(path)}  {path.name}\n' for path in assets), encoding='ascii')
+    (out / 'RELEASE-SHA256SUMS.txt').write_text(
+        ''.join(f'{sha(path)}  {path.name}\n' for path in assets), encoding='ascii', newline='\n')
     print('PASS: exact tested image, blank NVS, factory application, ZIP CRC, payload hashes and credential patterns')
     for path in assets:
         print(path.name, path.stat().st_size, sha(path))

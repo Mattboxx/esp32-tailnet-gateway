@@ -109,6 +109,20 @@ class PackagingVersionTests(unittest.TestCase):
             self.assertIn('Original runtime notice: newlib/COPYING.NEWLIB',notices)
             self.assertNotIn(str(base), notices)
             self.assertNotIn('Not a license document', notices)
+            microlink = root / 'external/microlink'
+            (microlink / 'LICENSE').write_text('GNU GENERAL PUBLIC LICENSE\n', encoding='utf-8')
+            fork_notices = ('LICENSE-EXCEPTION.md', 'NOTICE.md', 'LICENSES/MicroLink-MIT.txt')
+            for name in fork_notices:
+                path = microlink / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(f'Original fork notice: {name}', encoding='utf-8')
+            notices = collect_release_notices(root, build)
+            for name in fork_notices:
+                self.assertIn(f'Original fork notice: {name}', notices)
+            (microlink / 'LICENSES/MicroLink-MIT.txt').unlink()
+            with self.assertRaisesRegex(AssertionError, 'Required MicroLink GPL or MIT notice missing'):
+                collect_release_notices(root, build)
+            (microlink / 'LICENSES/MicroLink-MIT.txt').write_text('Restored MIT notice', encoding='utf-8')
             (wpa/'README').unlink()
             with self.assertRaisesRegex(AssertionError,'wpa_supplicant BSD terms missing'):
                 collect_release_notices(root,build)
