@@ -221,7 +221,6 @@ static bool ap_policy_apply_runtime(bool on)
         if (ap_policy_is_shutdown()) return true;
         esp_netif_t *ap  = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
         esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-        if (ap && !first_boot_active()) (void)esp_netif_napt_enable(ap);
         if (ap && sta) softap_set_dns_addr(ap, sta);
         ESP_LOGW(TAG_AP, "AP enabled (recovery/always-on policy)");
     } else {
@@ -235,6 +234,25 @@ static bool ap_policy_apply_runtime(bool on)
 }
 
 bool wifi_ap_policy_auto_off(void) { return s_ap_auto_off; }
+
+static void wifi_ap_start_napt(void *arg, esp_event_base_t base,
+                               int32_t event_id, void *data)
+{
+    (void)base;
+    (void)event_id;
+    (void)data;
+    if (first_boot_active() || ap_policy_is_shutdown()) return;
+
+    /* The SDK's AP_START handler has already brought this netif up.
+     * Initialize the global port-map table before the AP policy can stop
+     * the radio. Removing the AP netif leaves the table available to LAN. */
+    esp_err_t err = esp_netif_napt_enable(arg);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG_AP, "NAPT initialization failed: %s", esp_err_to_name(err));
+        return;
+    }
+    portmap_install_all();
+}
 
 bool wifi_ap_runtime_enabled(void)
 {
@@ -1150,6 +1168,10 @@ void app_main(void)
     esp_netif_t *esp_netif_sta = wifi_init_sta();
     ESP_ERROR_CHECK(ap_policy_init(ap_policy_apply_runtime));
 
+    /* Register after creating the default AP netif so the SDK handler runs first. */
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_START,
+                                               wifi_ap_start_napt, esp_netif_ap));
+
     /* Start WiFi */
     ESP_ERROR_CHECK(esp_wifi_start() );
     boot_timeline_mark(BOOT_TL_WIFI_START);
@@ -1184,11 +1206,6 @@ void app_main(void)
     /* STA is still the preferred default route for outgoing traffic
      * once it has an address; before that, the AP netif stays default. */
     esp_netif_set_default_netif(esp_netif_sta);
-
-    /* Enable napt on the AP netif (never for the open first-boot AP) */
-    if (!first_boot_active() && esp_netif_napt_enable(esp_netif_ap) != ESP_OK) {
-        ESP_LOGE(TAG_STA, "NAPT not enabled on the netif: %p", esp_netif_ap);
-    }
 
     /* ACL packet filter — install netif input/linkoutput hooks so the
      * four ACL chains (to_esp / from_esp / to_ap / from_ap) actually

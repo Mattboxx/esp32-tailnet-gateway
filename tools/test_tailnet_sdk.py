@@ -245,7 +245,18 @@ int main(int argc,char **argv) {
     addr.addr=lwip_htonl(0xc0000301);ip_addr_copy_from_ip4(ap.ip_addr,addr);ip_addr_copy_from_ip4(ap.netmask,mask);
     addr.addr=lwip_htonl(0x64400001);ip_addr_copy_from_ip4(wg.ip_addr,addr);ip_addr_copy_from_ip4(wg.netmask,mask);
     sta.next=&ap;ap.next=&wg;netif_list=netif_default=&sta;wg.output=output;
+    bool ap_stopped=!strcmp(argv[1],"ap-stopped");
+    if(ap_stopped) {
+        ap.flags=0;
+        assert(!ip_napt_enable_netif(&ap,1));
+        assert(!ip_portmap_add(proto,netif_ip4_addr(&sta)->addr,2222,netif_ip4_addr(&wg)->addr,22));
+        ap.flags=NETIF_FLAG_UP|NETIF_FLAG_LINK_UP;
+    }
     assert(ip_napt_enable_netif(&ap,1));
+    if(ap_stopped) {
+        ap.flags=0;
+        sta.next=&wg;
+    }
     s_count=1;s_rules[0]=(tailnet_forward_rule_t){.valid=1,.enabled=1,.proto=proto,.listen_port=2222,.destination_port=22,.source_network=0xc0000200,.source_prefix=24};
     s_runtime[0].resolved_ip=0x64400002;
     tailnet_forward_mapping_t mapping;assert(tailnet_forward_snapshot_mappings(&mapping,1)==1);
@@ -253,6 +264,9 @@ int main(int argc,char **argv) {
     assert(ip_portmap_add(proto,mapping.binding_ip_nbo,2222,mapping.destination_nbo,22));
     if(strstr(argv[1],"isolation")||!strcmp(argv[1],"overlap")||strstr(argv[1],"expiry")||strstr(argv[1],"capacity")||!strcmp(argv[1],"mutations")) {
         isolated_reassembly(argv[1],proto);assert(!forwarded&&!local_packets);
+    } else if(ap_stopped) {
+        assert(__wrap_ip4_input(packet(proto,0xc0000263,0,32),&sta)==ERR_OK);
+        assert(forwarded==1&&!local_packets);
     } else if(!strcmp(argv[1],"plain")||!strcmp(argv[1],"fragment")) {
         struct pbuf *p=packet(proto,0xc6336402,fragment?1:0,32);
         assert(__wrap_ip4_input(p,&sta)==ERR_OK);
@@ -294,6 +308,10 @@ int main(int argc,char **argv) {
 #if IP_REASSEMBLY
     for(unsigned i=0;i<IP_REASS_MAXAGE+3;i++){ip_reass_tmr();advance_timers();}
 #endif
+    if(ap_stopped) {
+        sta.next=&ap;
+        ap.flags=NETIF_FLAG_UP|NETIF_FLAG_LINK_UP;
+    }
     assert(ip_napt_enable_netif(&ap,0));
     printf("PASS: actual SDK IPv4/NAPT/pbuf - %s protocol %u\n",argv[1],proto);
 }
@@ -318,7 +336,7 @@ with tempfile.TemporaryDirectory(prefix='tailnet-sdk-') as directory:
     if os.environ.get('TAILNET_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     implementation=[str(ROOT/'main/tailnet_reassembly.c')]
     subprocess.run([os.environ.get('CC','gcc'),*flags,str(path/'test.c'),*implementation,*(str(sdk/'src'/f) for f in files),'-o',str(binary)],check=True)
-    for scenario in ('plain','fragment','short','split','split-oom','complete','denied','oom','bad-checksum',
+    for scenario in ('ap-stopped','plain','fragment','short','split','split-oom','complete','denied','oom','bad-checksum',
                      'interface-isolation','protocol-isolation','native-isolation','overlap','expiry','capacity',
                      'expiry-queue-failure','expiry-wrap','chain-capacity','mutations'):
         for proto in (6,17):

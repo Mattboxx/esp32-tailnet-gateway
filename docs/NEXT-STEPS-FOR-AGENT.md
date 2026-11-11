@@ -4,7 +4,7 @@
 
 The qualified native-IDF 5.5.6 image is public as v3.0.17. Source
 399ee031589d, BIN SHA-256 d715c960a67da1599056c4f92be46aa9f0272d6c1856d1f44b0b1a8f1d669f99.
-The owner board runs it in ota_1, with 3.0.16 in ota_0. The 15-minute
+The owner board keeps it in ota_1. The 15-minute
 resource observation, live TCP/UDP gateway, expiry/reboot/watch and UI
 checks passed. Exact logs are in the preceding worktree's ignored
 build/private-device/install-3.0.17/. The Telegram expiry message came
@@ -12,7 +12,7 @@ from the lab rule. Lab settings were restored. PR #18 and Pages are
 merged/deployed. The public flasher matches the qualified image.
 
 This worktree is fix/esp-idf-6.1-beta, based on v3.0.17. Current edits
-target 3.0.18-beta.1. They are incomplete and unqualified. W5500 2.0.1,
+target 3.0.18-beta.2. Hardware qualification is pending. W5500 2.0.1,
 wiznet_common 1.1.0 and MQTT 1.1.0 are exact managed dependencies.
 The MQTT source guard was updated after reviewing task ownership. The
 upstream external-stack option remains off because the project keeps
@@ -28,9 +28,15 @@ Noise and WireGuard byte-level checks and setup/password software crypto
 regressions passed. The final link requires the project's DHCP helpers
 to have internal linkage because the SDK defines names of its own.
 
-Next: verify the exact beta image, compare the OTA partition table and
-complete the offline and hardware gates. Install only the application
-into ota_0 while retaining the current qualified 3.0.17 in ota_1.
+The first beta boots in ota_0 and keeps settings, MQTT, UI and Tailnet
+management operational. A live TCP/UDP Service Gateway lab found no installed
+mapping. Its boot log showed the AP netif was not ready when NAPT was enabled.
+The next image enables NAPT after the SDK's AP_START handler. Real lwIP host
+tests now exercise forwarding after the AP leaves the netif list.
+
+Next: verify the exact image and partition table. Select ota_1 using USB,
+then install only the beta application into ota_0 and repeat TCP/UDP, expiry,
+reconnect and resource tests. Keep ota_1 available as recovery.
 The owner authorized qualification and beta publication after success.
 The beta package is for OTA with the existing bootloader.
 

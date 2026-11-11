@@ -6,11 +6,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [3.0.18-beta.1] - 2026-11-11
+## [3.0.18-beta.2] - 2026-11-11
 
 - Migrate the firmware to ESP-IDF 6.1, with pinned W5500, ESP-MQTT and cJSON components.
 - Update TLS, secure setup and firmware checksum code for the newer cryptography APIs.
 - Use the shared ChaCha20-Poly1305 implementation for Noise control traffic with the existing wire format.
+- Initialize the Service Gateway's port-map table after the AP netif is ready so LAN-to-Tailnet rules stay available in recovery-only mode.
 
 ## [3.0.17] - 2026-11-10
 
