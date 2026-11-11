@@ -293,7 +293,7 @@ void eth_uplink_start(void)
 #if CONFIG_ETH_SPI_ETHERNET_W5500
     if (!s_handle) return;
     /* Fail closed: without the ACL hooks the interface never carries traffic. */
-    if (!netif_hooks_eth_protected()) {set_error("not started: firewall hooks unavailable"); return;}
+    if (!netif_hooks_eth_ready()) {set_error("not started: firewall hooks unavailable"); return;}
     s_lwip = esp_netif_get_netif_impl(s_netif);
     esp_err_t err = esp_eth_start(s_handle);
     if (err != ESP_OK) {

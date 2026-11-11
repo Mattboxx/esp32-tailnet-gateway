@@ -1242,6 +1242,12 @@ void app_main(void)
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_START,
                                                wifi_ap_start_napt, esp_netif_ap));
 
+    /* Register the physical hooks before either driver adds its lwIP netif.
+     * esp_wifi_start() posts asynchronous start events; installing after it
+     * can race netif_add() and lose the ACL, traffic and STA TTL hooks. */
+    eth_uplink_init();   /* optional SPI Ethernet: prepared, not started */
+    netif_hooks_init();
+
     /* Start WiFi */
     ESP_ERROR_CHECK(esp_wifi_start() );
     boot_timeline_mark(BOOT_TL_WIFI_START);
@@ -1277,13 +1283,7 @@ void app_main(void)
      * once it has an address; before that, the AP netif stays default. */
     esp_netif_set_default_netif(esp_netif_sta);
 
-    /* ACL packet filter — install netif input/linkoutput hooks so the
-     * four ACL chains (to_esp / from_esp / to_ap / from_ap) actually
-     * drop denied traffic. Must run AFTER esp_wifi_start so the netifs
-     * exist and have their default input/linkoutput function pointers. */
-    eth_uplink_init();   /* optional SPI Ethernet: prepared, not started */
-    netif_hooks_init();
-    eth_uplink_start();  /* refuses to run without the Ethernet ACL hooks */
+    eth_uplink_start();  /* refuses to run without the Ethernet ACL registration */
     cell_uplink_init();  /* optional cellular modem: off unless configured; needs the PPP ACL hooks */
 
     /* Install ACL wrappers first; SNMP must chain through them, not bypass

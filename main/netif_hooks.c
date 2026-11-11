@@ -49,7 +49,8 @@ static netif_linkoutput_fn  original_ap_linkoutput   = NULL;
 /* Optional SPI Ethernet uplink: the same ESP-bound ACL chains as the STA. */
 static netif_input_fn       original_eth_input       = NULL;
 static netif_linkoutput_fn  original_eth_linkoutput  = NULL;
-static bool                 s_eth_protected          = false;
+static struct netif        *s_sta, *s_ap, *s_eth;
+static netif_ext_callback_t s_physical_callback;
 static netif_output_fn      original_ppp_output      = NULL;
 static struct netif        *s_ppp                    = NULL;
 static volatile uint64_t    s_ppp_bytes_in           = 0;
@@ -362,7 +363,7 @@ static err_t eth_linkoutput_hook(struct netif *netif, struct pbuf *p)
     return original_eth_linkoutput ? original_eth_linkoutput(netif, p) : ERR_VAL;
 }
 
-bool netif_hooks_eth_protected(void) { return s_eth_protected; }
+bool netif_hooks_eth_ready(void) { return s_eth != NULL; }
 uint64_t netif_hooks_get_eth_bytes_in(void) { return s_eth_bytes_in; }
 uint64_t netif_hooks_get_eth_bytes_out(void) { return s_eth_bytes_out; }
 
@@ -422,6 +423,41 @@ static err_t ap_linkoutput_hook(struct netif *netif, struct pbuf *p)
     return original_ap_linkoutput ? original_ap_linkoutput(netif, p) : ERR_VAL;
 }
 
+/* lwIP sets the driver callbacks in netif_add(), then calls this on the
+ * TCP/IP thread before bringing the interface up. A Wi-Fi mode change can
+ * remove and add the same netif again, so install on every add. */
+static void physical_netif_added(struct netif *nif, netif_nsc_reason_t reason,
+                                const netif_ext_callback_args_t *args)
+{
+    (void)args;
+    if (!(reason & LWIP_NSC_NETIF_ADDED)) return;
+    if (nif == s_sta) {
+        original_sta_input = nif->input;
+        original_sta_linkoutput = nif->linkoutput;
+        nif->input = sta_input_hook;
+        nif->linkoutput = sta_linkoutput_hook;
+    } else if (nif == s_ap) {
+        original_ap_input = nif->input;
+        original_ap_linkoutput = nif->linkoutput;
+        nif->input = ap_input_hook;
+        nif->linkoutput = ap_linkoutput_hook;
+    } else if (nif == s_eth) {
+        original_eth_input = nif->input;
+        original_eth_linkoutput = nif->linkoutput;
+        nif->input = eth_input_hook;
+        nif->linkoutput = eth_linkoutput_hook;
+    } else {
+        return;
+    }
+    ESP_LOGI(TAG, "physical hooks installed on %c%c%d", nif->name[0], nif->name[1], nif->num);
+}
+
+static void register_physical_hooks(void *arg)
+{
+    (void)arg;
+    netif_add_ext_callback(&s_physical_callback, physical_netif_added);
+}
+
 void netif_hooks_refresh(void)
 {
     /* Compatibility entry point for the forwarding manager. Tailnet policy
@@ -429,54 +465,17 @@ void netif_hooks_refresh(void)
      * Reinstalling a transparent shim over SNMP's periodic traffic shim
      * captures the two wrappers as each other's "original", forming a
      * recursive input chain. SNMP alone owns the tunnel's input wrapper.
-     * Physical STA/AP ACL hooks are installed once, before SNMP starts. */
+     * Physical ACL hooks are installed when lwIP adds the netif, before
+     * the periodic SNMP traffic shim can see it. */
 }
 
 
 void netif_hooks_init(void)
 {
-    static bool installed = false;
-    if (installed) return;
-
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    esp_netif_t *ap  = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
-
-    if (sta) {
-        struct netif *nif = esp_netif_get_netif_impl(sta);
-        if (nif) {
-            original_sta_input      = nif->input;
-            original_sta_linkoutput = nif->linkoutput;
-            nif->input              = sta_input_hook;
-            nif->linkoutput         = sta_linkoutput_hook;
-            ESP_LOGI(TAG, "STA hooks installed on %c%c%d", nif->name[0], nif->name[1], nif->num);
-        }
-    }
-    if (ap) {
-        struct netif *nif = esp_netif_get_netif_impl(ap);
-        if (nif) {
-            original_ap_input       = nif->input;
-            original_ap_linkoutput  = nif->linkoutput;
-            nif->input              = ap_input_hook;
-            nif->linkoutput         = ap_linkoutput_hook;
-            ESP_LOGI(TAG, "AP hooks installed on %c%c%d", nif->name[0], nif->name[1], nif->num);
-        }
-    }
-
-    /* Exists only when the optional Ethernet uplink was prepared at boot;
-     * it is started afterwards, never before these hooks are in place. */
-    esp_netif_t *eth = esp_netif_get_handle_from_ifkey("ETH_DEF");
-    if (eth) {
-        struct netif *nif = esp_netif_get_netif_impl(eth);
-        if (nif && nif->input && nif->linkoutput) {
-            original_eth_input      = nif->input;
-            original_eth_linkoutput = nif->linkoutput;
-            nif->input              = eth_input_hook;
-            nif->linkoutput         = eth_linkoutput_hook;
-            s_eth_protected         = true;
-            ESP_LOGI(TAG, "Ethernet ACL hooks installed on %c%c%d", nif->name[0], nif->name[1], nif->num);
-        }
-    }
-
-    installed = (sta != NULL) || (ap != NULL);
-    netif_hooks_refresh();
+    s_sta = esp_netif_get_netif_impl(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"));
+    s_ap = esp_netif_get_netif_impl(esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"));
+    s_eth = esp_netif_get_netif_impl(esp_netif_get_handle_from_ifkey("ETH_DEF"));
+    ESP_ERROR_CHECK(s_sta && s_ap ? ESP_OK : ESP_ERR_INVALID_STATE);
+    ESP_ERROR_CHECK(tcpip_callback_wait(register_physical_hooks, NULL) == ERR_OK
+                    ? ESP_OK : ESP_ERR_INVALID_STATE);
 }
