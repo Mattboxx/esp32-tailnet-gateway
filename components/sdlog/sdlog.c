@@ -899,7 +899,7 @@ void sdlog_get_status(sdlog_status_t *out)
     /* File listing stats + active file under the FAT lock. */
     if (out->present && s_file_mutex &&
         xSemaphoreTake(s_file_mutex, pdMS_TO_TICKS(2000)) == pdTRUE) {
-        strncpy(out->cur_file, s_cur_name, sizeof(out->cur_file) - 1);
+        strlcpy(out->cur_file, s_cur_name, sizeof(out->cur_file));
         out->bytes_written = s_bytes_written;
         DIR *d = opendir(SDLOG_DIR);
         if (d) {

@@ -208,7 +208,7 @@ int main(void) {
     s_starting=true; requested_result=pdPASS; start_snmp_task_reserved();
     assert(s_starting && takes==1 && gives==1); /* worker publishes state */
     delete_snmp_worker();
-#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+#if CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
     assert(caps_calls==2 && !internal_calls && reaper_deletes==1 && !caps_deletes && !internal_deletes);
 #else
     assert(internal_calls==2 && !caps_calls && internal_deletes==1 && !caps_deletes && !reaper_deletes);
@@ -223,7 +223,7 @@ with tempfile.TemporaryDirectory(prefix="snmp-codec-") as directory:
     if os.environ.get("SNMP_SANITIZE") == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     worker_programs = tuple(('worker'+str(enabled), HEADER + constants +
-        '#define CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY '+str(enabled)+'\n' +
+        '#define CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM '+str(enabled)+'\n' +
         worker_fixture + worker + worker_tests) for enabled in (0, 1))
     for stem, text in (('test', program), ('mib', mib_program), *worker_programs):
         (path / (stem + '.c')).write_text(text, encoding="utf-8")

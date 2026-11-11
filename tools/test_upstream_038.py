@@ -191,7 +191,7 @@ int main(void){
 ''')
 
 derp = (ML / 'src/ml_derp.c').read_text(encoding='utf-8')
-tls = '    const char *tls_name =' + derp.split('    const char *tls_name =', 1)[1].split('    mbedtls_ssl_conf_rng(', 1)[0]
+tls = '    const char *tls_name =' + derp.split('    const char *tls_name =', 1)[1].split('#if MBEDTLS_VERSION_MAJOR < 4', 1)[0]
 run('actual DERP TLS policy: trusted verification default, CertName and CA-attach failure without fallback', r'''
 #define MBEDTLS_SSL_VERIFY_REQUIRED 2
 #define MBEDTLS_SSL_VERIFY_NONE 0

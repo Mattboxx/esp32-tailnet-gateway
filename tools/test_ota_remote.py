@@ -98,12 +98,15 @@ static int esp_http_client_read(esp_http_client_handle_t c,char *b,int length) {
 }
 static bool esp_http_client_is_complete_data_received(esp_http_client_handle_t c) { (void)c; return fault!=9&&offset==1024; }
 static void esp_http_client_cleanup(esp_http_client_handle_t c) { (void)c; releases++; }
-typedef struct { int used; } mbedtls_sha256_context;
-static void mbedtls_sha256_init(mbedtls_sha256_context *h) { h->used=0; }
-static void mbedtls_sha256_free(mbedtls_sha256_context *h) { (void)h; }
-static int mbedtls_sha256_starts(mbedtls_sha256_context *h,int n) { (void)h;(void)n; return 0; }
-static int mbedtls_sha256_update(mbedtls_sha256_context *h,const unsigned char *b,size_t n) { (void)b; h->used+=(int)n; return fault==13?-1:0; }
-static int mbedtls_sha256_finish(mbedtls_sha256_context *h,unsigned char out[32]) { assert(h->used==1024); memset(out,fault==3?2:1,32); return 0; }
+typedef struct { int used; } mbedtls_md_context_t;
+static void mbedtls_md_init(mbedtls_md_context_t *h) { h->used=0; }
+static void mbedtls_md_free(mbedtls_md_context_t *h) { (void)h; }
+#define MBEDTLS_MD_SHA256 1
+static int mbedtls_md_info_from_type(int type) { assert(type==MBEDTLS_MD_SHA256); return type; }
+static int mbedtls_md_setup(mbedtls_md_context_t *h,int info,int hmac) { (void)h; assert(info==MBEDTLS_MD_SHA256&&!hmac); return 0; }
+static int mbedtls_md_starts(mbedtls_md_context_t *h) { (void)h; return 0; }
+static int mbedtls_md_update(mbedtls_md_context_t *h,const unsigned char *b,size_t n) { (void)b; h->used+=(int)n; return fault==13?-1:0; }
+static int mbedtls_md_finish(mbedtls_md_context_t *h,unsigned char out[32]) { assert(h->used==1024); memset(out,fault==3?2:1,32); return 0; }
 static int64_t esp_timer_get_time(void) { clock_us+=fault==12?200000000:100; return clock_us; }
 #define SNAP_UPDATE 2
 #define HIST_EV_UPDATE 3
