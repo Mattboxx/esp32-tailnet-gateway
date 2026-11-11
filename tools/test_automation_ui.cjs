@@ -958,7 +958,8 @@ async function main() {
     // Empty fields show an example; optional port 0 is an empty field.
     assert.equal(await f.page.locator('#ops-devices input[type=text]').getAttribute('placeholder'),'e.g. 192.168.1.20 or nas.lan');
     assert.equal(await f.page.locator('#ops-devices input[type=number]').nth(1).inputValue(),'');
-    assert.equal(await f.page.locator('#ops-devices .form-hint').count(),8);
+    assert.equal(await f.page.locator('#ops-devices .form-hint').count(),9);
+    assert.match(await f.page.locator('#ops-devices .form-hint').last().textContent(),/ntfy, Telegram and email/);
     assert.equal(await f.page.locator('#health-gateway-port').inputValue(),'');
     assert.equal(await f.page.locator('#health-dns').getAttribute('placeholder'),'e.g. example.com');
     await f.page.locator('#ops-devices input[type=text]').fill('draft.example');

@@ -189,7 +189,11 @@ esp_err_t homelab_ops_set_device(int index,const ops_device_t *profile) {
         if(!present){slot=i;break;}
     }
     if(slot<0){UNLOCK();free(candidate);return ESP_ERR_NO_MEM;}
-    candidate->devices[slot]=*profile;esp_err_t err=save_locked(candidate);UNLOCK();free(candidate);return err;
+    candidate->devices[slot]=*profile;
+    esp_err_t err=save_locked(candidate);
+    /* A new profile must establish its own reachability baseline. */
+    if(err==ESP_OK)memset(&results[index],0,sizeof results[index]);
+    UNLOCK();free(candidate);return err;
 }
 void homelab_ops_settings(ops_settings_t *out) {homelab_ops_init();LOCK();*out=store.settings;UNLOCK();}
 void homelab_ops_service_closed(unsigned count) {
