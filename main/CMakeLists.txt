@@ -53,7 +53,7 @@ message(STATUS "index.html: ${_gz_out}")
 
 # Per-board "<name>.local" (lan_name.c): lwIP's own mDNS responder from the
 # pinned SDK, compiled here; ESP-IDF builds only its separate mdns component.
-# lwip_mdns/mdns.c is the SDK file with one documented patch (probing on an
+# lwip_mdns/mdns.c is the SDK file with patches for netif teardown and probing on an
 # uplink without IPv6 addresses); the two other files are used as shipped.
 set(_lwip_mdns "${IDF_PATH}/components/lwip/lwip/src/apps/mdns")
 
