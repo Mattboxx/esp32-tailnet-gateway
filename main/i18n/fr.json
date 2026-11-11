@@ -907,6 +907,7 @@
  "Measures": "Mesures",
  "Messages to your phone through a Telegram bot: starts, crashes, updates, uplink and tailnet changes, failed admin logins, settings copies, plus the operational results ntfy sends (recovery checks, service rules). Off by default; while off nothing runs. Messages go through Telegram's servers.": "Messages sur votre téléphone via un bot Telegram : démarrages, plantages, mises à jour, changements de liaison et de tailnet, connexions admin échouées, copies des réglages, plus les résultats opérationnels envoyés par ntfy (contrôles de récupération, règles de service). Désactivé par défaut ; désactivé, rien ne s'exécute. Les messages passent par les serveurs de Telegram.",
  "MicroLink": "MicroLink",
+ "MicroLink upstream": "Projets en amont de MicroLink",
  "Migrate to 3.0": "Migrer vers la 3.0",
  "Min 8 characters.": "8 caractères minimum.",
  "Minimum 4 characters. Simple passwords are accepted, but are easier to guess on an exposed network.": "4 caractères minimum. Les mots de passe simples sont acceptés, mais plus faciles à deviner sur un réseau exposé.",

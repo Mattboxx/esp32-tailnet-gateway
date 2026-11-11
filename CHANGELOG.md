@@ -6,6 +6,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.18-beta.3] - 2026-11-11
+
+- Keep the mobile menu and its close button visible when opened from a scrolled page.
+- Preserve scroll when dismissing the menu and start newly selected pages at the top.
+- Link to the MicroLink fork used by the firmware and show its upstream credits separately.
+
 ## [3.0.18-beta.2] - 2026-11-11
 
 - Migrate the firmware to ESP-IDF 6.1, with pinned W5500, ESP-MQTT and cJSON components.

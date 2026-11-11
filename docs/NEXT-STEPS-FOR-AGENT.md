@@ -2,6 +2,11 @@
 
 ## Active work — ESP-IDF 6.1 beta
 
+The v3.0.18-beta.2 OTA is public and was qualified on the Wi-Fi owner board.
+The beta.3 patch updates the embedded UI drawer and MicroLink credits. Use
+the same OTA-only packaging and record browser and image checks separately
+from the hardware evidence for beta.2. Keep v3.0.17 as the latest stable.
+
 The qualified native-IDF 5.5.6 image is public as v3.0.17. Source
 399ee031589d, BIN SHA-256 d715c960a67da1599056c4f92be46aa9f0272d6c1856d1f44b0b1a8f1d669f99.
 The owner board keeps it in ota_1. The 15-minute

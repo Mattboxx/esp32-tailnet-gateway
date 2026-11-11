@@ -154,7 +154,9 @@
     /* The page never scrolls sideways: wide rows scroll inside themselves,
      * and a swipe at an edge does not drag or bounce the whole page. */
     html { font-size: 16px; overflow-x: clip; overscroll-behavior-x: none; touch-action: pan-x pan-y; }   /* no pinch zoom (owner's choice) */
-    html.scroll-locked, html.scroll-locked body { overflow: hidden; overscroll-behavior: none; }
+    /* Lock the root scroller only. Locking body makes it a scroll container
+     * and pulls the sticky toolbar offscreen on an already scrolled page. */
+    html.scroll-locked { overflow: hidden; overscroll-behavior: none; }
 
     body {
       font-family: var(--font-ui);
@@ -1485,8 +1487,9 @@
         gap: 0.3rem;
         overflow-y: auto;
       }
-      .nav-tabs.open       { display: flex; overscroll-behavior: contain; }
+      #navTabs.open        { display: flex; overscroll-behavior: contain; mask-image: none; }
       .nav-tabs .nav-tab   {
+        flex-shrink: 0;
         padding: 14px 18px;
         font-size: 16px;
         border-radius: 8px;
@@ -4406,7 +4409,8 @@
           <div class="stat-row"><span class="stat-label">Source</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailnet-gateway" target="_blank" rel="noopener" style="color:var(--accent);">github.com/Mattboxx/esp32-tailnet-gateway</a></span></div>
           <div class="stat-row"><span class="stat-label">Issues</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/esp32-tailnet-gateway/issues" target="_blank" rel="noopener" style="color:var(--accent);">github.com/&hellip;/issues</a></span></div>
           <div class="stat-row"><span class="stat-label">Original upstream</span><span class="stat-value mono"><a href="https://github.com/Csontikka/esp32-tailscale-subnet-router" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/esp32-tailscale-subnet-router</a></span></div>
-          <div class="stat-row"><span class="stat-label">Tailscale stack</span><span class="stat-value mono"><a href="https://github.com/Csontikka/microlink" target="_blank" rel="noopener" style="color:var(--accent);">Csontikka/microlink</a> (userspace WireGuard + DERP + DISCO)</span></div>
+          <div class="stat-row"><span class="stat-label">Tailscale stack</span><span class="stat-value mono"><a href="https://github.com/Mattboxx/microlink" target="_blank" rel="noopener" style="color:var(--accent);">Mattboxx/microlink</a> (userspace WireGuard + DERP + DISCO)</span></div>
+          <div class="stat-row"><span class="stat-label">MicroLink upstream</span><span class="stat-value mono"><a href="https://github.com/Csontikka/microlink" target="_blank" rel="noopener">Csontikka/microlink</a> · <a href="https://github.com/CamM2325/microlink" target="_blank" rel="noopener">Cameron Malone</a></span></div>
           <div class="stat-row"><span class="stat-label">License</span><span class="stat-value mono">GPL-3.0 — see LICENSE and NOTICE.md in the repo</span></div>
           <div class="stat-row"><span class="stat-label">Privacy</span><span class="stat-value mono">No telemetry / GitHub updates opt-in only</span></div>
         </div>
@@ -4742,9 +4746,11 @@
           if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
           e.preventDefault();
           var page = this.dataset.page;
+          var changedPage = !this.classList.contains('active');
+          var wasOpen = closeHamMenu();
           if (switchToPage(page)) {
             try { history.replaceState(null, '', '#' + page); } catch (_) {}
-            closeHamMenu();   /* hide the drawer on mobile after a pick */
+            if (wasOpen && changedPage) window.scrollTo(0, 0);
           }
         });
       });
@@ -4770,14 +4776,18 @@
         if (hamBtn) { hamBtn.setAttribute('aria-expanded', 'true'); hamBtn.setAttribute('aria-label', 'Close menu'); hamBtn.textContent = '✕'; }
       }
       function closeHamMenu() {
-        if (!navTabs) return;
+        if (!navTabs || !navTabs.classList.contains('open')) return false;
         navTabs.classList.remove('open');
-        unlockPageScroll();
+        unlockPageScroll(navTabs);
         if (navOrigParent && navTabs.parentNode !== navOrigParent) {
           navOrigParent.insertBefore(navTabs, navOrigNext);
         }
         if (hamBtn) { hamBtn.setAttribute('aria-expanded', 'false'); hamBtn.setAttribute('aria-label', 'Open menu'); hamBtn.textContent = '≡'; }
+        return true;
       }
+      window.addEventListener('resize', function () {
+        if (hamBtn && navTabs && navTabs.classList.contains('open') && !hamBtn.offsetWidth) closeHamMenu();
+      });
       /* The same button opens and closes the menu: the drawer opens below the
        * bar, so the button stays visible and tappable. */
       if (hamBtn)   hamBtn.addEventListener('click', function () {
@@ -4786,7 +4796,7 @@
       if (hamClose) hamClose.addEventListener('click', closeHamMenu);
       /* Esc closes the drawer too — common keyboard expectation. */
       document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && navTabs && navTabs.classList.contains('open')) closeHamMenu();
+        if (e.key === 'Escape' && !e.defaultPrevented) closeHamMenu();
       });
 
       /* On first paint honour any #hash in the URL (set by a middle-click
@@ -5622,15 +5632,21 @@
     /* While a drawer or dialog is open the page under it must not move: the
      * lock sits on <html> (the page's scroller), and on touch screens a drag
      * outside the open panel is ignored (iOS scrolls past overflow:hidden). */
-    var s_scroll_panel = null;
-    function blockOutsideDrag(e) { if (s_scroll_panel && !s_scroll_panel.contains(e.target)) e.preventDefault(); }
+    var s_scroll_panels = [];
+    function blockOutsideDrag(e) {
+      var panel = s_scroll_panels[s_scroll_panels.length - 1];
+      if (panel && !panel.contains(e.target)) e.preventDefault();
+    }
     function lockPageScroll(panel) {
-      s_scroll_panel = panel || null;
+      if (s_scroll_panels.indexOf(panel) !== -1) return;
+      s_scroll_panels.push(panel);
       document.documentElement.classList.add('scroll-locked');
       document.addEventListener('touchmove', blockOutsideDrag, {passive: false});
     }
-    function unlockPageScroll() {
-      s_scroll_panel = null;
+    function unlockPageScroll(panel) {
+      var i = s_scroll_panels.indexOf(panel);
+      if (i !== -1) s_scroll_panels.splice(i, 1);
+      if (s_scroll_panels.length) return;
       document.documentElement.classList.remove('scroll-locked');
       document.removeEventListener('touchmove', blockOutsideDrag, {passive: false});
     }
@@ -12886,8 +12902,8 @@
     function close() {
       if (!pal || pal.hidden) return;
       pal.hidden = true;
-      if (typeof unlockPageScroll === 'function') unlockPageScroll();
-      if (opener && opener.focus) opener.focus();
+      if (typeof unlockPageScroll === 'function') unlockPageScroll(pal.querySelector('.search-box'));
+      if (opener && opener.focus) opener.focus({preventScroll: true});
     }
     function go(it) {
       close();
