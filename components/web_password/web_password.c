@@ -13,7 +13,6 @@
 #include "esp_random.h"
 #include "freertos/FreeRTOS.h"
 #include "mbedtls/md.h"
-#include "mbedtls/sha256.h"
 #include "nvs.h"
 
 #include "web_password.h"
@@ -112,16 +111,18 @@ static int hex_to_bytes(const char *src, uint8_t *dst, size_t len)
     return 0;
 }
 
-static void compute_hash(const uint8_t *salt, size_t salt_len,
+static bool compute_hash(const uint8_t *salt, size_t salt_len,
                          const char *plaintext, uint8_t *hash_out)
 {
-    mbedtls_sha256_context ctx;
-    mbedtls_sha256_init(&ctx);
-    mbedtls_sha256_starts(&ctx, 0);
-    mbedtls_sha256_update(&ctx, salt, salt_len);
-    mbedtls_sha256_update(&ctx, (const uint8_t *)plaintext, strlen(plaintext));
-    mbedtls_sha256_finish(&ctx, hash_out);
-    mbedtls_sha256_free(&ctx);
+    mbedtls_md_context_t ctx;
+    mbedtls_md_init(&ctx);
+    int rc = mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0);
+    if (rc == 0) rc = mbedtls_md_starts(&ctx);
+    if (rc == 0) rc = mbedtls_md_update(&ctx, salt, salt_len);
+    if (rc == 0) rc = mbedtls_md_update(&ctx, (const uint8_t *)plaintext, strlen(plaintext));
+    if (rc == 0) rc = mbedtls_md_finish(&ctx, hash_out);
+    mbedtls_md_free(&ctx);
+    return rc == 0;
 }
 
 /* PBKDF2-HMAC-SHA256, one 32-byte block.  Keeping the implementation here
@@ -188,7 +189,10 @@ static void fast_cache_store(const char *plaintext)
     uint8_t salt[PW_SALT_LEN];
     uint8_t hash[PW_HASH_LEN];
     esp_fill_random(salt, sizeof salt);
-    compute_hash(salt, sizeof salt, plaintext, hash);
+    if (!compute_hash(salt, sizeof salt, plaintext, hash)) {
+        fast_cache_invalidate();
+        return;
+    }
 
     portENTER_CRITICAL(&s_fast_cache_mux);
     memcpy(s_fast_cache_salt, salt, sizeof salt);
@@ -215,8 +219,8 @@ static bool fast_cache_matches(const char *plaintext)
     if (!valid) return false;
 
     uint8_t computed[PW_HASH_LEN];
-    compute_hash(salt, sizeof salt, plaintext, computed);
-    bool match = hashes_equal(expected, computed);
+    bool match = compute_hash(salt, sizeof salt, plaintext, computed)
+                 && hashes_equal(expected, computed);
     volatile uint8_t *wipe_computed = computed;
     volatile uint8_t *wipe_expected = expected;
     for (size_t i = 0; i < sizeof computed; i++) {
@@ -235,8 +239,8 @@ static bool verify_legacy_sha256(const char *stored, const char *plaintext)
     uint8_t salt[PW_SALT_LEN], expected[PW_HASH_LEN], computed[PW_HASH_LEN];
     if (hex_to_bytes(stored, salt, PW_SALT_LEN) != 0
         || hex_to_bytes(colon + 1, expected, PW_HASH_LEN) != 0) return false;
-    compute_hash(salt, sizeof salt, plaintext, computed);
-    return hashes_equal(expected, computed);
+    return compute_hash(salt, sizeof salt, plaintext, computed)
+           && hashes_equal(expected, computed);
 }
 
 static bool verify_pbkdf2(const char *stored, const char *plaintext)

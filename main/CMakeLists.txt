@@ -129,12 +129,12 @@ idf_component_register(SRCS "main.c" ${_tsr_optional}
                     PRIV_REQUIRES esp_wifi nvs_flash esp_event esp_netif esp_timer
                                   lwip microlink wpa_supplicant
                                   esp-tls mbedtls
-                                  esp_http_server json esp_app_format
+                                  esp_http_server espressif__cjson esp_app_format
                                   acl sdlog remote_console
                                   web_password net_diag dhcpserver
                                   espcoredump dns_relay snmp_agent cli task_reaper
                                   app_update spi_flash esp_partition esp_psram
-                                  mqtt
+                                  espressif__mqtt espressif__w5500
                                   esp_http_client
                                   esp_eth esp_driver_spi esp_driver_gpio esp_driver_uart
                                   esp_driver_tsens

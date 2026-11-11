@@ -1,7 +1,7 @@
 """Actual SDK MQTT startup / teardown and project startup-task behavior tests.
 
 Host allocator/RTOS fixtures, NOT hardware fragmentation or full MQTT testing.
-MQTT_SOURCE selects the reviewed ESP-IDF 5.5.6 source. TASKMEM_SANITIZE=1 adds
+MQTT_SOURCE selects the reviewed ESP-MQTT 1.1.0 managed source. TASKMEM_SANITIZE=1 adds
 Linux ASan/UBSan. No device access, downloads or SDK modifications.
 """
 from pathlib import Path
@@ -11,9 +11,9 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-SDK_HASH = '0651edbb34dee8bf9babc684ba4ccf231ed562fdab6218f0aa5b4d80f6a990fb'
-sdk_path = Path(os.environ.get('MQTT_SOURCE', str(Path.home() /
-    '.platformio/packages/framework-espidf/components/mqtt/esp-mqtt/mqtt_client.c')))
+SDK_HASH = '83e5a7065b8774dce83dd6b9be0163caed3a4fdbbd7de38b328e7e01911487dc'
+sdk_path = Path(os.environ.get('MQTT_SOURCE', str(ROOT /
+    'managed_components/espressif__mqtt/mqtt_client.c')))
 sdk_bytes = sdk_path.read_bytes()
 assert hashlib.sha256(sdk_bytes).hexdigest() == SDK_HASH, 'Unreviewed MQTT source'
 sdk = sdk_bytes.decode('utf-8')
@@ -63,7 +63,7 @@ static int xTaskCreate(TaskFunction_t fn,const char *name,unsigned size,void *ar
 }
 static int xTaskCreatePinnedToCore(TaskFunction_t fn,const char *name,unsigned size,
                                   void *arg,unsigned priority,TaskHandle_t *out,int core) {
-    assert(core==1);pinned_calls++;return xTaskCreate(fn,name,size,arg,priority,out);
+    assert(core==1 || core==-1);pinned_calls++;return xTaskCreate(fn,name,size,arg,priority,out);
 }
 static int xTaskCreateWithCaps(TaskFunction_t fn,const char *name,unsigned size,void *arg,
                                unsigned priority,TaskHandle_t *out,unsigned caps) {
@@ -74,7 +74,7 @@ static int xTaskCreateWithCaps(TaskFunction_t fn,const char *name,unsigned size,
 }
 static int xTaskCreatePinnedToCoreWithCaps(TaskFunction_t fn,const char *name,unsigned size,
                    void *arg,unsigned priority,TaskHandle_t *out,int core,unsigned caps) {
-    assert(core==1);pinned_calls++;
+    assert(core==1 || core==-1);pinned_calls++;
     return xTaskCreateWithCaps(fn,name,size,arg,priority,out,caps);
 }
 static void vTaskDelete(void *task){assert(!task);deletes++;}
@@ -131,7 +131,7 @@ int main(void){
 #endif
     /* The real SDK supports start again after a completed stop. */
     assert(esp_mqtt_client_start(client)==ESP_OK&&!locks);
-    assert(pinned_calls==(MQTT_CORE_SELECTION_ENABLED?allocations:0));
+    assert(pinned_calls==allocations);
     puts("PASS: pinned SDK MQTT start/stop, fragmented internal memory, OOM and core selection (host fixtures)");
 }
 '''
@@ -192,7 +192,7 @@ with tempfile.TemporaryDirectory(prefix='task-memory-') as directory:
     for external in (0, 1):
         for pinned in (0, 1):
             cases.append((f'mqtt-{external}-{pinned}', HEADER +
-                f'\n#define CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY {external}\n#define MQTT_CORE_SELECTION_ENABLED {pinned}\n' +
+                f'\n#define CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY {external}\n#define CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM {external}\n#define MQTT_CORE_SELECTION_ENABLED {pinned}\n#define MQTT_TASK_AFFINITY {1 if pinned else -1}\n#define MQTT_TASK_STACK_ON_EXTERNAL_MEMORY 0\n' +
                 '#include "mqtt_task_memory.h"\n' + MQTT_FIXTURE + sdk_start + sdk_cleanup + MQTT_TEST))
     for stem, program in cases:
         c = path / (stem + '.c'); c.write_text(program, encoding='utf-8')

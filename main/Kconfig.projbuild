@@ -1,5 +1,9 @@
 menu "Example Configuration"
 
+    config ETH_SPI_ETHERNET_W5500
+        bool "Include the W5500 SPI Ethernet uplink"
+        default y
+
     menu "SoftAP Configuration"
         comment "SoftAP Configuration"
 

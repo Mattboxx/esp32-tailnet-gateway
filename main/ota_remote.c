@@ -29,7 +29,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "mbedtls/sha256.h"
+#include "mbedtls/md.h"
 #include "nvs.h"
 
 #define CHECK_BIT 1U
@@ -283,7 +283,7 @@ static OTA_NOINLINE bool install_release(void)
     http_buffer_t b = {.location = malloc(2048)};
     unsigned char *buffer = malloc(2048);
     esp_http_client_handle_t client = NULL;
-    mbedtls_sha256_context hash; mbedtls_sha256_init(&hash);
+    mbedtls_md_context_t hash; mbedtls_md_init(&hash);
     status_set("Downloading verified firmware");
     if (!b.location || !buffer || !ota_download_url_allowed_for(url, state.asset)) goto done;
     settings_snapshot_before_update(SNAP_UPDATE);   /* when switched on; never blocks the update */
@@ -300,7 +300,7 @@ static OTA_NOINLINE bool install_release(void)
         if ((code != 301 && code != 302 && code != 303 && code != 307 && code != 308) ||
             !ota_download_url_allowed_for(b.location, state.asset) || esp_http_client_set_url(client, b.location) != ESP_OK) break;
     }
-    if (!opened || mbedtls_sha256_starts(&hash, 0) != 0) goto done;
+    if (!opened || (mbedtls_md_setup(&hash, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0) || mbedtls_md_starts(&hash)) != 0) goto done;
     size_t used = 0;
     const size_t prefix = sizeof(esp_image_header_t) + sizeof(esp_image_segment_header_t) + sizeof(esp_app_desc_t);
     int64_t deadline = esp_timer_get_time() + 180LL * 1000000;
@@ -312,12 +312,12 @@ static OTA_NOINLINE bool install_release(void)
     if (!image_matches(buffer, used, state.latest_version)) { status_set("Rejected: wrong board, firmware or version"); goto done; }
     const esp_partition_t *target = ota_flash_next_partition();
     if (!target || state.asset_size > target->size || ota_flash_begin(target, state.asset_size, &writer) != ESP_OK) goto done;
-    if (mbedtls_sha256_update(&hash, buffer, used) != 0 || ota_flash_write(writer, buffer, used) != ESP_OK) goto done;
+    if (mbedtls_md_update(&hash, buffer, used) != 0 || ota_flash_write(writer, buffer, used) != ESP_OK) goto done;
     while (used < state.asset_size) {
         size_t wanted = state.asset_size - used;
         if (wanted > 2048) wanted = 2048;
         int n = download_read(client, buffer, wanted, deadline);
-        if (n <= 0 || mbedtls_sha256_update(&hash, buffer, n) != 0 || ota_flash_write(writer, buffer, n) != ESP_OK) goto done;
+        if (n <= 0 || mbedtls_md_update(&hash, buffer, n) != 0 || ota_flash_write(writer, buffer, n) != ESP_OK) goto done;
         used += (size_t)n;
         xSemaphoreTake(s_lock, portMAX_DELAY);
         s_state.progress = (unsigned)(used * 100 / state.asset_size);
@@ -325,7 +325,7 @@ static OTA_NOINLINE bool install_release(void)
     }
     unsigned char actual[32];
     if (used != state.asset_size || !esp_http_client_is_complete_data_received(client) ||
-        mbedtls_sha256_finish(&hash, actual) != 0 || memcmp(actual, s_digest, sizeof actual)) {
+        mbedtls_md_finish(&hash, actual) != 0 || memcmp(actual, s_digest, sizeof actual)) {
         status_set("Rejected: incomplete download or SHA-256 mismatch"); goto done;
     }
     esp_err_t err = ota_flash_end(&writer);
@@ -334,7 +334,7 @@ static OTA_NOINLINE bool install_release(void)
 done:
     if (writer) cleanup_failed = ota_flash_abort(writer) != ESP_OK;
     if (client) esp_http_client_cleanup(client);
-    mbedtls_sha256_free(&hash); free(b.location); free(buffer);
+    mbedtls_md_free(&hash); free(b.location); free(buffer);
     if (success) {
         status_set("Installed; restarting");
         history_event(HIST_EV_UPDATE, HIST_INFO, "Installed %s from GitHub; restarting", state.latest_version);

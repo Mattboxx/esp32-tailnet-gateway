@@ -19,7 +19,7 @@ CONFIG_SPIRAM_SPEED_80M=y
 CONFIG_SPIRAM_BOOT_HW_INIT=y
 # Explicitly enable the paired SDK task-capabilities API on fresh builds too.
 # The reference N16R8 uses PSRAM XIP below to keep these stacks cache-safe.
-CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY=y
+CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM=y
 
 # Execute-in-place from PSRAM: copy .text/.rodata to PSRAM at boot. Frees IRAM,
 # and — critically — keeps the cache LIVE during SPI1 flash ops (OTA/NVS), which
@@ -362,6 +362,7 @@ CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
 # configured (main/eth_uplink.c) and is experimental until qualified on a
 # real module.
 CONFIG_ETH_SPI_ETHERNET_W5500=y
+CONFIG_LIBC_NEWLIB=y
 
 # 3.0 optional cellular uplink (main/cell_uplink.c): PPP over a UART modem,
 # PAP/CHAP for carriers that need a user name. Inactive until configured.

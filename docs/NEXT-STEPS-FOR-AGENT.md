@@ -1,5 +1,37 @@
 # Maintainer continuation
 
+## Active work — ESP-IDF 6.1 beta
+
+The qualified native-IDF 5.5.6 image is public as v3.0.17. Source
+399ee031589d, BIN SHA-256 d715c960a67da1599056c4f92be46aa9f0272d6c1856d1f44b0b1a8f1d669f99.
+The owner board runs it in ota_1, with 3.0.16 in ota_0. The 15-minute
+resource observation, live TCP/UDP gateway, expiry/reboot/watch and UI
+checks passed. Exact logs are in the preceding worktree's ignored
+build/private-device/install-3.0.17/. The Telegram expiry message came
+from the lab rule. Lab settings were restored. PR #18 and Pages are
+merged/deployed. The public flasher matches the qualified image.
+
+This worktree is fix/esp-idf-6.1-beta, based on v3.0.17. Current edits
+target 3.0.18-beta.1. They are incomplete and unqualified. W5500 2.0.1,
+wiznet_common 1.1.0 and MQTT 1.1.0 are exact managed dependencies.
+The MQTT source guard was updated after reviewing task ownership. The
+upstream external-stack option remains off because the project keeps
+its reaper. The TLS RNG path is conditional in MicroLink for Mbed TLS 4.
+Parent SHA operations now use public generic MD APIs. Setup GCM uses PSA;
+the SHA callback can fail closed. Newlib is retained during the migration.
+
+Next: finish the first IDF 6.1 build and repair remaining API/build
+incompatibilities. The SDK package is framework-espidf 4.60100.0,
+archive SHA-256 dabc3f2d16cc28c61d92fa378bb249da5dd4bc601c3564318a930bce3ddb63e7.
+Native extraction is under TEMP/mtg-idf61-sdk-native. PlatformIO's
+RISC-V tool install is pending; an official compiler download/extraction
+is logged locally. Verify logs before restarting any owned process.
+Never publish or install this beta before offline validation. A future
+beta install should preserve the current qualified 3.0.17 in ota_1.
+The owner explicitly authorized autonomous qualification and beta
+publication after success. Preserve all configuration and recovery paths.
+
+
 ## Current handover — 3.0.17-beta.1 audit candidate
 
 Local branch `fix/audit-3.0.17` contains source fixes from the November audit.

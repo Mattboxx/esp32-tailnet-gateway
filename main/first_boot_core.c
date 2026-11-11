@@ -85,9 +85,13 @@ fb_result_t fb_begin(fb_ctx_t *ctx, uint32_t client_ip, const uint8_t client_pub
     memcpy(material + n, shared, 32); n += 32;
     memcpy(material + n, s.device_pub, 32); n += 32;
     memcpy(material + n, client_pub, 32); n += 32;
-    ctx->crypto->sha256(material, n, s.key);
+    int hash_result = ctx->crypto->sha256(material, n, s.key);
     wipe(shared, sizeof shared);
     wipe(material, sizeof material);
+    if (hash_result != 0) {
+        wipe(&s, sizeof s);
+        return FB_ERR_BAD_KEY;
+    }
     ctx->crypto->random(s.sid, sizeof s.sid);
     s.state = FB_PENDING;
     s.client_ip = client_ip;

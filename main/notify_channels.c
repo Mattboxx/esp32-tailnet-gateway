@@ -318,8 +318,6 @@ done:
 #include "freertos/task.h"
 #include "lwip/netdb.h"
 #include "lwip/sockets.h"
-#include "mbedtls/ctr_drbg.h"
-#include "mbedtls/entropy.h"
 #include "mbedtls/net_sockets.h"
 #include "mbedtls/ssl.h"
 #include "nvs.h"
@@ -494,8 +492,6 @@ typedef struct {
     const char *host;
     mbedtls_ssl_context ssl;
     mbedtls_ssl_config conf;
-    mbedtls_ctr_drbg_context drbg;
-    mbedtls_entropy_context entropy;
 } mail_io_t;
 
 static int io_send(void *ctx, const char *data, size_t len)
@@ -521,11 +517,9 @@ static int io_recv(void *ctx, char *out, size_t cap)
 static int io_starttls(void *ctx)
 {
     mail_io_t *m = ctx;
-    if (mbedtls_ctr_drbg_seed(&m->drbg, mbedtls_entropy_func, &m->entropy, NULL, 0) ||
-        mbedtls_ssl_config_defaults(&m->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT))
+    if (mbedtls_ssl_config_defaults(&m->conf, MBEDTLS_SSL_IS_CLIENT, MBEDTLS_SSL_TRANSPORT_STREAM, MBEDTLS_SSL_PRESET_DEFAULT))
         return -1;
     mbedtls_ssl_conf_authmode(&m->conf, MBEDTLS_SSL_VERIFY_REQUIRED);   /* never unverified */
-    mbedtls_ssl_conf_rng(&m->conf, mbedtls_ctr_drbg_random, &m->drbg);
     if (ml_tls_bundle_attach(&m->conf) != ESP_OK || mbedtls_ssl_setup(&m->ssl, &m->conf) ||
         mbedtls_ssl_set_hostname(&m->ssl, m->host)) return -1;
     mbedtls_ssl_set_bio(&m->ssl, &m->net, mbedtls_net_send, mbedtls_net_recv, NULL);
@@ -541,7 +535,6 @@ static esp_err_t email(const notify_config_t *c, const char *title, const char *
     mail_io_t *m = heap_caps_calloc(1, sizeof *m, MALLOC_CAP_SPIRAM);
     if (!m) return ESP_ERR_NO_MEM;
     mbedtls_net_init(&m->net); mbedtls_ssl_init(&m->ssl); mbedtls_ssl_config_init(&m->conf);
-    mbedtls_ctr_drbg_init(&m->drbg); mbedtls_entropy_init(&m->entropy);
     m->host = c->mail_host;
     char port[8];
     snprintf(port, sizeof port, "%u", (unsigned)c->mail_port);
@@ -573,8 +566,8 @@ static esp_err_t email(const notify_config_t *c, const char *title, const char *
             }
         }
     }
-    mbedtls_ssl_free(&m->ssl); mbedtls_ssl_config_free(&m->conf); mbedtls_ctr_drbg_free(&m->drbg);
-    mbedtls_entropy_free(&m->entropy); mbedtls_net_free(&m->net);
+    mbedtls_ssl_free(&m->ssl); mbedtls_ssl_config_free(&m->conf);
+    mbedtls_net_free(&m->net);
     free(m);
     return err;
 }

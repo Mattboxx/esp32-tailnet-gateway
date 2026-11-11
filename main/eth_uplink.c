@@ -27,6 +27,8 @@
 #include <string.h>
 #if CONFIG_ETH_SPI_ETHERNET_W5500
 #include "esp_eth.h"
+#include "esp_eth_mac_w5500.h"
+#include "esp_eth_phy_w5500.h"
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
 #endif
@@ -206,8 +208,8 @@ static esp_err_t start_w5500(const eth_config_t *c)
     spi_device_interface_config_t dev = {.mode = 0, .clock_speed_hz = c->spi_mhz * 1000000, .queue_size = 20,
                                          .spics_io_num = c->cs};
     eth_w5500_config_t w5500 = ETH_W5500_DEFAULT_CONFIG(host, &dev);
-    w5500.int_gpio_num = c->intr;
-    if (c->intr < 0) w5500.poll_period_ms = 10;
+    w5500.base.int_gpio_num = c->intr;
+    if (c->intr < 0) w5500.base.poll_period_ms = 10;
     eth_mac_config_t mac_config = ETH_MAC_DEFAULT_CONFIG();
     eth_phy_config_t phy_config = ETH_PHY_DEFAULT_CONFIG();
     phy_config.reset_gpio_num = c->rst;

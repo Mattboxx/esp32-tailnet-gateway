@@ -26,8 +26,8 @@
 #include "freertos/task.h"
 #include "json_guard.h"
 #include "lan_name.h"
-#include "mbedtls/gcm.h"
-#include "mbedtls/sha256.h"
+#include "psa/crypto.h"
+#include "mbedtls/md.h"
 #include "lwip/sockets.h"
 #include "sockaddr_ipv4.h"
 #include "nvs_params.h"
@@ -63,20 +63,38 @@ static int fb_x25519(uint8_t out[32], const uint8_t scalar[32], const uint8_t po
     return ml_x25519(out, scalar, point, 1);
 }
 
-static void fb_sha256(const uint8_t *data, size_t len, uint8_t out[32])
+static int fb_sha256(const uint8_t *data, size_t len, uint8_t out[32])
 {
-    mbedtls_sha256(data, len, out, 0);
+    return mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), data, len, out);
 }
 
 static int fb_gcm_open(const uint8_t key[32], const uint8_t iv[12], const uint8_t *aad, size_t aad_len,
                        const uint8_t *ct, size_t ct_len, const uint8_t tag[16], uint8_t *pt)
 {
-    mbedtls_gcm_context gcm;
-    mbedtls_gcm_init(&gcm);
-    int ret = mbedtls_gcm_setkey(&gcm, MBEDTLS_CIPHER_ID_AES, key, 256);
-    if (ret == 0) ret = mbedtls_gcm_auth_decrypt(&gcm, ct_len, iv, 12, aad, aad_len, tag, 16, ct, pt);
-    mbedtls_gcm_free(&gcm);
-    return ret == 0 ? 0 : -1;
+    if (!ct || !tag || !pt || !ct_len || ct_len > FB_MAX_PLAINTEXT) return -1;
+    unsigned char *sealed = malloc(ct_len + FB_TAG_BYTES);
+    if (!sealed) return -1;
+    memcpy(sealed, ct, ct_len);
+    memcpy(sealed + ct_len, tag, FB_TAG_BYTES);
+    psa_key_attributes_t attributes = PSA_KEY_ATTRIBUTES_INIT;
+    psa_set_key_type(&attributes, PSA_KEY_TYPE_AES);
+    psa_set_key_usage_flags(&attributes, PSA_KEY_USAGE_DECRYPT);
+    psa_set_key_algorithm(&attributes, PSA_ALG_GCM);
+    psa_key_id_t id = 0;
+    psa_status_t status = psa_import_key(&attributes, key, 32, &id);
+    size_t written = 0;
+    if (status == PSA_SUCCESS)
+        status = psa_aead_decrypt(id, PSA_ALG_GCM, iv, FB_IV_BYTES, aad, aad_len,
+                                  sealed, ct_len + FB_TAG_BYTES, pt, ct_len, &written);
+    if (id && psa_destroy_key(id) != PSA_SUCCESS) status = PSA_ERROR_GENERIC_ERROR;
+    psa_reset_key_attributes(&attributes);
+    free(sealed);
+    if (status != PSA_SUCCESS || written != ct_len) {
+        volatile uint8_t *wipe = pt;
+        for (size_t i = 0; i < ct_len; ++i) wipe[i] = 0;
+        return -1;
+    }
+    return 0;
 }
 
 static const fb_crypto_t s_crypto = { fb_random, fb_x25519, fb_sha256, fb_gcm_open };

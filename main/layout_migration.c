@@ -23,8 +23,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
-#include "mbedtls/md5.h"
-#include "mbedtls/sha256.h"
+#include "mbedtls/md.h"
 #include "sdkconfig.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -254,7 +253,7 @@ void layout_migration_get_status(mig_status_t *out)
 typedef struct {
     uint8_t *buffer; size_t used, cap;               /* memory sink */
     uint32_t flash_at, flash_end;                    /* flash sink (firmware) */
-    mbedtls_sha256_context sha;
+    mbedtls_md_context_t sha;
     char *location;
 } sink_t;
 
@@ -282,7 +281,7 @@ static esp_err_t http_event(esp_http_client_event_t *event)
 /* Erase-as-you-go flash sink: sectors are erased right before first use. */
 static esp_err_t sink_write(sink_t *s, const uint8_t *data, size_t n)
 {
-    mbedtls_sha256_update(&s->sha, data, n);
+    if (mbedtls_md_update(&s->sha, data, n) != 0) return ESP_FAIL;
     if (s->buffer) {
         if (n > s->cap - s->used) return ESP_ERR_INVALID_SIZE;
         memcpy(s->buffer + s->used, data, n);
@@ -312,8 +311,8 @@ static bool fetch(const char *url, const char *asset, uint32_t size, const unsig
     if (!location || !current || !chunk || strlen(url) >= 2048 || !url_allowed(url, asset)) goto done;
     strcpy(current, url);
     s->location = location;
-    mbedtls_sha256_init(&s->sha);
-    if (mbedtls_sha256_starts(&s->sha, 0) != 0) goto done;
+    mbedtls_md_init(&s->sha);
+    if ((mbedtls_md_setup(&s->sha, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0) || mbedtls_md_starts(&s->sha)) != 0) goto done;
     esp_http_client_config_t config = {
         .url = current, .disable_auto_redirect = true, .timeout_ms = 10000, .buffer_size = 2048, .buffer_size_tx = 1024,
         .event_handler = http_event, .user_data = s,
@@ -345,10 +344,10 @@ static bool fetch(const char *url, const char *asset, uint32_t size, const unsig
     }
     unsigned char actual[32];
     ok = got == size && esp_http_client_is_complete_data_received(client)
-        && mbedtls_sha256_finish(&s->sha, actual) == 0 && !memcmp(actual, digest, 32);
+        && mbedtls_md_finish(&s->sha, actual) == 0 && !memcmp(actual, digest, 32);
 done:
     if (client) esp_http_client_cleanup(client);
-    mbedtls_sha256_free(&s->sha);
+    mbedtls_md_free(&s->sha);
     s->location = NULL;
     free(location); free(current); free(chunk);
     return ok;
@@ -482,7 +481,7 @@ static void migration_task(void *arg)
     int md5_index = -1, count = mig_parse_table(table, target.size[2], parts, 12, &md5_index);
     if (count <= 0 || mig_layout_kind(parts, count) != MIG_LAYOUT_V3 || md5_index != count) {failure = "unexpected 3.x partition table; nothing was changed"; goto fail;}
     unsigned char md5[16];
-    if (mbedtls_md5(table, (size_t)count * 32, md5) != 0 || memcmp(md5, table + md5_index * 32 + 16, 16)) {failure = "partition table checksum mismatch; nothing was changed"; goto fail;}
+    if (mbedtls_md(mbedtls_md_info_from_type(MBEDTLS_MD_MD5), table, (size_t)count * 32, md5) != 0 || memcmp(md5, table + md5_index * 32 + 16, 16)) {failure = "partition table checksum mismatch; nothing was changed"; goto fail;}
     s = (sink_t){.buffer = boot, .cap = target.size[1]};
     asset_url(url, sizeof url, repo, target.tag, "bootloader.bin");
     if (!fetch(url, "bootloader.bin", target.size[1], target.digest[1], &s, 2, 2) || !mig_bootloader_ok(boot, target.size[1])) {
@@ -501,16 +500,16 @@ static void migration_task(void *arg)
     /* Read back the written image: digest and app descriptor. */
     {
         uint8_t *chunk = malloc(4096);
-        mbedtls_sha256_context sha; mbedtls_sha256_init(&sha);
-        bool ok = chunk && mbedtls_sha256_starts(&sha, 0) == 0;
+        mbedtls_md_context_t sha; mbedtls_md_init(&sha);
+        bool ok = chunk && (mbedtls_md_setup(&sha, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 0) || mbedtls_md_starts(&sha)) == 0;
         unsigned char actual[32];
         for (uint32_t at = 0; ok && at < target.size[0]; at += 4096) {
             uint32_t n = target.size[0] - at > 4096 ? 4096 : target.size[0] - at;
-            ok = esp_flash_read(NULL, chunk, MIG_V3_OTA1 + at, n) == ESP_OK && mbedtls_sha256_update(&sha, chunk, n) == 0;
+            ok = esp_flash_read(NULL, chunk, MIG_V3_OTA1 + at, n) == ESP_OK && mbedtls_md_update(&sha, chunk, n) == 0;
             if (ok && at == 0) ok = mig_app_ok(chunk, n, esp_app_get_description()->project_name, target.tag);
         }
-        ok = ok && mbedtls_sha256_finish(&sha, actual) == 0 && !memcmp(actual, target.digest[0], 32);
-        mbedtls_sha256_free(&sha);
+        ok = ok && mbedtls_md_finish(&sha, actual) == 0 && !memcmp(actual, target.digest[0], 32);
+        mbedtls_md_free(&sha);
         free(chunk);
         if (!ok) {failure = "written 3.x image does not verify; the bridge keeps running"; goto fail;}
     }
