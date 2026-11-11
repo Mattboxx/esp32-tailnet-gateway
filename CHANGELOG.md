@@ -6,7 +6,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-## [3.0.18-beta.9] - 2026-11-11
+## [3.0.18] - 2026-11-11
+
+- Migrate to ESP-IDF 6.1, preserve DHCP DNS in recovery mode, and separate
+  the TCP/IP and WiFi tasks across the two cores.
+- Keep the mobile navigation controls visible when a page is scrolled.
+- Apply LAN-to-Tailnet TCP and UDP translation on the selected Ethernet
+  uplink, including replies on a LAN shared with WiFi.
 
 - Start Tailscale and follow the available Internet uplink on WiFi, W5500
   and supported cellular modems. Remote updates, notification integrations,
