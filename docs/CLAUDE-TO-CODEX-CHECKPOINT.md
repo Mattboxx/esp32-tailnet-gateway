@@ -60,7 +60,7 @@ and `build/notification-ui/PERFORMANCE-STATE.json`; never copy them here.
 
 ## Where the work is
 
-- Worktree `C:/Users/mattb/.codex/workspaces/tailnet-notification-ui-20261028`,
+- Worktree the crypto performance worktree,
   branch `perf/crypto-fast-20261031`; MicroLink `external/microlink`, same
   branch name. Commit the nested repository first, then the gitlink.
 - Owner priorities: speed and responsiveness first, then no packet loss, then

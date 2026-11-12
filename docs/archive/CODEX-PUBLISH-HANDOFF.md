@@ -90,7 +90,7 @@ Release verdict: **NOT READY FOR RELEASE** (see section D and
 
 | Item | Value |
 |---|---|
-| Working directory | `C:\Users\mattb\Documents\PlatformIO\Projects\esp32-tailscale-subnet-router` |
+| Working directory | the local project checkout |
 | Branch | `mattboxx` (default remote branch on the fork is `Main`; local `main` tracks upstream) |
 | HEAD | see `git log -1`; at the time of writing the latest commits are the handoff/checkpoint commits after `0470c8e` |
 | Working tree | clean except the owner's untracked `docs/COMMUNITY-POSTS.md` — **never commit it** |

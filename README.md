@@ -16,10 +16,7 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > Firmware for ESP32-S3 **N8R8** and **N16R8**. The linked release shows its channel.
 > [Download the latest stable release](../../releases/latest), use the
 > [browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/),
-> or choose the Easy Install package below. **2.x gateways** move to 3.0
-> keeping every setting: over the network with the **2.1.0 bridge** (a normal
-> 2.x update), or once over USB without erasing —
-> see [Moving to 3.0](docs/MIGRATION-3.0.md).
+> or choose the Easy Install package below.
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-0B7A4B.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
@@ -40,13 +37,6 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 [Wiki](https://github.com/Mattboxx/esp32-tailnet-gateway/wiki)
 
 </div>
-
-> Community firmware built on Csontikka's
-> [esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)
-> and [MicroLink](https://github.com/Mattboxx/microlink), through Csontikka's fork
-> of Cameron Malone's original stack. It is not an
-> official Tailscale client and is not affiliated with Tailscale Inc.,
-> the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
 
 ### What's new in Firmware 3.0.18
 
@@ -190,28 +180,6 @@ See the [notification guide](docs/NOTIFICATIONS.md).
 [Install from a computer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/) ·
 [Set up from your phone](https://mattboxx.github.io/esp32-tailnet-gateway/first-boot/)
 
-### The Firmware 3.0 platform
-
-| Firmware 2.x | Firmware 3.0 |
-|---|---|
-| 4 MB layout, one Web UI language per image, separate Ethernet build | **One image** for N8R8 and N16R8 with all six UI languages and the W5500 driver; 3.5 MB update slots |
-| Long settings pages | **Reorganised Web UI:** each page shows one group at a time (Network, Tailscale, Diagnostics, Automation, System) |
-| Logs lost at restart | **Event history** and **trends** with a chart on Status, kept in flash |
-| Encrypted backup download | Plus up to three **settings copies** on the gateway, taken by hand or before each update |
-| Tailnet names only on the gateway | **Tailnet names for local devices:** clients reach `nas` or `nas.<tailnet>.ts.net` without Tailscale |
-| ntfy alerts | Plus **Telegram** and **email** notifications |
-| — | **Throughput test**, experimental **cellular uplink**, a *Monitor and get alerts* setup role |
-| About 17 KB of free internal RAM | About 44–47 KB, tables moved to PSRAM |
-
-New optional services are **off until you switch them on**. Disabled services
-do not run their background jobs; compiled code and static state still occupy
-space. See the [changelog](CHANGELOG.md).
-
-This README describes the current 3.x firmware. For an older installation,
-follow its versioned documentation and the [migration guide](docs/MIGRATION-3.0.md).
-[Legacy 1.13 instructions and source](https://github.com/Mattboxx/esp32-tailnet-gateway/tree/v0.1.38-Mattboxx-1.13)
-remain available; [its release notes](docs/releases/RELEASE-1.13.md) describe that historical build.
-
 ### Is it for you?
 
 | If you… | The gateway… |
@@ -226,7 +194,6 @@ remain available; [its release notes](docs/releases/RELEASE-1.13.md) describe th
 | need to wake a NAS or PC remotely | sends Wake-on-LAN and checks that the service answers ([recovery](docs/NAS-RECOVERY.md)) |
 | need a public name for your home connection | keeps a **dynamic DNS** name up to date: DuckDNS, Cloudflare or any update URL *([guide](docs/DDNS.md))* |
 | have Ethernet or only a mobile SIM at the site | is set up for **Wi-Fi, an Ethernet cable or a SIM** right in the first-boot wizard |
-| run a 2.x gateway | moves to 3.0 **keeping every setting** ([guide](docs/MIGRATION-3.0.md)) |
 
 Every feature is a switch, off until you need it.
 
@@ -343,7 +310,7 @@ Release assets (available from the selected release; a bootstrap prerelease may 
 |---|---|
 | Easy Install ZIP attached to the release | Guided USB install (new device) or update keeping settings; third-party notices included |
 | `firmware.bin` | Application image for the Web UI updater on 3.x |
-| `bootloader.bin`, `partitions.bin` | 3.x bootloader and partition-table components; use the complete installer for migration |
+| `bootloader.bin`, `partitions.bin` | Bootloader and partition-table components for the USB installer |
 | Factory image attached to the release | Full image for a new device at offset `0x0` (erases settings) |
 | `SHA256SUMS.txt`, `release-manifest.json`, `source-provenance.json`, `FIRMWARE-LICENSES.txt` | Checksums, build metadata, exact source revision and third-party notices |
 
@@ -351,10 +318,6 @@ Verify current images and archives with their release `SHA256SUMS.txt`.
 For the historical 3.0.2 `WITH-NOTICES.zip` and esptool source download, use
 [LICENSE-SHA256SUMS.txt](licenses/releases/v3.0.2/LICENSE-SHA256SUMS.txt).
 The historical release's original `SHA256SUMS.txt` remains valid for its original images and archives.
-
-The **2.1.0 bridge** release carries only a 2.x `firmware.bin` for the
-network migration. The [legacy 1.13 release](https://github.com/Mattboxx/esp32-tailnet-gateway/releases/tag/v0.1.38-Mattboxx-1.13)
-keeps its original files.
 
 ## 8. Supported hardware
 
@@ -367,7 +330,7 @@ quad flash**:
 
 | Supported | Not supported |
 |---|---|
-| **N16R8** — e.g. ESP32-S3-DevKitC-1 N16R8, WROOM-1/1U-N16R8 (**tested**) | 4 MB flash (N4…): stay on 2.x |
+| **N16R8** — e.g. ESP32-S3-DevKitC-1 N16R8, WROOM-1/1U-N16R8 (**tested**) | 4 MB flash (N4…) |
 | **N8R8** — e.g. ESP32-S3-DevKitC-1 N8R8, WROOM-1/1U-N8R8, Freenove N8R8, Seeed XIAO ESP32S3 (same layout, not yet tested on 3.x) | R2 or no PSRAM, octal-flash modules (WROOM-2, N16R16V, N32R8V), other ESP32 chips |
 
 Details and community reports: [Hardware](docs/HARDWARE.md).
@@ -489,7 +452,7 @@ access. See [Smart Recovery](docs/SMART-RECOVERY.md) and the
 [ntfy](docs/NTFY.md). Each integration is off by default, supervised and
 unable to block routing or local administration.
 
-## 15. Compared with alternatives and upstream
+## 15. Compared with alternatives
 
 | Approach | What LAN devices need | What it exposes | Best for |
 |---|---|---|---|
@@ -498,12 +461,6 @@ unable to block routing or local administration.
 | Subnet router (also here) | Nothing; reverse direction | Whole subnets *to* the tailnet, after approval | Reaching your LAN from tailnet clients |
 | Raspberry Pi gateway | A Linux box to maintain | Whatever you configure | Higher throughput, more services |
 | Router replacement | New default gateway | Whole site | Site-wide routing |
-
-**Upstream:** Csontikka's firmware provides the Tailscale stack, AP router,
-subnet routing, firewall and Web UI foundation. This edition adds the
-Service Gateway, recovery and diagnostics, automation, security hardening and
-packaging. Every change is listed in the [release history](CHANGELOG.md);
-the [documentation index](docs/README.md) covers each feature.
 
 ## 16. Limitations
 
@@ -542,22 +499,17 @@ the [documentation index](docs/README.md) covers each feature.
 
 ## 18. Installation and OTA updates
 
-For **Firmware v3.0.2**, the browser route is the easiest first install. Safari,
-Firefox and phone browsers should use a desktop computer and Easy Install.
+For a first install, use the [browser installer](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
+on desktop Chrome or Edge, or download the Easy Install package.
 
-**Easy Install:** unzip
-`ESP32-Tailnet-Gateway-v3.0.2-EASY-INSTALL-Windows-macOS-Linux-WITH-NOTICES.zip` and read
-`START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3 and
+**Easy Install:** unzip the package from the [latest stable release](../../releases/latest)
+and read `START-HERE.txt`. Windows includes esptool; macOS/Linux need Python 3 and
 esptool 5. The scripts verify checksums and the ESP32-S3 target first.
 
 | System | New device — explicit erase confirmation | Keep settings |
 |---|---|---|
 | Windows | `windows\INSTALL-NEW-DEVICE.bat` | `windows\UPDATE-KEEP-SETTINGS.bat` |
 | macOS / Linux | `sh macos-linux/install.sh new` | `sh macos-linux/install.sh update` |
-
-**From 2.x:** follow [Moving to 3.0](docs/MIGRATION-3.0.md) — the 2.1.0
-bridge over the network, or `UPDATE-KEEP-SETTINGS` / `install.sh update`
-over USB. Settings are kept either way.
 
 **Updates:** upload `firmware.bin` in System → Firmware, or enable the opt-in
 GitHub updater (stable or beta channel). This inactive-slot Web UI method is
@@ -568,19 +520,12 @@ use it to overwrite a deliberately protected recovery image.
 Back up your configuration first; see [Updates](docs/UPDATES.md) and
 [Backup and restore](docs/BACKUP-RESTORE.md).
 
-**Legacy OTA migration:** the bridge `0.1.38-Mattboxx-1.100` was published under
-the previous repository name before the rename. Older updaters cannot follow
-the renamed API. For 1.13 or earlier, use the staged bridge path or USB keeping
-settings in [Legacy migration](docs/MIGRATION-RENAME.md). The current 3.x
-application does not fit the old OTA slots; do not upload it directly there.
-
 **Build from source:**
 
 ```bash
 git clone --recurse-submodules https://github.com/Mattboxx/esp32-tailnet-gateway
 cd esp32-tailnet-gateway
-pio run -e esp32-s3            # 3.x image (every language, Ethernet driver)
-pio run -e esp32-s3-bridge     # 2.1 migration bridge (build esp32-s3 first)
+pio run -e esp32-s3
 ```
 
 ## 19. Contributing
@@ -597,10 +542,6 @@ The firmware and all features remain free:
 
 [![Support the Mattboxx edition on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/mattboxx)
 
-Support the original author via
-[GitHub Sponsors](https://github.com/sponsors/Csontikka) or
-[Buy Me a Coffee](https://buymeacoffee.com/csontikka) — entirely optional.
-
 ## 20. Credits and licences
 
 GPL-3.0-only ([LICENSE](LICENSE)) with an additional permission for ESP-IDF and
@@ -611,7 +552,9 @@ published under MIT and copies of them keep those terms. The original firmware's
 [licenses/upstream](licenses/upstream/esp32-tailscale-subnet-router-MIT.txt). Built on:
 
 - **[Csontikka/esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)** —
-  the original firmware this edition forks.
+  the original firmware this edition builds on. Support the upstream author via
+  [GitHub Sponsors](https://github.com/sponsors/Csontikka) or
+  [Buy Me a Coffee](https://buymeacoffee.com/csontikka).
 - **[Mattboxx/microlink](https://github.com/Mattboxx/microlink)** — the pinned
   networking dependency, derived through [Csontikka's fork](https://github.com/Csontikka/microlink)
   from **Cameron Malone's [original MicroLink](https://github.com/CamM2325/microlink)**.
@@ -624,7 +567,9 @@ published under MIT and copies of them keep those terms. The original firmware's
   Apache-2.0; bundled libraries retain their own licenses).
 
 Full attribution: [NOTICE.md](NOTICE.md). Brand assets: [assets/brand](assets/brand/BRAND.md).
-The edition's licence does not relicense bundled third-party components
-(MicroLink stays MIT) or the separately distributed esptool flashing program.
+Bundled third-party components and the separately distributed esptool
+flashing program retain their respective licences.
+ESP32 Tailnet Gateway is independent community firmware. It is not affiliated
+with Tailscale Inc., the Headscale project or Espressif.
 Tailscale, Headscale, WireGuard and ESP32 are trademarks of their respective
 owners. Legacy README: [1.13 documentation](https://github.com/Mattboxx/esp32-tailnet-gateway/blob/v0.1.38-Mattboxx-1.13/README.md).
