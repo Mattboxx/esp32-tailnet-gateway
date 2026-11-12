@@ -30,6 +30,7 @@
 #include "esp_eap_client.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include "esp_netif_net_stack.h"
 #include "esp_netif.h"
 #include "nvs_flash.h"
@@ -63,6 +64,7 @@
 #include "snmp_ops.h"
 #include "eth_uplink.h"
 #include "cell_uplink.h"
+#include "uplink_services.h"
 #include "layout_migration.h"
 #include "service_check.h"
 #include "wifi_networks.h"
@@ -153,6 +155,11 @@ volatile int connect_count = 0;
 /* Non-static — also called from web_ui.c when DNS-relay state changes,
  * so the new DHCP-offered DNS takes effect immediately for new leases. */
 void softap_set_dns_addr(esp_netif_t *esp_netif_ap, esp_netif_t *esp_netif_sta);
+static void refresh_ap_dns(void)
+{
+    esp_netif_t *ap = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+    if (ap && esp_netif_is_netif_up(ap)) softap_set_dns_addr(ap, uplink_internet_netif());
+}
 
 /* Override the weak dns_relay_on_healthy hook so the moment the relay
  * task finishes its boot-delay + bind cycle, the DHCP-offered DNS
@@ -161,11 +168,9 @@ void softap_set_dns_addr(esp_netif_t *esp_netif_ap, esp_netif_t *esp_netif_sta);
 static void dns_relay_state_cb(bool healthy)
 {
     (void)healthy;
-    esp_netif_t *ap  = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     ESP_LOGI(TAG_AP, "DNS relay state changed → healthy=%d — reapplying softap DNS",
              (int)healthy);
-    if (ap && sta) softap_set_dns_addr(ap, sta);
+    refresh_ap_dns();
 }
 
 /* Multi-network rotation state. Index 0 is preferred; on association
@@ -186,6 +191,60 @@ static volatile bool s_manual_scan_active = false;
  * upstream outage never locks the operator out of the device. */
 static volatile bool     s_ap_auto_off = false;
 #define AP_FALLBACK_DELAY_MS 60000u
+
+ESP_EVENT_DEFINE_BASE(UPLINK_SERVICES_EVENT);
+
+esp_netif_t *uplink_internet_netif(void)
+{
+    return cell_uplink_preferred_netif(eth_uplink_service_netif());
+}
+
+esp_netif_t *uplink_local_netif(void)
+{
+    esp_netif_t *lan = eth_uplink_service_netif();
+    esp_netif_ip_info_t info = {0};
+    return uplink_address(lan, &info) ? lan : esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+}
+
+void uplink_services_refresh(bool lost_link)
+{
+    if (first_boot_active() || ap_policy_is_shutdown()) return;
+    esp_netif_ip_info_t info = {0};
+    bool lan_ready = uplink_address(eth_uplink_service_netif(), &info);
+    tailnet_names_uplink(lan_ready ? info.ip.addr : 0);
+    lan_name_uplink_up();
+    esp_netif_t *wan = uplink_internet_netif();
+    bool wan_ready = uplink_address(wan, &info);
+    static bool was_ready;
+    if (wan_ready != was_ready) {
+        was_ready = wan_ready;
+        history_event(HIST_EV_UPLINK, wan_ready ? HIST_INFO : HIST_WARN,
+                      wan_ready ? "Internet uplink connected" : "Internet uplink lost");
+    }
+    if (wan_ready) {
+        if (!tailscale_exit_node_ip && esp_netif_get_default_netif() != wan) {
+            esp_netif_set_default_netif(wan);
+        }
+        boot_timeline_mark(BOOT_TL_IP);
+        if (tailscale_enabled) (void)tailscale_request_connect();
+    }
+    refresh_ap_dns();
+    if (s_ap_auto_off) {
+        if (!lan_ready && lost_link) ap_policy_request_after(true, AP_FALLBACK_DELAY_MS);
+        else ap_policy_request(!lan_ready);
+    }
+}
+
+static void uplink_selection_event(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    (void)arg; (void)base; (void)id; (void)data;
+    uplink_services_refresh(false);
+}
+
+void uplink_services_schedule_refresh(void)
+{
+    (void)esp_event_post(UPLINK_SERVICES_EVENT, 0, NULL, 0, 0);
+}
 
 static bool ap_policy_apply_runtime(bool on)
 {
@@ -218,10 +277,7 @@ static bool ap_policy_apply_runtime(bool on)
         }
         vTaskDelay(pdMS_TO_TICKS(200));
         if (ap_policy_is_shutdown()) return true;
-        esp_netif_t *ap  = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
-        esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-        if (ap && !first_boot_active()) (void)esp_netif_napt_enable(ap);
-        if (ap && sta) softap_set_dns_addr(ap, sta);
+        refresh_ap_dns();
         ESP_LOGW(TAG_AP, "AP enabled (recovery/always-on policy)");
     } else {
         if (mode == WIFI_MODE_STA) return true;
@@ -235,6 +291,32 @@ static bool ap_policy_apply_runtime(bool on)
 
 bool wifi_ap_policy_auto_off(void) { return s_ap_auto_off; }
 
+static void wifi_ap_start_napt(void *arg, esp_event_base_t base,
+                               int32_t event_id, void *data)
+{
+    (void)base;
+    (void)event_id;
+    (void)data;
+    if (first_boot_active() || ap_policy_is_shutdown()) return;
+
+    /* The SDK's AP_START handler has already brought this netif up.
+     * Initialize the global port-map table before the AP policy can stop
+     * the radio. Removing the AP netif leaves the table available to LAN. */
+    esp_err_t err = esp_netif_napt_enable(arg);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG_AP, "NAPT initialization failed: %s", esp_err_to_name(err));
+        return;
+    }
+    portmap_install_all();
+    lan_name_uplink_up();
+}
+
+static void wifi_ap_stopped(void *arg, esp_event_base_t base, int32_t id, void *data)
+{
+    (void)arg; (void)base; (void)id; (void)data;
+    lan_name_uplink_up();
+}
+
 bool wifi_ap_runtime_enabled(void)
 {
     wifi_mode_t mode = WIFI_MODE_NULL;
@@ -245,7 +327,8 @@ bool wifi_ap_runtime_enabled(void)
 void wifi_ap_policy_set_auto_off(bool auto_off)
 {
     s_ap_auto_off = auto_off;
-    ap_policy_request(!auto_off || !ap_connect);
+    esp_netif_ip_info_t info = {0};
+    ap_policy_request(!auto_off || !uplink_address(eth_uplink_service_netif(), &info));
 }
 
 void wifi_sta_pause_for_scan(void)
@@ -461,6 +544,22 @@ void wifi_setup_test_get(fb_wifi_state_t *state, uint32_t *ip_nbo, uint32_t *mas
     if (reason) *reason = s_setup_test_reason;
 }
 
+bool wifi_setup_test_matches(const char *ssid, const char *password)
+{
+    if (!ssid || !password || s_setup_test != FB_WIFI_OK) return false;
+    wifi_config_t config = {0};
+    wifi_ap_record_t associated;
+    esp_netif_ip_info_t ip = {0};
+    if (!uplink_address(esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"), &ip) ||
+        ip.ip.addr != s_setup_test_ip || esp_wifi_sta_get_ap_info(&associated) != ESP_OK ||
+        esp_wifi_get_config(WIFI_IF_STA, &config) != ESP_OK) return false;
+    bool matched = strncmp(ssid, (const char *)config.sta.ssid, sizeof config.sta.ssid) == 0 &&
+                   strncmp(ssid, (const char *)associated.ssid, sizeof config.sta.ssid) == 0 &&
+                   strncmp(password, (const char *)config.sta.password, sizeof config.sta.password) == 0;
+    memset(&config, 0, sizeof config);
+    return matched;
+}
+
 static void setup_test_disconnected(int reason)
 {
     if (s_setup_test != FB_WIFI_TESTING) return;
@@ -514,9 +613,8 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                  (int)s_manual_scan_active,
                  (unsigned)heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
                  (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
-        tailnet_names_uplink(0);
         if (ap_connect)
-            history_event(HIST_EV_UPLINK, HIST_WARN, "Wi-Fi uplink lost (reason %u)", event ? (unsigned)event->reason : 0);
+            history_event(HIST_EV_UPLINK, HIST_WARN, "Wi-Fi station disconnected (reason %u)", event ? (unsigned)event->reason : 0);
         ap_connect = 0;
         if (shutting_down) return;
         if (first_boot_active()) {
@@ -527,7 +625,9 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         /* Recovery-only AP: give the saved WiFi a minute to come back before
          * re-opening the AP; it then stays up until the uplink has an address
          * again (GOT_IP below turns it off). Brief drops never flap the AP. */
-        if (s_ap_auto_off) ap_policy_request_after(true, AP_FALLBACK_DELAY_MS);
+        eth_uplink_wifi_changed();
+        uplink_services_refresh(true);
+        portmap_install_all();
         if (s_manual_scan_active) {
             ESP_LOGI(TAG_STA, "STA reconnect paused for manual scan");
             return;
@@ -556,12 +656,10 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
             s_setup_test_mask = event->ip_info.netmask.addr;
             s_setup_test = FB_WIFI_OK;
         }
-        history_event(HIST_EV_UPLINK, HIST_INFO, "Wi-Fi uplink connected, " IPSTR, IP2STR(&event->ip_info.ip));
-        tailnet_names_uplink(event->ip_info.ip.addr);
+        history_event(HIST_EV_UPLINK, HIST_INFO, "Wi-Fi station address: " IPSTR, IP2STR(&event->ip_info.ip));
         s_retry_num = 0;
         s_net_retries = 0;   /* successful association — clear the rotation counter */
         ap_connect = 1;
-        lan_name_uplink_up();
 
         /* Single radio: the softAP always sits on the STA's channel -- the
          * WiFi driver moves it there itself whenever the STA (re)connects,
@@ -578,7 +676,7 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
          * reboot per hop -- 27 in six days on one device -- and every reboot
          * dropped the AP clients and the tunnel for 30-40 s for nothing.
          * Re-applying the AP config live is not an option either: the esp_netif
-         * restart behind esp_wifi_set_config(WIFI_IF_AP) clears NAPT
+         * restart behind an AP configuration change clears NAPT
          * (lwIP netif_add zeroes netif->napt) and the ACL/PMTU hooks, so the AP
          * clients lose the internet until the next reboot (measured the same day). */
         wifi_ap_record_t ap_info;
@@ -600,28 +698,15 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
                          (unsigned)prim, (unsigned)ap_info.primary);
             }
         }
-        /* Auto-spawn the Tailscale (microlink) connect task once STA has
-         * an IP — same trigger point as the old repo. The task is
-         * responsible for waiting on SNTP, dialing the control plane and
-         * staying online; we just kick it off here. */
-        if (tailscale_enabled) {
-            (void)tailscale_request_connect(); /* Allocation failures are logged. */
-        }
         xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
 
         /* Copy the upstream DNS into the AP-side DHCP options so AP
          * clients can resolve names through us. Runs every time we
          * (re-)acquire an STA IP — DNS may have changed on the new
          * uplink, and DHCP server restart is idempotent. */
-        esp_netif_t *ap = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
-        esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-        if (ap && sta) softap_set_dns_addr(ap, sta);
-
-        /* Re-bind the NAPT portmap entries to the freshly-acquired
-         * STA IP. portmap_install_all is idempotent — duplicate bindings
-         * are cleared before the re-add. */
+        eth_uplink_wifi_changed();
+        uplink_services_refresh(false);
         portmap_install_all();
-        if (s_ap_auto_off) ap_policy_request(false);
     }
 }
 
@@ -872,14 +957,15 @@ void softap_set_dns_addr(esp_netif_t *esp_netif_ap,esp_netif_t *esp_netif_sta)
         }
         free(ap_dns_str);
     }
-    if (!used_override) {
+    if (!used_override && esp_netif_sta) {
         esp_netif_get_dns_info(esp_netif_sta, ESP_NETIF_DNS_MAIN, &dns);
     }
-    uint8_t dhcps_offer_option = DHCPS_OFFER_DNS;
+    bool have_dns = dns.ip.type == ESP_IPADDR_TYPE_V4 && dns.ip.u_addr.ip4.addr;
+    uint8_t dhcps_offer_option = have_dns ? DHCPS_OFFER_DNS : 0;
     ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcps_stop(esp_netif_ap));
-    ESP_ERROR_CHECK(esp_netif_dhcps_option(esp_netif_ap, ESP_NETIF_OP_SET, ESP_NETIF_DOMAIN_NAME_SERVER, &dhcps_offer_option, sizeof(dhcps_offer_option)));
-    ESP_ERROR_CHECK(esp_netif_set_dns_info(esp_netif_ap, ESP_NETIF_DNS_MAIN, &dns));
-    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcps_start(esp_netif_ap));
+    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcps_option(esp_netif_ap, ESP_NETIF_OP_SET, ESP_NETIF_DOMAIN_NAME_SERVER, &dhcps_offer_option, sizeof(dhcps_offer_option)));
+    if (have_dns) ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_set_dns_info(esp_netif_ap, ESP_NETIF_DNS_MAIN, &dns));
+    if (esp_netif_is_netif_up(esp_netif_ap)) ESP_ERROR_CHECK_WITHOUT_ABORT(esp_netif_dhcps_start(esp_netif_ap));
 
     if (used_override) {
         ESP_LOGI(TAG_AP, "AP DHCP-offered DNS = %u.%u.%u.%u (operator override)",
@@ -974,6 +1060,7 @@ void app_main(void)
     /* AP-side DNS forwarder. Spawn early so the task is up by the time
      * wifi_init_softap publishes the AP IP — set_bind_addr triggers the
      * (re-)bind. Loads enable + upstream-override from NVS itself. */
+    dns_relay_set_uplink_provider(uplink_internet_netif);
     dns_relay_init();
     dns_relay_set_state_cb(dns_relay_state_cb);
     tailnet_names_init();   /* off by default: the relay is unchanged */
@@ -1148,6 +1235,18 @@ void app_main(void)
     ESP_LOGI(TAG_STA, "ESP_WIFI_MODE_STA");
     esp_netif_t *esp_netif_sta = wifi_init_sta();
     ESP_ERROR_CHECK(ap_policy_init(ap_policy_apply_runtime));
+    ESP_ERROR_CHECK(esp_event_handler_register(UPLINK_SERVICES_EVENT, 0, uplink_selection_event, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_STOP, wifi_ap_stopped, NULL));
+
+    /* Register after creating the default AP netif so the SDK handler runs first. */
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_AP_START,
+                                               wifi_ap_start_napt, esp_netif_ap));
+
+    /* Register the physical hooks before either driver adds its lwIP netif.
+     * esp_wifi_start() posts asynchronous start events; installing after it
+     * can race netif_add() and lose the ACL, traffic and STA TTL hooks. */
+    eth_uplink_init();   /* optional SPI Ethernet: prepared, not started */
+    netif_hooks_init();
 
     /* Start WiFi */
     ESP_ERROR_CHECK(esp_wifi_start() );
@@ -1184,18 +1283,7 @@ void app_main(void)
      * once it has an address; before that, the AP netif stays default. */
     esp_netif_set_default_netif(esp_netif_sta);
 
-    /* Enable napt on the AP netif (never for the open first-boot AP) */
-    if (!first_boot_active() && esp_netif_napt_enable(esp_netif_ap) != ESP_OK) {
-        ESP_LOGE(TAG_STA, "NAPT not enabled on the netif: %p", esp_netif_ap);
-    }
-
-    /* ACL packet filter — install netif input/linkoutput hooks so the
-     * four ACL chains (to_esp / from_esp / to_ap / from_ap) actually
-     * drop denied traffic. Must run AFTER esp_wifi_start so the netifs
-     * exist and have their default input/linkoutput function pointers. */
-    eth_uplink_init();   /* optional SPI Ethernet: prepared, not started */
-    netif_hooks_init();
-    eth_uplink_start();  /* refuses to run without the Ethernet ACL hooks */
+    eth_uplink_start();  /* refuses to run without the Ethernet ACL registration */
     cell_uplink_init();  /* optional cellular modem: off unless configured; needs the PPP ACL hooks */
 
     /* Install ACL wrappers first; SNMP must chain through them, not bypass

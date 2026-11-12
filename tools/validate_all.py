@@ -17,6 +17,7 @@ DRIVERS+=['json_guard','service_transfer','service_retry','capabilities','mqtt_d
 DRIVERS+=['soak_serial']
 DRIVERS+=['lab_echo']
 DRIVERS+=['gateway_benchmark']
+DRIVERS+=['dhcps_dns']
 # wg_rx_owned / wg_rx_sdk test the RX-ownership experiment (MicroLink branch
 # perf/owned-rx-pbuf-20261029); dev.3 leaves that change out (no measured gain).
 DRIVERS+=['wg_crypto_hotloop','ml_perf','wg_crypto_diff','wg_mgr_wake','poly1305_xtensa','chacha20_xtensa','forward_drop_counters','web_idle','sdlog_memory_sink','tailnet_event_text','control_loss_setting','tls_distrust','wg_rx_path','coord_session_end','derp_frame_read','stun_parse','dns_relay_upstream','wg_log_rate','fast_chksum','x25519','derp_rx_wait','wg_handshake','x25519_xtensa','x25519_pie','x25519_control','boot_timeline','netcheck_budget','notify_text','telegram_commands','tailnet_dns']
@@ -31,7 +32,7 @@ DRIVERS+=['mqtt_activation']
 DRIVERS+=['mqtt_power_event']
 DRIVERS+=['mqtt_power_store']
 DRIVERS+=['task_reaper']
-DRIVERS+=['first_boot']
+DRIVERS+=['first_boot','password_crypto']
 DRIVERS+=['socket_origin','first_boot_reboot','lan_name','lan_mdns','index_variants','resp_headers','notify_store','nvs_flags','nvs_txn','release_list']
 DRIVERS+=['ota_flash']
 DRIVERS+=['ota_local']
@@ -48,7 +49,7 @@ SANITIZERS+=['MQTTPOWER']
 SANITIZERS+=['OTALOCAL']
 SANITIZERS+=['WG_RX']
 SANITIZERS+=['HOTLOOP']
-SANITIZERS+=['POWER_DIAG']
+SANITIZERS+=['POWER_DIAG','PASSWORD_CRYPTO']
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -60,24 +61,31 @@ def main():
     folder=ROOT/'build'/('validation-'+datetime.now().strftime('%Y%m%d-%H%M%S-%f'));folder.mkdir(parents=True)
     env=os.environ.copy()
     packages=Path.home()/'.platformio/packages'
-    sdk=None
-    for package in sorted(packages.glob('framework-espidf*')):
+    sdk_roots=list(sorted(packages.glob('framework-espidf*')))
+    if env.get('IDF_PATH'):
+        sdk_roots.insert(0, Path(env['IDF_PATH']))
+    for package in sdk_roots:
         version_file=package/'tools/cmake/version.cmake'
         if not version_file.is_file():
             continue
         version=version_file.read_text(encoding='utf-8')
         if all(f'set(IDF_VERSION_{key} {value})' in version
-               for key,value in (('MAJOR',5),('MINOR',5),('PATCH',6))):
+               for key,value in (('MAJOR',6),('MINOR',1),('PATCH',0))):
             sdk=package/'components'
+            env.setdefault('LWIP_SOURCE',str(sdk/'lwip/lwip'))
+            env.setdefault('MBEDTLS_DIR',str(sdk/'mbedtls/mbedtls'))
+            env.setdefault('ESP_SYSTEM_H',str(sdk/'esp_system/include/esp_system.h'))
+            env.setdefault('PARTITION_TABLE_SOURCE',str(sdk/'partition_table/gen_esp32part.py'))
+            env.setdefault('TLS_TEST_CA_BUNDLE',str(sdk/'mbedtls/esp_crt_bundle/cacrt_all.pem'))
             break
-    if sdk and sdk.is_dir():
-        env.setdefault('CJSON_SOURCE',str(sdk/'json/cJSON/cJSON.c'))
-        env.setdefault('LWIP_SOURCE',str(sdk/'lwip/lwip'))
-        env.setdefault('MQTT_SOURCE',str(sdk/'mqtt/esp-mqtt/mqtt_client.c'))
-        env.setdefault('MBEDTLS_DIR',str(sdk/'mbedtls/mbedtls'))
-        env.setdefault('ESP_SYSTEM_H',str(sdk/'esp_system/include/esp_system.h'))
-        env.setdefault('PARTITION_TABLE_SOURCE',str(sdk/'partition_table/gen_esp32part.py'))
-        env.setdefault('CRT_BUNDLE',str(sdk/'mbedtls/esp_crt_bundle/cacrt_all.pem'))
+    managed=ROOT/'managed_components'
+    for variable, relative in (
+        ('CJSON_SOURCE', 'espressif__cjson/cJSON/cJSON.c'),
+        ('MQTT_SOURCE', 'espressif__mqtt/mqtt_client.c'),
+    ):
+        source=managed/relative
+        if source.is_file():
+            env.setdefault(variable,str(source))
     if args.sanitizers:
         if os.name=='nt':parser.error('Use Linux ASan/UBSan; do not mark unavailable Windows sanitizers as passed')
         for prefix in SANITIZERS:env[prefix+'_SANITIZE']='1'
@@ -115,7 +123,16 @@ def main():
         if results[-1]['status']=='PASS':run('image-provenance',[sys.executable,'tools/check_image_provenance.py',str(Path(env['PLATFORMIO_BUILD_DIR'])/'esp32-s3')])
     selected=args.only.split(',') if args.only else DRIVERS
     if any(name not in DRIVERS for name in selected):parser.error('Unknown offline driver')
-    for name in selected:run(name,[sys.executable,str(ROOT/'tools'/('test_'+name+'.py'))])
+    if {'first_boot','password_crypto'}.intersection(selected) and env.get('MBEDTLS_DIR'):
+        crypto_output=folder/'host-crypto'
+        cmd=[sys.executable,str(ROOT/'tools/build_host_crypto.py'),
+             '--mbedtls-dir',env['MBEDTLS_DIR'],'--output',str(crypto_output)]
+        if args.sanitizers:
+            cmd+=['--sanitizers']
+        run('host-crypto-build',cmd,300)
+        env['TFPSA_BUILD']=str(crypto_output)
+    for name in selected:
+        run(name,[sys.executable,str(ROOT/'tools'/('test_'+name+'.py'))])
     if not args.only:
         for name in ('sensitive_scanner','upstream_integration'):
             run(name,[sys.executable,'-m','unittest','discover','-s','tools','-p','test_'+name+'.py'])

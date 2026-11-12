@@ -1,5 +1,55 @@
 # Maintainer continuation
 
+## Active work — ESP-IDF 6.1 beta
+
+The v3.0.18-beta.2 OTA was qualified on the Wi-Fi owner board. Beta.3 is
+public and contains the drawer fix and corrected MicroLink dependency link.
+Its exact image passed browser, asset and CI checks. The owner board was
+not updated to beta.3. The next build removes obsolete upstream version
+rows from About and pins the GPLv3 MicroLink licensing revision
+`763f5d45f69748322125839d30ee79925aff18d7`. Its original MIT and component
+notices must accompany future images. Keep v3.0.17 as the latest stable.
+
+The qualified native-IDF 5.5.6 image is public as v3.0.17. Source
+399ee031589d, BIN SHA-256 d715c960a67da1599056c4f92be46aa9f0272d6c1856d1f44b0b1a8f1d669f99.
+The owner board keeps it in ota_1. The 15-minute
+resource observation, live TCP/UDP gateway, expiry/reboot/watch and UI
+checks passed. Exact logs are in the preceding worktree's ignored
+build/private-device/install-3.0.17/. The Telegram expiry message came
+from the lab rule. Lab settings were restored. PR #18 and Pages are
+merged/deployed. The public flasher matches the qualified image.
+
+This worktree is fix/esp-idf-6.1-beta, based on v3.0.17. Current edits
+target 3.0.18-beta.2. Hardware qualification is pending. W5500 2.0.1,
+wiznet_common 1.1.0 and MQTT 1.1.0 are exact managed dependencies.
+The MQTT source guard was updated after reviewing task ownership. The
+upstream external-stack option remains off because the project keeps
+its reaper. The TLS RNG path is conditional in MicroLink for Mbed TLS 4.
+Parent SHA operations now use public generic MD APIs. Setup GCM uses PSA;
+the SHA callback can fail closed. Newlib is retained during the migration.
+
+The SDK package is framework-espidf 4.60100.0 and the archive SHA-256 is
+dabc3f2d16cc28c61d92fa378bb249da5dd4bc601c3564318a930bce3ddb63e7.
+The verified local extraction is under TEMP/mtg-idf61-sdk-native.
+The local PlatformIO build uses the pinned GCC 15.2.0 toolchain.
+Noise and WireGuard byte-level checks and setup/password software crypto
+regressions passed. The final link requires the project's DHCP helpers
+to have internal linkage because the SDK defines names of its own.
+
+The first beta boots in ota_0 and keeps settings, MQTT, UI and Tailnet
+management operational. A live TCP/UDP Service Gateway lab found no installed
+mapping. Its boot log showed the AP netif was not ready when NAPT was enabled.
+The next image enables NAPT after the SDK's AP_START handler. Real lwIP host
+tests now exercise forwarding after the AP leaves the netif list.
+
+Next: verify the exact image and partition table. Select ota_1 using USB,
+then install only the beta application into ota_0 and repeat TCP/UDP, expiry,
+reconnect and resource tests. Keep ota_1 available as recovery.
+The owner authorized qualification and beta publication after success.
+The beta package is for OTA with the existing bootloader.
+
+
+
 ## Current handover — 3.0.17-beta.1 audit candidate
 
 Local branch `fix/audit-3.0.17` contains source fixes from the November audit.

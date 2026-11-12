@@ -16,6 +16,7 @@
 #include "lwip/tcpip.h"
 #include "sdkconfig.h"
 #include "first_boot.h"
+#include "eth_uplink.h"
 #include "nvs_params.h"
 
 /* The responder keeps its state in a netif client-data slot. */
@@ -52,7 +53,8 @@ void lan_name_get(char *out, size_t cap)
 }
 
 static char s_name[LAN_NAME_MAX + 1];
-static bool s_added;
+static struct netif *s_advertising;
+static bool s_initialized;
 
 void lan_name_default(char *out, size_t cap)
 {
@@ -79,17 +81,29 @@ static void name_result(struct netif *netif, u8_t result, s8_t slot)
 static void mdns_on_uplink(void *arg)
 {
     (void)arg;
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    struct netif *nif = sta ? esp_netif_get_netif_impl(sta) : NULL;
-    if (!nif) return;
-    if (s_added) {
+    esp_netif_t *lan = eth_uplink_service_netif();
+    struct netif *nif = lan ? esp_netif_get_netif_impl(lan) : NULL;
+    if (!nif || !netif_is_up(nif) || ip4_addr_isany(netif_ip4_addr(nif))) {
+        esp_netif_t *ap = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+        nif = ap ? esp_netif_get_netif_impl(ap) : NULL;
+        if (nif && !netif_is_up(nif)) nif = NULL;
+    }
+    if (nif && nif == s_advertising) {
         mdns_resp_restart(nif);     /* new address: probe and announce again */
         return;
     }
-    mdns_resp_init();
-    mdns_resp_register_name_result_cb(name_result);
+    if (s_advertising) {
+        mdns_resp_remove_netif(s_advertising);
+        s_advertising = NULL;
+    }
+    if (!nif) return;
+    if (!s_initialized) {
+        mdns_resp_init();
+        mdns_resp_register_name_result_cb(name_result);
+        s_initialized = true;
+    }
     if (mdns_resp_add_netif(nif, s_name) == ERR_OK) {
-        s_added = true;
+        s_advertising = nif;
         ESP_LOGW(TAG, "home network name: http://%s.local/", s_name);
     } else {
         ESP_LOGW(TAG, "mDNS responder not started");

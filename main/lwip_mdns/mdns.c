@@ -2,7 +2,7 @@
  * ESP32 Tailnet Gateway: copy of lwIP 2.2.0 src/apps/mdns/mdns.c as shipped
  * in ESP-IDF 5.5.3 (components/lwip/lwip, SHA-256
  * 2bd12a3bb8b3c8830c56c2b5c3b8073ab5f71654171602210f63cf6dafc8d5e9), with
- * one change marked "ESP32 Tailnet Gateway patch". Original copyright and
+ * changes for IPv4-only probing and netif teardown. Original copyright and
  * license below are unchanged; mdns_domain.c and mdns_out.c are compiled
  * from the SDK as is.
  */
@@ -1699,6 +1699,19 @@ mdns_handle_question(struct mdns_packet *pkt, struct netif *netif)
   }
 }
 
+static void
+mdns_free_tc_question(struct mdns_packet *pkt)
+{
+  while (pkt->next_answer) {
+    struct mdns_packet *ans = pkt->next_answer;
+    pkt->next_answer = ans->next_answer;
+    pbuf_free(ans->pbuf);
+    LWIP_MEMPOOL_FREE(MDNS_PKTS, ans);
+  }
+  pbuf_free(pkt->pbuf);
+  LWIP_MEMPOOL_FREE(MDNS_PKTS, pkt);
+}
+
 /**
  * Handle truncated question MDNS packet
  * - Called by timer
@@ -1726,15 +1739,24 @@ mdns_handle_tc_question(void *arg)
     LWIP_ASSERT("pkt not found in pending_tc_questions list", prev != NULL);
     prev->next_tc_question = pkt->next_tc_question;
   }
-  /* free linked answers and this question */
-  while (pkt->next_answer) {
-    struct mdns_packet *ans = pkt->next_answer;
-    pkt->next_answer = ans->next_answer;
-    pbuf_free(ans->pbuf);
-    LWIP_MEMPOOL_FREE(MDNS_PKTS, ans);
+  mdns_free_tc_question(pkt);
+}
+
+static void
+mdns_cancel_tc_questions(struct netif *netif)
+{
+  u8_t index = netif_get_index(netif);
+  struct mdns_packet **link = &pending_tc_questions;
+  while (*link) {
+    struct mdns_packet *pkt = *link;
+    if (pkt->pbuf->if_idx == index) {
+      *link = pkt->next_tc_question;
+      sys_untimeout(mdns_handle_tc_question, pkt);
+      mdns_free_tc_question(pkt);
+    } else {
+      link = &pkt->next_tc_question;
+    }
   }
-  pbuf_free(pkt->pbuf);
-  LWIP_MEMPOOL_FREE(MDNS_PKTS, pkt);
 }
 
 /**
@@ -2462,7 +2484,23 @@ mdns_resp_remove_netif(struct netif *netif)
   mdns = NETIF_TO_HOST(netif);
   LWIP_ERROR("mdns_resp_remove_netif: Not an active netif", (mdns != NULL), return ERR_VAL);
 
+  /* Cancel work while this interface still owns its responder state. */
   sys_untimeout(mdns_probe_and_announce, netif);
+  mdns_cancel_tc_questions(netif);
+#if LWIP_IPV4
+  sys_untimeout(mdns_multicast_timeout_reset_ipv4, netif);
+  sys_untimeout(mdns_multicast_probe_timeout_reset_ipv4, netif);
+  sys_untimeout(mdns_multicast_timeout_25ttl_reset_ipv4, netif);
+  sys_untimeout(mdns_send_multicast_msg_delayed_ipv4, netif);
+  sys_untimeout(mdns_send_unicast_msg_delayed_ipv4, netif);
+#endif
+#if LWIP_IPV6
+  sys_untimeout(mdns_multicast_timeout_reset_ipv6, netif);
+  sys_untimeout(mdns_multicast_probe_timeout_reset_ipv6, netif);
+  sys_untimeout(mdns_multicast_timeout_25ttl_reset_ipv6, netif);
+  sys_untimeout(mdns_send_multicast_msg_delayed_ipv6, netif);
+  sys_untimeout(mdns_send_unicast_msg_delayed_ipv6, netif);
+#endif
 
   for (i = 0; i < MDNS_MAX_SERVICES; i++) {
     struct mdns_service *service = mdns->services[i];

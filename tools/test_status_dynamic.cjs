@@ -124,6 +124,30 @@ const read = page => page.evaluate(() => ({
     assert.equal(r.tiles[0][2], 'Non connesso al broker');
     assert.match(r.avail, /Disponibili:/);
     await context.close();
+    s = { status: status(), caps: caps({ 'ap-gateway': 1 }) };
+    s.status.sta = { connected: false };
+    s.status.lan_connected = true;
+    s.status.uplink = { type: 'ethernet', connected: true, ip: '192.0.2.10', prefix: 24, bytes_in: 1000, bytes_out: 2000 };
+    ({ page, context, errors } = await open(browser, s));
+    assert.equal(await page.locator('#uplink-ssid').textContent(), 'Ethernet');
+    assert.equal(await page.locator('#uplink-ip').textContent(), '192.0.2.10/24');
+    assert.equal(await page.locator('#uplink-status-badge').textContent(), 'Connected');
+    assert.equal(await page.locator('#uplink-channel').isVisible(), false);
+    const result = await page.evaluate(async () => {
+      const sim = { sta: { connected: false }, ap: { enabled: true }, lan_connected: false, local_connected: true,
+        uplink: { type: 'cellular', connected: true, ip: '198.51.100.10', rssi: -85 } };
+      applyStatus(sim);
+      const fetch = window.wzStatus;
+      window.wzStatus = async () => sim;
+      try {
+        return { internet: await WZ_UPLINK.fn(), lan: await WZ_LAN.fn(), local: await WZ_LOCAL.fn() };
+      } finally { window.wzStatus = fetch; }
+    });
+    assert.deepEqual(result, { internet: true, lan: 'Connect a local Ethernet or WiFi LAN first', local: true });
+    assert.equal(await page.locator('#uplink-ssid').textContent(), 'Cellular');
+    assert.equal(await page.locator('#uplink-rssi').textContent(), '-85 dBm');
+    assert.deepEqual(errors, []);
+    await context.close();
     console.log('PASS: Status follows what is on: live tiles, available list, state-based suggestions (order, cap, ' +
                 'no-hide for problems, persistent hide), configured goals last, change highlight, Italian');
   } finally {

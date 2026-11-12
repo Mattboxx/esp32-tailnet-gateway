@@ -53,7 +53,7 @@ message(STATUS "index.html: ${_gz_out}")
 
 # Per-board "<name>.local" (lan_name.c): lwIP's own mDNS responder from the
 # pinned SDK, compiled here; ESP-IDF builds only its separate mdns component.
-# lwip_mdns/mdns.c is the SDK file with one documented patch (probing on an
+# lwip_mdns/mdns.c is the SDK file with patches for netif teardown and probing on an
 # uplink without IPv6 addresses); the two other files are used as shipped.
 set(_lwip_mdns "${IDF_PATH}/components/lwip/lwip/src/apps/mdns")
 
@@ -129,16 +129,17 @@ idf_component_register(SRCS "main.c" ${_tsr_optional}
                     PRIV_REQUIRES esp_wifi nvs_flash esp_event esp_netif esp_timer
                                   lwip microlink wpa_supplicant
                                   esp-tls mbedtls
-                                  esp_http_server json esp_app_format
+                                  esp_http_server espressif__cjson esp_app_format
                                   acl sdlog remote_console
                                   web_password net_diag dhcpserver
                                   espcoredump dns_relay snmp_agent cli task_reaper
                                   app_update spi_flash esp_partition esp_psram
-                                  mqtt
+                                  espressif__mqtt espressif__w5500
                                   esp_http_client
                                   esp_eth esp_driver_spi esp_driver_gpio esp_driver_uart
                                   esp_driver_tsens
-                    INCLUDE_DIRS ".")
+                    INCLUDE_DIRS "."
+                    LDFRAGMENTS "freertos_queue_iram.lf")
 
 # Phase 1.9k: wrap ip_napt_forward to skip NAPT for tailnet CGNAT
 # (100.64/10) destinations. Otherwise NAPT rewrites the AP-client

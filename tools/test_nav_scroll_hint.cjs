@@ -7,9 +7,69 @@
  * - at 1600 px everything fits: no arrow, no fade;
  * - at 800 px (menu drawer) no arrow is shown. */
 const assert = require('node:assert/strict');
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
+const { install } = require('./ui_fixture.cjs');
 const { builtHtml, serveAsset } = require('./ui_build.cjs');
 const html = builtHtml();
+
+async function checkDrawer(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 620 }, isMobile: true, hasTouch: true, locale: 'en-US' });
+  try {
+    const page = await context.newPage();
+    await install(page);
+    await page.goto('http://esp32.test/#automation/notifications');
+    await page.locator('#page-automation.active .subpage[data-sub="notifications"]:not([hidden])').waitFor();
+    const button = page.locator('#navHamBtn');
+    const position = await button.boundingBox();
+    const toggle = () => page.touchscreen.tap(position.x + position.width / 2, position.y + position.height / 2);
+    const bottom = await page.evaluate(() => {
+      window.scrollTo(0, document.scrollingElement.scrollHeight);
+      return window.scrollY;
+    });
+    assert.ok(bottom > 150, 'fixture must exercise a scrolled page');
+    await toggle();
+    const drawer = page.locator('#navTabs.open');
+    await drawer.waitFor();
+    const navTop = await button.evaluate(el => el.closest('.nav').getBoundingClientRect().top);
+    assert.ok(Math.abs(navTop) < 2, 'opening the drawer must keep the sticky toolbar on screen');
+    assert.ok(Math.abs((await drawer.boundingBox()).y - 48) < 2, 'drawer starts below the toolbar');
+    assert.equal(await page.evaluate(() => window.scrollY), bottom, 'opening preserves the page position');
+    await page.evaluate(() => window.openSettingsSearch());
+    await page.locator('#search-input').press('Escape');
+    assert.ok(await drawer.isVisible(), 'closing search leaves the drawer open');
+    assert.ok(await page.evaluate(() => document.documentElement.classList.contains('scroll-locked')));
+    await toggle();
+    assert.equal(await button.getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.evaluate(() => window.scrollY), bottom, 'closing returns to the same page position');
+
+    await toggle();
+    await drawer.locator('[data-page="network"]').tap();
+    await page.locator('#page-network.active').waitFor();
+    assert.equal(await page.evaluate(() => window.scrollY), 0, 'a different page opens at its top');
+    assert.equal(await button.getAttribute('aria-expanded'), 'false');
+
+    await page.setViewportSize({ width: 390, height: 330 });
+    await toggle();
+    await drawer.evaluate(el => { el.scrollTop = el.scrollHeight; });
+    assert.ok(await drawer.evaluate(el => el.scrollTop > 0), 'short viewports can scroll the menu itself');
+    assert.equal(await page.evaluate(() => window.scrollY), 0);
+    await page.setViewportSize({ width: 1200, height: 620 });
+    await page.waitForFunction(() => !document.documentElement.classList.contains('scroll-locked'));
+    assert.equal(await page.locator('.nav > #navTabs').count(), 1, 'desktop tabs return to the toolbar');
+    assert.equal(await button.getAttribute('aria-expanded'), 'false');
+    await page.evaluate(() => { location.hash = '#system/about'; });
+    const about = page.locator('#page-system.active .subpage[data-sub="about"]:not([hidden])');
+    await about.waitFor();
+    assert.deepEqual(await about.locator('a[href$="/microlink"], a[href$="/esp32-tailscale-subnet-router"]').evaluateAll(links => links.map(link => link.getAttribute('href'))), [
+      'https://github.com/Mattboxx/microlink',
+      'https://github.com/Csontikka/esp32-tailscale-subnet-router',
+      'https://github.com/CamM2325/microlink'
+    ]);
+    assert.equal(await about.locator('#about-base, #about-microlink').count(), 0);
+  } finally {
+    await context.close();
+  }
+}
 
 async function open(browser, width) {
   const context = await browser.newContext({ viewport: { width, height: 800 }, locale: 'en-US' });
@@ -73,8 +133,14 @@ async function open(browser, width) {
     assert.ok(!s.left && !s.right, 'no arrow in the menu drawer');
     assert.deepEqual(errors, []);
     await context.close();
+    await checkDrawer(browser);
     console.log('PASS: overflowing tab rows show arrows and fades, scroll on click, reveal the active tab; none when everything fits or in the drawer');
   } finally {
     await browser.close();
   }
+  if (process.env.TEST_MOBILE_WEBKIT === '1') {
+    const safari = await webkit.launch();
+    try { await checkDrawer(safari); } finally { await safari.close(); }
+  }
+  console.log('PASS: mobile drawer preserves the page position, switches at the top and resets on desktop resize');
 })().catch(e => { console.error(e); process.exit(1); });

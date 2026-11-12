@@ -20,6 +20,7 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "eth_uplink.h"
+#include "uplink_services.h"
 #include "esp_netif.h"
 #include "esp_system.h"
 #include "esp_random.h"
@@ -568,9 +569,9 @@ static void publish_state(const mqtt_power_event_t *power, bool poweron_events)
     char uplink_ip[16] = "";
     char ssid[33] = "";
     int rssi = 0;
-    esp_netif_t *sta = eth_uplink_service_netif();
+    esp_netif_t *wan = uplink_internet_netif();
     esp_netif_ip_info_t ip = {0};
-    if (sta && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr) {
+    if (uplink_address(wan, &ip)) {
         uplink = true;
         snprintf(uplink_ip, sizeof uplink_ip, IPSTR, IP2STR(&ip.ip));
         wifi_ap_record_t record;

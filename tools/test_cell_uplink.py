@@ -201,3 +201,73 @@ def build_and_run(name, program, extra=()):
 
 build_and_run('core', PROGRAM)
 build_and_run('http', HTTP, extra=('cjson',))
+
+main_source = (ROOT / 'main/main.c').read_text(encoding='utf-8')
+services = function(main_source, 'esp_netif_t *uplink_internet_netif(void)')
+services += function(main_source, 'void uplink_services_refresh(bool lost_link)')
+policy = function(source, 'esp_netif_t *cell_uplink_preferred_netif(')
+
+build_and_run('services', COMMON + types + core + r'''
+typedef struct { struct {uint32_t addr;} ip; } esp_netif_ip_info_t;
+typedef struct {uint32_t ip; bool up;} esp_netif_t;
+static esp_netif_t wifi, eth, ppp, *lan = &wifi, *s_netif = &ppp, *default_netif;
+static cell_config_t s_running = {.mode = CELL_MODE_FAILOVER};
+static atomic_bool s_has_ip;
+static bool first_boot, shutdown, s_ap_auto_off = true, ap_requested;
+static unsigned ap_delay, starts, uplink_up, uplink_down;
+static uint32_t name_ip, tailscale_exit_node_ip;
+static bool tailscale_enabled = true;
+#define AP_FALLBACK_DELAY_MS 60000u
+enum {HIST_EV_UPLINK, HIST_INFO, HIST_WARN, BOOT_TL_IP};
+static bool uplink_address(esp_netif_t *n, esp_netif_ip_info_t *out) {
+    if (!n || !n->up) return false;
+    out->ip.addr = n->ip;
+    return out->ip.addr != 0;
+}
+static esp_netif_t *eth_uplink_service_netif(void) { return lan; }
+static esp_netif_t *esp_netif_get_default_netif(void) { return default_netif; }
+static void esp_netif_set_default_netif(esp_netif_t *n) { default_netif = n; }
+static bool first_boot_active(void) { return first_boot; }
+static bool ap_policy_is_shutdown(void) { return shutdown; }
+static void ap_policy_request_after(bool on, unsigned delay) { ap_requested = on; ap_delay = delay; }
+static void ap_policy_request(bool on) { ap_policy_request_after(on, 0); }
+static void boot_timeline_mark(int mark) { assert(mark == BOOT_TL_IP); }
+static int tailscale_request_connect(void) { ++starts; return 0; }
+static void tailnet_names_uplink(uint32_t ip) { name_ip = ip; }
+static void lan_name_uplink_up(void) {}
+static void refresh_ap_dns(void) {}
+static void history_event(int kind, int level, const char *text) {
+    assert(kind == HIST_EV_UPLINK);
+    if (level == HIST_INFO) { assert(!strcmp(text, "Internet uplink connected")); ++uplink_up; }
+    else { assert(level == HIST_WARN && !strcmp(text, "Internet uplink lost")); ++uplink_down; }
+}
+''' + policy + services + r'''
+int main(void) {
+    ppp = (esp_netif_t){1, true}; atomic_store(&s_has_ip, true);
+    first_boot = true;
+    uplink_services_refresh(false);
+    assert(!starts && !default_netif);
+    first_boot = false;
+    uplink_services_refresh(false);
+    assert(default_netif == &ppp && ap_requested && !name_ip && starts == 1);
+    assert(uplink_up == 1 && uplink_down == 0);
+    eth = (esp_netif_t){2, true}; lan = &eth;
+    uplink_services_refresh(false);
+    assert(default_netif == &eth && !ap_requested && name_ip == 2);
+    s_running.mode = CELL_MODE_PRIMARY;
+    uplink_services_refresh(false);
+    assert(default_netif == &ppp && !ap_requested && name_ip == 2);
+    eth.up = false; lan = &wifi;
+    uplink_services_refresh(true);
+    assert(default_netif == &ppp && ap_requested && ap_delay == 60000 && !name_ip);
+    assert(uplink_up == 1 && uplink_down == 0); /* failover still has an Internet uplink */
+    ppp.up = false; atomic_store(&s_has_ip, false);
+    uplink_services_refresh(true);
+    assert(uplink_down == 1 && ap_requested && !name_ip);
+    wifi = (esp_netif_t){3, true};
+    tailscale_exit_node_ip = 4;
+    uplink_services_refresh(false);
+    assert(default_netif == &ppp && !ap_requested && name_ip == 3 && uplink_up == 2);
+    puts("PASS: Ethernet and PPP cold boot, primary/failover, LAN DNS binding, AP recovery and exit route preservation");
+}
+''')

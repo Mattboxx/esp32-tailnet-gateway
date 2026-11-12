@@ -20,7 +20,7 @@ typedef struct {
     uint8_t  mac[6];
     uint8_t  valid;
     uint8_t  _reserved0;
-    char     broadcast[16]; /* empty = derive from live STA address/mask */
+    char     broadcast[16]; /* empty = derive from the local LAN/AP address and mask */
     uint16_t port;          /* 0 = UDP/9 */
     uint8_t  _reserved1[2];
 } wol_device_t;

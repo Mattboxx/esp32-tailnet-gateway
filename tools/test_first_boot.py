@@ -1,13 +1,14 @@
 """First-boot setup: actual firmware code against an independent client.
 
 Compiles main/first_boot_core.c, MicroLink's ml_x25519.c and the crypto glue
-of main/first_boot.c (pinned SDK mbedTLS GCM/SHA-256) on the host and drives
+of main/first_boot.c (pinned SDK TF-PSA-Crypto) on the host and drives
 them with Python `cryptography` acting as the browser: pairing, presence,
 setup code lockout, expiry, re-pairing, sealed requests, replay, tampering,
 size limits and low-order keys. A second program covers activation, field
 checks, setup-AP isolation and the captive DNS answer from dns_relay.c.
 Host fixtures only: no radio, no device. FIRSTBOOT_SANITIZE=1 adds ASan/UBSan.
-MBEDTLS_DIR overrides the pinned SDK mbedTLS tree.
+MBEDTLS_DIR selects the SDK Mbed TLS tree. Build the software host backend
+with tools/build_host_crypto.py first; TFPSA_BUILD selects its output.
 """
 from pathlib import Path
 import os
@@ -47,8 +48,8 @@ HARNESS = r'''
 #include <string.h>
 #include <stdint.h>
 #include "first_boot_core.h"
-#include "mbedtls/gcm.h"
-#include "mbedtls/sha256.h"
+#include "psa/crypto.h"
+#include "mbedtls/md.h"
 int ml_x25519(unsigned char out[32], const unsigned char scalar[32], const unsigned char base[32], int clamp);
 static uint64_t rng = 0x9e3779b97f4a7c15ull;
 static void esp_fill_random(void *p, size_t n) { uint8_t *b = p; while (n--) { rng ^= rng << 13; rng ^= rng >> 7; rng ^= rng << 17; *b++ = (uint8_t)rng; } }
@@ -57,6 +58,7 @@ static fb_ctx_t ctx;
 static void hexout(const uint8_t *b, size_t n) { for (size_t i = 0; i < n; i++) printf("%02x", b[i]); }
 static int unhex(const char *h, uint8_t *o, size_t n) { return fb_hex_decode(h, o, n); }
 int main(int argc, char **argv) {
+    if (psa_crypto_init() != PSA_SUCCESS) return 2;
     if (argc > 1) rng ^= strtoull(argv[1], NULL, 10);
     fb_init(&ctx, &s_crypto);
     static char line[8192], a[4096], b[4096], c[4096], d[4096];
@@ -107,7 +109,21 @@ static int query(uint8_t *q, const char *name, uint16_t type) {
 static int frame(uint8_t *f, uint16_t type, uint8_t ver_ihl, const uint8_t dst[4]) {
     memset(f, 0, 64); f[12] = type >> 8; f[13] = type & 255; f[14] = ver_ihl; memcpy(f + 14 + 16, dst, 4); return 64;
 }
+static void fault_random(uint8_t *out, size_t len) { memset(out, 7, len); }
+static int fault_x25519(uint8_t out[32], const uint8_t scalar[32], const uint8_t base[32])
+{ (void)scalar; (void)base; memset(out, 9, 32); return 0; }
+static int fault_hash(const uint8_t *in, size_t len, uint8_t out[32])
+{ (void)in; (void)len; memset(out, 0, 32); return -1; }
+static int fault_gcm(const uint8_t key[32], const uint8_t iv[12], const uint8_t *aad,
+                     size_t aad_len, const uint8_t *ct, size_t len, const uint8_t tag[16], uint8_t *out)
+{ (void)key;(void)iv;(void)aad;(void)aad_len;(void)ct;(void)len;(void)tag;(void)out;return -1; }
 int main(void) {
+    const fb_crypto_t fault_crypto = {fault_random, fault_x25519, fault_hash, fault_gcm};
+    fb_ctx_t fault_ctx;
+    fb_init(&fault_ctx, &fault_crypto);
+    uint8_t pub[32] = {9};
+    assert(fb_begin(&fault_ctx, 1, pub, 1) == FB_ERR_BAD_KEY);
+    assert(fault_ctx.s.state == FB_NONE);
     /* Activation: only a device with no setting at all. */
     assert(fb_should_activate(false, false, 0, false));
     assert(!fb_should_activate(true, false, 0, false));
@@ -127,13 +143,11 @@ int main(void) {
     assert(!fb_check_login_server("") && !fb_check_login_server("https://hs.example.com") && fb_check_login_server("ftp://x") && fb_check_login_server("https://a b"));
     assert(!fb_check_hostname("") && !fb_check_hostname("tailnet-gateway") && fb_check_hostname("-x") && fb_check_hostname("Upper") && fb_check_hostname("a_b"));
     /* Internet connection chosen in setup. */
-    assert(!fb_check_uplink(NULL, true, false, false) && fb_check_uplink(NULL, false, false, false));      /* 3.0 pages: Wi-Fi */
-    assert(!fb_check_uplink("wifi", true, false, true) && fb_check_uplink("wifi", false, true, false));
-    assert(!fb_check_uplink("ethernet", false, false, true) && !fb_check_uplink("ethernet", true, true, false));   /* Wi-Fi optional */
-    assert(fb_check_uplink("cellular", false, false, false));                                            /* SIM alone needs a key */
-    assert(!fb_check_uplink("cellular", false, true, false) && !fb_check_uplink("cellular", true, false, false));
-    assert(fb_check_uplink("cellular", true, true, true));                                               /* no exit node on mobile data */
-    assert(fb_check_uplink("satellite", true, true, false) && fb_check_uplink("", true, true, false));
+    assert(!fb_check_uplink(NULL, true) && fb_check_uplink(NULL, false)); /* 3.0 pages default to Wi-Fi */
+    assert(!fb_check_uplink("wifi", true) && fb_check_uplink("wifi", false));
+    assert(!fb_check_uplink("ethernet", false) && !fb_check_uplink("ethernet", true));
+    assert(!fb_check_uplink("cellular", false) && !fb_check_uplink("cellular", true));
+    assert(fb_check_uplink("satellite", true) && fb_check_uplink("", true));
     /* Time zone rules as the System page writes them. */
     assert(!fb_check_tz(NULL) && !fb_check_tz("") && !fb_check_tz("CET-1CEST,M3.5.0,M10.5.0/3") && !fb_check_tz("<+0545>-5:45"));
     assert(!fb_check_tz("ACST-9:30ACDT,M10.1.0,M4.1.0/3") && !fb_check_tz("UTC0"));
@@ -224,7 +238,7 @@ def scenarios(exe):
     assert d.cmd(f'presence {13 * S}') == 'R 0'
     assert d.cmd(f'state {a.sid} {13 * S}') == 'S 2'
     assert b.begin(14 * S) == 'ERR 2'                                # claimed by another client
-    msg = '{"action":"finish","admin_password":"pässword ✓"}'.encode()
+    msg = '{"action":"finish","admin_password":"pÃ¤ssword âœ“"}'.encode()
     assert a.open(1, msg, 15 * S) == 'OK ' + msg.hex()
     assert a.open(1, msg, 16 * S) == 'ERR 9'                         # replay
     assert a.open(0, msg, 16 * S) == 'ERR 9'
@@ -281,20 +295,73 @@ def scenarios(exe):
 
 with tempfile.TemporaryDirectory(prefix='first-boot-', ignore_cleanup_errors=True) as directory:
     path = Path(directory)
-    (path / 'cfg.h').write_text('#define MBEDTLS_AES_C\n#define MBEDTLS_GCM_C\n#define MBEDTLS_CIPHER_C\n#define MBEDTLS_SHA256_C\n#define MBEDTLS_PLATFORM_C\n')
-    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-I', str(path), '-I', str(ROOT / 'main')]
+    flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function',
+             '-I', str(path), '-I', str(ROOT / 'main')]
     if os.environ.get('FIRSTBOOT_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
-    mbed = [str(MBED / 'library' / (n + '.c')) for n in ('aes', 'gcm', 'cipher', 'cipher_wrap', 'sha256', 'platform_util',
-                                                         'constant_time', 'block_cipher', 'platform')]
+    crypto_build = Path(os.environ.get('TFPSA_BUILD', str(ROOT / 'build/host-crypto')))
+    config = crypto_build / 'crypto-config.h'
+    assert config.is_file(), 'Run tools/build_host_crypto.py first'
+    tf = MBED / 'tf-psa-crypto'
+    crypto_flags = ['-DTF_PSA_CRYPTO_CONFIG_FILE="' + str(config) + '"',
+                    '-I', str(tf / 'include'), '-I', str(crypto_build / 'include'),
+                    '-I', str(tf / 'drivers/builtin/include')]
+    crypto_libs = [str(crypto_build / 'core/libtfpsacrypto.a'),
+                   str(crypto_build / 'platform/libplatform.a')]
+    if os.name == 'nt':
+        crypto_libs += ['-lbcrypt']
     exe = path / ('harness.exe' if os.name == 'nt' else 'harness')
     (path / 'harness.c').write_text(HARNESS, encoding='utf-8')
-    subprocess.run([os.environ.get('CC', 'gcc'), *flags, '-DMBEDTLS_CONFIG_FILE="cfg.h"', '-I', str(MBED / 'include'), '-I', str(MBED / 'library'),
-                    '-I', str(ML), str(path / 'harness.c'), str(ROOT / 'main/first_boot_core.c'), str(ML / 'ml_x25519.c'),
-                    *mbed, '-Wno-error', '-o', str(exe)], check=True)
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, *crypto_flags,
+                    '-I', str(ML), str(path / 'harness.c'),
+                    str(ROOT / 'main/first_boot_core.c'), str(ML / 'ml_x25519.c'),
+                    *crypto_libs, '-o', str(exe)], check=True)
     scenarios(exe)
     print('PASS: actual first-boot pairing/presence/code lockout/expiry/re-pairing and sealed requests (X25519 + AES-256-GCM) interoperate with Python cryptography; replay, tampering, size and low-order keys refused (host)')
     unit = path / ('unit.exe' if os.name == 'nt' else 'unit')
     (path / 'unit.c').write_text(UNIT, encoding='utf-8')
     subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'unit.c'), str(ROOT / 'main/first_boot_core.c'), '-o', str(unit)], check=True)
     subprocess.run([str(unit)], check=True)
+    main = (ROOT / 'main/main.c').read_text(encoding='utf-8')
+    start = main.index('bool wifi_setup_test_matches(')
+    proof = main[start:main.index('\n}', start)+2]
+    (path / 'proof.c').write_text(r'''
+#include <assert.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#define ESP_OK 0
+#define WIFI_IF_STA 0
+enum {FB_WIFI_IDLE, FB_WIFI_OK};
+typedef struct {struct {uint8_t ssid[32], password[64];} sta;} wifi_config_t;
+typedef struct {uint8_t ssid[33];} wifi_ap_record_t;
+typedef struct {struct {uint32_t addr;} ip;} esp_netif_ip_info_t;
+static int s_setup_test;
+static uint32_t s_setup_test_ip=1, live_ip=1;
+static bool connected=true;
+static wifi_config_t saved = {.sta={.ssid="Fixture",.password="example-pass"}};
+static wifi_ap_record_t ap={.ssid="Fixture"};
+static void *esp_netif_get_handle_from_ifkey(const char *key) {(void)key;return &saved;}
+static bool uplink_address(void *n,esp_netif_ip_info_t *i) {(void)n;i->ip.addr=live_ip;return connected;}
+static int esp_wifi_sta_get_ap_info(wifi_ap_record_t *a) {*a=ap;return ESP_OK;}
+static int esp_wifi_get_config(int i,wifi_config_t *out) {(void)i;*out=saved;return ESP_OK;}
+''' + proof + r'''
+int main(void) {
+    assert(!wifi_setup_test_matches("Fixture","example-pass"));
+    s_setup_test=FB_WIFI_OK;
+    assert(wifi_setup_test_matches("Fixture","example-pass"));
+    assert(!wifi_setup_test_matches("Fixture","changed-pass"));
+    assert(!wifi_setup_test_matches("Fixture 2","example-pass"));
+    connected=false;
+    assert(!wifi_setup_test_matches("Fixture","example-pass"));
+    connected=true; live_ip=2;
+    assert(!wifi_setup_test_matches("Fixture","example-pass"));
+    live_ip=1; ap.ssid[0]='O';
+    assert(!wifi_setup_test_matches("Fixture","example-pass"));
+    puts("PASS: setup proof requires a live tested address and matching Wi-Fi credentials");
+}
+''', encoding='utf-8')
+    proof_exe = path / ('proof.exe' if os.name == 'nt' else 'proof')
+    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'proof.c'), '-o', str(proof_exe)], check=True)
+    subprocess.run([str(proof_exe)], check=True)

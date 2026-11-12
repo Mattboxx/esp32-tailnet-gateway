@@ -42,16 +42,17 @@ those hooks are in place**; if they cannot be installed, Ethernet stays
 stopped and reports why. Administration rules (password, Host/Origin
 screening) are unchanged.
 
-## Current limits
+## Local services and validation
 
 - Only W5500. DM9051/KSZ8851SNL drivers exist in ESP-IDF but are not wired.
 - LAN → Tailnet rules (and AP-side port forwards) listen on the **selected**
   uplink: the Ethernet address while Ethernet is the uplink, otherwise WiFi.
   Bindings are reinstalled when the selection changes, so clients must use the
-  address of the current uplink. Health Monitor gateway checks also use the
-  selected uplink; SNMP interface counters still observe WiFi only.
+  address of the current LAN uplink. Wake-on-LAN's automatic broadcast and
+  the local `.local` name also follow that interface.
+- Tailscale starts when the Internet uplink has an IPv4 address. Health
+  checks, remote update checks, and DNS forwarding use the Internet uplink.
+  The access point can stay enabled while the cable carries Internet traffic.
+- SNMP exposes the Ethernet, WiFi and tunnel interfaces separately.
 - DNS servers are global in lwIP: the last interface to obtain DHCP DNS wins.
 - No measurements of throughput, link-flap behavior or power on real hardware.
-- From 2.0.1 the Web UI of this image is English only (no Italian, Spanish or
-  Chinese translations): the image must fit the same 1920 KiB application
-  partition as the WiFi build. The `.local` name answers on the WiFi uplink only.

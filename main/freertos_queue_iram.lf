@@ -1,0 +1,8 @@
+# Keep the task-level send and receive operations used for packet hand-offs
+# in IRAM without relocating the entire FreeRTOS kernel.
+[mapping:gateway_freertos_queue_iram]
+archive: libfreertos.a
+entries:
+    if FREERTOS_IN_IRAM = n:
+        queue:xQueueGenericSend (noflash_text)
+        queue:xQueueReceive (noflash_text)

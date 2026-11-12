@@ -93,8 +93,14 @@ struct ip_hdr { ip4_addr_t src, dest; uint8_t proto; };
 static bool exit_server_active;
 static int32_t tailscale_snat_subnet_routes;
 static bool tailscale_exit_server_active(void) { return exit_server_active; }
-static bool tailnet_forward_is_routed_target(int proto, uint32_t ip, uint16_t port) { (void)proto; (void)ip; (void)port; return false; }
-static bool tailnet_forward_is_routed_response(int proto, uint32_t ip, uint16_t port) { (void)proto; (void)ip; (void)port; return false; }
+static struct netif *selected_eth;
+static struct netif *eth_uplink_selected_lwip(void) { return selected_eth; }
+static struct netif *selected_ppp;
+static struct netif *cell_uplink_selected_lwip(void) { return selected_ppp; }
+static uint32_t binding;
+static bool tailnet_forward_is_routed_target(uint32_t uplink, int proto, uint32_t ip, uint16_t port) {
+    return binding && uplink==binding && (proto==6 || proto==17) && ip==known_peer_nbo && port==22;
+}
 static int napt_calls;
 static bool napt_enabled_at_call;
 static err_t __real_ip_napt_forward(struct pbuf *p, struct ip_hdr *h, struct netif *inp, struct netif *outp) {
@@ -104,12 +110,13 @@ static err_t __real_ip_napt_forward(struct pbuf *p, struct ip_hdr *h, struct net
 }
 '''
 tests = r'''
-static struct netif sta, ap, wg;
+static struct netif sta, ap, wg, eth;
 static void reset(void) {
     sta=(struct netif){.name={'s','t'},.num=1,.up=true,.link=true,.ip={swap32(0xc0a80114)},.mask={swap32(0xffffff00)}};
     ap=(struct netif){.name={'a','p'},.num=2,.up=true,.link=true,.ip={swap32(0xc0a80401)},.mask={swap32(0xffffff00)}};
     wg=(struct netif){.name={'w','g'},.up=true,.link=true,.ip={swap32(0x6450463c)},.mask={swap32(0xffc00000)}};
     sta.next=&ap; ap.next=&wg; netif_list=&sta; netif_default=NULL;
+    selected_eth=NULL; selected_ppp=NULL; binding=0;
     tailscale_exit_node_ip=0; tailscale_lan_bypass=0; tailscale_accept_routes=0;
     publish_accepted_routes(NULL,0);
     memset(dns_servers,0,sizeof dns_servers); memset(&dhcp_state,0,sizeof dhcp_state); known_peer_nbo=0;
@@ -151,6 +158,55 @@ int main(void) {
     assert(napt_calls==4 && napt_enabled_at_call && ap.napt==1);
     header.proto=17; __wrap_ip_napt_forward(NULL,&header,&ap,&wg);
     assert(napt_calls==5 && napt_enabled_at_call);
+    reset();
+    eth=sta; eth.name[0]='e'; eth.name[1]='n'; eth.ip.addr=swap32(0xc0a80115);
+    sta.next=&eth; selected_eth=&eth; binding=eth.ip.addr;
+    known_peer_nbo=swap32(0x6450463d);
+    expect(0x6450463d,0xc0a80102,&eth);
+    eth.link=false;
+    ip4_addr_t peer={known_peer_nbo}, client={swap32(0xc0a80102)};
+    assert(__wrap_ip4_route_src_hook(&peer,&client)==NULL);
+    eth.link=true;
+    uint8_t ports[24]={0}; struct pbuf packet={sizeof ports,ports};
+    for (unsigned proto=6; proto<=17; proto+=11) {
+        header=(struct ip_hdr){.dest={known_peer_nbo},.proto=proto};
+        ports[21]=123; ports[23]=22;
+        napt_calls=0;
+        __wrap_ip_napt_forward(&packet,&header,&eth,&wg);
+        assert(napt_calls==1 && napt_enabled_at_call && !eth.napt);
+        binding=sta.ip.addr; napt_enabled_at_call=false;
+        __wrap_ip_napt_forward(&packet,&header,&sta,&wg);
+        assert(!napt_enabled_at_call && !sta.napt);
+        selected_eth=NULL;
+        __wrap_ip_napt_forward(&packet,&header,&sta,&wg);
+        assert(napt_enabled_at_call && !sta.napt);
+        selected_eth=&eth; binding=eth.ip.addr;
+        header=(struct ip_hdr){.src={known_peer_nbo},.proto=proto};
+        ports[21]=22; ports[23]=123;
+        __wrap_ip_napt_forward(&packet,&header,&wg,&eth);
+        assert(napt_enabled_at_call && !wg.napt);
+        __wrap_ip_napt_forward(&packet,&header,&wg,&sta);
+        assert(!napt_enabled_at_call);
+    }
+    struct netif ppp={.name={'p','p'},.up=true,.link=true,.ip={swap32(0x64401014)},.mask={swap32(0xffffffff)}};
+    selected_ppp=&ppp;
+    tailscale_exit_node_ip=known_peer_nbo;
+    tailscale_lan_bypass=1;
+    expect(0,0x08080808,&ppp);                  /* control traffic stays outside the exit tunnel */
+    expect(0xc0a80402,0x08080808,&wg);        /* AP clients still use the exit tunnel */
+    expect(0,0x0a000001,&eth);                 /* local bypass stays on the physical LAN */
+    tailscale_exit_node_ip=0;
+    exit_server_active=true;
+    header=(struct ip_hdr){.dest={swap32(0x08080808)},.proto=6};
+    __wrap_ip_napt_forward(&packet,&header,&wg,&ppp);
+    assert(napt_enabled_at_call && !wg.napt);
+    exit_server_active=false;
+    tailscale_snat_subnet_routes=1;
+    __wrap_ip_napt_forward(&packet,&header,&wg,&ppp);
+    assert(!napt_enabled_at_call);             /* PPP is not a local subnet listener */
+    __wrap_ip_napt_forward(&packet,&header,&wg,&eth);
+    assert(napt_enabled_at_call && !wg.napt);
+    tailscale_snat_subnet_routes=0;
     reset();
     set_default_via_tcpip(&sta); assert(netif_default==&sta);
     queue_fails=true; set_default_via_tcpip(&wg); assert(netif_default==&sta);
@@ -229,7 +285,7 @@ int main(void) {
         reads++;
     }
     assert(!pthread_join(producer,NULL));
-    puts("PASS: real hook/diagnostic parity, CGNAT identity, missing WG, down/link-down interfaces, exit self/forward split, snapshots, every prefix width, queued default updates/failure and 20000 concurrent table publications");
+    puts("PASS: real hook/diagnostic parity, Ethernet/Wi-Fi Service Gateway, CGNAT identity, exit routing, every prefix width, queued default updates/failure and concurrent route publication");
 }
 '''
 with tempfile.TemporaryDirectory(prefix='route-hook-') as directory:

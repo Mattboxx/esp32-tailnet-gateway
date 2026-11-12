@@ -22,6 +22,7 @@ def run(program, *, cjson=False):
         (path / 'lwip').mkdir()
         for name in ('esp_err.h', 'lwip/pbuf.h', 'lwip/netif.h'):
             (path / name).write_text('/* test definitions precede includes */\n', encoding='utf-8')
+        (path / 'esp_http_server.h').write_text('typedef void *httpd_handle_t;\n', encoding='utf-8')
         source = path / 'test.c'
         source.write_text(program, encoding='utf-8')
         binary = path / ('test.exe' if os.name == 'nt' else 'test')
@@ -79,8 +80,55 @@ struct netif;
 #define ESP_ERR_INVALID_STATE -4
 '''
 
-wol = (ROOT / 'main/wol.c').read_text(encoding='utf-8').split('static bool derive_sta_broadcast', 1)[0]
+wol = (ROOT / 'main/wol.c').read_text(encoding='utf-8').split('static bool wol_lan_address', 1)[0]
 wol = '\n'.join(line for line in wol.splitlines() if not line.startswith('#include'))
+ops_source = (ROOT / 'main/homelab_ops.c').read_text(encoding='utf-8')
+job_types = ops_source[ops_source.index('typedef enum {J_IDLE'):ops_source.index('/* Internal RAM is the gateway')]
+run(HEAD + r'''
+#include "homelab_ops.h"
+#include "wol.h"
+''' + job_types + r'''
+static job_t job;
+static result_t results[WOL_MAX_DEVICES];
+static char notice[160];
+static unsigned sent;
+static uint64_t now_ms(void) {return 100;}
+static void event_locked(unsigned state,unsigned index) {(void)state;(void)index;}
+static bool ntfy_integration_queue_event(const char *text) {
+    assert(strlen(text)<sizeof notice); strcpy(notice,text); ++sent; return true;
+}
+''' + function(ops_source, 'static void finish_locked(')
+    + function(ops_source, 'static void notify_job_result(') + r'''
+int main(void) {
+    strcpy(job.device.name,"Fixture NAS");
+    job.device.mac[0]=2;
+    job.profile.notify=1;
+    finish_locked(J_TIMEOUT); assert(!job.notify_result); /* no prior positive observation */
+    finish_locked(J_REACHABLE); assert(!job.notify_result);
+    finish_locked(J_UNKNOWN); assert(!job.notify_result);
+    finish_locked(J_TIMEOUT); assert(job.notify_result);
+    notify_job_result(&job);
+    assert(sent==1 && strstr(notice,"Fixture NAS stopped responding") && !strstr(notice,"WoL"));
+    finish_locked(J_TIMEOUT); assert(!job.notify_result);
+    finish_locked(J_REACHABLE); assert(!job.notify_result);
+    finish_locked(J_TIMEOUT); assert(job.notify_result);
+    job.device.mac[5]=3;
+    finish_locked(J_TIMEOUT); assert(!job.notify_result); /* another MAC cannot inherit an outage */
+    job.manual=job.wake=true;
+    finish_locked(J_REACHABLE); assert(job.notify_result);
+    notify_job_result(&job); assert(sent==2 && strstr(notice,"WoL not sent"));
+    job.wake_attempted=true;
+    finish_locked(J_UNKNOWN); assert(job.notify_result);
+    notify_job_result(&job); assert(sent==3 && strstr(notice,"WoL send failed"));
+    job.packet_sent=true;
+    finish_locked(J_REACHABLE); assert(job.notify_result);
+    notify_job_result(&job); assert(sent==4 && strstr(notice,"WoL packet sent"));
+    job.profile.notify=0;
+    finish_locked(J_REACHABLE); assert(!job.notify_result);
+    puts("PASS: manual recovery outcomes and one alert per new monitored outage");
+}
+''', cjson=True)
+
 run(HEAD + r'''
 #ifdef _WIN32
 #include <winsock2.h>
@@ -223,6 +271,7 @@ static int httpd_resp_sendstr(httpd_req_t *r,const char *body){r->response=mallo
 static esp_netif_t *esp_netif_get_handle_from_ifkey(const char *key){static int netif;assert(!strcmp(key,"WIFI_STA_DEF"));return &netif;}
 /* Ethernet disabled: the service listener follows the WiFi STA as before. */
 static esp_netif_t *eth_uplink_service_netif(void) { return esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"); }
+static bool esp_netif_is_netif_up(esp_netif_t *n) { return n && uplink; }
 static int esp_netif_get_ip_info(esp_netif_t *n,esp_netif_ip_info_t *ip){assert(n);ip->ip.addr=uplink?1:0;return ESP_OK;}
 static bool tailscale_is_connected(void){return control;}
 bool tailnet_forward_get(int i,tailnet_forward_rule_t *r,tailnet_forward_runtime_t *rt){if(i>=rows)return false;*r=rule;*rt=runtime;return true;}

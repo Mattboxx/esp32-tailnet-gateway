@@ -23,9 +23,11 @@ functions = start + source.split(start, 1)[1].split('void netif_hooks_init', 1)[
 snmp = (ROOT / 'components/snmp_agent/snmp_agent.c').read_text(encoding='utf-8')
 app = (ROOT / 'main/main.c').read_text(encoding='utf-8')
 assert app.index('netif_hooks_init();') < app.index('snmp_agent_init();'), \
-    'Physical ACL hooks must be installed once before the periodic SNMP hooks'
+    'Register the physical ACL hooks before periodic SNMP hooks'
 hooks = '#define DEFINE_IF_HOOKS' + snmp.split('#define DEFINE_IF_HOOKS', 1)[1].split(
     '/* Re-scan for interfaces worth counting.', 1)[0]
+# The application and SNMP source files have separate static namespaces.
+hooks = hooks.replace('IF_ETH,  eth)', 'IF_ETH,  snmp_eth)').replace('eth_', 'snmp_eth_')
 
 fixture = r'''
 #include <assert.h>
@@ -86,8 +88,78 @@ static err_t physical_acl_input(struct pbuf *p, struct netif *n) { return driver
 static err_t physical_acl_output(struct netif *n, struct pbuf *p) { return driver_linkoutput(n,p); }
 '''
 
+physical_fixture = r'''
+typedef unsigned netif_nsc_reason_t;
+typedef void netif_ext_callback_args_t;
+typedef void (*netif_ext_callback_t)(struct netif *, netif_nsc_reason_t,
+                                     const netif_ext_callback_args_t *);
+#define LWIP_NSC_NETIF_ADDED 1u
+#define ESP_OK 0
+#define ESP_ERR_INVALID_STATE 1
+#define ESP_ERROR_CHECK(expr) assert((expr) == ESP_OK)
+static struct netif sta, ap, eth;
+static struct netif *s_sta, *s_ap, *s_eth;
+static netif_ext_callback_t s_physical_callback;
+static netif_input_fn original_sta_input, original_ap_input, original_eth_input;
+static netif_linkoutput_fn original_sta_linkoutput, original_ap_linkoutput, original_eth_linkoutput;
+static bool core;
+static struct netif *esp_netif_get_handle_from_ifkey(const char *key) {
+    if (!strcmp(key, "WIFI_STA_DEF")) return &sta;
+    if (!strcmp(key, "WIFI_AP_DEF")) return &ap;
+    if (!strcmp(key, "ETH_DEF")) return &eth;
+    return NULL;
+}
+static struct netif *esp_netif_get_netif_impl(struct netif *n) { return n; }
+static err_t tcpip_callback_wait(void (*callback)(void *), void *arg) {
+    core = true; callback(arg); core = false; return ERR_OK;
+}
+static void netif_add_ext_callback(netif_ext_callback_t *slot, netif_ext_callback_t fn) {
+    assert(core && !*slot); *slot = fn;
+}
+#define FAKE_HOOK_PAIR(name) \
+static err_t name##_input_hook(struct pbuf *p, struct netif *n) { return original_##name##_input(p, n); } \
+static err_t name##_linkoutput_hook(struct netif *n, struct pbuf *p) { return original_##name##_linkoutput(n, p); }
+FAKE_HOOK_PAIR(sta)
+FAKE_HOOK_PAIR(ap)
+FAKE_HOOK_PAIR(eth)
+static err_t restarted_driver_input(struct pbuf *p, struct netif *n) {
+    return driver_input(p, n) + 1;
+}
+'''
+
+physical_cases = r'''
+static void fake_add(struct netif *n, netif_input_fn rx) {
+    n->input = rx; n->linkoutput = driver_linkoutput;
+    s_physical_callback(n, LWIP_NSC_NETIF_ADDED, NULL);
+}
+static void check_physical_lifecycle(void) {
+    struct pbuf p = {.tot_len = 64};
+    struct netif tunnel = {0};
+    netif_hooks_init();
+    assert(!sta.input && !ap.input && !eth.input);
+    fake_add(&sta, driver_input); fake_add(&ap, driver_input); fake_add(&eth, driver_input);
+    fake_add(&tunnel, driver_input);
+    assert(sta.input == sta_input_hook && sta.linkoutput == sta_linkoutput_hook);
+    assert(ap.input == ap_input_hook && ap.linkoutput == ap_linkoutput_hook);
+    assert(eth.input == eth_input_hook && eth.linkoutput == eth_linkoutput_hook);
+    assert(tunnel.input == driver_input && tunnel.linkoutput == driver_linkoutput);
+    hook_netif(IF_WIFI, &sta);
+    s_physical_callback(&sta, 2, NULL);
+    assert(sta.input == wifi_input_hook && sta.input(&p, &sta) == 42);
+    fake_add(&sta, restarted_driver_input);
+    hook_netif(IF_WIFI, &sta);
+    assert(sta.input(&p, &sta) == 43 && sta.linkoutput(&sta, &p) == 24);
+    unhook_netif(IF_WIFI, &sta);
+    assert(sta.input == sta_input_hook && sta.linkoutput == sta_linkoutput_hook);
+    puts("PASS: driver callbacks wrapped on add/re-add, including late startup, without recapturing SNMP");
+}
+'''
+
 tests = r'''
 int main(void) {
+#ifdef HAS_PHYSICAL_ADD_HOOK
+    check_physical_lifecycle();
+#endif
     struct pbuf p={.tot_len=64};
     struct netif sta={.name={'s','t'},.ip={swap32(0x64400002)},
         .input=physical_acl_input,.linkoutput=physical_acl_output};
@@ -132,8 +204,15 @@ int main(void) {
 '''
 with tempfile.TemporaryDirectory(prefix='netif-hooks-') as directory:
     path = Path(directory)
-    (path / 'test.c').write_text(fixture + functions + hooks + tests, encoding='utf-8')
     flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', '-Wno-unused-variable']
+    physical = ''
+    if 'static void physical_netif_added' in source:
+        assert app.index('netif_hooks_init();') < app.index('ESP_ERROR_CHECK(esp_wifi_start() );')
+        callback = 'static void physical_netif_added' + source.split('static void physical_netif_added', 1)[1].split('void netif_hooks_refresh', 1)[0]
+        installer = 'void netif_hooks_init' + source.split('void netif_hooks_init', 1)[1]
+        physical = physical_fixture + callback + installer + physical_cases
+        flags.append('-DHAS_PHYSICAL_ADD_HOOK')
+    (path / 'test.c').write_text(fixture + functions + hooks + physical + tests, encoding='utf-8')
     if os.environ.get('NETIF_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     binary = path / ('test.exe' if os.name == 'nt' else 'test')

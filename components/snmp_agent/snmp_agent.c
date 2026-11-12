@@ -1151,7 +1151,7 @@ static void snmp_task(void *arg);
  * Never fall back to an internal stack on those builds: preserve routing RAM. */
 static BaseType_t create_snmp_worker(void)
 {
-#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+#if CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
     return xTaskCreateWithCaps(snmp_task, "snmp_agent", TASK_STACK, NULL,
                               tskIDLE_PRIORITY + 2, NULL,
                               MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -1163,7 +1163,7 @@ static BaseType_t create_snmp_worker(void)
 
 static void delete_snmp_worker(void)
 {
-#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+#if CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
     task_reaper_self_delete(); /* no allocation/abort on exit */
 #else
     vTaskDelete(NULL);

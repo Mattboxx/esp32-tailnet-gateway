@@ -23,7 +23,7 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPL--3.0-0B7A4B.svg)](LICENSE)
 [![Platform: ESP32-S3](https://img.shields.io/badge/platform-ESP32--S3-0A0F0C.svg)](#8-supported-hardware)
-[![ESP-IDF 5.5.6](https://img.shields.io/badge/ESP--IDF-5.5.6-0A0F0C.svg)](https://docs.espressif.com/projects/esp-idf/)
+[![ESP-IDF 6.1](https://img.shields.io/badge/ESP--IDF-6.1-0A0F0C.svg)](https://docs.espressif.com/projects/esp-idf/)
 [![CodeQL](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml/badge.svg)](https://github.com/Mattboxx/esp32-tailnet-gateway/actions/workflows/codeql.yml)
 [![Latest stable release](https://img.shields.io/github/v/release/Mattboxx/esp32-tailnet-gateway?label=stable&color=0B7A4B)](../../releases/latest)
 [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-support%20the%20Mattboxx%20edition-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/mattboxx)
@@ -47,6 +47,22 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 > of Cameron Malone's original stack. It is not an
 > official Tailscale client and is not affiliated with Tailscale Inc.,
 > the Headscale project or Espressif. Formerly *ESP32 Homelab Gateway*.
+
+### What's new in Firmware 3.0.18
+
+- **Guided Wi-Fi setup** requires a successful connection test before
+  continuing. The assigned IP is displayed with a copy button.
+- **Recovery alerts** deliver one result per manual operation through enabled
+  ntfy, Telegram and email channels. Scheduled checks alert when a monitored
+  device becomes unreachable.
+- **Networking** moves to ESP-IDF 6.1, fixes `.local` during uplink changes
+  and restores live Wi-Fi traffic counters. Selective LAN-to-Tailnet TCP and
+  UDP can also use the experimental W5500 Ethernet uplink. Cellular-only
+  setups use the AP gateway for local clients.
+- **Mobile navigation** keeps its controls visible while scrolling.
+
+[Install Firmware 3.0.18](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
+· [Full changelog](CHANGELOG.md)
 
 ### Firmware 3.0.13: the same notifications everywhere
 
@@ -596,9 +612,12 @@ published under MIT and copies of them keep those terms. The original firmware's
 
 - **[Csontikka/esp32-tailscale-subnet-router](https://github.com/Csontikka/esp32-tailscale-subnet-router)** —
   the original firmware this edition forks.
-- **[Mattboxx/microlink](https://github.com/Mattboxx/microlink)** — the actual
-  MIT-licensed dependency fork, through [Csontikka/microlink](https://github.com/Csontikka/microlink),
-  of **Cameron Malone's [original MicroLink](https://github.com/CamM2325/microlink)**.
+- **[Mattboxx/microlink](https://github.com/Mattboxx/microlink)** — the pinned
+  networking dependency, derived through [Csontikka's fork](https://github.com/Csontikka/microlink)
+  from **Cameron Malone's [original MicroLink](https://github.com/CamM2325/microlink)**.
+  The current fork uses GPL-3.0-only with an ESP-IDF linking permission and
+  preserves the original MIT and third-party notices. Previously published
+  firmware retains the terms of the MicroLink revision it shipped.
 - **[wireguard_lwip](https://github.com/smartalock/wireguard-lwip)** — Daniel Hope's
   userspace WireGuard for lwIP (BSD-3-Clause), with separately licensed crypto notices.
 - **[ESP-IDF](https://github.com/espressif/esp-idf)** — Espressif SDK (primarily

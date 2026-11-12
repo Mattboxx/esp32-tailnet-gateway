@@ -1,6 +1,7 @@
 /* Event and metrics history; see history.h.
  * Original implementation, Mattboxx Edition. SPDX-License-Identifier: GPL-3.0-only */
 #include "history.h"
+#include "uplink_services.h"
 #include "esp_system.h"
 #include <stdio.h>
 #include <string.h>
@@ -221,8 +222,8 @@ static void take_sample(history_sample_t *s)
     s->int_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
     s->int_largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
     s->psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
-    uint64_t rx = netif_hooks_get_sta_bytes_in() + netif_hooks_get_ppp_bytes_in();
-    uint64_t tx = netif_hooks_get_sta_bytes_out() + netif_hooks_get_ppp_bytes_out();
+    uint64_t rx = netif_hooks_get_sta_bytes_in() + netif_hooks_get_eth_bytes_in() + netif_hooks_get_ppp_bytes_in();
+    uint64_t tx = netif_hooks_get_sta_bytes_out() + netif_hooks_get_eth_bytes_out() + netif_hooks_get_ppp_bytes_out();
     if (s_have_traffic && rx >= s_last_rx && tx >= s_last_tx) {
         uint64_t drx = rx - s_last_rx, dtx = tx - s_last_tx;
         s->rx = drx > UINT32_MAX ? UINT32_MAX : (uint32_t)drx;
@@ -244,7 +245,7 @@ static void take_sample(history_sample_t *s)
         }
         s->peers = online > 255 ? 255 : (uint8_t)online;
     }
-    s->flags = (ap_connect ? HIST_UP_UPLINK : 0) | (tailnet ? HIST_UP_TAILNET : 0);
+    s->flags = (uplink_internet_ready() ? HIST_UP_UPLINK : 0) | (tailnet ? HIST_UP_TAILNET : 0);
 }
 
 static void store_sample(const history_sample_t *s)

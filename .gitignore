@@ -17,7 +17,6 @@ build_eth/
 .pio*
 managed_components/
 .test-deps/
-dependencies.lock
 sdkconfig
 sdkconfig.old
 sdkconfig.esp32*

@@ -28,7 +28,7 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 # PROJECT_VER lands in the esp_app_desc_t struct so the running firmware
 # can report its version via the OTA APIs and the web UI's Status page.
-set(PROJECT_VER "3.0.17")
+set(PROJECT_VER "3.0.18")
 # The migration bridge (env esp32-s3-bridge, CONFIG_TSR_MIGRATION_BRIDGE) is a
 # 2.x-line release so that 2.x updaters install it like any other update.
 set(TSR_BRIDGE_VER "2.1.0")
@@ -55,15 +55,17 @@ endif()
 
 project(esp32_tsr)
 
-# esp-mqtt has no task-memory capabilities option in the pinned SDK. Adapt
-# only its task create/delete calls, not global FreeRTOS allocation or SDK files.
-# Fail configuration on an unreviewed SDK change: task ownership must be checked
-# before applying the same paired allocation adapter to another version.
-file(SHA256 "$ENV{IDF_PATH}/components/mqtt/esp-mqtt/mqtt_client.c" _mqtt_source_hash)
-if(NOT _mqtt_source_hash STREQUAL "0651edbb34dee8bf9babc684ba4ccf231ed562fdab6218f0aa5b4d80f6a990fb")
+# Keep the reviewed task reaper. The upstream external-stack option uses
+# vTaskDeleteWithCaps(NULL), which can allocate during self-deletion.
+if(CONFIG_MQTT_TASK_STACK_ON_EXTERNAL_MEMORY)
+    message(FATAL_ERROR "The project MQTT task reaper requires the upstream external-stack option off")
+endif()
+idf_component_get_property(_mqtt_component_dir espressif__mqtt COMPONENT_DIR)
+file(SHA256 "${_mqtt_component_dir}/mqtt_client.c" _mqtt_source_hash)
+if(NOT _mqtt_source_hash STREQUAL "83e5a7065b8774dce83dd6b9be0163caed3a4fdbbd7de38b328e7e01911487dc")
     message(FATAL_ERROR "Unreviewed esp-mqtt source: review task ownership before updating mqtt_task_memory.h adapter")
 endif()
-idf_component_get_property(_mqtt_component_lib mqtt COMPONENT_LIB)
+idf_component_get_property(_mqtt_component_lib espressif__mqtt COMPONENT_LIB)
 target_compile_options(${_mqtt_component_lib} PRIVATE
     "-include${CMAKE_CURRENT_SOURCE_DIR}/main/mqtt_task_memory.h")
 

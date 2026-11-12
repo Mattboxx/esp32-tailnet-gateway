@@ -45,7 +45,7 @@ class UpstreamIntegrationTests(unittest.TestCase):
 
     def test_channel_roam_never_reboots_or_reconfigures_ap(self):
         main = self.text("main/main.c")
-        block = main.split("/* Single radio: the softAP", 1)[1].split("/* Auto-spawn", 1)[0]
+        block = main.split("/* Single radio: the softAP", 1)[1].split("xEventGroupSetBits(s_wifi_event_group", 1)[0]
         self.assertNotIn("esp_restart();", block)
         self.assertNotIn("esp_wifi_set_config(", block.replace("esp_wifi_set_config(WIFI_IF_AP)", ""))
         self.assertIn('nvs_param_set_int("ap_chan_learned"', block)
@@ -53,7 +53,7 @@ class UpstreamIntegrationTests(unittest.TestCase):
     def test_network_limits_and_ui(self):
         defaults = self.text("sdkconfig.defaults")
         self.assertIn("CONFIG_LWIP_MAX_SOCKETS=31", defaults)
-        self.assertIn("framework-espidf @ https://github.com/pioarduino/esp-idf/releases/download/v5.5.6/esp-idf-v5.5.6.tar.xz",
+        self.assertIn("platformio/framework-espidf @ 4.60100.0",
                       self.text("platformio.ini"))
         self.assertIn("CONFIG_LWIP_MAX_ACTIVE_TCP=24", defaults)
         self.assertIn("CONFIG_LWIP_TCP_OOSEQ_MAX_PBUFS=4", defaults)

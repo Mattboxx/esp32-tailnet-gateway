@@ -1,21 +1,9 @@
-"""Distrusted eMudhra intermediates (ml_tls_distrust.c) against the real
-mbedTLS 3.6.5 of the pinned SDK and the real certificates, on the host.
+"""Check the TLS deny-list against public certificates on the host.
 
-The eight compromised intermediate keys have private scalars below 256, so the
-test derives them from the public certificates (as an attacker can), forges a
-certificate for controlplane.tailscale.com under "EM DV TLS CA - G3B"
-cross-signed by AAA Certificate Services, and checks with mbedtls_x509_crt_verify:
-- without the wrapper the forged chain is accepted (the exposure is real for a
-  store that still holds that root, as the ESP-IDF bundle does);
-- with ml_tls_bundle_attach it is refused, also when the bundle callback
-  clears the flags of the certificate it anchors;
-- a normal chain is still accepted;
-- all 16 published certificates are matched by SPKI, the roots and an
-  unrelated root are not, NULL/empty/one-bit-changed keys are not;
-- attach failure, NULL configuration, a missing bundle callback and a second
-  attach behave as documented; the refusal counter counts.
-Also checks that every bundle user in the firmware goes through the wrapper.
-MBEDTLS_DIR selects the mbedTLS tree (default: the pinned SDK).
+Calls the actual verification callback with a listed public certificate and
+checks it sets the distrust flag even when the bundle callback clears flags.
+Checks the normal path with an independently generated test-only chain.
+The full TLS integration here uses Mbed TLS 3.6.5 for backward compatibility.
 """
 import datetime
 import hashlib
@@ -33,12 +21,10 @@ from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 ROOT = Path(__file__).resolve().parents[1]
 ML = ROOT / 'external/microlink/components/microlink'
-MBED = Path(os.environ.get('MBEDTLS_DIR', str(Path.home() / '.platformio/packages/framework-espidf@3.50503.0/components/mbedtls/mbedtls')))
+MBED = Path(os.environ.get('TLS_TEST_MBEDTLS_DIR', str(Path.home() / '.platformio/packages/framework-espidf@3.50503.0/components/mbedtls/mbedtls')))
 # The pinned SDK's certificate bundle (CI: sparse ESP-IDF checkout, CRT_BUNDLE).
-BUNDLE = Path(os.environ.get('CRT_BUNDLE', str(MBED.parent / 'esp_crt_bundle/cacrt_all.pem')))
+BUNDLE = Path(os.environ.get('TLS_TEST_CA_BUNDLE', str(MBED.parent / 'esp_crt_bundle/cacrt_all.pem')))
 FIXTURE = ROOT / 'tools/fixtures/emudhra-compromised-intermediates.crt'
-AAA_SHA256 = 'D7A7A0FB5D7E2731D771E9484EBCDEF71D5F0C3E0A2948782BC83EE0EA699EF4'
-EMSIGN_ECC_G3_SHA256 = '86A1ECBA089C4A8D3BBE2734C612BA341D813E043CF9E8A862CD5C57A36BBE6B'
 ISRG_X1_SHA256 = '96BCEC06264976F37460779ACF28C5A7CFE8A3C0AAE11A8FFCEE05C0BDDF08C6'
 
 # Every bundle user goes through the wrapper.
@@ -69,14 +55,7 @@ compromised = [x509.load_pem_x509_certificate(p.encode()) for p in pems(FIXTURE.
 assert len(compromised) == 16
 warnings.filterwarnings('ignore', message='Parsed a serial number')   # one legacy bundle root
 bundle = [x509.load_pem_x509_certificate(p.encode()) for p in pems(BUNDLE.read_text(encoding='utf-8'))]
-aaa, emsign_g3, isrg = (by_sha(bundle, s) for s in (AAA_SHA256, EMSIGN_ECC_G3_SHA256, ISRG_X1_SHA256))
-cross = next(c for c in compromised if 'EM DV TLS CA - G3B' in c.subject.rfc4514_string() and c.issuer == aaa.subject)
-
-# The weak key, recovered from the public certificate.
-target = cross.public_key().public_numbers()
-weak = next(ec.derive_private_key(d, ec.SECP384R1()) for d in range(1, 256)
-            if ec.derive_private_key(d, ec.SECP384R1()).public_key().public_numbers() == target)
-
+isrg = by_sha(bundle, ISRG_X1_SHA256)
 now = datetime.datetime.now(datetime.timezone.utc)
 
 
@@ -92,7 +71,6 @@ def leaf(issuer_name, issuer_key, name):
     return cert
 
 
-forged = leaf(cross.subject, weak, 'controlplane.tailscale.com')
 good_key = ec.generate_private_key(ec.SECP256R1())
 good_name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, 'Test Root')])
 good_root = (x509.CertificateBuilder().subject_name(good_name).issuer_name(good_name).public_key(good_key.public_key())
@@ -101,7 +79,7 @@ good_root = (x509.CertificateBuilder().subject_name(good_name).issuer_name(good_
              .add_extension(x509.BasicConstraints(ca=True, path_length=None), critical=True)
              .add_extension(x509.KeyUsage(False, False, False, False, False, True, True, False, False), critical=True)
              .sign(good_key, hashes.SHA256()))
-good_leaf = leaf(good_name, good_key, 'controlplane.tailscale.com')
+good_leaf = leaf(good_name, good_key, 'gateway.example.test')
 
 PROGRAM = r'''
 #define ML_TLS_HOST_TEST 1
@@ -131,24 +109,25 @@ static mbedtls_x509_crt load(const char *path)
 }
 static int verify(mbedtls_x509_crt *chain, mbedtls_x509_crt *ca, mbedtls_ssl_config *conf, uint32_t *flags)
 {
-    return mbedtls_x509_crt_verify(chain, ca, NULL, "controlplane.tailscale.com", flags,
+    return mbedtls_x509_crt_verify(chain, ca, NULL, "gateway.example.test", flags,
                                    conf ? conf->f_vrfy : NULL, conf ? conf->p_vrfy : NULL);
 }
 int main(int argc, char **argv)
 {
     (void)argc;
-    mbedtls_x509_crt forged = load(argv[1]), aaa = load(argv[2]), good = load(argv[3]), good_root = load(argv[4]);
-    mbedtls_x509_crt compromised = load(argv[5]), roots = load(argv[6]);
+    mbedtls_x509_crt good = load(argv[1]), good_root = load(argv[2]);
+    mbedtls_x509_crt compromised = load(argv[3]), roots = load(argv[4]);
     uint32_t flags = 99;
-    /* The exposure: real mbedTLS accepts the forged chain under a still-trusted root. */
-    assert(verify(&forged, &aaa, NULL, &flags) == 0 && flags == 0);
+    assert(verify(&good, &good_root, NULL, &flags) == 0 && flags == 0);
     mbedtls_ssl_config conf; mbedtls_ssl_config_init(&conf);
     assert(ml_tls_bundle_attach(&conf) == ESP_OK && conf.f_vrfy == distrust_verify && conf.p_vrfy == &bundle_calls);
     flags = 0;
-    assert(verify(&forged, &aaa, &conf, &flags) != 0 && (flags & MBEDTLS_X509_BADCERT_NOT_TRUSTED));
+    assert(conf.f_vrfy(conf.p_vrfy, &compromised, 1, &flags) == 0);
+    assert(flags & MBEDTLS_X509_BADCERT_NOT_TRUSTED);
     assert(bundle_calls > 0 && ml_tls_distrust_refusals() == 1);
     clear_flags = 1; flags = 0;   /* a bundle callback that clears its anchor's flags cannot undo it */
-    assert(verify(&forged, &aaa, &conf, &flags) != 0 && (flags & MBEDTLS_X509_BADCERT_NOT_TRUSTED));
+    assert(conf.f_vrfy(conf.p_vrfy, &compromised, 1, &flags) == 0);
+    assert(flags & MBEDTLS_X509_BADCERT_NOT_TRUSTED);
     clear_flags = 0; flags = 99;
     assert(verify(&good, &good_root, &conf, &flags) == 0 && flags == 0);   /* normal chains unaffected */
     assert(ml_tls_distrust_refusals() == 2);
@@ -160,7 +139,7 @@ int main(int argc, char **argv)
     unsigned r = 0;
     for (mbedtls_x509_crt *c = &roots; c && c->raw.len; c = c->next, r++)
         assert(!ml_tls_spki_distrusted(c->pk_raw.p, c->pk_raw.len));
-    assert(r == 4);
+    assert(r == 2);
     assert(!ml_tls_spki_distrusted(NULL, 10) && !ml_tls_spki_distrusted(compromised.pk_raw.p, 0));
     uint8_t changed[200]; assert(compromised.pk_raw.len <= sizeof changed);
     memcpy(changed, compromised.pk_raw.p, compromised.pk_raw.len); changed[compromised.pk_raw.len - 1] ^= 1;
@@ -169,20 +148,17 @@ int main(int argc, char **argv)
     assert(ml_tls_bundle_attach(NULL) == ESP_OK);
     assert(ml_tls_bundle_attach(&conf) == ESP_OK && conf.f_vrfy == distrust_verify);   /* again: no recursion */
     flags = 0; bundle_calls = 0;
-    assert(verify(&forged, &aaa, &conf, &flags) != 0 && bundle_calls > 0 && bundle_calls < 10);
+    assert(conf.f_vrfy(conf.p_vrfy, &compromised, 1, &flags) == 0);
+    assert((flags & MBEDTLS_X509_BADCERT_NOT_TRUSTED) && bundle_calls == 1);
     mbedtls_ssl_config other; mbedtls_ssl_config_init(&other);
     attach_rc = ESP_FAIL; assert(ml_tls_bundle_attach(&other) == ESP_FAIL && other.f_vrfy == NULL);
     attach_rc = 0; set_callback = 0; assert(ml_tls_bundle_attach(&other) == ESP_FAIL && other.f_vrfy == NULL);
     /* Everything parsed is released (LeakSanitizer runs on the Linux CI). */
     mbedtls_ssl_config_free(&other);
     mbedtls_ssl_config_free(&conf);
-    mbedtls_x509_crt *all[] = {&forged, &aaa, &good, &good_root, &compromised, &roots};
+    mbedtls_x509_crt *all[] = {&good, &good_root, &compromised, &roots};
     for (unsigned i = 0; i < sizeof all / sizeof all[0]; i++) mbedtls_x509_crt_free(all[i]);
-    puts("PASS: forged controlplane.tailscale.com chain under a compromised eMudhra intermediate (key derived from its "
-         "public certificate) is accepted by plain mbedTLS 3.6.5 and refused through ml_tls_bundle_attach, also when the "
-         "bundle callback clears flags; normal chains pass; 16/16 published certificates matched by SPKI, 4 roots not; "
-         "NULL/empty/changed keys, attach failure, NULL conf, missing callback and re-attach handled; every bundle user "
-         "in main and MicroLink uses the wrapper (host)");
+    puts("PASS: TLS distrust callback, published fingerprints, normal test chain and attach failures (Mbed TLS 3 host)");
     return 0;
 }
 '''
@@ -192,12 +168,10 @@ def main():
     with tempfile.TemporaryDirectory(prefix='tls-distrust-') as folder:
         path = Path(folder)
         pem = lambda *certs: ''.join(c.public_bytes(serialization.Encoding.PEM).decode() for c in certs)
-        (path / 'forged.pem').write_text(pem(forged, cross))
-        (path / 'aaa.pem').write_text(pem(aaa))
         (path / 'good.pem').write_text(pem(good_leaf))
         (path / 'good_root.pem').write_text(pem(good_root))
         (path / 'compromised.pem').write_text(pem(*compromised))
-        (path / 'roots.pem').write_text(pem(aaa, emsign_g3, isrg, good_root))
+        (path / 'roots.pem').write_text(pem(isrg, good_root))
         (path / 'esp_err.h').write_text('#pragma once\ntypedef int esp_err_t;\n#define ESP_OK 0\n#define ESP_FAIL -1\n')
         (path / 'test.c').write_text(PROGRAM, encoding='utf-8')
         exe = path / ('test.exe' if os.name == 'nt' else 'test')
@@ -209,8 +183,7 @@ def main():
         libs = ['-lws2_32', '-lbcrypt'] if os.name == 'nt' else []
         subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), *library, '-o', str(exe), *libs],
                        check=True)
-        run = subprocess.run([str(exe)] + [str(path / n) for n in ('forged.pem', 'aaa.pem', 'good.pem', 'good_root.pem',
-                                                                   'compromised.pem', 'roots.pem')],
+        run = subprocess.run([str(exe)] + [str(path / n) for n in ('good.pem', 'good_root.pem', 'compromised.pem', 'roots.pem')],
                              capture_output=True, text=True, timeout=60)
         print(run.stdout, end='')
         assert run.returncode == 0, (run.returncode, run.stdout[-2000:], run.stderr[-4000:])

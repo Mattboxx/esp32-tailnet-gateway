@@ -75,7 +75,14 @@ class LicenseComplianceTests(unittest.TestCase):
                      'CamM2325/microlink','Cameron Malone','2021 Daniel Hope',
                      'Cryptography Research, Inc.','GCC Runtime Library Exception'):
             self.assertIn(item,notice)
-        original=(ROOT/'external/microlink/LICENSE').read_text()
+        microlink=ROOT/'external/microlink'
+        fork_license=(microlink/'LICENSE').read_text(encoding='utf-8')
+        if fork_license.lstrip().startswith('GNU GENERAL PUBLIC LICENSE'):
+            self.assertIn('ESP-IDF', (microlink/'LICENSE-EXCEPTION.md').read_text(encoding='utf-8'))
+            self.assertIn('Cameron Malone', (microlink/'NOTICE.md').read_text(encoding='utf-8'))
+            original=(microlink/'LICENSES/MicroLink-MIT.txt').read_text(encoding='utf-8')
+        else:
+            original=fork_license
         self.assertIn('Copyright (c) 2025-2026 Cameron Malone',original)
         # Upstream stores CRLF (blob befb8e0); compare normalized text across
         # Windows/Linux checkouts without changing the original license file.

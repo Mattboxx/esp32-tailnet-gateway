@@ -76,7 +76,7 @@ bool telegram_commands_config_valid(const telegram_commands_config_t *c)
 #include "esp_heap_caps.h"
 #include "esp_http_client.h"
 #include "esp_log.h"
-#include "eth_uplink.h"
+#include "uplink_services.h"
 #include "esp_netif.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/idf_additions.h"
@@ -131,9 +131,7 @@ static uint32_t wall(void) { time_t t = time(NULL); return t > 1700000000 ? (uin
 
 static bool uplink_up(void)
 {
-    esp_netif_t *sta = eth_uplink_service_netif();
-    esp_netif_ip_info_t ip = {0};
-    return sta && esp_netif_is_netif_up(sta) && esp_netif_get_ip_info(sta, &ip) == ESP_OK && ip.ip.addr;
+    return uplink_internet_ready();
 }
 
 static void set_error(const char *why)

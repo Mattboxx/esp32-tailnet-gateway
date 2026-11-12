@@ -223,7 +223,7 @@ static void portmap_install_cb(void *arg)
     /* WiFi STA, or the optional Ethernet netif while it is the selected uplink. */
     esp_netif_t *sta = eth_uplink_service_netif();
     esp_netif_ip_info_t ip_info = {0};
-    if (!sta || esp_netif_get_ip_info(sta, &ip_info) != ESP_OK || !ip_info.ip.addr) {
+    if (!sta || !esp_netif_is_netif_up(sta) || esp_netif_get_ip_info(sta, &ip_info) != ESP_OK || !ip_info.ip.addr) {
         ESP_LOGI(TAG, "uplink has no IP yet; deferring portmap install");
         return;
     }
