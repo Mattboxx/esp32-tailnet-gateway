@@ -73,7 +73,8 @@ static void migrate_v1_to_v2(nvs_handle_t h, reset_history_entry_t *hist)
         for (int i = 0; i < RESET_HISTORY_MAX; i++) {
             if (strstr(hist[i].reason, "PANIC") ||
                 strstr(hist[i].reason, "WDT")) {
-                strncpy(hist[i].crash, lc, sizeof(hist[i].crash) - 1);
+                snprintf(hist[i].crash, sizeof(hist[i].crash), "%.*s",
+                         (int)sizeof(hist[i].crash) - 1, lc);
                 break;
             }
         }
@@ -214,7 +215,8 @@ void reset_history_record_boot(void)
     time(&now);
     hist[0].wallclock = (now > 1700000000) ? (uint32_t)now : 0;
     strncpy(hist[0].reason, rs,          sizeof(hist[0].reason) - 1);
-    strncpy(hist[0].who,    who_capture, sizeof(hist[0].who)    - 1);
+    snprintf(hist[0].who, sizeof(hist[0].who), "%.*s",
+             (int)sizeof(hist[0].who) - 1, who_capture);
 
     nvs_set_blob(h, KEY_BLOB, hist, sizeof(hist));
     nvs_commit(h);

@@ -69,6 +69,8 @@ static int microlink_get_peer_info(microlink_t *m,int i,microlink_peer_info_t *p
 typedef struct { uint32_t ip; } esp_netif_t;
 typedef struct { struct { uint32_t addr; } ip; } esp_netif_ip_info_t;
 static esp_netif_t sta={0xc0000201},ap={0xc0000202};
+static esp_netif_t *eth_uplink_netif(void) { return NULL; }
+static esp_netif_t *uplink_internet_netif(void) { return &sta; }
 static esp_netif_t *esp_netif_get_handle_from_ifkey(const char *key) { return !strcmp(key,"WIFI_STA_DEF")?&sta:&ap; }
 static int esp_netif_get_ip_info(esp_netif_t *n,esp_netif_ip_info_t *i) { i->ip.addr=swap32(n->ip); return ESP_OK; }
 static void address(struct sockaddr_storage *s,int family,uint32_t host) {

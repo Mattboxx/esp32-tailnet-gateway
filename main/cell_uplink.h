@@ -11,6 +11,7 @@
  * the next boot. Not physically qualified on any modem yet.
  * Original implementation, Mattboxx Edition. MIT. */
 #pragma once
+#include "esp_netif.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -61,4 +62,6 @@ void cell_uplink_get_status(cell_status_t *out);
 /* TCP/IP context only (route supervisor): the cellular netif when it should
  * carry the Internet uplink instead of `current`, otherwise NULL. */
 struct netif *cell_uplink_lwip_select(struct netif *current);
+struct netif *cell_uplink_selected_lwip(void);
+esp_netif_t *cell_uplink_preferred_netif(esp_netif_t *lan);
 esp_err_t cell_uplink_register_http(httpd_handle_t server);

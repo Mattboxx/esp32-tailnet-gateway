@@ -34,6 +34,7 @@ bool first_boot_ap_frame_allowed(const uint8_t *frame, size_t len);
 
 /* Implemented in main.c: trial association used by the setup wizard. */
 esp_err_t wifi_setup_test_start(const char *ssid, const char *password);
+bool wifi_setup_test_matches(const char *ssid, const char *password);
 void wifi_setup_test_get(fb_wifi_state_t *state, uint32_t *ip_nbo, uint32_t *mask_nbo, int *reason);
 
 #ifdef __cplusplus

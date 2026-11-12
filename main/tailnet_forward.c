@@ -352,6 +352,22 @@ bool tailnet_forward_allow_ipv4_packet(struct pbuf *p,struct netif *input)
     bool uplink=(input->name[0]=='s'&&input->name[1]=='t')||(input->name[0]=='e'&&input->name[1]=='n');
     return allow_packet(p,false,netif_ip4_addr(input)->addr,uplink);
 }
-bool tailnet_forward_is_routed_target(uint8_t proto,uint32_t dst,uint16_t port){LOCK();bool found=false;for(int i=0;i<TAILNET_FORWARD_MAX;i++)if(s_active[i].installed&&s_active[i].mapping.rule.proto==proto&&s_active[i].mapping.destination_nbo==dst&&s_active[i].mapping.rule.destination_port==port){found=true;break;}UNLOCK();return found;}
-bool tailnet_forward_is_routed_response(uint8_t proto,uint32_t src,uint16_t port){return tailnet_forward_is_routed_target(proto,src,port);}
+bool tailnet_forward_is_routed_target(uint32_t binding_ip_nbo, uint8_t proto,
+                                     uint32_t dst, uint16_t port)
+{
+    if (!binding_ip_nbo || !port) return false;
+    bool found = false;
+    LOCK();
+    for (int i = 0; i < TAILNET_FORWARD_MAX; i++) {
+        const tailnet_forward_mapping_t *m = &s_active[i].mapping;
+        if (s_active[i].installed && m->binding_ip_nbo == binding_ip_nbo &&
+            m->rule.proto == proto && m->destination_nbo == dst &&
+            m->rule.destination_port == port) {
+            found = true;
+            break;
+        }
+    }
+    UNLOCK();
+    return found;
+}
 void tailnet_forward_totals(uint32_t *enabled,uint32_t *installed,uint32_t *accepted,uint32_t *blocked){uint32_t e=0,n=0,a=0,b=0;LOCK();for(int i=0;i<s_count;i++){if(s_rules[i].enabled)e++;if(s_runtime[i].installed)n++;a+=s_runtime[i].accepted_packets;b+=s_runtime[i].blocked_packets;}UNLOCK();if(enabled)*enabled=e;if(installed)*installed=n;if(accepted)*accepted=a;if(blocked)*blocked=b;}

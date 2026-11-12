@@ -85,9 +85,13 @@ fb_result_t fb_begin(fb_ctx_t *ctx, uint32_t client_ip, const uint8_t client_pub
     memcpy(material + n, shared, 32); n += 32;
     memcpy(material + n, s.device_pub, 32); n += 32;
     memcpy(material + n, client_pub, 32); n += 32;
-    ctx->crypto->sha256(material, n, s.key);
+    int hash_result = ctx->crypto->sha256(material, n, s.key);
     wipe(shared, sizeof shared);
     wipe(material, sizeof material);
+    if (hash_result != 0) {
+        wipe(&s, sizeof s);
+        return FB_ERR_BAD_KEY;
+    }
     ctx->crypto->random(s.sid, sizeof s.sid);
     s.state = FB_PENDING;
     s.client_ip = client_ip;
@@ -202,15 +206,10 @@ const char *fb_check_admin_password(const char *pw, const char *ssid)
     return NULL;
 }
 
-const char *fb_check_uplink(const char *type, bool has_wifi, bool has_key, bool exit_node)
+const char *fb_check_uplink(const char *type, bool has_wifi)
 {
     if (!type || !strcmp(type, "wifi")) return has_wifi ? NULL : "choose a Wi-Fi network";
-    if (!strcmp(type, "ethernet")) return NULL;          /* Wi-Fi optional: a backup */
-    if (!strcmp(type, "cellular")) {
-        if (!has_wifi && !has_key) return "with only the mobile network the gateway is reached through the tailnet: add an auth key";
-        if (exit_node) return "an exit node over mobile data is not set up here; turn it on later if your plan allows it";
-        return NULL;
-    }
+    if (!strcmp(type, "ethernet") || !strcmp(type, "cellular")) return NULL;
     return "unknown connection type";
 }
 

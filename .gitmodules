@@ -1,4 +1,4 @@
 [submodule "external/microlink"]
 	path = external/microlink
 	url = https://github.com/Mattboxx/microlink.git
-	branch = mattboxx
+	branch = fix/esp-idf-6.1

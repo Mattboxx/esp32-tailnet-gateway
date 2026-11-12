@@ -1,4 +1,4 @@
-"""mDNS probing on an uplink without IPv6 addresses (host, actual lwIP code).
+"""mDNS probing and interface teardown (host, actual lwIP code).
 
 The firmware never assigns IPv6 addresses to its Wi-Fi uplink. lwIP 2.2.0's
 responder (as shipped in ESP-IDF 5.5.3) advances probing only when both the
@@ -12,6 +12,7 @@ otherwise LWIP_SOURCE selects the pinned lwIP checkout used by Linux CI.
 """
 from pathlib import Path
 import os
+import re
 import subprocess
 import tempfile
 
@@ -40,7 +41,7 @@ patched = (ROOT / 'main/lwip_mdns/mdns.c').read_text(encoding='utf-8')
 original = (SDK / 'mdns.c').read_text(encoding='utf-8')
 SIG = 'static void\nmdns_probe_and_announce(void* arg)\n'
 HAS6 = 'static int\nmdns_netif_has_ip6(struct netif *netif)\n'
-# The copy must equal the SDK file apart from the header note and the patch.
+# The copy must equal the SDK file apart from the header note and the patches.
 assert 'mdns_netif_has_ip6' not in original, 'the SDK changed: review main/lwip_mdns/mdns.c'
 stripped = patched.replace('\r\n', '\n').split('*/\n', 1)[1]
 for piece in (c_func(stripped.replace('\r\n', '\n'), HAS6),):
@@ -51,7 +52,15 @@ stripped = stripped.replace(
          * then retries forever and never answers. Probe IPv4 only there. */
         if (!mdns_netif_has_ip6(netif) || mdns_send_probe(netif, &v6group) == ERR_OK)""",
     """        if (mdns_send_probe(netif, &v6group) == ERR_OK)""", 1)
-assert stripped == original.replace('\r\n', '\n'), 'main/lwip_mdns/mdns.c differs from the SDK beyond the documented patch'
+REMOVE = 'err_t\nmdns_resp_remove_netif(struct netif *netif)\n'
+FREE_TC = 'static void\nmdns_free_tc_question(struct mdns_packet *pkt)\n'
+HANDLE_TC = 'static void\nmdns_handle_tc_question(void *arg)\n'
+CANCEL_TC = 'static void\nmdns_cancel_tc_questions(struct netif *netif)\n'
+for sig in (FREE_TC, CANCEL_TC):
+    stripped = stripped.replace(c_func(stripped, sig) + '\n\n', '', 1)
+for sig in (HANDLE_TC, REMOVE):
+    stripped = stripped.replace(c_func(stripped, sig), c_func(original, sig), 1)
+assert stripped == original.replace('\r\n', '\n'), 'main/lwip_mdns/mdns.c differs from the SDK beyond the documented patches'
 
 fixture = r'''
 #include <assert.h>
@@ -130,14 +139,118 @@ int main(void) {
 }
 '''
 
-for label, source, extra in (('sdk', original, ['-DEXPECT_STUCK']), ('patched', patched.replace('\r\n', '\n'), [])):
-    functions = (c_func(source, HAS6) + '\n' if label == 'patched' else '') + c_func(source, SIG)
+def run_test(code, extra=()):
     with tempfile.TemporaryDirectory(prefix='lan-mdns-') as directory:
         path = Path(directory)
-        (path / 'test.c').write_text(fixture + functions + tests, encoding='utf-8')
+        (path / 'test.c').write_text(code, encoding='utf-8')
         flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-Wno-unused-function', *extra]
         if os.environ.get('MDNS_SANITIZE') == '1':
             flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
         binary = path / ('test.exe' if os.name == 'nt' else 'test')
         subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary)], check=True)
         subprocess.run([str(binary)], check=True)
+
+
+run_test(fixture + c_func(original, SIG) + tests, ['-DEXPECT_STUCK'])
+run_test(fixture + c_func(patched, HAS6) + '\n' + c_func(patched, SIG) + tests)
+
+# Use the SDK's scheduled callback names as the independent timer fixture.
+sdk_out = (SDK / 'mdns_out.c').read_text(encoding='utf-8')
+timers = set(re.findall(r'mdns_set_timeout\(netif, [^,]+, (mdns_\w+),', original + sdk_out))
+assert len(timers) == 10, 'Review the SDK mDNS timer changes'
+names = ['mdns_probe_and_announce', *sorted(timers)]
+stubs = '\n'.join(f'static void {name}(void *arg) {{ (void)arg; }}' for name in names)
+schedule = '\n'.join(f'    add({name}, &ap); add({name}, &sta);' for name in names)
+teardown = r'''
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#define LWIP_IPV4 1
+#define LWIP_IPV6 1
+#define LWIP_ASSERT_CORE_LOCKED() ((void)0)
+#define LWIP_ASSERT(msg, condition) assert(condition)
+#define LWIP_ERROR(msg, condition, action) do { if (!(condition)) { action; } } while (0)
+#define ERR_OK 0
+#define ERR_VAL -1
+#define MDNS_MAX_SERVICES 1
+typedef int err_t;
+typedef uint8_t u8_t;
+struct mdns_service { int data; };
+struct mdns_host { struct mdns_service *services[MDNS_MAX_SERVICES]; };
+struct netif { u8_t index; struct mdns_host *host; };
+struct pbuf { u8_t if_idx; };
+struct mdns_packet { struct pbuf *pbuf; struct mdns_packet *next_answer, *next_tc_question; };
+static struct mdns_packet *pending_tc_questions;
+static struct netif ap = {.index = 1}, sta = {.index = 2};
+static struct netif *netif_get_by_index(u8_t index) { return index == ap.index ? &ap : &sta; }
+#define netif_get_index(n) ((n)->index)
+#define NETIF_TO_HOST(n) ((n)->host)
+#define netif_set_client_data(n, id, data) ((n)->host = (data))
+#define igmp_leavegroup_netif(n, group) ((void)(n))
+#define mld6_leavegroup_netif(n, group) ((void)(n))
+static unsigned buffers_freed, packets_freed, handled;
+static void pbuf_free(struct pbuf *buf) { ++buffers_freed; free(buf); }
+#define LWIP_MEMPOOL_FREE(pool, ptr) do { ++packets_freed; free(ptr); } while (0)
+static void mdns_handle_question(struct mdns_packet *pkt, struct netif *netif) {
+    assert(pkt->pbuf->if_idx == sta.index && netif == &sta && netif->host);
+    ++handled;
+}
+struct timeout { void (*fn)(void *); void *arg; };
+static struct timeout pending_timers[32];
+static unsigned timer_count;
+static void add(void (*fn)(void *), void *arg) {
+    assert(timer_count < sizeof pending_timers / sizeof pending_timers[0]);
+    pending_timers[timer_count++] = (struct timeout){fn, arg};
+}
+static void sys_untimeout(void (*fn)(void *), void *arg) {
+    for (unsigned i = 0; i < timer_count; ++i) {
+        if (pending_timers[i].fn == fn && pending_timers[i].arg == arg) {
+            pending_timers[i] = pending_timers[--timer_count];
+            return;
+        }
+    }
+}
+static void mem_free(void *ptr) {
+    for (unsigned i = 0; i < timer_count; ++i) assert(pending_timers[i].arg != &ap);
+    free(ptr);
+}
+static struct mdns_packet *packet(u8_t idx) {
+    struct mdns_packet *pkt = calloc(1, sizeof *pkt);
+    assert(pkt);
+    pkt->pbuf = malloc(sizeof *pkt->pbuf);
+    assert(pkt->pbuf);
+    pkt->pbuf->if_idx = idx;
+    return pkt;
+}
+'''
+teardown_cases = r'''
+int main(void) {
+    ap.host = calloc(1, sizeof *ap.host);
+    sta.host = calloc(1, sizeof *sta.host);
+    assert(ap.host && sta.host);
+    struct mdns_packet *first = packet(ap.index), *other = packet(sta.index), *last = packet(ap.index);
+    first->next_answer = packet(ap.index);
+    first->next_tc_question = other;
+    other->next_tc_question = last;
+    pending_tc_questions = first;
+    add(mdns_handle_tc_question, first);
+    add(mdns_handle_tc_question, other);
+    add(mdns_handle_tc_question, last);
+''' + schedule + r'''
+    assert(mdns_resp_remove_netif(&ap) == ERR_OK && !ap.host);
+    assert(mdns_resp_remove_netif(&ap) == ERR_VAL);
+    assert(pending_tc_questions == other && !other->next_tc_question);
+    assert(buffers_freed == 3 && packets_freed == 3 && !handled && timer_count == 12);
+    while (timer_count) {
+        struct timeout t = pending_timers[--timer_count];
+        assert(t.arg == &sta || t.arg == other);
+        t.fn(t.arg);
+    }
+    assert(!pending_tc_questions && buffers_freed == 4 && packets_freed == 4 && handled == 1);
+    assert(mdns_resp_remove_netif(&sta) == ERR_OK);
+    puts("PASS: mDNS teardown cancels all AP timers and frees queued packets without affecting STA (host)");
+}
+'''
+run_test(teardown + stubs + '\n' + '\n'.join(c_func(patched, sig) for sig in
+         (FREE_TC, HANDLE_TC, CANCEL_TC, REMOVE)) + teardown_cases)

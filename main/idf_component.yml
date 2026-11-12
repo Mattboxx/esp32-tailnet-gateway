@@ -1,0 +1,6 @@
+dependencies:
+  idf: "==6.1.0"
+  espressif/mqtt: "==1.1.0"
+  espressif/w5500: "==2.0.1"
+  espressif/wiznet_common: "==1.1.0"
+  espressif/cjson: "==1.7.19~2"

@@ -3,6 +3,7 @@
  * and LICENSE-EXCEPTION.md. */
 /* Wake-on-LAN persistence + UDP magic-packet transport. */
 #include "wol.h"
+#include "uplink_services.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -191,22 +192,22 @@ esp_err_t wol_set_all(const wol_device_t *devices, int count)
     return err;
 }
 
-static bool derive_sta_broadcast(char out[16])
+static bool wol_lan_address(esp_netif_ip_info_t *info)
 {
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
-    esp_netif_ip_info_t info = {0};
-    if (!sta || esp_netif_get_ip_info(sta, &info) != ESP_OK || !info.ip.addr) return false;
-    ip4_addr_t broadcast = { .addr = info.ip.addr | ~info.netmask.addr };
-    snprintf(out, 16, IPSTR, IP2STR(&broadcast));
-    return true;
+    return uplink_address(uplink_local_netif(), info);
 }
 
 esp_err_t wol_send_mac(const uint8_t mac[6], const char *broadcast, uint16_t port)
 {
     if (!mac) return ESP_ERR_INVALID_ARG;
     char derived[16];
-    if (!broadcast || !broadcast[0]) {
-        if (!derive_sta_broadcast(derived)) return ESP_ERR_INVALID_STATE;
+    bool automatic = !broadcast || !broadcast[0];
+    bool bind_lan = automatic || !strcmp(broadcast, "255.255.255.255");
+    esp_netif_ip_info_t info = {0};
+    if (bind_lan && !wol_lan_address(&info)) return ESP_ERR_INVALID_STATE;
+    if (automatic) {
+        ip4_addr_t subnet_broadcast = {.addr = info.ip.addr | ~info.netmask.addr};
+        snprintf(derived, sizeof derived, IPSTR, IP2STR(&subnet_broadcast));
         broadcast = derived;
     }
     if (port == 0) port = 9;
@@ -223,6 +224,13 @@ esp_err_t wol_send_mac(const uint8_t mac[6], const char *broadcast, uint16_t por
 
     int sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (sock < 0) return ESP_FAIL;
+    if (bind_lan) {
+        struct sockaddr_in source = {.sin_family = AF_INET, .sin_addr.s_addr = info.ip.addr};
+        if (bind(sock, (const struct sockaddr *)&source, sizeof source) != 0) {
+            close(sock);
+            return ESP_FAIL;
+        }
+    }
     int yes = 1;
     if (setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &yes, sizeof yes) != 0) {
         close(sock);

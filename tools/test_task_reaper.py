@@ -83,7 +83,7 @@ static void run_reaper(void)
 { TaskHandle_t saved=current; current=reaper_handle; stop_reaper=0;
   if(!setjmp(suspended_jump)) reaper_fn(NULL); assert(stop_reaper); current=saved; }
 int main(void){
-#if !CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+#if !CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
     caps_create_ok=0;
 #endif
     /* No reaper yet: SDK self-delete fallback, counted. */
@@ -93,12 +93,12 @@ int main(void){
     assert(task_reaper_init()==ESP_ERR_NO_MEM && !critical);
     assert(run_self_delete((void*)0x21)==3 && sdk_self_deletes==2);
     plain_create_ok=1;
-#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+#if CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
     caps_create_ok=1;
 #endif
     int caps_before=caps_creates, plain_before=plain_creates;
     assert(task_reaper_init()==ESP_OK);
-#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+#if CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
     assert(caps_creates==caps_before+1 && plain_creates==plain_before); /* PSRAM stack first */
 #else
     assert(caps_creates==caps_before && plain_creates==plain_before+1);
@@ -143,7 +143,7 @@ with tempfile.TemporaryDirectory(prefix='task-reaper-') as directory:
     if os.environ.get('REAPER_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     for external in (1, 0):
-        program = (f'#define CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY {external}\n' + FIXTURE + proto
+        program = (f'#define CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM {external}\n' + FIXTURE + proto
                    + SOURCE.replace('__attribute__((noreturn))', '') + TEST)
         c = path / f'reaper{external}.c'; c.write_text(program, encoding='utf-8')
         binary = path / (f'reaper{external}' + ('.exe' if os.name == 'nt' else ''))

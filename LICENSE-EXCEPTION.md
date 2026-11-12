@@ -27,8 +27,10 @@ PARTICULAR PURPOSE. See the GNU General Public License for more details.
 - Code from the original firmware by Csontikka stays available under its MIT
   License, kept verbatim in
   [licenses/upstream/esp32-tailscale-subnet-router-MIT.txt](licenses/upstream/esp32-tailscale-subnet-router-MIT.txt).
-  MicroLink (`external/microlink`) keeps its own MIT License, and every other
-  third-party component keeps its own terms (see [NOTICE.md](NOTICE.md)).
+  The pinned MicroLink fork (`external/microlink`) has its own GPLv3 linking
+  permission and preserves the original MicroLink MIT notice. Earlier
+  releases retain the terms of the revision they included. Other third-party
+  components keep their own terms (see [NOTICE.md](NOTICE.md)).
   Those notices must be preserved in every copy.
 
 ## Additional permission (GNU GPL version 3, section 7)

@@ -41,6 +41,8 @@
 #include <strings.h>
 
 #include "dns_relay.h"
+#include "eth_uplink.h"
+#include "uplink_services.h"
 #include "sockaddr_ipv4.h"
 #include "esp_heap_caps.h"
 #include "freertos/FreeRTOS.h"
@@ -195,6 +197,8 @@ static bool resolver_is_local(uint32_t resolver_nbo)
     esp_netif_t *interfaces[] = {
         esp_netif_get_handle_from_ifkey("WIFI_STA_DEF"),
         esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"),
+        eth_uplink_netif(),
+        uplink_internet_netif(),
     };
     for (size_t i = 0; i < sizeof(interfaces) / sizeof(interfaces[0]); i++) {
         if (!interfaces[i]) continue;
@@ -222,14 +226,14 @@ static bool resolver_is_usable(uint32_t resolver_nbo)
 }
 
 /* Use an explicit DNS-relay upstream first, otherwise the resolver currently
- * installed on the STA netif.  There is intentionally no public fallback:
+ * installed on the Internet uplink. There is intentionally no public fallback:
  * an absent or unsafe resolver is a configuration error, not permission to
  * send DNS traffic somewhere the operator did not choose. */
 static uint32_t select_resolver(void)
 {
     uint32_t resolver = dns_relay_get_upstream();
     if (resolver == 0) {
-        esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+        esp_netif_t *sta = uplink_internet_netif();
         esp_netif_dns_info_t info = {0};
         if (!sta || esp_netif_get_dns_info(sta, ESP_NETIF_DNS_MAIN, &info) != ESP_OK ||
             info.ip.type != ESP_IPADDR_TYPE_V4) {

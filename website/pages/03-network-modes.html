@@ -40,3 +40,4 @@ order: 3
 
 <h2>Ethernet</h2>
 <p>The standard image includes an optional W5500 SPI Ethernet uplink, off until configured, with explicit pins, DHCP or static IPv4 and WiFi-first or Ethernet-first selection. It is host-tested but <strong>not hardware-validated</strong>; see <a href="{{root}}hardware/">Hardware</a>.</p>
+<p>When Ethernet is the selected LAN, use the gateway's Ethernet address and the configured listen port for a <a href="{{root}}service-gateway/">Service Gateway</a> rule. With a cellular Internet uplink, Service Gateway listeners remain on Wi-Fi or Ethernet when present. For local clients on a cellular-only setup, use the AP gateway.</p>

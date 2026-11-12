@@ -54,7 +54,7 @@ typedef struct {
     void (*random)(uint8_t *out, size_t len);
     /* RFC 7748 X25519; returns 0, or -1 for an all-zero (low-order) result. */
     int (*x25519)(uint8_t out[32], const uint8_t scalar[32], const uint8_t point[32]);
-    void (*sha256)(const uint8_t *data, size_t len, uint8_t out[32]);
+    int (*sha256)(const uint8_t *data, size_t len, uint8_t out[32]);
     /* AES-256-GCM open: returns 0 only when the tag verifies. */
     int (*gcm_open)(const uint8_t key[32], const uint8_t iv[12], const uint8_t *aad, size_t aad_len,
                     const uint8_t *ct, size_t ct_len, const uint8_t tag[16], uint8_t *pt);
@@ -113,7 +113,7 @@ const char *fb_check_hostname(const char *name);
 /* Internet connection chosen in setup: "wifi", "ethernet" or "cellular".
  * Wi-Fi needs a network; with only a SIM the gateway is reached through
  * the tailnet, so an auth key is needed. NULL = acceptable. */
-const char *fb_check_uplink(const char *type, bool has_wifi, bool has_key, bool exit_node);
+const char *fb_check_uplink(const char *type, bool has_wifi);
 /* POSIX TZ rule as written by the Web UI (empty = UTC). */
 const char *fb_check_tz(const char *tz);
 

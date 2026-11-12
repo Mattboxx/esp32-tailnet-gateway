@@ -9,8 +9,8 @@ abstract: >-
   optional MQTT, Home Assistant, ntfy and SNMP integration.
 authors:
   - alias: Mattboxx
-version: 3.0.17
-date-released: 2026-11-10
+version: 3.0.18
+date-released: 2026-11-12
 license: GPL-3.0-only
 repository-code: "https://github.com/Mattboxx/esp32-tailnet-gateway"
 url: "https://mattboxx.github.io/esp32-tailnet-gateway/"
@@ -39,8 +39,8 @@ references:
     authors:
       - alias: Mattboxx
     repository-code: "https://github.com/Mattboxx/microlink"
-    commit: 4ea68d1ce84f149156d810aba5be2138b1b7ab72
-    notes: "Actual submodule dependency. Fork of Csontikka/microlink, descended from Cameron Malone's original MicroLink; not an independently authored VPN stack."
+    commit: 763f5d45f69748322125839d30ee79925aff18d7
+    notes: "Submodule revision shipped with the cited stable 3.0.18. Mattboxx's fork descends from Cameron Malone's original MicroLink through Csontikka's fork."
   - type: software
     title: "MicroLink — Csontikka fork"
     authors:

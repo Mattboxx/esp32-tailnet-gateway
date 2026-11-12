@@ -13,6 +13,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 
+from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+
 ROOT = Path(__file__).resolve().parents[1]
 ML = ROOT / 'external/microlink'
 REL = 'components/microlink/components/wireguard_lwip/src'
@@ -110,6 +112,45 @@ int main(void) {
 '''
 
 
+def noise_test_source():
+    source = (ML / 'components/microlink/src/ml_noise.c').read_text(encoding='utf-8')
+    start = source.index('static int noise_aead_encrypt(')
+    end = source.index('/* ===', start)
+    key = bytes(range(32))
+    nonce = 0x0123456789ABCDEF
+    aad = b'Noise test context'
+    plaintext = b'control frame'
+    cipher = ChaCha20Poly1305(key)
+    vectors = [cipher.encrypt(bytes(4) + nonce.to_bytes(8, 'big'), data, aad)
+               for data in (plaintext, b'')]
+    arrays = '\n'.join(f'static const uint8_t expected_{i}[] = {{'
+                        + ','.join(map(str, vector)) + '};'
+                        for i, vector in enumerate(vectors))
+    return '#include <limits.h>\n' + source[start:end] + arrays + r'''
+static void test_noise(void)
+{
+    uint8_t key[32], sealed[32], opened[sizeof "control frame"];
+    static const uint8_t aad[] = "Noise test context";
+    static const uint8_t plaintext[] = "control frame";
+    const uint64_t nonce = 0x0123456789ABCDEFULL;
+    for (unsigned i = 0; i < sizeof key; ++i) key[i] = (uint8_t)i;
+    assert(noise_aead_encrypt(key, nonce, aad, sizeof aad - 1,
+                              plaintext, sizeof plaintext - 1, sealed) == 0);
+    assert(!memcmp(sealed, expected_0, sizeof expected_0));
+    assert(noise_aead_decrypt(key, nonce, aad, sizeof aad - 1,
+                              sealed, sizeof expected_0, opened) == 0);
+    assert(!memcmp(opened, plaintext, sizeof plaintext - 1));
+    sealed[sizeof expected_0 - 1] ^= 1;
+    assert(noise_aead_decrypt(key, nonce, aad, sizeof aad - 1,
+                              sealed, sizeof expected_0, opened) != 0);
+    assert(noise_aead_encrypt(key, nonce, aad, sizeof aad - 1, NULL, 0, sealed) == 0);
+    assert(!memcmp(sealed, expected_1, sizeof expected_1));
+    assert(noise_aead_decrypt(key, nonce, aad, sizeof aad - 1,
+                              sealed, sizeof expected_1, NULL) == 0);
+}
+'''
+
+
 def main():
     cc = os.environ.get('CC', 'gcc')
     flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-O2']
@@ -140,12 +181,15 @@ def main():
         subprocess.run([cc, *flags, '-I', str(ML / REL), '-I', str(ML / REL / 'crypto/refc'), '-c',
                         str(ML / REL / 'crypto.c'), '-o', str(shared)], check=True)
         objects.append(shared)
-        (tmp / 'test.c').write_text(TEST, encoding='utf-8')
+        start = TEST.index('int main(void) {')
+        body = TEST[:start] + noise_test_source() + TEST[start:]
+        body = body.replace('int main(void) {', 'int main(void) {\n    test_noise();')
+        (tmp / 'test.c').write_text(body, encoding='utf-8')
         exe = tmp / ('diff.exe' if os.name == 'nt' else 'diff')
         subprocess.run([cc, *flags, '-I', str(ML / REL), str(tmp / 'test.c'), *map(str, objects), '-o', str(exe)], check=True)
         out = subprocess.run([str(exe)], check=True, capture_output=True, text=True, timeout=300).stdout.strip()
     print(f'PASS: current ChaCha20/Poly1305/AEAD/HChaCha20/XChaCha20 identical to MicroLink {OLD_REV} on {out} '
-          '(lengths 0-1600, misalignment 0-3, in-place, counter wrap, random Poly1305 chunking, tampering)')
+          '(lengths 0-1600, alignment, in-place, counter wrap, tampering, Noise nonce and empty-frame vectors)')
 
 
 if __name__ == '__main__':

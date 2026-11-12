@@ -15,6 +15,9 @@ assert (sdk/'src/core/ipv4/ip4_napt.c').is_file()
 source=(ROOT/'main/tailnet_forward.c').read_text(encoding='utf-8')
 policy='int tailnet_forward_snapshot_mappings'+source.split('int tailnet_forward_snapshot_mappings',1)[1]
 core=(ROOT/'main/tailnet_input.c').read_text(encoding='utf-8')
+route_source=(ROOT/'main/lwip_route_hook.c').read_text(encoding='utf-8')
+napt_marker='static err_t napt_forward('
+service_napt=napt_marker+route_source.split(napt_marker,1)[1]
 
 options=r'''
 #define NO_SYS 1
@@ -95,7 +98,17 @@ struct netif *netif_list,*netif_default;
 union tcp_listen_pcbs_t tcp_listen_pcbs;
 struct udp_pcb *udp_pcbs;
 static struct netif sta,ap,wg;
+static bool ethernet_case;
+static struct netif *find_wg_netif(void) { return &wg; }
+static struct netif *eth_uplink_selected_lwip(void) { return ethernet_case ? &sta : NULL; }
+static struct netif *cell_uplink_selected_lwip(void) { return NULL; }
+static bool netif_is_sta(const struct netif *n) { (void)n; return false; }
+static bool ip_in_cgnat(uint32_t ip) { return (ip & 0xffc00000u) == 0x64400000u; }
+static bool tailscale_snat_subnet_routes;
+static bool tailscale_exit_server_active(void) { return false; }
+err_t __real_ip_napt_forward(struct pbuf *,struct ip_hdr *,struct netif *,struct netif *);
 static unsigned forwarded,local_packets;
+static unsigned replies;
 static uint8_t last_packet[256];
 static uint16_t last_size;
 static bool coalesce_failure;
@@ -133,6 +146,11 @@ struct netif *test_route(const ip4_addr_t *src,const ip4_addr_t *dst) {
 }
 static err_t output(struct netif *n,struct pbuf *p,const ip4_addr_t *dest) {
     assert(n==&wg&&lwip_ntohl(dest->addr)==0x64400002);++forwarded;
+    last_size=p->tot_len;assert(last_size<=sizeof last_packet);
+    assert(pbuf_copy_partial(p,last_packet,last_size,0)==last_size);return ERR_OK;
+}
+static err_t ethernet_output(struct netif *n,struct pbuf *p,const ip4_addr_t *dest) {
+    assert(n==&sta && lwip_ntohl(dest->addr)==0xc0000263);++replies;
     last_size=p->tot_len;assert(last_size<=sizeof last_packet);
     assert(pbuf_copy_partial(p,last_packet,last_size,0)==last_size);return ERR_OK;
 }
@@ -245,7 +263,22 @@ int main(int argc,char **argv) {
     addr.addr=lwip_htonl(0xc0000301);ip_addr_copy_from_ip4(ap.ip_addr,addr);ip_addr_copy_from_ip4(ap.netmask,mask);
     addr.addr=lwip_htonl(0x64400001);ip_addr_copy_from_ip4(wg.ip_addr,addr);ip_addr_copy_from_ip4(wg.netmask,mask);
     sta.next=&ap;ap.next=&wg;netif_list=netif_default=&sta;wg.output=output;
+    ethernet_case=!strcmp(argv[1],"ethernet-ap-stopped");
+    bool ap_stopped=ethernet_case||!strcmp(argv[1],"ap-stopped");
+    if(ethernet_case) {
+        sta.name[0]='e';sta.name[1]='n';sta.output=ethernet_output;
+    }
+    if(ap_stopped) {
+        ap.flags=0;
+        assert(!ip_napt_enable_netif(&ap,1));
+        assert(!ip_portmap_add(proto,netif_ip4_addr(&sta)->addr,2222,netif_ip4_addr(&wg)->addr,22));
+        ap.flags=NETIF_FLAG_UP|NETIF_FLAG_LINK_UP;
+    }
     assert(ip_napt_enable_netif(&ap,1));
+    if(ap_stopped) {
+        ap.flags=0;
+        sta.next=&wg;
+    }
     s_count=1;s_rules[0]=(tailnet_forward_rule_t){.valid=1,.enabled=1,.proto=proto,.listen_port=2222,.destination_port=22,.source_network=0xc0000200,.source_prefix=24};
     s_runtime[0].resolved_ip=0x64400002;
     tailnet_forward_mapping_t mapping;assert(tailnet_forward_snapshot_mappings(&mapping,1)==1);
@@ -253,6 +286,34 @@ int main(int argc,char **argv) {
     assert(ip_portmap_add(proto,mapping.binding_ip_nbo,2222,mapping.destination_nbo,22));
     if(strstr(argv[1],"isolation")||!strcmp(argv[1],"overlap")||strstr(argv[1],"expiry")||strstr(argv[1],"capacity")||!strcmp(argv[1],"mutations")) {
         isolated_reassembly(argv[1],proto);assert(!forwarded&&!local_packets);
+    } else if(ethernet_case) {
+        assert(__wrap_ip4_input(packet(proto,0xc6336402,0,32),&sta)==ERR_OK);
+        assert(!forwarded&&!local_packets);
+        struct pbuf *request=packet(proto,0xc0000263,0,32);
+        if(proto==6)((uint8_t *)request->payload)[33]=2; /* SYN */
+        assert(__wrap_ip4_input(request,&sta)==ERR_OK);
+        assert(forwarded==1&&!local_packets && !sta.napt);
+        uint32_t address;
+        memcpy(&address,last_packet+12,4);assert(address==netif_ip4_addr(&wg)->addr);
+        assert(last_packet[22]==0 && last_packet[23]==22);
+        uint8_t reply_port[2]={last_packet[20],last_packet[21]};
+        struct pbuf *reply=packet(proto,0x64400002,0,32);uint8_t *bytes=reply->payload;
+        memcpy(bytes+16,&address,4);
+        bytes[20]=0;bytes[21]=22;
+        memcpy(bytes+22,reply_port,2);
+        if(proto==6)bytes[33]=0x12; /* SYN+ACK */
+        bytes[10]=bytes[11]=0;
+        uint16_t checksum=inet_chksum(bytes,20);memcpy(bytes+10,&checksum,2);
+        assert(__wrap_ip4_input(reply,&wg)==ERR_OK);
+        assert(replies==1&&!local_packets && !wg.napt);
+        memcpy(&address,last_packet+12,4);assert(address==mapping.binding_ip_nbo);
+        memcpy(&address,last_packet+16,4);assert(lwip_ntohl(address)==0xc0000263);
+        assert(last_packet[20]==0x08 && last_packet[21]==0xae);
+        assert(last_packet[22]==0x30 && last_packet[23]==0x39);
+        assert(inet_chksum(last_packet,20)==0);
+    } else if(ap_stopped) {
+        assert(__wrap_ip4_input(packet(proto,0xc0000263,0,32),&sta)==ERR_OK);
+        assert(forwarded==1&&!local_packets);
     } else if(!strcmp(argv[1],"plain")||!strcmp(argv[1],"fragment")) {
         struct pbuf *p=packet(proto,0xc6336402,fragment?1:0,32);
         assert(__wrap_ip4_input(p,&sta)==ERR_OK);
@@ -294,6 +355,10 @@ int main(int argc,char **argv) {
 #if IP_REASSEMBLY
     for(unsigned i=0;i<IP_REASS_MAXAGE+3;i++){ip_reass_tmr();advance_timers();}
 #endif
+    if(ap_stopped) {
+        sta.next=&ap;
+        ap.flags=NETIF_FLAG_UP|NETIF_FLAG_LINK_UP;
+    }
     assert(ip_napt_enable_netif(&ap,0));
     printf("PASS: actual SDK IPv4/NAPT/pbuf - %s protocol %u\n",argv[1],proto);
 }
@@ -311,26 +376,15 @@ with tempfile.TemporaryDirectory(prefix='tailnet-sdk-') as directory:
     (path/'esp_err.h').write_text('/* fixture supplies esp_err_t */\n',encoding='utf-8')
     # No cellular PPP netif in this SDK fixture: every interface is allowed.
     ppp='bool netif_hooks_ppp_input_allowed(struct pbuf *p,struct netif *n){(void)p;(void)n;return true;}\n'
-    (path/'test.c').write_text(fixture+policy+ppp+core+tests,encoding='utf-8')
+    (path/'test.c').write_text(fixture+policy+ppp+core+service_napt+tests,encoding='utf-8')
     files=['core/ip.c','core/pbuf.c','core/mem.c','core/memp.c','core/inet_chksum.c','core/def.c','core/ipv4/ip4.c','core/ipv4/ip4_addr.c','core/ipv4/ip4_napt.c','core/ipv4/ip4_frag.c']
     binary=path/('test.exe' if os.name=='nt' else 'test')
-    flags=['-std=c11','-Wall','-Wextra','-I',str(path),'-I',str(sdk/'src/include'),'-I',str(ROOT/'main'),'-Wl,--wrap=ip4_input','-Wl,--wrap=pbuf_coalesce']
+    flags=['-std=c11','-Wall','-Wextra','-I',str(path),'-I',str(sdk/'src/include'),'-I',str(ROOT/'main'),'-Wl,--wrap=ip4_input','-Wl,--wrap=pbuf_coalesce','-Wl,--wrap=ip_napt_forward']
     if os.environ.get('TAILNET_SANITIZE')=='1':flags+=['-fsanitize=address,undefined','-fno-omit-frame-pointer']
     implementation=[str(ROOT/'main/tailnet_reassembly.c')]
     subprocess.run([os.environ.get('CC','gcc'),*flags,str(path/'test.c'),*implementation,*(str(sdk/'src'/f) for f in files),'-o',str(binary)],check=True)
-    for scenario in ('plain','fragment','short','split','split-oom','complete','denied','oom','bad-checksum',
+    for scenario in ('ap-stopped','ethernet-ap-stopped','plain','fragment','short','split','split-oom','complete','denied','oom','bad-checksum',
                      'interface-isolation','protocol-isolation','native-isolation','overlap','expiry','capacity',
                      'expiry-queue-failure','expiry-wrap','chain-capacity','mutations'):
         for proto in (6,17):
             subprocess.run([str(binary),scenario,str(proto)],check=True,timeout=15)
-    if os.environ.get('TAILNET_SANITIZE')=='1':
-        # Confirm the old implementation really read outside short NAT headers;
-        # an ordinary failing assertion is not evidence of a memory violation.
-        baseline=subprocess.check_output(['git','show','eef422def7ee040fc6623ef001a143214f069887:main/tailnet_input.c'],cwd=ROOT,text=True)
-        (path/'baseline.c').write_text(fixture+policy+baseline+tests,encoding='utf-8')
-        before=path/'before'
-        subprocess.run([os.environ.get('CC','gcc'),*flags,str(path/'baseline.c'),*implementation,*(str(sdk/'src'/f) for f in files),'-o',str(before)],check=True)
-        for proto in (6,17):
-            result=subprocess.run([str(before),'short',str(proto)],capture_output=True,text=True,timeout=15)
-            assert result.returncode!=0 and 'heap-buffer-overflow' in result.stderr, 'Old short NAT header must reproduce an actual ASan memory violation'
-        print('PASS: baseline real SDK TCP/UDP short-header heap-buffer-overflow reproduced with ASan; fixed paths pass')

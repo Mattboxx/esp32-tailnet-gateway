@@ -50,7 +50,7 @@ esp_err_t task_reaper_init(void)
     TaskHandle_t created = NULL;
     /* Above ordinary workers so exits are reclaimed promptly. */
     BaseType_t ok = pdFAIL;
-#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+#if CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
     ok = xTaskCreateWithCaps(reaper_task, "task_reaper", REAPER_STACK, NULL, 6,
                              &created, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 #endif

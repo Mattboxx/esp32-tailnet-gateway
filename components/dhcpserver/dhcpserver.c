@@ -408,7 +408,7 @@ static void node_insert_to_list(list_node **phead, list_node *pinsert)
  *                pdelete -- the remove node of the list
  * Returns      : none
 *******************************************************************************/
-void node_remove_from_list(list_node **phead, list_node *pdelete)
+static void node_remove_from_list(list_node **phead, list_node *pdelete)
 {
     list_node *plist = NULL;
 
@@ -490,27 +490,24 @@ static u8_t *add_offer_options(dhcps_t *dhcps, u8_t *optptr)
         }
     }
 
-    // In order of preference
-    if (dhcps_dns_enabled(dhcps->dhcps_dns)) {
-        uint8_t size = 4;
-
-        if (dhcps->dns_server[DNS_TYPE_BACKUP].addr) {
-            size += 4;
-        }
-
+    bool offer_dns = dhcps_dns_enabled(dhcps->dhcps_dns);
+    bool offer_main = offer_dns && dhcps->dns_server[DNS_TYPE_MAIN].addr;
+    bool offer_backup = offer_dns && dhcps->dns_server[DNS_TYPE_BACKUP].addr;
+    if (offer_main || offer_backup) {
         *optptr++ = DHCP_OPTION_DNS_SERVER;
-        *optptr++ = size;
-        optptr = dhcps_option_ip(optptr, &dhcps->dns_server[DNS_TYPE_MAIN]);
-
-        if (dhcps->dns_server[DNS_TYPE_BACKUP].addr) {
+        *optptr++ = 4 * (offer_main + offer_backup);
+        if (offer_main) {
+            optptr = dhcps_option_ip(optptr, &dhcps->dns_server[DNS_TYPE_MAIN]);
+        }
+        if (offer_backup) {
             optptr = dhcps_option_ip(optptr, &dhcps->dns_server[DNS_TYPE_BACKUP]);
         }
-#ifdef CONFIG_LWIP_DHCPS_ADD_DNS
     } else {
+        /* ESP-IDF 6.1 dropped CONFIG_LWIP_DHCPS_ADD_DNS. Keep the AP resolver
+         * available for first boot and recovery before uplink DNS is known. */
         *optptr++ = DHCP_OPTION_DNS_SERVER;
         *optptr++ = 4;
         optptr = dhcps_option_ip(optptr, &ipadd);
-#endif /* CONFIG_LWIP_DHCPS_ADD_DNS */
     }
 
     ip4_addr_t broadcast_addr = { .addr = (ipadd.addr & dhcps->dhcps_mask.addr) | ~dhcps->dhcps_mask.addr };
@@ -637,7 +634,7 @@ static void dhcps_response_ip_set(dhcps_t *dhcps, struct dhcps_msg *m, ip4_addr_
 }
 
 
-struct pbuf * dhcps_pbuf_alloc(u16_t len)
+static struct pbuf * dhcps_pbuf_alloc(u16_t len)
 {
     u16_t mlen = sizeof(struct dhcps_msg);
 

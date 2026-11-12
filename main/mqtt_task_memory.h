@@ -8,7 +8,7 @@
 #include "freertos/idf_additions.h"
 #include "esp_heap_caps.h"
 
-#if CONFIG_SPIRAM_ALLOW_STACK_EXTERNAL_MEMORY
+#if CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM
 /* The SDK still allocates TCBs internally. Do not consume a 6 KiB internal
  * stack at first runtime enable; keep the configured stack size unchanged.
  * The reviewed SDK component deletes only its own task, so the allocator and

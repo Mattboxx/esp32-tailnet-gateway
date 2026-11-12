@@ -100,12 +100,12 @@ void notify_text_compose(unsigned kind, unsigned level, const char *text,
         snprintf(msg, cap, "%s\nUnavailable for at least %lu s.", head, s);
     } else if (kind == HIST_EV_TAILNET && seconds_after(text, "Tailnet connection recovered after ", &s)) {
         notify_text_tailscale_restored(title, msg, cap, (uint32_t)s);
-    } else if (kind == HIST_EV_UPLINK && seconds_after(text, "Wi-Fi uplink unavailable for at least ", &s)) {
-        snprintf(msg, cap, "The Wi-Fi uplink has been unavailable for at least %lu s.", s);
-        set_title(title, "ESP32 Wi-Fi uplink problem");
-    } else if (kind == HIST_EV_UPLINK && seconds_after(text, "Wi-Fi uplink recovered after ", &s)) {
-        snprintf(msg, cap, "Wi-Fi uplink restored after about %lu s.", s);
-        set_title(title, "ESP32 Wi-Fi uplink restored");
+    } else if (kind == HIST_EV_UPLINK && seconds_after(text, "Internet uplink unavailable for at least ", &s)) {
+        snprintf(msg, cap, "The Internet uplink has been unavailable for at least %lu s.", s);
+        set_title(title, "ESP32 Internet uplink problem");
+    } else if (kind == HIST_EV_UPLINK && seconds_after(text, "Internet uplink recovered after ", &s)) {
+        snprintf(msg, cap, "Internet uplink restored after about %lu s.", s);
+        set_title(title, "ESP32 Internet uplink restored");
     } else if (kind == HIST_EV_UPDATE && !strncmp(text, "Firmware ", 9) && strstr(text, " is available.")) {
         snprintf(msg, cap, "%s", text);
         set_title(title, "ESP32 firmware update available");

@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           submodules: recursive
-      - name: Pinned ESP-IDF 5.5.6 lwIP for real packet-path regressions
+      - name: Pinned ESP-IDF 6.1 lwIP for real packet-path regressions
         uses: actions/checkout@v7
         with:
           repository: espressif/esp-lwip
@@ -32,31 +32,39 @@ jobs:
           python3 -m pip install PyYAML==6.0.2
           sudo apt-get update
           sudo apt-get install -y libcjson-dev
-      - name: Pinned ESP-IDF 5.5.6 MQTT task ownership regressions
+      - name: Pinned ESP-MQTT 1.1.0 task ownership regressions
         uses: actions/checkout@v7
         with:
           repository: espressif/esp-mqtt
-          ref: 0e9ec171b448db2101ea537300976b7ffe595941
+          ref: 1a1e5788a5cf57a0f44a3c6c061407f6c9be1026
           path: .test-deps/esp-mqtt
           persist-credentials: false
-      - name: Espressif mbedTLS for first-boot setup crypto regressions (AES-GCM/SHA-256 only)
+      - name: Legacy Mbed TLS for the TLS callback compatibility test
         uses: actions/checkout@v7
         with:
           repository: espressif/mbedtls
           ref: 2b96dd8eebe880f304c69976b3c2fa0c5100cbb6
           path: .test-deps/mbedtls
           persist-credentials: false
+      - name: Pinned ESP-IDF 6.1 Mbed TLS for first-boot crypto
+        uses: actions/checkout@v7
+        with:
+          repository: espressif/mbedtls
+          ref: a2b32072ea898afc1ed5b6caf6931e36028c91d6
+          path: .test-deps/mbedtls6
+          submodules: recursive
+          persist-credentials: false
       - name: Independent client crypto for first-boot setup regressions
         run: python3 -m pip install cryptography==44.0.2
-      - name: Pinned ESP-IDF 5.5.6 partition generator for migration regressions
+      - name: Pinned ESP-IDF 6.1 partition generator for migration regressions
         uses: actions/checkout@v7
         with:
           repository: espressif/esp-idf
-          ref: 880a203ae603d08a94d06aa01e0d6761958e5e9e
+          ref: fff9895c82d744c7237be8847347bdd1b07c6643
           sparse-checkout: |
             components/partition_table
             components/mbedtls/esp_crt_bundle
           path: .test-deps/esp-idf
           persist-credentials: false
       - name: Consolidated offline validation
-        run: PARTITION_TABLE_SOURCE=.test-deps/esp-idf/components/partition_table/gen_esp32part.py CRT_BUNDLE=.test-deps/esp-idf/components/mbedtls/esp_crt_bundle/cacrt_all.pem LWIP_SOURCE=.test-deps/esp-lwip MQTT_SOURCE=.test-deps/esp-mqtt/mqtt_client.c MBEDTLS_DIR=.test-deps/mbedtls python3 tools/validate_all.py --sanitizers
+        run: PARTITION_TABLE_SOURCE=.test-deps/esp-idf/components/partition_table/gen_esp32part.py TLS_TEST_CA_BUNDLE=.test-deps/esp-idf/components/mbedtls/esp_crt_bundle/cacrt_all.pem LWIP_SOURCE=.test-deps/esp-lwip MQTT_SOURCE=.test-deps/esp-mqtt/mqtt_client.c TLS_TEST_MBEDTLS_DIR=.test-deps/mbedtls MBEDTLS_DIR=.test-deps/mbedtls6 python3 tools/validate_all.py --sanitizers

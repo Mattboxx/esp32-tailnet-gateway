@@ -77,15 +77,16 @@ static void when_text(uint32_t t,char *s,size_t n){(void)t;if(n)s[0]=0;}
 static int telegram(const notify_config_t*c,const char*t,char*w,size_t n){(void)c;(void)w;(void)n;sends++;snprintf(last_text,sizeof last_text,"%s",t);if(during_send){void(*f)(void)=during_send;during_send=NULL;f();}return tg_result;}
 static char last_subject[80];
 static int email(const notify_config_t*c,const char*title,const char*t,char*w,size_t n){(void)c;(void)t;(void)w;(void)n;snprintf(last_subject,sizeof last_subject,"%s",title);return mail_result;}
+static bool wan_ready;
+static bool uplink_internet_ready(void) { return wan_ready; }
 '''+types+code+r'''
-volatile int ap_connect;
 static void reset(void){free(s_queue);s_queue=calloc(QUEUE_MAX,sizeof *s_queue);s_head=s_count=s_dropped=0;s_worker=false;
  memset(&s_cfg,0,sizeof s_cfg);s_cfg.tg_enabled=true;s_cfg.level=NOTIFY_PROBLEMS;s_mail_level=NOTIFY_PROBLEMS;s_startup_channels=0;s_link_grace_s=60;
  memset(s_links,0,sizeof s_links);memset(&s_tg,0,sizeof s_tg);memset(&s_mail,0,sizeof s_mail);
- s_tokens=6;s_refill=0;s_worker_retry=0;s_worker_backoff=30;clock_s=0;creates=sends=0;task_ok=1;tg_result=mail_result=0;ap_connect=0;tailnet_up=false;during_send=NULL;}
+ s_tokens=6;s_refill=0;s_worker_retry=0;s_worker_backoff=30;clock_s=0;creates=sends=0;task_ok=1;tg_result=mail_result=0;wan_ready=0;tailnet_up=false;during_send=NULL;}
 static void drain(void){if(!setjmp(exit_worker))worker(NULL);}
-static void lost(void){offer(HIST_EV_UPLINK,HIST_WARN,0,"Wi-Fi uplink lost (reason 200)");}
-static void up(void){ap_connect=1;offer(HIST_EV_UPLINK,HIST_INFO,0,"Wi-Fi uplink connected, 192.0.2.1");}
+static void lost(void){offer(HIST_EV_UPLINK,HIST_WARN,0,"Internet uplink lost");}
+static void up(void){wan_ready=1;offer(HIST_EV_UPLINK,HIST_INFO,0,"Internet uplink connected");}
 static void fill_while_sending(void){for(int i=0;i<QUEUE_MAX;i++)enqueue_locked(HIST_EV_SERVICE,HIST_INFO,CH_TG,0,"new result");}
 static void recover_while_sending(void){clock_s=65;up();}
 int main(void){
@@ -106,18 +107,18 @@ int main(void){
  reset();offer(HIST_EV_BOOT,HIST_ERROR,0,"Started fixture, reset WDT");assert(s_count==1);
  reset();offer(HIST_EV_CRASH,HIST_ERROR,0,"Crash fixture");assert(s_count==1);
  reset();s_startup_channels=CH_TG;lost();clock_s=1;offer(HIST_EV_BOOT,HIST_INFO,0,"Started fixture");
- assert(s_count==1&&s_queue[s_head].kind==HIST_EV_BOOT&&!s_links[LINK_WIFI].announced);
+ assert(s_count==1&&s_queue[s_head].kind==HIST_EV_BOOT&&!s_links[LINK_UPLINK].announced);
  reset();s_link_grace_s=300;lost();clock_s=299;notify_poll();assert(!s_count);clock_s=300;notify_poll();assert(s_count==1);
  s_link_grace_s=600;clock_s=310;up();assert(s_count==1&&strstr(s_queue[s_head].text,"recovered after 310"));
  reset();s_link_grace_s=15;lost();clock_s=14;notify_poll();assert(!s_count);clock_s=15;notify_poll();assert(s_count==1);
  reset();lost();clock_s=59;notify_poll();assert(!s_count&&!creates);up();notify_poll();assert(!s_count&&!sends);
- reset();for(int day=0;day<10;day++){clock_s=(uint32_t)day*86400;ap_connect=0;lost();clock_s+=3;up();notify_poll();}assert(!s_count&&!creates);
- reset();lost();clock_s=60;notify_poll();assert(s_count==1&&s_links[LINK_WIFI].announced);notify_poll();lost();notify_poll();assert(s_count==1);drain();assert(s_tg.sent==1);clock_s=300;notify_poll();assert(!s_count);
- reset();lost();clock_s=60;notify_poll();clock_s=70;up();assert(s_count==1&&strstr(s_queue[s_head].text,"recovered after 70 seconds"));drain();assert(strstr(last_text,"ESP32 Wi-Fi uplink restored\nWi-Fi uplink restored after about 70 s.")&&sends==1);
+ reset();for(int day=0;day<10;day++){clock_s=(uint32_t)day*86400;wan_ready=0;lost();clock_s+=3;up();notify_poll();}assert(!s_count&&!creates);
+ reset();lost();clock_s=60;notify_poll();assert(s_count==1&&s_links[LINK_UPLINK].announced);notify_poll();lost();notify_poll();assert(s_count==1);drain();assert(s_tg.sent==1);clock_s=300;notify_poll();assert(!s_count);
+ reset();lost();clock_s=60;notify_poll();clock_s=70;up();assert(s_count==1&&strstr(s_queue[s_head].text,"recovered after 70 seconds"));drain();assert(strstr(last_text,"ESP32 Internet uplink restored\nInternet uplink restored after about 70 s.")&&sends==1);
  reset();lost();clock_s=60;notify_poll();tg_result=ESP_FAIL;drain();assert(s_tg.failed==MAX_ATTEMPTS&&!s_count);clock_s=600;up();assert(s_count==1&&strstr(s_queue[s_head].text,"recovered after 600"));tg_result=ESP_OK;drain();assert(s_tg.sent==1);
- reset();lost();clock_s=3;ap_connect=1;notify_poll();assert(!s_links[LINK_WIFI].down&&!s_count);up();assert(!s_count);
- reset();lost();clock_s=30;offer(HIST_EV_UPLINK,HIST_INFO,0,"Dynamic DNS updated");assert(s_links[LINK_WIFI].down);clock_s=60;notify_poll();assert(s_count==1);
- reset();offer(HIST_EV_UPLINK,HIST_WARN,0,"Dynamic DNS not updated: fixture");assert(s_count==1);assert(!s_links[LINK_WIFI].down);
+ reset();lost();clock_s=3;wan_ready=1;notify_poll();assert(!s_links[LINK_UPLINK].down&&!s_count);up();assert(!s_count);
+ reset();lost();clock_s=30;offer(HIST_EV_UPLINK,HIST_INFO,0,"Dynamic DNS updated");assert(s_links[LINK_UPLINK].down);clock_s=60;notify_poll();assert(s_count==1);
+ reset();offer(HIST_EV_UPLINK,HIST_WARN,0,"Dynamic DNS not updated: fixture");assert(s_count==1);assert(!s_links[LINK_UPLINK].down);
  reset();offer(HIST_EV_TAILNET,HIST_WARN,0,"Tailnet connection lost");clock_s=59;notify_poll();assert(!s_count);tailnet_up=true;notify_poll();offer(HIST_EV_TAILNET,HIST_INFO,0,"Tailnet connected");assert(!s_count);
  reset();offer(HIST_EV_TAILNET,HIST_WARN,0,"Tailnet connection lost");clock_s=60;notify_poll();assert(s_count==1&&s_queue[s_head].link==LINK_TAILNET);
  reset();s_cfg.level=NOTIFY_ALL;lost();clock_s=1;up();assert(!s_count);offer(HIST_EV_UPLINK,HIST_INFO,0,"Dynamic DNS updated");assert(s_count==1);
@@ -125,7 +126,7 @@ int main(void){
  reset();task_ok=0;enqueue_locked(HIST_EV_SERVICE,HIST_INFO,CH_TG,0,"result");assert(s_count==1&&!s_worker&&creates==1);clock_s=29;notify_poll();assert(creates==1);clock_s=30;task_ok=1;notify_poll();assert(s_worker&&creates==2);drain();
  reset();enqueue_locked(HIST_EV_SERVICE,HIST_INFO,CH_TG,0,"old head");during_send=fill_while_sending;drain();assert(s_tg.sent==QUEUE_MAX+1&&s_count==0&&s_dropped==1);
  reset();lost();clock_s=60;notify_poll();during_send=recover_while_sending;drain();assert(strstr(last_text,"restored after about 65 s.")&&s_count==0);
- reset();lost();clock_s=10;s_cfg.tg_enabled=false;apply_locked();assert(!s_queue&&!registered_poll&&!s_links[LINK_WIFI].down);
+ reset();lost();clock_s=10;s_cfg.tg_enabled=false;apply_locked();assert(!s_queue&&!registered_poll&&!s_links[LINK_UPLINK].down);
  /* Telegram/email word events as ntfy does (notify_text.c): power-on with
   * the channel's blackout choice, restart cause, Tailnet outage and recovery. */
  reset();raw_cause=ESP_RST_POWERON;s_startup_channels=(CH_TG|CH_MAIL)<<2;s_cfg.mail_enabled=true;

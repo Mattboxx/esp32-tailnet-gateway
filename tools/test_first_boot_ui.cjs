@@ -154,17 +154,19 @@ async function uplinkFlows(context) {
   assert.equal(await page.isEnabled('#fb-next'), false, 'mobile data needs consent');
   await page.check('#fb-data-ack');
   await page.click('#fb-next'); await page.waitForSelector('#fb-key', { state: 'visible' });
-  assert.equal(await page.isEnabled('#fb-next'), false, 'SIM only: an auth key is required');
-  await page.fill('#fb-key', SECRETS.key);
+  assert.equal(await page.isEnabled('#fb-next'), true, 'SIM only: local administration works through the AP');
   await page.click('#fb-next'); await page.waitForSelector('#fb-apname', { state: 'visible' });
-  assert.equal(await page.isVisible('#fb-exit-row'), false, 'no exit node over mobile data');
+  await page.locator('details:has(#fb-exit-row) > summary').click();
+  assert.equal(await page.isVisible('#fb-exit-row'), true, 'exit node is an explicit opt-in on mobile data');
+  assert.equal(await page.isChecked('#fb-exit'), false);
   await page.click('#fb-next'); await page.waitForSelector('#fb-summary dt');
   const sum = await page.textContent('#fb-summary');
-  assert.ok(sum.includes('http://tailnet-gateway/') && !sum.includes('1234'), 'reached through the tailnet; PIN never shown');
+  assert.ok(sum.includes('.local/') && !sum.includes('1234'), 'local address shown; PIN never shown');
   await page.click('#fb-next'); await page.waitForSelector('#fb-done', { state: 'visible' });
   assert.deepEqual(g.finish.uplink, { type: 'cellular', cellular: { tx: 17, rx: 18, pwrkey: -1, apn: 'internet', pin: '1234', roaming: false, data_ack: true } });
   assert.equal(g.finish.exit_node, false);
-  assert.ok((await page.textContent('#fb-done-open')).includes('http://tailnet-gateway/'));
+  assert.ok((await page.textContent('#fb-done-open')).includes('.local/'));
+  assert.match(await page.textContent('#fb-done-reconnect'), /access point/i);
   for (const b of g.bodies) assert.ok(!b.includes('"1234"') && !b.includes(SECRETS.key), 'SIM PIN and key only sealed');
   await page.close();
 }
@@ -217,8 +219,27 @@ async function flow(browser, [width, height, locale], failures, full) {
     await page.click('#fb-nets button:has-text("HomeNetwork")');
     assert.equal(await page.inputValue('#fb-ssid'), 'HomeNetwork');
     await page.fill('#fb-wpw', SECRETS.wifi);
+    assert.equal(await page.isEnabled('#fb-next'), false, 'connection test required before Next');
     await page.click('#fb-test');
-    await page.waitForFunction(() => /192\.168\.1\.77/.test(document.getElementById('fb-test-status').textContent), null, { timeout: 15000 });
+    await page.waitForFunction(() => document.getElementById('fb-tested-ip').value === '192.168.1.77', null, { timeout: 15000 });
+    assert.equal(await page.isVisible('#fb-copy-ip'), true);
+    await page.evaluate(() => {
+      Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+      document.execCommand = command => {
+        if (command !== 'copy') return false;
+        const field = document.activeElement;
+        window.lastCopiedIp = field.value.slice(field.selectionStart, field.selectionEnd);
+        return true;
+      };
+    });
+    await page.click('#fb-copy-ip');
+    await page.waitForFunction(() => window.lastCopiedIp === '192.168.1.77');
+    await page.fill('#fb-wpw', SECRETS.wifi + 'x');
+    assert.equal(await page.isEnabled('#fb-next'), false, 'changed password invalidates the connection test');
+    assert.equal(await page.isVisible('#fb-copy-ip'), false);
+    await page.fill('#fb-wpw', SECRETS.wifi);
+    await page.click('#fb-test');
+    await page.waitForFunction(() => document.getElementById('fb-tested-ip').value === '192.168.1.77', null, { timeout: 15000 });
     assert.deepEqual(g.tested, { ssid: 'HomeNetwork', password: SECRETS.wifi });
     await check(2);
     await page.click('#fb-next');

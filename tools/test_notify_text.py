@@ -64,10 +64,10 @@ int main(void) {
     c(HIST_EV_TAILNET, HIST_WARN, "Tailnet connection recovered after 300 seconds.", 3, false);
     notify_text_tailscale_restored(nt, nm, sizeof nm, 300);
     assert(!strcmp(t, nt) && !strcmp(m, nm));
-    c(HIST_EV_UPLINK, HIST_WARN, "Wi-Fi uplink unavailable for at least 60 seconds.", 3, false);
-    assert(!strcmp(t, "ESP32 Wi-Fi uplink problem") && !strcmp(m, "The Wi-Fi uplink has been unavailable for at least 60 s."));
-    c(HIST_EV_UPLINK, HIST_WARN, "Wi-Fi uplink recovered after 65 seconds.", 3, false);
-    assert(!strcmp(t, "ESP32 Wi-Fi uplink restored") && !strcmp(m, "Wi-Fi uplink restored after about 65 s."));
+    c(HIST_EV_UPLINK, HIST_WARN, "Internet uplink unavailable for at least 60 seconds.", 3, false);
+    assert(!strcmp(t, "ESP32 Internet uplink problem") && !strcmp(m, "The Internet uplink has been unavailable for at least 60 s."));
+    c(HIST_EV_UPLINK, HIST_WARN, "Internet uplink recovered after 65 seconds.", 3, false);
+    assert(!strcmp(t, "ESP32 Internet uplink restored") && !strcmp(m, "Internet uplink restored after about 65 s."));
     notify_text_update_available(nt, nm, sizeof nm, "9.9.9");
     c(HIST_EV_UPDATE, HIST_INFO, nm, 3, false);
     assert(!strcmp(t, nt) && !strcmp(m, nm));

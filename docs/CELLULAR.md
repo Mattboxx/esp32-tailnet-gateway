@@ -59,6 +59,13 @@ PUK-locked stops until you fix it and restart.
 
 ## Security and costs
 
+- Cellular PPP provides Internet and Tailnet transport. On cellular-only
+  setups the access point provides local administration and the existing
+  AP-to-Tailnet gateway. With a physical LAN connected, LAN-to-Tailnet rules
+  continue to listen on its Ethernet or WiFi address.
+- The modem address is never used as a LAN-to-Tailnet listener or LAN DNS
+  listener. Operator firewall and local access policies apply as usual.
+
 - The ESP-bound firewall lists (ACL *to ESP* / *from ESP*) apply to the
   cellular link too; the link does not start if those hooks cannot be
   installed.

@@ -2,7 +2,7 @@
  * target. One check at a time on the existing optional worker, no power action.
  * SPDX-License-Identifier: GPL-3.0-only */
 #include "health_monitor.h"
-#include "eth_uplink.h"
+#include "uplink_services.h"
 #include "homelab_ops.h"
 #include "tailscale_config.h"
 #include "mqtt_integration.h"
@@ -108,8 +108,7 @@ static bool health_configured(const health_config_t *c,unsigned role){
     return role==0?c->gateway_port!=0:role==1?c->dns_name[0]!=0:role==2?c->internet_ip[0]!=0:c->tailnet_target[0]!=0;
 }
 static bool health_uplink(esp_netif_ip_info_t *info){
-    esp_netif_t *sta=eth_uplink_service_netif(); /* WiFi STA, or Ethernet while selected */
-    return sta&&esp_netif_is_netif_up(sta)&&esp_netif_get_ip_info(sta,info)==ESP_OK&&info->ip.addr;
+    return uplink_address(uplink_internet_netif(), info);
 }
 static int health_tcp(uint32_t nbo,uint16_t port){
     int fd=socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);if(fd<0)return -1;

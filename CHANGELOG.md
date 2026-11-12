@@ -6,6 +6,57 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.18] - 2026-11-12
+
+### Changed
+
+- Migrate to ESP-IDF 6.1, preserve DHCP DNS in recovery mode, and separate
+  the TCP/IP and WiFi tasks across the two cores.
+- Apply LAN-to-Tailnet TCP and UDP translation on the selected Ethernet
+  uplink, including replies on a LAN shared with WiFi.
+- Start Tailscale and follow the available Internet uplink on WiFi, W5500
+  and supported cellular modems. Remote updates, notification integrations,
+  health and DNS use that uplink. LAN service mappings stay on Ethernet or
+  WiFi, and the access point provides local access on cellular-only setups.
+- Wake-on-LAN and the local hostname follow the LAN interface. Updated the
+  Ethernet and cellular setup descriptions.
+- Require a successful WiFi connection test before setup can continue with
+  WiFi settings and show the assigned address with a copy button.
+- Send one recovery result to enabled notification channels per manual
+  operation. Scheduled device checks alert on a new loss of reachability.
+
+### Fixed
+
+- Keep the mobile navigation controls visible when a page is scrolled.
+- Cancel pending mDNS work on the old interface during uplink changes to
+  prevent a reboot after Wi-Fi connects.
+- Restore Wi-Fi traffic counters, local packet filters and STA TTL handling
+  when a physical network interface is brought up or recreated.
+
+## [3.0.18-beta.8] - 2026-11-11
+
+- Apply LAN-to-Tailnet TCP and UDP address translation on the selected
+  W5500 uplink, including replies when Wi-Fi shares the same subnet.
+
+- Run the TCP/IP thread on core 1, separate from the Wi-Fi task on core 0.
+- Place the two FreeRTOS queue operations used for packet hand-offs in IRAM.
+- Keep DHCP DNS available to setup and recovery AP clients under ESP-IDF 6.1.
+- Show current build information and concise author credits on System → About.
+- Preserve the GPLv3 and original upstream notices of the pinned Mattboxx MicroLink fork in firmware packages.
+
+## [3.0.18-beta.3] - 2026-11-11
+
+- Keep the mobile menu and its close button visible when opened from a scrolled page.
+- Preserve scroll when dismissing the menu and start newly selected pages at the top.
+- Link to the MicroLink fork used by the firmware and show its upstream credits separately.
+
+## [3.0.18-beta.2] - 2026-11-11
+
+- Migrate the firmware to ESP-IDF 6.1, with pinned W5500, ESP-MQTT and cJSON components.
+- Update TLS, secure setup and firmware checksum code for the newer cryptography APIs.
+- Use the shared ChaCha20-Poly1305 implementation for Noise control traffic with the existing wire format.
+- Initialize the Service Gateway's port-map table after the AP netif is ready so LAN-to-Tailnet rules stay available in recovery-only mode.
+
 ## [3.0.17] - 2026-11-10
 
 - Update to ESP-IDF 5.5.6 and require DERP certificate verification.

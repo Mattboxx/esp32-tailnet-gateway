@@ -44,7 +44,7 @@ STABLE_TAG = 'v' + STABLE_VERSION
 # Current firmware: keep NEXT_PUBLISHED False until the qualified release
 # exists. When True, website/firmware/<NEXT_VERSION>/ must hold the exact
 # released files (see website/firmware/README.md); the build verifies them.
-NEXT_VERSION = '3.0.17'
+NEXT_VERSION = '3.0.18'
 NEXT_PUBLISHED = True
 FIRMWARE_DIR = SRC / 'firmware'
 EWT_VERSION = '10.4.0'   # ESP Web Tools bundle vendored in website/assets/esp-web-tools/
@@ -109,6 +109,7 @@ def changelog_html(limit_releases: int = 3) -> str:
     The page shows the latest releases in full; older ones stay in the repo."""
     lines = (ROOT / 'CHANGELOG.md').read_text(encoding='utf-8').splitlines()
     out, para, items, sections, releases = [], [], [], 0, 0
+    stable = False
 
     def flush():
         if para:
@@ -120,10 +121,16 @@ def changelog_html(limit_releases: int = 3) -> str:
         if line.startswith('## Development history'):
             break
         if line.startswith('## ['):
-            flush(); releases += 1
+            flush()
+            stable = bool(re.match(r'^## \[\d+\.\d+\.\d+\]', line))
+            if not stable:
+                continue
+            releases += 1
             if releases > limit_releases:
                 break
             out.append('<h2>' + inline_md(line[3:]) + '</h2>')
+            continue
+        if not stable:
             continue
         if line.startswith('### '):
             flush(); sections += 1

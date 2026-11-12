@@ -48,7 +48,11 @@ void eth_uplink_get_status(eth_status_t *out);
 /* TCP/IP context only (route supervisor). NULL: Ethernet disabled, keep the
  * legacy STA default; otherwise the lwIP netif to use as uplink. */
 struct netif *eth_uplink_lwip_select(struct netif *sta);
+/* TCP/IP context only. NULL when Ethernet is not the active service uplink. */
+struct netif *eth_uplink_selected_lwip(void);
 esp_err_t eth_uplink_register_http(httpd_handle_t server);
 /* The uplink that LAN-to-Tailnet/AP-side bindings listen on: the Ethernet
  * netif while it is the selected uplink, otherwise the WiFi STA netif. */
 esp_netif_t *eth_uplink_service_netif(void);
+esp_netif_t *eth_uplink_netif(void);
+void eth_uplink_wifi_changed(void);

@@ -5,8 +5,8 @@
  *
  * Wires acl_check_packet into the STA and AP netifs' input + linkoutput
  * chains so the four ACL chains (to_esp / from_esp / to_ap / from_ap)
- * actually drop denied traffic. Idempotent; call once after WiFi has
- * started.
+ * actually drop denied traffic. Register once after netif creation and
+ * before starting the Wi-Fi and Ethernet drivers.
  *
  * Future hooks (byte counters, TTL override, kill switch)
  * land here too, sharing the same install/save-original-fn pattern.
@@ -25,9 +25,9 @@ void netif_hooks_init(void);
 /* Compatibility no-op: Tailnet policy is enforced at IPv4 input. Do not
  * periodically rewrap a netif input already owned by another component. */
 void netif_hooks_refresh(void);
-/* True once the prepared Ethernet netif carries the ESP-bound ACL hooks. */
+/* True if the prepared Ethernet netif has an ACL hook registered for add. */
 #include <stdbool.h>
-bool netif_hooks_eth_protected(void);
+bool netif_hooks_eth_ready(void);
 
 /* Optional cellular PPP uplink. PPP carries raw IPv4 (no Ethernet header):
  * output is filtered here (ACL from_esp), input in the ip4_input wrapper
@@ -41,6 +41,8 @@ bool netif_hooks_install_ppp(struct netif *nif);
 bool netif_hooks_ppp_input_allowed(struct pbuf *p, struct netif *input);
 uint64_t netif_hooks_get_ppp_bytes_in (void);
 uint64_t netif_hooks_get_ppp_bytes_out(void);
+uint64_t netif_hooks_get_eth_bytes_in(void);
+uint64_t netif_hooks_get_eth_bytes_out(void);
 
 /* Wire-byte counters — accumulated in the four hook tap points before
  * the ACL check, so they represent everything that actually hit the

@@ -136,10 +136,17 @@ static volatile uint32_t st_queries, st_hits, st_misses, st_inserts, st_eviction
 /* Resolve the live upstream IP every forward. Priority: explicit operator
  * override, then DNS learned from the STA DHCP lease. No public resolver is
  * contacted unless the operator or upstream DHCP server selected it. */
+static esp_netif_t *(*s_uplink_provider)(void);
+
+void dns_relay_set_uplink_provider(esp_netif_t *(*provider)(void))
+{
+    s_uplink_provider = provider;
+}
+
 static uint32_t pick_upstream(void)
 {
     if (s_upstream_nbo) return s_upstream_nbo;
-    esp_netif_t *sta = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_t *sta = s_uplink_provider ? s_uplink_provider() : esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
     if (sta) {
         esp_netif_dns_info_t info = {0};
         if (esp_netif_get_dns_info(sta, ESP_NETIF_DNS_MAIN, &info) == ESP_OK &&
