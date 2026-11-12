@@ -33,7 +33,7 @@ the four unpublished commits after `92ff5d8` with the two reviewed synthetic
 credential fixtures replaced; no scanner exemption and no public-history rewrite.
 
 Independent publication repository:
-`C:/Users/mattb/.codex/workspaces/tailnet-v2-publication-20261023`, initial branch
+the isolated publication checkout, initial branch
 `publication/v2-sanitized`, prepared HEAD
 `0e0e28f6260667a20dac6fe5169f0b9ad239b33e`.
 Its current tree is **identical** to original `3b53ada` (Git tree hash checked).

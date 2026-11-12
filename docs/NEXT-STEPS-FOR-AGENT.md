@@ -97,7 +97,7 @@ future authorized candidate and verify on a real device.
 4ea68d1 pushed; 10 asset digests verified; v3.0.13 stays Latest; no site
 change). It adds settings search (`tools/test_settings_search.cjs`) and the
 load-speed fixes of beta.2. Installed over Tailscale on the owner's test
-board (100.80.107.31), POST-INSTALL PASS; validate_all --build --browser 142
+board, POST-INSTALL PASS; validate_all --build --browser 142
 PASS. The owner tests it for some days before a stable 3.0.14.
 
 Local, not pushed: Status page signature (signal line, Client WiFi node,

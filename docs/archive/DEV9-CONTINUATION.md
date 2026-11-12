@@ -4,7 +4,7 @@
 
 Published commit `a85681a9920cffa4d21cf9602a4027c6cce47bb3` on public `Main`
 in `Mattboxx/esp32-tailscale-gateway-NAS-recovery`. Isolated clone:
-`C:/Users/mattb/.codex/workspaces/tailnet-presentation-20261023`.
+the isolated website checkout.
 No firmware, dependency gitlink, release, tag or repository rename was pushed.
 The previous stable release is still `v0.1.38-Mattboxx-1.13`.
 
