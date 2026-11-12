@@ -107,7 +107,9 @@ def main():
         iterations = 60000
         key = hashlib.pbkdf2_hmac('sha256', password.encode(), salt, iterations)
         record = f'pbkdf2-sha256${iterations}${salt.hex()}${key.hex()}'
-        legacy = f'{salt.hex()}:{hashlib.sha256(salt + password.encode()).hexdigest()}'
+        # Fixed legacy record for the synthetic passphrase and salt above.
+        legacy = ('000102030405060708090a0b0c0d0e0f:'
+                  '6c4cf65c2c98cef214f79c700d730b806f9075963cf2fc7b410750ced7dd8369')
         assert accepts('password', record, password)
         assert not accepts('password', record, 'wrong')
         assert not accepts('password', record.replace('$60000$', '$1$'), password)

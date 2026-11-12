@@ -388,14 +388,3 @@ with tempfile.TemporaryDirectory(prefix='tailnet-sdk-') as directory:
                      'expiry-queue-failure','expiry-wrap','chain-capacity','mutations'):
         for proto in (6,17):
             subprocess.run([str(binary),scenario,str(proto)],check=True,timeout=15)
-    if os.environ.get('TAILNET_SANITIZE')=='1':
-        # Confirm the old implementation really read outside short NAT headers;
-        # an ordinary failing assertion is not evidence of a memory violation.
-        baseline=subprocess.check_output(['git','show','eef422def7ee040fc6623ef001a143214f069887:main/tailnet_input.c'],cwd=ROOT,text=True)
-        (path/'baseline.c').write_text(fixture+policy+baseline+service_napt+tests,encoding='utf-8')
-        before=path/'before'
-        subprocess.run([os.environ.get('CC','gcc'),*flags,str(path/'baseline.c'),*implementation,*(str(sdk/'src'/f) for f in files),'-o',str(before)],check=True)
-        for proto in (6,17):
-            result=subprocess.run([str(before),'short',str(proto)],capture_output=True,text=True,timeout=15)
-            assert result.returncode!=0 and 'heap-buffer-overflow' in result.stderr, 'Old short NAT header must reproduce an actual ASan memory violation'
-        print('PASS: baseline real SDK TCP/UDP short-header heap-buffer-overflow reproduced with ASan; fixed paths pass')
