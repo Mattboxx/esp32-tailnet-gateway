@@ -121,9 +121,6 @@ main:focus { outline: none; }
 .boards strong { color: var(--text, inherit); }
 .btn { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 18px; border-radius: 10px; font-weight: 600; text-decoration: none; border: 1px solid var(--line); color: var(--text); background: var(--card); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.roles { width: 100%; }
-.roles .hole, .roles .nodes circle { fill: var(--bg); } .roles { color: var(--input); } .roles .muted-line { stroke: var(--off); } .roles .nodes .lit { fill: var(--accent); } .roles .lit { stroke: var(--accent); fill: var(--accent); }
-.roles text { fill: var(--muted); font: 15px var(--font); } .roles text.on { fill: var(--text); font-weight: 650; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 20px 0; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px 20px; }
@@ -153,12 +150,18 @@ main:focus { outline: none; }
 figure { margin: 24px 0; }
 figure img { border-radius: var(--radius); border: 1px solid var(--line); display: block; }
 figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }
-.ui-preview { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 28px; align-items: start; margin: 24px 0 40px; }
-.ui-preview > a { display: block; }
-.ui-preview img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius); }
-.ui-shot { margin: 0; }
-.ui-preview > div h3:first-child { margin-top: 0; }
-@media (max-width: 760px) { .ui-preview { grid-template-columns: minmax(0, 1fr); } }
+.home-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }
+.home-ui { margin: 0; min-width: 0; }
+.home-ui img, .firmware-gallery img, .guide-shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+.home-ui figcaption, .firmware-gallery figcaption, .guide-shot figcaption { margin-top: 10px; }
+.guide-shot { max-width: 720px; margin: 24px 0; }
+.guide-shot img { width: auto; max-width: 100%; }
+.setup-steps li + li { margin-top: .6em; }
+.firmware-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; margin: 24px 0; }
+.firmware-gallery figure { min-width: 0; margin: 0; }
+.firmware-gallery .ui-phone img { max-width: 280px; }
+.firmware-gallery a { display: block; }
+@media (max-width: 760px) { .firmware-gallery { grid-template-columns: minmax(0, 1fr); } }
 details { border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 10px 0; background: var(--surface); }
 summary { cursor: pointer; font-weight: 600; }
 

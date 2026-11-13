@@ -1,48 +1,92 @@
 <!--
 slug: screenshots/
 title: Firmware screenshots
-search_title: ESP32 Tailscale Gateway Web UI — Real Firmware Screenshots
-description: Explore the ESP32 Tailscale gateway Web UI: Firmware 3.0 status, trends, history and service pages, plus real-device screenshots of role selection and profiles.
+search_title: ESP32 Tailscale Gateway Web UI Screenshots
+description: See the ESP32 Tailnet Gateway dashboard, first-boot setup, TCP/UDP Service Gateway, Wake-on-LAN, alerts and diagnostics on desktop and mobile.
 group: Project
 order: 23
-image: assets/screenshots/esp32-tailnet-gateway-live-goals.jpg
 -->
-<h1>The real firmware Web UI</h1>
-<p>These images show the actual embedded Web UI, not design mockups or AI-generated images. The <strong>Firmware 3.0 examples</strong> below render the shipped interface with invented documentation data; the <a href="#roles">v2.0.0 panel captures</a> were taken from a real ESP32-S3. Neither exposes the owner's network details.</p>
-<p>The same built-in interface works in a desktop or mobile browser. The captures are shown in English; the current firmware offers English, Italiano, Español, 简体中文, Français and Deutsch. No separate administration app is required.</p>
+<h1>Firmware Web UI</h1>
+<p>Explore the embedded Firmware 3.0.19 interface on desktop and mobile. The screenshots use fictional networks, peers and measurements. Select an image to open it at full size.</p>
+<nav aria-label="Gallery sections">
+  <a href="#overview">Overview</a> · <a href="#network">Network and security</a> ·
+  <a href="#operations">Recovery and monitoring</a> · <a href="#setup">Setup and preferences</a>
+</nav>
 
-<h2 id="current-dashboard">Status at a glance</h2>
-<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-status.png"><img src="{{root}}assets/firmware-ui/v3-status.png" alt="ESP32 Tailscale gateway Firmware 3.0 Status page with uplink, tailnet, peers and free internal RAM, the uplink Wi-Fi and gateway Wi-Fi cards; example data" width="1440" height="900" decoding="async"></a><figcaption>The actual embedded interface rendered with invented data. Counters and states shown here are examples, not a device benchmark.</figcaption></figure>
+<section aria-labelledby="overview">
+  <h2 id="overview">Overview</h2>
+  <div class="firmware-gallery">
+    <figure id="status">
+      <a href="{{root}}assets/firmware-ui/status.png"><img src="{{root}}assets/firmware-ui/status.png" alt="Uplink, Tailnet and resource overview on a desktop browser." width="1440" height="900" decoding="async"></a>
+      <figcaption><strong>Gateway status</strong><br>Uplink, Tailnet and resource overview on a desktop browser.</figcaption>
+    </figure>
+    <figure id="status-phone" class="ui-phone">
+      <a href="{{root}}assets/firmware-ui/status-phone.png"><img src="{{root}}assets/firmware-ui/status-phone.png" alt="The same dashboard in the mobile layout." width="780" height="1688" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Mobile dashboard</strong><br>The same dashboard in the mobile layout.</figcaption>
+    </figure>
+    <figure id="roles">
+      <a href="{{root}}assets/firmware-ui/roles.png"><img src="{{root}}assets/firmware-ui/roles.png" alt="Guided setup for Service Gateway, subnet routing, IoT, recovery and Home Assistant." width="1068" height="529" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Role guides</strong><br>Guided setup for Service Gateway, subnet routing, IoT, recovery and Home Assistant.</figcaption>
+    </figure>
+    <figure id="login">
+      <a href="{{root}}assets/firmware-ui/login.png"><img src="{{root}}assets/firmware-ui/login.png" alt="Password prompt for a configured gateway." width="360" height="326" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Sign in</strong><br>Password prompt for a configured gateway.</figcaption>
+    </figure>
+  </div>
+</section>
 
-<h2 id="trends">Trends recorded by the gateway</h2>
-<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-trends.png"><img src="{{root}}assets/firmware-ui/v3-trends.png" alt="Trends card with tiles for internal RAM, PSRAM, uplink traffic, Wi-Fi signal, CPU load and tailnet peers, and a six-hour chart of free internal RAM" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Trends are off by default. When on, the gateway keeps a sample a minute for 6 hours and a summary for about 45 days in its own flash; nothing is sent anywhere.</figcaption></figure>
+<section aria-labelledby="network">
+  <h2 id="network">Network and security</h2>
+  <div class="firmware-gallery">
+    <figure id="service-gateway">
+      <a href="{{root}}assets/firmware-ui/service-gateway.png"><img src="{{root}}assets/firmware-ui/service-gateway.png" alt="Service forwarding rules with allowed sources and destination checks." width="1440" height="900" loading="lazy" decoding="async"></a>
+      <figcaption><strong>LAN → Tailnet Service Gateway</strong><br>Service forwarding rules with allowed sources and destination checks.</figcaption>
+    </figure>
+    <figure id="firewall">
+      <a href="{{root}}assets/firmware-ui/firewall.png"><img src="{{root}}assets/firmware-ui/firewall.png" alt="Traffic chains and sample access rules." width="1440" height="900" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Local firewall</strong><br>Traffic chains and sample access rules.</figcaption>
+    </figure>
+  </div>
+</section>
 
-<h2 id="groups">One group at a time</h2>
-<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-network-services.png"><img src="{{root}}assets/firmware-ui/v3-network-services.png" alt="Network page with the Internet, Gateway Wi-Fi, Clients and Services groups; Services shows LAN to Tailnet rules with destination tests" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Long pages show one group of cards at a time, with links straight to a group.</figcaption></figure>
+<section aria-labelledby="operations">
+  <h2 id="operations">Recovery and monitoring</h2>
+  <div class="firmware-gallery">
+    <figure id="recovery">
+      <a href="{{root}}assets/firmware-ui/recovery.png"><img src="{{root}}assets/firmware-ui/recovery.png" alt="Wake a saved device and check whether it responds." width="1440" height="900" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Wake-on-LAN and device checks</strong><br>Wake a saved device and check whether it responds.</figcaption>
+    </figure>
+    <figure id="notifications">
+      <a href="{{root}}assets/firmware-ui/notifications.png"><img src="{{root}}assets/firmware-ui/notifications.png" alt="Configure Telegram alerts and commands from the Automation page." width="1068" height="975" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Notification channels</strong><br>Configure Telegram alerts and commands from the Automation page.</figcaption>
+    </figure>
+    <figure id="trends">
+      <a href="{{root}}assets/firmware-ui/trends.png"><img src="{{root}}assets/firmware-ui/trends.png" alt="Local charts for memory, traffic, signal, CPU and peers." width="1068" height="505" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Resource trends</strong><br>Local charts for memory, traffic, signal, CPU and peers.</figcaption>
+    </figure>
+    <figure id="history">
+      <a href="{{root}}assets/firmware-ui/history.png"><img src="{{root}}assets/firmware-ui/history.png" alt="Recent operational events and local history settings." width="1440" height="900" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Event history</strong><br>Recent operational events and local history settings.</figcaption>
+    </figure>
+  </div>
+</section>
 
-<h2 id="history">Event history</h2>
-<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-history.png"><img src="{{root}}assets/firmware-ui/v3-history.png" alt="Diagnostics, History: switches for recording events, trends and a settings copy before each update, and recent events" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Starts, crashes, updates, uplink and tailnet changes and failed logins, kept across restarts. Off by default.</figcaption></figure>
+<section aria-labelledby="setup">
+  <h2 id="setup">Setup and preferences</h2>
+  <div class="firmware-gallery">
+    <figure id="first-boot">
+      <a href="{{root}}assets/firmware-ui/first-boot.png"><img src="{{root}}assets/firmware-ui/first-boot.png" alt="The setup summary links to the tested address and the per-board local hostname." width="560" height="361" loading="lazy" decoding="async"></a>
+      <figcaption><strong>First-boot summary</strong><br>The setup summary links to the tested address and the per-board local hostname.</figcaption>
+    </figure>
+    <figure id="interface-mode">
+      <a href="{{root}}assets/firmware-ui/interface-mode.png"><img src="{{root}}assets/firmware-ui/interface-mode.png" alt="Toggle advanced settings and choose the browser language." width="1068" height="235" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Interface preferences</strong><br>Toggle advanced settings and choose the browser language.</figcaption>
+    </figure>
+    <figure id="profiles">
+      <a href="{{root}}assets/firmware-ui/profiles.png"><img src="{{root}}assets/firmware-ui/profiles.png" alt="Preview a preset before applying it." width="1068" height="246" loading="lazy" decoding="async"></a>
+      <figcaption><strong>Configuration profiles</strong><br>Preview a preset before applying it.</figcaption>
+    </figure>
+  </div>
+</section>
 
-<h2 id="first-boot">Find the gateway after first boot</h2>
-<div class="ui-preview"><figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v2-first-boot-finish.png"><img src="{{root}}assets/firmware-ui/v2-first-boot-finish.png" alt="First-boot completion page showing an example LAN address and per-board esp32-tailnet hostname" width="600" height="398" loading="lazy" decoding="async"></a><figcaption>First-boot interface with synthetic addresses, captured by the browser test fixture.</figcaption></figure><div><h3>Reconnect, then open your gateway</h3><p>The setup summary links to the tested LAN address and the board's unique <code>esp32-tailnet-xxxx.local</code> name. First boot requires physical pairing with your own board.</p><p><a href="{{root}}first-boot/">Follow the setup guide</a></p></div></div>
-
-<h2 id="firewall">Local network controls</h2>
-<figure class="ui-shot"><a href="{{root}}assets/firmware-ui/v3-firewall.png"><img src="{{root}}assets/firmware-ui/v3-firewall.png" alt="ESP32 gateway firewall Web UI showing the TO ESP, FROM ESP, TO AP and FROM AP chains with example rules and counters" width="1440" height="900" loading="lazy" decoding="async"></a><figcaption>Firewall interface with invented example rules. Local firewall rules and Tailnet authorization are separate controls.</figcaption></figure>
-
-<h2 id="roles">Choose the job, not a wall of settings</h2>
-<div class="ui-preview">
-  <figure class="ui-shot"><a href="{{root}}assets/screenshots/esp32-tailnet-gateway-live-goals.jpg"><img src="{{root}}assets/screenshots/esp32-tailnet-gateway-live-goals.jpg" alt="Live firmware role selection: connect a LAN device to a Tailnet service, reach this network, create an IoT WiFi, recover a NAS or connect Home Assistant" width="604" height="1051" decoding="async"></a><figcaption>Actual goal selection panel. Open an image to see it at full size.</figcaption></figure>
-  <div><h3>One device, optional roles</h3><p>The dashboard links to guides for the Service Gateway, subnet routing, an IoT access point, recovery and Home Assistant. Choosing a guide does not automatically change the device configuration.</p><p><a href="{{root}}network-modes/">Understand the different network roles</a></p><p><a href="{{root}}install-firmware/" class="btn primary">Install Firmware</a></p></div>
-</div>
-
-<h2 id="simple-mode">Start simple, reveal advanced controls when needed</h2>
-<div class="ui-preview">
-  <figure class="ui-shot"><a href="{{root}}assets/screenshots/esp32-tailnet-gateway-live-interface-mode.jpg"><img src="{{root}}assets/screenshots/esp32-tailnet-gateway-live-interface-mode.jpg" alt="Live firmware interface settings with Simple and Advanced mode switch and browser-local language selection" width="603" height="349" loading="lazy" decoding="async"></a><figcaption>Actual interface preferences. Language and visibility choices stay in the browser.</figcaption></figure>
-  <div><h3>The same firmware, less visual clutter</h3><p>Simple mode hides expert sections without disabling their existing settings. Advanced mode reveals the additional controls. Technical values and addresses are never translated.</p><p><a href="{{root}}getting-started/">Get started with the firmware</a></p></div>
-</div>
-
-<h2 id="profiles">Preview a profile before applying it</h2>
-<div class="ui-preview">
-  <figure class="ui-shot"><a href="{{root}}assets/screenshots/esp32-tailnet-gateway-live-profiles.jpg"><img src="{{root}}assets/screenshots/esp32-tailnet-gateway-live-profiles.jpg" alt="Live Gateway profile selector with Preview changes, disabled Apply previewed changes, and Roll back last profile change controls" width="603" height="432" loading="lazy" decoding="async"></a><figcaption>Actual profile panel. The selected preset is not applied until you preview and confirm it.</figcaption></figure>
-  <div><h3>Presets, not separate downloads</h3><p>Gateway, Recovery, IoT and Monitoring are profiles of the same firmware. Presets enable low-risk optional settings after a preview; they do not silently open network access.</p><p><a href="{{root}}service-gateway/">Use selective service forwarding</a> or <a href="{{root}}remote-recovery/">wake a NAS or PC over Tailscale</a>.</p></div>
-</div>
+<p><a href="{{root}}install-firmware/" class="btn primary">Install Firmware</a> <a href="{{root}}getting-started/" class="btn">Getting started</a></p>
