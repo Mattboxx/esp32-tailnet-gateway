@@ -285,4 +285,3 @@ with tempfile.TemporaryDirectory(prefix='reliability-') as work:
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(source_file), '-o', str(executable)], check=True)
     subprocess.run([str(executable)], check=True)
-

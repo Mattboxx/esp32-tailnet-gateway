@@ -1,5 +1,13 @@
 # Maintainer continuation
 
+## Active qualification — 3.0.19-beta.1 reliability fixes
+
+- Runtime source `fceb7c03a323` implements OTA boot confirmation after local admin startup, restart admission before OTA writes, fair due-device scheduling, bounded ntfy result delivery, and mDNS re-probing only on IPv4 or interface change. Later commits update host fixtures and validation records.
+- The ESP-IDF 6.1 image and ELF are archived under ignored `build/development-3.0.19-beta.1/fceb7c03a323/`. Hardware qualification is pending. The installed stable was checked over LAN, with 30/30 authenticated status reads and no observed reboot.
+- Use an authorized OTA with a verified physical recovery path. Verify running and inactive slot identities plus the current private backup. Keep the running stable as the fallback. Record the candidate build ID, OTA state, preserved settings, uptime and Tailnet reconnect. Exercise a forced rollback on a recovery-capable board and test ntfy delivery and monitor timing.
+- Performance tuning is experimental. Build the same runtime with the default queue limit 24 and with `TSR_TEST_STA_SHED_FROM=28` or `32`. The lab versions identify themselves with `-q28` and `-q32`. Start with the owning PC on the device's Tailnet, confirm the direct path, then repeat paired 500 MB and concurrent runs and compare throughput, UI/ping latency, drops and heap. Keep 24 unless the hardware evidence favors another limit.
+
+
 ## Active work — ESP-IDF 6.1 beta
 
 The v3.0.18-beta.2 OTA was qualified on the Wi-Fi owner board. Beta.3 is
