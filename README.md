@@ -38,7 +38,21 @@ ESP32S3. [Supported boards](#8-supported-hardware)
 
 </div>
 
-### What's new in Firmware 3.0.18
+### What's new in Firmware 3.0.19
+
+- **OTA recovery** keeps a new image pending during startup and reserves the
+  restart task before accepting a manual upload.
+- **Scheduled Recovery checks** skip disabled devices and distinguish local
+  probe errors from a failed target check.
+- **ntfy** queues and retries operational results, preserving pending results
+  when unrelated preferences are saved.
+- **Networking** improves Wi-Fi queue handling under load and avoids redundant
+  mDNS probing when the uplink address is unchanged.
+
+[Install Firmware 3.0.19](https://mattboxx.github.io/esp32-tailnet-gateway/install-firmware/)
+· [Full changelog](CHANGELOG.md)
+
+### Firmware 3.0.18
 
 - **Guided Wi-Fi setup** requires a successful connection test before
   continuing. The assigned IP is displayed with a copy button.
