@@ -14,7 +14,7 @@ header = (ROOT / 'main/ntfy_integration.h').read_text()
 config_type = 'typedef struct {' + header.split('typedef struct {', 1)[1].split('} ntfy_integration_config_t;', 1)[0] + '} ntfy_integration_config_t;\n'
 config_type += '_Static_assert(sizeof(ntfy_integration_config_t)==428,"configuration RAM size changed");\n'
 buffer_type = '#define NTFY_POLL_BATCH' + source.split('#define NTFY_POLL_BATCH', 1)[1].split('static void defaults', 1)[0]
-validation = 'static bool topic_valid' + source.split('static bool topic_valid', 1)[1].split('static void snapshot', 1)[0]
+validation = 'static bool topic_valid' + source.split('static bool topic_valid', 1)[1].split('static uint64_t snapshot', 1)[0]
 loading = 'static void defaults' + source.split('static void defaults', 1)[1].split('static bool topic_valid', 1)[0]
 setter = 'esp_err_t ntfy_integration_set_config' + source.split('esp_err_t ntfy_integration_set_config', 1)[1].split('esp_err_t ntfy_integration_send_test', 1)[0]
 transport = 'static void build_url' + source.split('static void build_url', 1)[1].split('static void appendf', 1)[0]
@@ -33,6 +33,7 @@ fixture = r'''
 #include "ntfy_json_stream.h"
 #define NTFY_NOINLINE
 #define ESP_OK 0
+#define ESP_ERR_INVALID_RESPONSE 501
 #define ESP_FAIL -1
 #define ESP_ERR_NO_MEM 2
 #define ESP_ERR_INVALID_ARG 3
@@ -67,6 +68,8 @@ static int s_lock=1;
 static struct { bool last_publish_ok; } s_status;
 static char s_last_event_id[48];
 static uint64_t s_config_generation;
+static unsigned s_operational_count;
+static void operational_pop(bool dropped) { assert(dropped && s_operational_count); --s_operational_count; }
 static int s_task=1;
 static void (*during_request)(void);
 static void (*after_command)(void);
