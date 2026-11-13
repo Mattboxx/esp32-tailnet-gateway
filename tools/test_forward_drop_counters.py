@@ -267,5 +267,7 @@ with tempfile.TemporaryDirectory(prefix='drop-counters-') as directory:
     if os.environ.get('NETIF_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
     binary = path / ('test.exe' if os.name == 'nt' else 'test')
-    subprocess.run([os.environ.get('CC', 'gcc'), *flags, str(path / 'test.c'), '-o', str(binary)], check=True)
-    subprocess.run([str(binary)], check=True)
+    for variant in ([], ['-DSTA_SHED_FROM=28'], ['-DSTA_SHED_FROM=32']):
+        subprocess.run([os.environ.get('CC', 'gcc'), *flags, *variant,
+                        str(path / 'test.c'), '-o', str(binary)], check=True)
+        subprocess.run([str(binary)], check=True)

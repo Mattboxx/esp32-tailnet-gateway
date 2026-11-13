@@ -19,7 +19,7 @@ UI = (ROOT / 'main/web_ui.c').read_text(encoding='utf-8').replace('\r\n', '\n')
 start = UI.index('conf.lru_purge_enable         = false;')
 assert 'conf.open_fn                  = web_idle_open;' in UI[start:start + 200]
 assert 'lru_purge_enable         = true' not in UI
-assert UI.index('web_idle_start(server);') > UI.index('if (httpd_start(&server, &conf) != ESP_OK) {')
+assert UI.index('web_idle_start(server);') > UI.index('esp_err_t start = httpd_start(&server, &conf);')
 
 STUBS = {
     'esp_http_server.h': r'''
