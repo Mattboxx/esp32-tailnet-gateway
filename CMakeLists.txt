@@ -60,15 +60,12 @@ if(NOT _sta_limit STREQUAL "")
     if(NOT _sta_limit MATCHES "^(28|32)$")
         message(FATAL_ERROR "TSR_TEST_STA_SHED_FROM must be 28 or 32")
     endif()
+    idf_build_set_property(COMPILE_DEFINITIONS "STA_SHED_FROM=${_sta_limit}" APPEND)
     set(PROJECT_VER "${PROJECT_VER}-q${_sta_limit}")
 endif()
 
 project(esp32_tsr)
 
-if(NOT _sta_limit STREQUAL "")
-    idf_component_get_property(_main_target main COMPONENT_LIB)
-    target_compile_definitions(${_main_target} PRIVATE "STA_SHED_FROM=${_sta_limit}")
-endif()
 
 # Keep the reviewed task reaper. The upstream external-stack option uses
 # vTaskDeleteWithCaps(NULL), which can allocate during self-deletion.
