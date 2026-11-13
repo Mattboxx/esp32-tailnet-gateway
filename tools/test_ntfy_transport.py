@@ -14,8 +14,9 @@ header = (ROOT / 'main/ntfy_integration.h').read_text()
 config_type = 'typedef struct {' + header.split('typedef struct {', 1)[1].split('} ntfy_integration_config_t;', 1)[0] + '} ntfy_integration_config_t;\n'
 config_type += '_Static_assert(sizeof(ntfy_integration_config_t)==428,"configuration RAM size changed");\n'
 buffer_type = '#define NTFY_POLL_BATCH' + source.split('#define NTFY_POLL_BATCH', 1)[1].split('static void defaults', 1)[0]
-validation = 'static bool topic_valid' + source.split('static bool topic_valid', 1)[1].split('static void snapshot', 1)[0]
+validation = 'static bool topic_valid' + source.split('static bool topic_valid', 1)[1].split('static uint64_t snapshot', 1)[0]
 loading = 'static void defaults' + source.split('static void defaults', 1)[1].split('static bool topic_valid', 1)[0]
+destination = source[source.index('static bool operational_destination_equal'):source.index('static NTFY_NOINLINE void operational_tick')]
 setter = 'esp_err_t ntfy_integration_set_config' + source.split('esp_err_t ntfy_integration_set_config', 1)[1].split('esp_err_t ntfy_integration_send_test', 1)[0]
 transport = 'static void build_url' + source.split('static void build_url', 1)[1].split('static void appendf', 1)[0]
 poll = 'static void collect_line' + source.split('static void collect_line', 1)[1].split('static bool uplink_connected', 1)[0]
@@ -33,6 +34,7 @@ fixture = r'''
 #include "ntfy_json_stream.h"
 #define NTFY_NOINLINE
 #define ESP_OK 0
+#define ESP_ERR_INVALID_RESPONSE 501
 #define ESP_FAIL -1
 #define ESP_ERR_NO_MEM 2
 #define ESP_ERR_INVALID_ARG 3
@@ -66,7 +68,9 @@ static int s_lock=1;
 #define xSemaphoreGive(a) ((void)(a))
 static struct { bool last_publish_ok; } s_status;
 static char s_last_event_id[48];
-static uint64_t s_config_generation;
+static uint64_t s_config_generation, s_operational_generation;
+static unsigned s_operational_count;
+static void operational_pop(bool dropped) { assert(dropped && s_operational_count); --s_operational_count; }
 static int s_task=1;
 static void (*during_request)(void);
 static void (*after_command)(void);
@@ -350,6 +354,14 @@ int main(void) {
     /* All configuration fields/cursor survive loading as a single value. */
     c.info_include_details=c.allow_direct_mac=c.tailscale_alerts=true;
     reset(200);s_config=c;strcpy(s_last_event_id,"prior-id");
+    s_operational_count=2;
+    uint64_t generation=s_operational_generation;
+    assert(ntfy_integration_set_config(&c)==ESP_OK);
+    assert(s_operational_count==2 && s_operational_generation==generation);
+    ntfy_integration_config_t harmless=c;
+    harmless.info_include_details=!harmless.info_include_details;
+    assert(ntfy_integration_set_config(&harmless)==ESP_OK);
+    assert(s_operational_count==2 && s_operational_generation==generation);
     assert(ntfy_integration_set_config(&c)==ESP_OK);
     ntfy_integration_config_t loaded;
     load_state(&loaded);assert(config_equal(&c,&loaded)&&!strcmp(s_last_event_id,"prior-id"));
@@ -362,6 +374,7 @@ int main(void) {
         load_state(&loaded);assert(config_equal(&c,&loaded)&&!strcmp(s_last_event_id,"prior-id"));
     }
     assert(ntfy_integration_set_config(&changed)==ESP_OK);
+    assert(s_operational_count==0 && s_operational_generation==generation+1);
     load_state(&loaded);assert(!strcmp(loaded.topic,"changed")&&!s_last_event_id[0]);
     /* System events live in a separate key: failure leaves both stores and RAM
      * unchanged; a failed main record reverts the separate key. */
@@ -406,7 +419,7 @@ int main(void) {
 '''
 with tempfile.TemporaryDirectory(prefix='ntfy-transport-') as directory:
     path = Path(directory)
-    (path / 'test.c').write_text(fixture + config_type + storage_fixture + buffer_type + loading + validation + transport + command_stub + poll + setter + tests)
+    (path / 'test.c').write_text(fixture + config_type + storage_fixture + buffer_type + loading + validation + transport + command_stub + poll + destination + setter + tests)
     flags = ['-std=c11', '-Wall', '-Wextra', '-Werror', '-I', str(ROOT / 'main'), str(ROOT / 'main/ntfy_json_stream.c')]
     if os.environ.get('NTFY_SANITIZE') == '1':
         flags += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']

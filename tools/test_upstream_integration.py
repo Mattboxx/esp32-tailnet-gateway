@@ -80,7 +80,7 @@ class UpstreamIntegrationTests(unittest.TestCase):
 
     def test_every_http_endpoint_registration_is_checked(self):
         web = self.text("main/web_ui.c")
-        init = web.split("void web_ui_init(void)", 1)[1]
+        init = web.split("esp_err_t web_ui_init(void)", 1)[1]
         self.assertNotIn("httpd_register_uri_handler(", init)
         import re
         capacity = int(re.search(r"conf.max_uri_handlers\s*=\s*(\d+)", init)[1])
@@ -110,7 +110,7 @@ class UpstreamIntegrationTests(unittest.TestCase):
         self.assertIn('.peer_api_port = peer_dns_is_running()', manager)
         self.assertIn('TAILSCALE_PEERAPI_PORT + 1', manager)
         web = self.text('main/web_ui.c')
-        init = web.split('void web_ui_init(void)', 1)[1]
+        init = web.split('esp_err_t web_ui_init(void)', 1)[1]
         self.assertNotIn('peer_dns_get_handler', init)
         self.assertIn('exit_dns_running', web)
         self.assertIn('exit_dns_running', self.text('main/mqtt_integration.c'))

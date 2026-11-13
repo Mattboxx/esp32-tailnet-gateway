@@ -3756,7 +3756,7 @@
       <div class="card mb-4" data-capability="smart-recovery"><div class="card-header"><span class="card-title">Device registry</span></div><div class="card-body">
         <p class="form-hint">Add or edit MAC addresses in the Wake-on-LAN card above. Profiles remain linked to the saved MAC, not its row number. Checks use IPv4 DNS or cached Tailnet names. TCP connection success proves the selected port answered, not application health.</p>
         <label class="feature-switch"><input type="checkbox" id="ops-monitoring"><span class="feature-switch-track" aria-hidden="true"></span><span>Monitor configured devices</span></label>
-        <div class="form-row"><div class="form-group"><label class="form-label" for="ops-interval">Monitor interval (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600" placeholder="e.g. 60"><span class="form-hint">How often monitored devices are checked.</span></div></div>
+        <div class="form-row"><div class="form-group"><label class="form-label" for="ops-interval">Spacing between device checks (seconds)</label><input class="input" id="ops-interval" type="number" min="30" max="3600" placeholder="e.g. 60"><span class="form-hint">Minimum spacing between scheduled checks, shared by all monitored devices.</span></div></div>
         <button class="btn btn-secondary" id="ops-settings-save" type="button" disabled>Save monitoring settings</button>
         <span class="form-hint" id="ops-settings-save-status" role="status"></span>
         <div class="ops-recovery-links">
@@ -8154,7 +8154,7 @@
            ['host_port','Host TCP port','number','e.g. 22','A port that answers as soon as the device is on: SSH 22, web 80, file sharing 445.'],
            ['service_port','Optional service TCP port','number','e.g. 5000','An app that must answer too, such as the NAS web page. Leave empty to skip.'],
            ['timeout_s','Recovery timeout (5–600 s)','number','e.g. 120','How long to wait for the device after a check or WoL starts.'],
-           ['interval_s','Device interval (30–3600 s)','number','e.g. 300','How often the device is checked while monitoring is on.'],
+           ['interval_s','Device interval (30–3600 s)','number','e.g. 300','Minimum time between checks of this device. Checks share the global spacing and can run later when several devices are due.'],
            ['max_checks','Maximum checks (1–60)','number','e.g. 10','Attempts before the device is reported not reachable.']].forEach(function(f){
             var input=document.createElement('input');input.className='input';input.type=f[2];input.value=f[0]==='service_port'&&!d[f[0]]?'':d[f[0]];input.maxLength=95;input.placeholder=f[3];
             if(f[2]==='number'){input.min=f[0]==='max_checks'?1:f[0]==='timeout_s'?5:f[0]==='interval_s'?30:0;input.max=f[0]==='max_checks'?60:f[0]==='timeout_s'?600:f[0]==='interval_s'?3600:65535;}field(f[1],input,f[4]);fields[f[0]]=input;

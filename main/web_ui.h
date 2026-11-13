@@ -18,8 +18,8 @@ struct httpd_req;
 extern "C" {
 #endif
 
-/* Start the HTTP server. Idempotent — subsequent calls are no-ops. */
-void web_ui_init(void);
+/* Start the HTTP server and register the essential admin handlers. */
+esp_err_t web_ui_init(void);
 /* Shared session + browser write-origin gate for extension API handlers. */
 esp_err_t web_ui_require_auth(struct httpd_req *req);
 /* A password-backed session even when the ordinary UI gate is off: for

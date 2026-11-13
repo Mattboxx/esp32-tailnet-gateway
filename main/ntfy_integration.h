@@ -31,6 +31,8 @@ typedef struct {
     bool last_publish_ok;
     uint32_t alerts_sent;
     uint32_t commands_received;
+    uint32_t operational_pending;
+    uint32_t operational_dropped;
     uint32_t command_errors;
     bool task_running;
     uint32_t stack_min_free_bytes;

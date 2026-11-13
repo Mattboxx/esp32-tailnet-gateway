@@ -151,6 +151,6 @@ with tempfile.TemporaryDirectory(prefix='web-port-') as directory:
     subprocess.run([str(binary)], check=True)
 
 assert '"web_port.c"' in (ROOT / 'main/CMakeLists.txt').read_text(encoding='utf-8')
-startup = web.split('void web_ui_init(void)', 1)[1]
+startup = web.split('esp_err_t web_ui_init(void)', 1)[1]
 assert startup.index('web_ui_set_active_port(conf.server_port)') < startup.index('httpd_start(&server')
 assert 'web_ui_set_active_port(0)' in startup

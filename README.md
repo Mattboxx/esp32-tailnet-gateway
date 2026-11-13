@@ -464,17 +464,11 @@ unable to block routing or local administration.
 
 ## 16. Limitations
 
-- **Transfer speed:** the ESP32-S3 Wi-Fi reference from Espressif reaches
-  **20 Mbit/s (2.5 MB/s)** over TCP in its over-the-air lab test on a single
-  link. With W5500 Ethernet, the link can negotiate **100 Mbit/s (12.5 MB/s)**
-  and this firmware supports SPI up to **40 MHz**, equivalent to a raw bus
-  rate of **40 Mbit/s (5 MB/s)** before overhead. Ethernet can reduce
-  contention for Wi-Fi airtime when it replaces a wireless hop. The figures
-  describe the hardware links and SPI bus. End-to-end Tailnet transfer speed
-  depends on the network path, WireGuard processing and concurrent traffic.
-  The maximum gateway throughput over W5500 has yet to be measured.
-  [Espressif Wi-Fi benchmarks](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/wifi-driver/wifi-performance-and-power-save.html) ·
-  [WIZnet W5500 specifications](https://docs.wiznet.io/Product/Chip/Ethernet/W5500)
+- **Estimated peak Tailnet transfer speed:** roughly **8 Mbit/s (1 MB/s)**
+  over a direct Wi-Fi tunnel in favorable conditions. A W5500 Ethernet
+  uplink may improve that by removing Wi-Fi airtime contention. The
+  firmware's sustained Ethernet ceiling remains unmeasured. Relay paths
+  and concurrent traffic can reduce throughput.
 - **Service Gateway scope:** IPv4 TCP/UDP, up to 8 rules, one Tailnet IPv4
   destination per rule; a port forwarder, not transparent routing. UDP cannot
   be verified without an application reply.
