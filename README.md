@@ -464,11 +464,17 @@ unable to block routing or local administration.
 
 ## 16. Limitations
 
-- **Throughput:** a microcontroller doing userspace WireGuard on one shared
-  2.4 GHz radio. Upstream measurements were roughly 0.3–1.4 Mbit/s through the
-  tunnel; the 3.0 throughput test measured 0.2–2.6 Mbit/s for internet
-  downloads on an N16R8, varying with the radio and the path. Use it for control,
-  telemetry, dashboards and SSH, not video or bulk transfers.
+- **Transfer speed:** the ESP32-S3 Wi-Fi reference from Espressif reaches
+  **20 Mbit/s (2.5 MB/s)** over TCP in its over-the-air lab test on a single
+  link. With W5500 Ethernet, the link can negotiate **100 Mbit/s (12.5 MB/s)**
+  and this firmware supports SPI up to **40 MHz**, equivalent to a raw bus
+  rate of **40 Mbit/s (5 MB/s)** before overhead. Ethernet can reduce
+  contention for Wi-Fi airtime when it replaces a wireless hop. The figures
+  describe the hardware links and SPI bus. End-to-end Tailnet transfer speed
+  depends on the network path, WireGuard processing and concurrent traffic.
+  The maximum gateway throughput over W5500 has yet to be measured.
+  [Espressif Wi-Fi benchmarks](https://docs.espressif.com/projects/esp-idf/en/stable/esp32s3/api-guides/wifi-driver/wifi-performance-and-power-save.html) ·
+  [WIZnet W5500 specifications](https://docs.wiznet.io/Product/Chip/Ethernet/W5500)
 - **Service Gateway scope:** IPv4 TCP/UDP, up to 8 rules, one Tailnet IPv4
   destination per rule; a port forwarder, not transparent routing. UDP cannot
   be verified without an application reply.
