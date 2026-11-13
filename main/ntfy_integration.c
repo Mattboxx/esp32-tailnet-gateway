@@ -63,20 +63,61 @@ static TaskHandle_t s_task;
 static char s_last_event_id[48];
 /* Changes invalidate queued replies, including a disable/re-enable cycle. */
 static uint64_t s_config_generation;
-/* Existing task-only text, never ISR/cache-disabled state. Reuse PSRAM as
- * the notification queues do; keep internal RAM below the released budget. */
-EXT_RAM_BSS_ATTR static char s_operational_event[160];
-static uint64_t s_operational_generation;
+#define NTFY_OPERATIONAL_CAPACITY 6
+#define NTFY_OPERATIONAL_ATTEMPTS 3
+#define NTFY_OPERATIONAL_TTL_MS 300000
+
+typedef struct {
+    char message[160];
+    uint64_t queued_ms;
+} operational_event_t;
+
+/* Task-only text. Keep the queue in PSRAM and send at most one at a time. */
+EXT_RAM_BSS_ATTR static operational_event_t s_operational[NTFY_OPERATIONAL_CAPACITY];
+static unsigned s_operational_head;
+static unsigned s_operational_count;
+static unsigned s_operational_attempts;
+static uint64_t s_operational_retry_ms;
+
+static void operational_pop(bool dropped)
+{
+    s_operational_head = (s_operational_head + 1) % NTFY_OPERATIONAL_CAPACITY;
+    --s_operational_count;
+    s_operational_attempts = 0;
+    s_operational_retry_ms = 0;
+    if (dropped) ++s_status.operational_dropped;
+}
+
+static void operational_expire(uint64_t now)
+{
+    while (s_operational_count &&
+           now - s_operational[s_operational_head].queued_ms >= NTFY_OPERATIONAL_TTL_MS)
+        operational_pop(true);
+}
 
 bool ntfy_integration_queue_event(const char *message)
 {
-    /* Also to the event history and the Telegram/email channels, when on. */
-    if(message)history_event(HIST_EV_SERVICE,HIST_INFO,"%s",message);
-    if(!s_lock || !message || strlen(message)>=sizeof s_operational_event)return false;
-    xSemaphoreTake(s_lock,portMAX_DELAY);
-    bool accepted=s_config.enabled && !s_operational_event[0];
-    if(accepted){strlcpy(s_operational_event,message,sizeof s_operational_event);s_operational_generation=s_config_generation;}
-    xSemaphoreGive(s_lock);return accepted;
+    /* History forwards independently to the enabled Telegram/email channels. */
+    if (message) history_event(HIST_EV_SERVICE, HIST_INFO, "%s", message);
+    if (!s_lock || !message || !message[0] || strlen(message) >= sizeof s_operational[0].message)
+        return false;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    bool accepted = false;
+    if (s_config.enabled) {
+        uint64_t now = (uint64_t)esp_timer_get_time() / 1000;
+        /* Only the worker may evict the head while a send can be in flight. */
+        if (s_operational_count < NTFY_OPERATIONAL_CAPACITY) {
+            unsigned tail = (s_operational_head + s_operational_count) % NTFY_OPERATIONAL_CAPACITY;
+            strlcpy(s_operational[tail].message, message, sizeof s_operational[tail].message);
+            s_operational[tail].queued_ms = now;
+            ++s_operational_count;
+            accepted = true;
+        } else {
+            ++s_status.operational_dropped;
+        }
+    }
+    xSemaphoreGive(s_lock);
+    return accepted;
 }
 
 /* TLS certificate verification needs its own stack reserve. Keep the large
@@ -265,11 +306,13 @@ static void load_state(ntfy_integration_config_t *c)
     ESP_LOGW(TAG, "Stored settings unavailable or invalid; integration disabled");
 }
 
-static void snapshot(ntfy_integration_config_t *out)
+static uint64_t snapshot(ntfy_integration_config_t *out)
 {
     xSemaphoreTake(s_lock, portMAX_DELAY);
     memcpy(out, &s_config, sizeof *out);
+    uint64_t generation = s_config_generation;
     xSemaphoreGive(s_lock);
+    return generation;
 }
 
 static void build_url(const ntfy_integration_config_t *c, const char *suffix,
@@ -324,7 +367,10 @@ static NTFY_NOINLINE esp_err_t publish_message(const ntfy_integration_config_t *
     s_status.last_publish_ok = ok;
     xSemaphoreGive(s_lock);
     if (!ok) ESP_LOGW(TAG, "publish failed: %s HTTP %d", esp_err_to_name(err), status);
-    return ok ? ESP_OK : (err == ESP_OK ? ESP_FAIL : err);
+    if (ok) return ESP_OK;
+    if (err == ESP_OK && status >= 400 && status < 500 && status != 408 && status != 429)
+        return ESP_ERR_INVALID_RESPONSE;
+    return err == ESP_OK ? ESP_FAIL : err;
 }
 
 static void appendf(char *out, size_t size, const char *fmt, ...)
@@ -763,6 +809,31 @@ static NTFY_NOINLINE esp_err_t send_system_event(const ntfy_integration_config_t
     return publish_message(c, title, "mattboxx-response", message);
 }
 
+static NTFY_NOINLINE void operational_tick(const ntfy_integration_config_t *c,
+                                            uint64_t generation, bool online)
+{
+    char message[sizeof s_operational[0].message];
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    uint64_t now = (uint64_t)esp_timer_get_time() / 1000;
+    operational_expire(now);
+    bool due = online && generation == s_config_generation && s_operational_count &&
+               now >= s_operational_retry_ms;
+    if (due) memcpy(message, s_operational[s_operational_head].message, sizeof message);
+    xSemaphoreGive(s_lock);
+    if (!due) return;
+
+    esp_err_t err = publish_message(c, "ESP32 operational result", "mattboxx-response", message);
+    now = (uint64_t)esp_timer_get_time() / 1000;
+    xSemaphoreTake(s_lock, portMAX_DELAY);
+    if (generation == s_config_generation) {
+        if (err == ESP_OK) operational_pop(false);
+        else if (err == ESP_ERR_INVALID_RESPONSE || ++s_operational_attempts >= NTFY_OPERATIONAL_ATTEMPTS)
+            operational_pop(true);
+        else s_operational_retry_ms = now + (s_operational_attempts == 1 ? 5000 : 15000);
+    }
+    xSemaphoreGive(s_lock);
+}
+
 static void task_main(void *arg)
 {
     (void)arg;
@@ -777,23 +848,19 @@ static void task_main(void *arg)
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));
         ntfy_integration_config_t c;
-        snapshot(&c);
+        uint64_t generation = snapshot(&c);
         bool boot_enabled = esp_reset_reason() == ESP_RST_POWERON ? c.poweron_events : c.system_events;
         ntfy_events_select(&events, c.enabled, boot_enabled, c.system_events);
         if (!c.enabled || (!boot_enabled && !c.system_events)) ntfy_events_tick(&events, false, false, 0);
-        if (!c.enabled || !uplink_connected()) {
+        bool online = c.enabled && uplink_connected();
+        operational_tick(&c, generation, online);
+        if (!online) {
             down_seconds = retry_seconds = 0;
             service_retry_reset(&polling);
             alerted = false;
             could_poll_before = false;
             continue;
         }
-        char operational[160]={0};
-        xSemaphoreTake(s_lock,portMAX_DELAY);
-        if(s_operational_generation==s_config_generation)strlcpy(operational,s_operational_event,sizeof operational);
-        s_operational_event[0]=0;
-        xSemaphoreGive(s_lock);
-        if(operational[0])(void)publish_message(&c,"ESP32 operational result","mattboxx-response",operational);
         bool ts_down = tailscale_enabled && !tailscale_is_connected();
         bool restored = alerted && !ts_down;
         if (restored) restored_after = down_seconds;
@@ -811,9 +878,6 @@ static void task_main(void *arg)
         }
         bool can_poll = c.commands_enabled
                      && (!c.commands_only_when_tailscale_down || ts_down);
-        xSemaphoreTake(s_lock,portMAX_DELAY);
-        uint64_t generation = s_config_generation;
-        xSemaphoreGive(s_lock);
         /* Arm immediately after enabling commands (or after the
          * Tailscale-down condition becomes true) instead of waiting one
          * complete poll interval before establishing the server cursor. */
@@ -867,6 +931,7 @@ void ntfy_integration_get_status(ntfy_integration_status_t *out)
     if (!s_lock) { memset(out, 0, sizeof *out); return; }
     xSemaphoreTake(s_lock, portMAX_DELAY);
     memcpy(out, &s_status, sizeof *out);
+    out->operational_pending = s_operational_count;
     xSemaphoreGive(s_lock);
     out->task_running = s_task != NULL;
     /* ESP-IDF reports the high-water mark in bytes, not FreeRTOS words. */
@@ -899,6 +964,7 @@ esp_err_t ntfy_integration_set_config_recovery(const ntfy_integration_config_t *
         memcpy(&s_config, c, sizeof *c);
         homelab_ops_publish_recovery(staged);
         s_config_generation++;
+        while (s_operational_count) operational_pop(true);
         if (endpoint_changed) s_last_event_id[0] = '\0';
     }
     xSemaphoreGive(s_lock);

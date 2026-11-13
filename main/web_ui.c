@@ -2248,6 +2248,8 @@ static esp_err_t ntfy_handler(httpd_req_t *req)
     cJSON_AddNumberToObject(root, "poll_interval_seconds", c.poll_interval_seconds);
     cJSON_AddBoolToObject(root, "last_publish_ok", st.last_publish_ok);
     cJSON_AddNumberToObject(root, "alerts_sent", st.alerts_sent);
+    cJSON_AddNumberToObject(root, "operational_pending", st.operational_pending);
+    cJSON_AddNumberToObject(root, "operational_dropped", st.operational_dropped);
     cJSON_AddNumberToObject(root, "commands_received", st.commands_received);
     cJSON_AddNumberToObject(root, "command_errors", st.command_errors);
     cJSON_AddBoolToObject(root, "task_running", st.task_running);
@@ -3805,9 +3807,9 @@ static esp_err_t tailscale_save_handler(httpd_req_t *req)
     return e;
 }
 
-/* Forward decl — the implementation is below the tailscale block but
- * we need it for the reset-identity handler that lives up here. */
-static void delayed_restart_task(void *arg);
+static esp_err_t reserve_restart(httpd_req_t *req, TaskHandle_t *task);
+
+enum { WEB_RESTART_CANCEL = 1, WEB_RESTART_COMMIT };
 
 /* POST /api/tailscale/reset_identity — clears the device's stored
  * machine / wg / disco keypairs + cached peer table so the next boot
@@ -3819,16 +3821,19 @@ static void delayed_restart_task(void *arg);
 static esp_err_t tailscale_reset_identity_handler(httpd_req_t *req)
 {
     if (require_password_session(req) != ESP_OK) return ESP_FAIL;
+    TaskHandle_t reboot;
+    if (reserve_restart(req, &reboot) != ESP_OK) return ESP_FAIL;
     esp_err_t err = microlink_factory_reset();
     httpd_resp_set_type(req, "application/json");
     if (err != ESP_OK) {
         char resp[64];
         snprintf(resp, sizeof resp, "{\"ok\":false,\"reason\":\"%s\"}", esp_err_to_name(err));
+        xTaskNotify(reboot, WEB_RESTART_CANCEL, eSetValueWithOverwrite);
         return httpd_resp_sendstr(req, resp);
     }
-    httpd_resp_sendstr(req, "{\"ok\":true}");
-    xTaskCreate(delayed_restart_task, "reboot", 2048, NULL, 5, NULL);
-    return ESP_OK;
+    esp_err_t response = httpd_resp_sendstr(req, "{\"ok\":true}");
+    xTaskNotify(reboot, WEB_RESTART_COMMIT, eSetValueWithOverwrite);
+    return response;
 }
 
 static const httpd_uri_t uri_tailscale_reset_identity = {
@@ -3987,6 +3992,13 @@ static const httpd_uri_t uri_system = {
 
 static void delayed_restart_task(void *arg)
 {
+    (void)arg;
+    uint32_t command = WEB_RESTART_CANCEL;
+    xTaskNotifyWait(0, 0, &command, portMAX_DELAY);
+    if (command != WEB_RESTART_COMMIT) {
+        vTaskDelete(NULL);
+        return;
+    }
     /* Give the HTTP response a moment to flush + the TCP socket to close
      * cleanly before we yank the power. */
     vTaskDelay(pdMS_TO_TICKS(1000));
@@ -3994,6 +4006,17 @@ static void delayed_restart_task(void *arg)
      * best-effort — never blocks the reboot if the card stalls). */
     sdlog_flush();
     esp_restart();
+}
+
+/* Reserve the internal stack before accepting a write that needs a reboot.
+ * The task stays blocked during upload and never delays the HTTP response. */
+static esp_err_t reserve_restart(httpd_req_t *req, TaskHandle_t *task)
+{
+    if (xTaskCreate(delayed_restart_task, "reboot", 2048, NULL, 5, task) == pdPASS)
+        return ESP_OK;
+    httpd_resp_set_status(req, "503 Service Unavailable");
+    httpd_resp_sendstr(req, "Insufficient memory to schedule a restart; try again");
+    return ESP_ERR_NO_MEM;
 }
 
 static esp_err_t system_save_handler(httpd_req_t *req)
@@ -4149,16 +4172,21 @@ static esp_err_t system_save_handler(httpd_req_t *req)
 static esp_err_t system_restart_handler(httpd_req_t *req)
 {
     if (require_auth(req) != ESP_OK) return ESP_FAIL;
+    TaskHandle_t reboot;
+    if (reserve_restart(req, &reboot) != ESP_OK) return ESP_FAIL;
     httpd_resp_set_type(req, "application/json");
     esp_err_t err = httpd_resp_sendstr(req, "{\"ok\":true,\"restarting\":true}");
-    xTaskCreate(delayed_restart_task, "reboot", 2048, NULL, 5, NULL);
+    xTaskNotify(reboot, WEB_RESTART_COMMIT, eSetValueWithOverwrite);
     return err;
 }
 
 static esp_err_t system_factory_reset_handler(httpd_req_t *req)
 {
     if (require_password_session(req) != ESP_OK) return ESP_FAIL;
+    TaskHandle_t reboot;
+    if (reserve_restart(req, &reboot) != ESP_OK) return ESP_FAIL;
     if (nvs_param_erase_all() != ESP_OK) {
+        xTaskNotify(reboot, WEB_RESTART_CANCEL, eSetValueWithOverwrite);
         httpd_resp_send_err(req, HTTPD_500_INTERNAL_SERVER_ERROR, "Could not erase settings; stored copies retained");
         return ESP_FAIL;
     }
@@ -4166,6 +4194,7 @@ static esp_err_t system_factory_reset_handler(httpd_req_t *req)
      * history) too, before reporting success. 2.x layout: nothing to erase. */
     esp_err_t wiped = storage_store_erase_all();
     if (wiped != ESP_OK && wiped != ESP_ERR_NOT_FOUND) {
+        xTaskNotify(reboot, WEB_RESTART_CANCEL, eSetValueWithOverwrite);
         httpd_resp_set_status(req, "500 Internal Server Error");
         httpd_resp_set_type(req, "application/json");
         httpd_resp_sendstr(req, "{\"ok\":false,\"reason\":\"settings erased, but the stored copies could not be erased\"}");
@@ -4173,7 +4202,7 @@ static esp_err_t system_factory_reset_handler(httpd_req_t *req)
     }
     httpd_resp_set_type(req, "application/json");
     esp_err_t err = httpd_resp_sendstr(req, "{\"ok\":true,\"restarting\":true}");
-    xTaskCreate(delayed_restart_task, "reboot", 2048, NULL, 5, NULL);
+    xTaskNotify(reboot, WEB_RESTART_COMMIT, eSetValueWithOverwrite);
     return err;
 }
 
@@ -4262,12 +4291,13 @@ static const httpd_uri_t uri_system_factory_reset = {
 static esp_err_t system_ota_upload_handler(httpd_req_t *req)
 {
     if (require_password_session(req) != ESP_OK) return ESP_FAIL;
+    TaskHandle_t reboot;
+    if (reserve_restart(req, &reboot) != ESP_OK) return ESP_FAIL;
     esp_err_t err = ota_upload_handler(req);
-    if (err == ESP_OK) {
-        /* Schedule a delayed reboot — same pattern as /api/system/restart
-         * so the success JSON has time to flush over the socket. */
-        xTaskCreate(delayed_restart_task, "reboot", 2048, NULL, 5, NULL);
-    }
+    /* ota_upload_handler reports success once the boot slot is committed,
+     * even when the client disconnected before reading the response. */
+    xTaskNotify(reboot, err == ESP_OK ? WEB_RESTART_COMMIT : WEB_RESTART_CANCEL,
+                eSetValueWithOverwrite);
     return err;
 }
 static const httpd_uri_t uri_system_ota = {
@@ -4766,6 +4796,11 @@ static esp_err_t system_diag_handler(httpd_req_t *req)
             cJSON_AddNumberToObject(e, "size",   p->size);
             cJSON_AddBoolToObject  (e, "running", running && p->address == running->address);
             cJSON_AddBoolToObject  (e, "bootnext", boot && p->address == boot->address);
+            if (p->type == ESP_PARTITION_TYPE_APP) {
+                esp_ota_img_states_t state;
+                if (esp_ota_get_state_partition(p, &state) == ESP_OK)
+                    cJSON_AddNumberToObject(e, "ota_state", state);
+            }
             cJSON_AddItemToArray(parts, e);
             it = esp_partition_next(it);
         }
@@ -5978,13 +6013,14 @@ static const httpd_uri_t uri_favicon = {
 /* httpd_register_uri_handler() fails once max_uri_handlers is used up, and the
  * endpoints registered last would then just 404 with nothing pointing at the
  * cause. Log it, naming the knob. */
-static void reg_uri(httpd_handle_t srv, const httpd_uri_t *u)
+static esp_err_t reg_uri(httpd_handle_t srv, const httpd_uri_t *u)
 {
     esp_err_t err = httpd_register_uri_handler(srv, u);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "register %s failed: %s (raise conf.max_uri_handlers)",
                  u->uri, esp_err_to_name(err));
     }
+    return err;
 }
 
 #if CONFIG_TSR_SNMP
@@ -6096,10 +6132,11 @@ static const httpd_uri_t uri_snmp_post = {
 };
 #endif /* CONFIG_TSR_SNMP */
 
-void web_ui_init(void)
+esp_err_t web_ui_init(void)
 {
     static httpd_handle_t server = NULL;
-    if (server) return;
+    static esp_err_t ready = ESP_ERR_INVALID_STATE;
+    if (server) return ready;
 
     /* Pick up the operator-configured session idle timeout before we
      * start handing out cookies, so the very first login uses the
@@ -6147,7 +6184,7 @@ void web_ui_init(void)
     if (CONFIG_LWIP_MAX_SOCKETS <= httpd_internal_sockets) {
         ESP_LOGE(TAG, "CONFIG_LWIP_MAX_SOCKETS=%d leaves no sockets for HTTP clients",
                  CONFIG_LWIP_MAX_SOCKETS);
-        return;
+        return ESP_ERR_INVALID_STATE;
     }
     const size_t available_http_clients =
         CONFIG_LWIP_MAX_SOCKETS - httpd_internal_sockets;
@@ -6166,10 +6203,11 @@ void web_ui_init(void)
     conf.server_port              = web_ui_configured_port();
     web_ui_set_active_port(conf.server_port);
 
-    if (httpd_start(&server, &conf) != ESP_OK) {
+    esp_err_t start = httpd_start(&server, &conf);
+    if (start != ESP_OK) {
         web_ui_set_active_port(0);
-        ESP_LOGE(TAG, "httpd_start failed");
-        return;
+        ESP_LOGE(TAG, "httpd_start failed: %s", esp_err_to_name(start));
+        return start;
     }
     web_idle_start(server);
     if (ota_flash_bind_httpd(server) != ESP_OK)
@@ -6177,12 +6215,15 @@ void web_ui_init(void)
     /* Old stored rules may conflict with the boot listener. Keep their
      * records, but do not install a DNAT binding over the admin service. */
     portmap_install_all();
-    reg_uri(server, &uri_index);
+    bool admin_ready = reg_uri(server, &uri_index) == ESP_OK;
     reg_uri(server, &uri_i18n);
-    if (first_boot_register_http(server) != ESP_OK) ESP_LOGE(TAG, "First-boot setup API registration failed");
+    if (first_boot_register_http(server) != ESP_OK) {
+        ESP_LOGE(TAG, "First-boot setup API registration failed");
+        if (first_boot_active()) admin_ready = false;
+    }
     if(homelab_ops_register_http(server)!=ESP_OK)ESP_LOGE(TAG,"Operational API registration failed");
     reg_uri(server, &uri_favicon);
-    reg_uri(server, &uri_status);
+    admin_ready &= reg_uri(server, &uri_status) == ESP_OK;
     reg_uri(server, &uri_network);
     reg_uri(server, &uri_network_save);
     reg_uri(server, &uri_network_scan);
@@ -6228,7 +6269,7 @@ void web_ui_init(void)
 #endif
     reg_uri(server, &uri_system_restart);
     reg_uri(server, &uri_system_factory_reset);
-    reg_uri(server, &uri_system_ota);
+    admin_ready &= reg_uri(server, &uri_system_ota) == ESP_OK;
     reg_uri(server, &uri_updates_get);
     reg_uri(server, &uri_updates_save);
     reg_uri(server, &uri_updates_check);
@@ -6241,11 +6282,11 @@ void web_ui_init(void)
 #endif
     reg_uri(server, &uri_system_debug_crash);
     reg_uri(server, &uri_system_debug_wg_tx_post);
-    reg_uri(server, &uri_auth_status);
-    reg_uri(server, &uri_auth_challenge);
-    reg_uri(server, &uri_auth_login);
+    admin_ready &= reg_uri(server, &uri_auth_status) == ESP_OK;
+    admin_ready &= reg_uri(server, &uri_auth_challenge) == ESP_OK;
+    admin_ready &= reg_uri(server, &uri_auth_login) == ESP_OK;
     reg_uri(server, &uri_auth_logout);
-    reg_uri(server, &uri_auth_setup);
+    admin_ready &= reg_uri(server, &uri_auth_setup) == ESP_OK;
     reg_uri(server, &uri_auth_change_password);
     reg_uri(server, &uri_auth_clear_password);
     reg_uri(server, &uri_sdlog_status_get);
@@ -6257,4 +6298,6 @@ void web_ui_init(void)
     ESP_LOGI(TAG, "web UI listening on :%d (HTTP)", conf.server_port);
     /* HTTPS redirect server gone with HTTPS itself — direct HTTP-on-80
      * is now the only listener, so nothing to redirect anywhere. */
+    ready = admin_ready ? ESP_OK : ESP_FAIL;
+    return ready;
 }

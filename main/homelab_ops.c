@@ -403,6 +403,40 @@ static void apply_probe_locked(const job_t *local,int result,uint32_t latency) {
     else if(!local->manual)finish_locked(J_TIMEOUT);
     else{job.state=local->state==J_SERVICE?J_SERVICE:J_WAIT;job.next=now_ms()+3000;}
 }
+/* One probe at a time. Skip disabled and early profiles without charging
+ * the global spacing, and continue after the last device actually admitted. */
+static void schedule_monitor(uint64_t now, const ops_settings_t *settings)
+{
+    if (!settings->monitoring || now < next_monitor) return;
+    next_monitor = now + 1000;
+    const int count = wol_count();
+    for (int offset = 0; offset < count; ++offset) {
+        int index = (int)((monitor_index + (unsigned)offset) % (unsigned)count);
+        ops_device_t profile;
+        wol_device_t device;
+        if (!homelab_ops_device(index, &profile) || !profile.monitor ||
+            !wol_get(index, &device) || memcmp(profile.mac, device.mac, sizeof device.mac))
+            continue;
+        LOCK();
+        const result_t *result = &results[index];
+        bool due = memcmp(result->mac, device.mac, sizeof device.mac) ||
+                   !result->observed_ms ||
+                   now - result->observed_ms >= (uint64_t)profile.interval_s * 1000;
+        UNLOCK();
+        if (!due) continue;
+        if (!homelab_ops_admit()) return;
+        LOCK();
+        if (!active(job.state) && store.settings.monitoring) {
+            job = (job_t){.id=++job_seq, .index=index, .state=J_PRECHECK, .started=now,
+                          .deadline=now+3000, .device=device, .profile=profile};
+            monitor_index = (unsigned)index + 1;
+            next_monitor = now + (uint64_t)store.settings.interval_s * 1000;
+        }
+        UNLOCK();
+        return;
+    }
+}
+
 static void worker(void *arg) {
     (void)arg;
     uint32_t notified=0;
@@ -431,15 +465,8 @@ static void worker(void *arg) {
         if(!active(local.state)){
             health_monitor_poll(); /* Serialized with recovery; at most one probe. */
             service_check_poll();  /* Same worker and socket budget, on request only. */
-            if(!settings.monitoring || now<next_monitor)continue;
-            next_monitor=now+(uint64_t)settings.interval_s*1000;
-            int count=wol_count();if(!count)continue;
-            int index=(int)(monitor_index++%(unsigned)count);ops_device_t p;wol_device_t d;
-            if(!homelab_ops_device(index,&p)||!p.monitor||!wol_get(index,&d)||!homelab_ops_admit())continue;
-            LOCK();uint64_t observed=results[index].observed_ms;UNLOCK();
-            if(observed && now-observed<(uint64_t)p.interval_s*1000)continue;
-            LOCK();if(!active(job.state))job=(job_t){.id=++job_seq,.index=index,.state=J_PRECHECK,.started=now,
-                .deadline=now+3000,.device=d,.profile=p};UNLOCK();continue;
+            schedule_monitor(now, &settings);
+            continue;
         }
         if(local.cancel || now>=local.deadline || local.checks>=local.profile.max_checks){
             LOCK();if(job.id==local.id)finish_locked(local.cancel?J_CANCELLED:local.host_seen || !local.probe_valid?J_UNKNOWN:J_TIMEOUT);UNLOCK();continue;

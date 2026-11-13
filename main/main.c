@@ -1018,6 +1018,31 @@ static void startup_settings_failed(esp_err_t error)
         ESP_LOGE("storage", "Could not retain the diagnostic image; inspect OTA state before restarting");
 }
 
+static void confirm_ota_startup(esp_err_t admin_start)
+{
+    /* A newly booted slot stays pending through the early asynchronous
+     * network startup. Offline first boot can pass: local administration is
+     * the recovery path and does not depend on a DHCP lease or Tailnet. */
+    const esp_partition_t *running = esp_ota_get_running_partition();
+    esp_ota_img_states_t state;
+    if (!running || esp_ota_get_state_partition(running, &state) != ESP_OK ||
+        state != ESP_OTA_IMG_PENDING_VERIFY) return;
+
+    if (admin_start != ESP_OK) {
+        ESP_LOGE("ota", "Admin startup failed; leaving OTA image unconfirmed");
+        if (esp_ota_check_rollback_is_possible()) {
+            esp_err_t rollback = esp_ota_mark_app_invalid_rollback_and_reboot();
+            ESP_LOGE("ota", "Could not start rollback: %s", esp_err_to_name(rollback));
+        }
+        return;
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(20000));
+    esp_err_t confirmed = esp_ota_mark_app_valid_cancel_rollback();
+    if (confirmed == ESP_OK) ESP_LOGI("ota", "OTA image confirmed after local startup");
+    else ESP_LOGW("ota", "Could not confirm OTA image: %s", esp_err_to_name(confirmed));
+}
+
 void app_main(void)
 {
     boot_timeline_mark(BOOT_TL_APP_MAIN);
@@ -1343,32 +1368,13 @@ void app_main(void)
     mac_deny_init();
 
     /* HTTP server with the embedded SPA at / + the JSON API endpoints. */
-    web_ui_init();
-    boot_timeline_mark(BOOT_TL_WEB);
+    esp_err_t admin_start = web_ui_init();
+    if (admin_start == ESP_OK) boot_timeline_mark(BOOT_TL_WEB);
 
     /* Serial REPL on UART0 (115200 8N1). Starts last so every other
      * subsystem the commands can poke is ready by the time the prompt
      * appears. Type `help` over `pio device monitor` / `idf.py monitor`. */
     cli_init();
 
-    /* Confirm this image is healthy so the bootloader rollback (enabled via
-     * CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE) doesn't revert a fresh OTA on the
-     * next reboot. Reaching the end of app_main means every subsystem came up
-     * without an ESP_ERROR_CHECK abort or early panic, and the web server + AP
-     * are live — a strong "boot succeeded" signal. We validate EARLY on
-     * purpose: a tagged reboot can fire within seconds of the STA
-     * acquiring an IP, and must not be allowed to roll back a good image. */
-    {
-        const esp_partition_t *running = esp_ota_get_running_partition();
-        esp_ota_img_states_t ota_state;
-        if (running
-            && esp_ota_get_state_partition(running, &ota_state) == ESP_OK
-            && ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
-            if (esp_ota_mark_app_valid_cancel_rollback() == ESP_OK) {
-                ESP_LOGI("ota", "OTA image confirmed valid — rollback cancelled");
-            } else {
-                ESP_LOGW("ota", "failed to mark OTA image valid");
-            }
-        }
-    }
+    confirm_ota_startup(admin_start);
 }

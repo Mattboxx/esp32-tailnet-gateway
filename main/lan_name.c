@@ -54,6 +54,7 @@ void lan_name_get(char *out, size_t cap)
 
 static char s_name[LAN_NAME_MAX + 1];
 static struct netif *s_advertising;
+static ip4_addr_t s_advertised_ipv4;
 static bool s_initialized;
 
 void lan_name_default(char *out, size_t cap)
@@ -89,7 +90,11 @@ static void mdns_on_uplink(void *arg)
         if (nif && !netif_is_up(nif)) nif = NULL;
     }
     if (nif && nif == s_advertising) {
-        mdns_resp_restart(nif);     /* new address: probe and announce again */
+        const ip4_addr_t *address = netif_ip4_addr(nif);
+        if (!ip4_addr_cmp(&s_advertised_ipv4, address)) {
+            ip4_addr_copy(s_advertised_ipv4, *address);
+            mdns_resp_restart(nif);
+        }
         return;
     }
     if (s_advertising) {
@@ -104,6 +109,7 @@ static void mdns_on_uplink(void *arg)
     }
     if (mdns_resp_add_netif(nif, s_name) == ERR_OK) {
         s_advertising = nif;
+        ip4_addr_copy(s_advertised_ipv4, *netif_ip4_addr(nif));
         ESP_LOGW(TAG, "home network name: http://%s.local/", s_name);
     } else {
         ESP_LOGW(TAG, "mDNS responder not started");

@@ -99,7 +99,11 @@ uint32_t netif_hooks_get_sta_output_refused(void) { return s_sta_output_refused;
 /* Bulk frames may fill at most 24 slots, fewer than the 32-entry mailbox of
  * 3.0.6, so queueing delay under load does not grow with the larger
  * mailbox; the other 40 slots are reserved for priority frames. */
+#ifndef STA_SHED_FROM
 #define STA_SHED_FROM 24
+#endif
+_Static_assert(STA_SHED_FROM + 32 <= CONFIG_LWIP_TCPIP_RECVMBOX_SIZE,
+               "STA bulk admission must reserve at least 32 mailbox slots");
 #define STA_EPHEMERAL_FIRST 0xC000u
 static volatile uint32_t s_sta_queued;
 static volatile uint32_t s_sta_input_shed;
