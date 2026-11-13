@@ -6,6 +6,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+## [3.0.19] - 2026-11-13
+
+### Fixed
+
+- Confirm an OTA image after local administration starts and the initial boot window ends. Reserve the restart task before a manual upload writes to flash.
+- Check due Recovery profiles fairly and preserve a completed probe result at the deadline.
+- Retry pending ntfy results and preserve the queue when unrelated settings change.
+- Avoid unnecessary mDNS re-probing when the active interface and its IPv4 address stay the same.
+
+### Changed
+
+- Adjust Wi-Fi receive admission under load while reserving capacity for control traffic.
+
 ## [3.0.18] - 2026-11-12
 
 ### Changed
