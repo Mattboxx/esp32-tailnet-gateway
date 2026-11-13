@@ -495,7 +495,7 @@ static void worker(void *arg) {
         if(!active(local.state)){
             health_monitor_poll(); /* Serialized with recovery; at most one probe. */
             service_check_poll();  /* Same worker and socket budget, on request only. */
-            schedule_monitor(now, &settings);
+            schedule_monitor(now_ms(), &settings);
             continue;
         }
         unsigned max_checks = local.manual ? local.profile.max_checks : local.profile.service_port ? 2 : 1;
