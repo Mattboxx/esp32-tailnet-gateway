@@ -31,7 +31,7 @@ for mark, anchor in (('BOOT_TL_APP_MAIN', 'void app_main(void)\n{\n    boot_time
                      ('BOOT_TL_WIFI_START', 'ESP_ERROR_CHECK(esp_wifi_start() );\n    boot_timeline_mark(BOOT_TL_WIFI_START);'),
                      ('BOOT_TL_WIFI_ASSOC', 'WIFI_EVENT_STA_CONNECTED) {\n        boot_timeline_mark(BOOT_TL_WIFI_ASSOC);'),
                      ('BOOT_TL_IP', 'event_data;\n        boot_timeline_mark(BOOT_TL_IP);'),
-                     ('BOOT_TL_WEB', 'web_ui_init();\n    boot_timeline_mark(BOOT_TL_WEB);')):
+                     ('BOOT_TL_WEB', 'web_ui_init();\n    if (admin_start == ESP_OK) boot_timeline_mark(BOOT_TL_WEB);')):
     assert anchor in main_c, mark
 assert 'boot_timeline_mark(BOOT_TL_TIME);' in src(ROOT / 'main/tailscale_manager.c')
 coord = src(ML / 'src/ml_coord.c')
