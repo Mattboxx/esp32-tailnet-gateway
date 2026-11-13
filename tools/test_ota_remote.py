@@ -214,6 +214,17 @@ int main(void) {
     assert(ota_remote_select_release(rows,"2.0.0-rc.1",false,OTA_ASSET,false,2048,tag,&size,digest)&&!strcmp(tag,"v2.0.0"));
     assert(!ota_remote_select_release(rows,"2.0.0",true,OTA_ASSET,false,2048,tag,&size,digest));          /* never downgrade */
     cJSON_Delete(rows);
+    cJSON *beta_rows = cJSON_CreateArray();
+    release_row(beta_rows,"v3.0.19-beta.1-q32",true,false,OTA_ASSET,hash,1024);
+    release_row(beta_rows,"v3.0.19-beta.2",true,false,OTA_ASSET,hash,1024);
+    assert(!ota_remote_select_release(beta_rows,"3.0.18",false,OTA_ASSET,false,2048,tag,&size,digest));
+    assert(ota_remote_select_release(beta_rows,"3.0.18",true,OTA_ASSET,false,2048,tag,&size,digest));
+    assert(!strcmp(tag,"v3.0.19-beta.2"));
+    assert(!ota_remote_select_release(beta_rows,"3.0.19-beta.2",true,OTA_ASSET,false,2048,tag,&size,digest));
+    release_row(beta_rows,"v3.0.19",false,false,OTA_ASSET,hash,1024);
+    assert(ota_remote_select_release(beta_rows,"3.0.19-beta.2",false,OTA_ASSET,false,2048,tag,&size,digest));
+    assert(!strcmp(tag,"v3.0.19"));
+    cJSON_Delete(beta_rows);
     /* Release policy: numbered betas of a version (2.0.4-beta.1, -beta.2, ...)
      * lead to its stable 2.0.4; the more advanced beta wins over an older one,
      * the stable wins over all its betas, the stable channel ignores betas. */

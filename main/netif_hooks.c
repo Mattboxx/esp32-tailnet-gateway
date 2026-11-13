@@ -96,11 +96,9 @@ uint32_t netif_hooks_get_sta_output_refused(void) { return s_sta_output_refused;
  * dropped any frame, including web UI requests and the WireGuard packets
  * that carry the returning TCP ACKs (3.0.7-dev.10/11 measurements). IPv6 and
  * anything not parsed is never shed. */
-/* Bulk frames may fill at most 24 slots, fewer than the 32-entry mailbox of
- * 3.0.6, so queueing delay under load does not grow with the larger
- * mailbox; the other 40 slots are reserved for priority frames. */
+/* Keep at least half of the 64-entry mailbox outside bulk STA admission. */
 #ifndef STA_SHED_FROM
-#define STA_SHED_FROM 24
+#define STA_SHED_FROM 32
 #endif
 _Static_assert(STA_SHED_FROM + 32 <= CONFIG_LWIP_TCPIP_RECVMBOX_SIZE,
                "STA bulk admission must reserve at least 32 mailbox slots");

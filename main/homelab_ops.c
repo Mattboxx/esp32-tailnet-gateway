@@ -345,12 +345,28 @@ static int connect_probe(const ops_device_t *p,uint16_t port,uint32_t *latency) 
     if(!proceed)return -1;
     int fd=socket(AF_INET,SOCK_STREAM,IPPROTO_TCP);if(fd<0)return -1;
     int flags=fcntl(fd,F_GETFL,0);if(flags<0 || fcntl(fd,F_SETFL,flags|O_NONBLOCK)<0){close(fd);return -1;}
-    uint64_t began=now_ms();int connected=connect(fd,(struct sockaddr*)&address,sizeof address);
-    if(connected<0 && errno!=EINPROGRESS){close(fd);return 0;}
-    fd_set writable;FD_ZERO(&writable);FD_SET(fd,&writable);struct timeval timeout={.tv_sec=1,.tv_usec=0};
-    int ready=select(fd+1,NULL,&writable,NULL,&timeout),error=0;socklen_t size=sizeof error;
-    bool ok=ready>0 && getsockopt(fd,SOL_SOCKET,SO_ERROR,&error,&size)==0 && !error;
-    *latency=(uint32_t)(now_ms()-began);close(fd);return ok?1:0;
+    uint64_t began = now_ms();
+    int result = -1; /* local or routing failure: no evidence about the target */
+    int error = 0;
+    int connected = connect(fd, (struct sockaddr *)&address, sizeof address);
+    if (connected == 0) result = 1;
+    else if (errno != EINPROGRESS) error = errno;
+    else {
+        fd_set writable;
+        FD_ZERO(&writable);
+        FD_SET(fd, &writable);
+        struct timeval timeout = {.tv_sec=1};
+        int ready = select(fd + 1, NULL, &writable, NULL, &timeout);
+        socklen_t size = sizeof error;
+        if (ready == 0) error = ETIMEDOUT;
+        else if (ready > 0 && getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &size) == 0) {
+            if (!error) result = 1;
+        } else error = 0;
+    }
+    if (error == ECONNREFUSED || error == ETIMEDOUT) result = 0;
+    *latency = (uint32_t)(now_ms() - began);
+    close(fd);
+    return result;
 }
 static void finish_locked(job_state_t state) {
     job.state=state;job.finished=now_ms();
@@ -383,25 +399,39 @@ static void notify_job_result(const job_t *done)
     /* One event feeds ntfy and the existing Telegram/email history sink. */
     (void)ntfy_integration_queue_event(message);
 }
-static void apply_probe_locked(const job_t *local,int result,uint32_t latency) {
-    if(job.id!=local->id)return;
-    job.checks++;results[job.index].latency_ms=latency;
-    if(result>=0)job.probe_valid=true;
-    if(job.cancel || !recovery_allowed_locked(job.origin))finish_locked(J_CANCELLED);
-    else if(now_ms()>=job.deadline)finish_locked(job.host_seen || !job.probe_valid?J_UNKNOWN:J_TIMEOUT);
-    else if(result<0){
-        /* A sleeping host may not answer DNS. An explicitly authorized WoL
-         * remains useful, but cannot be reported as a verified recovery. */
-        if(local->state==J_PRECHECK && local->wake){job.state=J_WAKE;job.next=now_ms();}
-        else if(local->manual && local->packet_sent){job.state=J_WAIT;job.next=now_ms()+3000;}
-        else finish_locked(J_UNKNOWN);
+static void apply_probe_locked(const job_t *local, int result, uint32_t latency)
+{
+    if (job.id != local->id) return;
+    job.checks++;
+    results[job.index].latency_ms = latency;
+    job.probe_valid = result >= 0;
+    if (job.cancel || !recovery_allowed_locked(job.origin)) {
+        finish_locked(J_CANCELLED);
+        return;
     }
-    else if(result>0){
-        if(local->state==J_SERVICE || !local->profile.service_port){job.host_seen=true;job.service_seen=local->state==J_SERVICE;finish_locked(J_REACHABLE);}
-        else{job.host_seen=true;job.state=J_SERVICE;job.next=now_ms()+1000;}
-    }else if(local->state==J_PRECHECK && local->wake){job.state=J_WAKE;job.next=now_ms();}
-    else if(!local->manual)finish_locked(J_TIMEOUT);
-    else{job.state=local->state==J_SERVICE?J_SERVICE:J_WAIT;job.next=now_ms()+3000;}
+    const uint64_t now = now_ms();
+    const bool expired = now >= job.deadline;
+    const bool service = local->state == J_SERVICE;
+    if (result > 0) {
+        job.host_seen = true;
+        job.service_seen = service;
+        if (service || !local->profile.service_port) finish_locked(J_REACHABLE);
+        else if (expired) finish_locked(J_UNKNOWN); /* service still untested */
+        else {
+            job.probe_valid = false;
+            job.state = J_SERVICE;
+            job.next = now;
+        }
+    } else if (expired) finish_locked(result == 0 ? J_TIMEOUT : J_UNKNOWN);
+    else if (local->state == J_PRECHECK && local->wake) {
+        job.state = J_WAKE;
+        job.next = now;
+    } else if (result < 0 && !(local->manual && local->packet_sent)) finish_locked(J_UNKNOWN);
+    else if (!local->manual) finish_locked(J_TIMEOUT);
+    else {
+        job.state = service ? J_SERVICE : J_WAIT;
+        job.next = now + 3000;
+    }
 }
 /* One probe at a time. Skip disabled and early profiles without charging
  * the global spacing, and continue after the last device actually admitted. */
@@ -428,7 +458,7 @@ static void schedule_monitor(uint64_t now, const ops_settings_t *settings)
         LOCK();
         if (!active(job.state) && store.settings.monitoring) {
             job = (job_t){.id=++job_seq, .index=index, .state=J_PRECHECK, .started=now,
-                          .deadline=now+3000, .device=device, .profile=profile};
+                          .deadline=now+(uint64_t)profile.timeout_s*1000, .device=device, .profile=profile};
             monitor_index = (unsigned)index + 1;
             next_monitor = now + (uint64_t)store.settings.interval_s * 1000;
         }
@@ -468,8 +498,9 @@ static void worker(void *arg) {
             schedule_monitor(now, &settings);
             continue;
         }
-        if(local.cancel || now>=local.deadline || local.checks>=local.profile.max_checks){
-            LOCK();if(job.id==local.id)finish_locked(local.cancel?J_CANCELLED:local.host_seen || !local.probe_valid?J_UNKNOWN:J_TIMEOUT);UNLOCK();continue;
+        unsigned max_checks = local.manual ? local.profile.max_checks : local.profile.service_port ? 2 : 1;
+        if(local.cancel || now>=local.deadline || local.checks>=max_checks){
+            LOCK();if(job.id==local.id)finish_locked(local.cancel?J_CANCELLED:!local.probe_valid?J_UNKNOWN:J_TIMEOUT);UNLOCK();continue;
         }
         if(now<local.next)continue;
         if(!homelab_ops_admit()){LOCK();if(job.id==local.id)finish_locked(J_RESOURCE);UNLOCK();continue;}

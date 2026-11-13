@@ -13,7 +13,7 @@ source = (ROOT / 'main/ntfy_integration.c').read_text()
 command = source[source.index('/* One remote command, shared by ntfy and Telegram'):source.index('static void collect_line')]
 reset_builder = source[source.index('static const char *reset_reason_text('):source.index('/* The info reply, shared by ntfy and Telegram')]
 assert '(unsigned long)esp_get_minimum_free_heap_size(), reset_reason_text(c->poweron_events),' in source
-boot = 'static NTFY_NOINLINE esp_err_t send_system_event' + source.split('static NTFY_NOINLINE esp_err_t send_system_event',1)[1].split('static NTFY_NOINLINE void operational_tick',1)[0]
+boot = 'static NTFY_NOINLINE esp_err_t send_system_event' + source.split('static NTFY_NOINLINE esp_err_t send_system_event',1)[1].split('static bool operational_destination_equal',1)[0]
 alert = 'static NTFY_NOINLINE esp_err_t send_tailscale_alert' + source.split('static NTFY_NOINLINE esp_err_t send_tailscale_alert', 1)[1].split('static NTFY_NOINLINE uint32_t available_update_id', 1)[0]
 fixture = r'''
 #include <assert.h>

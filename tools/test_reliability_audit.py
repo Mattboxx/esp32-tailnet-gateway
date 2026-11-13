@@ -84,15 +84,16 @@ static int xTaskCreate(void (*fn)(void *), const char *name, unsigned bytes, voi
 }
 static void xTaskNotify(TaskHandle_t task, int value, int mode) { (void)mode; *task = value; }
 
-#define J_PRECHECK 1
-typedef struct { uint8_t mac[6]; bool monitor; int interval_s; } ops_device_t;
+enum { J_PRECHECK=1, J_CANCELLED, J_UNKNOWN, J_TIMEOUT, J_SERVICE, J_REACHABLE, J_WAKE, J_WAIT };
+typedef struct { uint8_t mac[6]; bool monitor; int interval_s, timeout_s, service_port; } ops_device_t;
 typedef struct { uint8_t mac[6]; } wol_device_t;
 typedef struct { bool monitoring; int interval_s; } ops_settings_t;
 typedef struct {
-    unsigned id; int index, state; uint64_t started, deadline;
+    unsigned id; int index, state, origin, checks; uint64_t started, deadline, next;
+    bool cancel, probe_valid, host_seen, service_seen, wake, manual, packet_sent;
     wol_device_t device; ops_device_t profile;
 } job_t;
-typedef struct { uint8_t mac[6]; uint64_t observed_ms; } result_t;
+typedef struct { uint8_t mac[6]; uint64_t observed_ms; uint32_t latency_ms; } result_t;
 static struct { ops_settings_t settings; } store = {{true, 60}};
 static unsigned job_seq, monitor_index;
 static uint64_t next_monitor;
@@ -102,11 +103,15 @@ static unsigned enabled = 1 << 11;
 static bool admit = true;
 static int wol_count(void) { return 12; }
 static bool homelab_ops_device(int i, ops_device_t *out) {
-    *out = (ops_device_t){.mac={(uint8_t)i}, .monitor=(enabled & (1u << i)) != 0, .interval_s=60};
+    *out = (ops_device_t){.mac={(uint8_t)i}, .monitor=(enabled & (1u << i)) != 0, .interval_s=60, .timeout_s=5};
     return true;
 }
 static bool wol_get(int i, wol_device_t *out) { *out = (wol_device_t){{(uint8_t)i}}; return true; }
 static bool homelab_ops_admit(void) { return admit; }
+static uint64_t clock_ms;
+static uint64_t now_ms(void) { return clock_ms; }
+static void finish_locked(int state) { job.state=state; }
+static bool recovery_allowed_locked(int origin) { (void)origin; return true; }
 static bool active(int state) { return state != 0; }
 static void finish(void) {
     results[job.index].observed_ms = job.started;
@@ -169,6 +174,7 @@ program += '\n'.join([
     extract(core, 'static void confirm_ota_startup(esp_err_t admin_start)'),
     extract(web, 'static esp_err_t reserve_restart(httpd_req_t *req, TaskHandle_t *task)'),
     extract(web, 'static esp_err_t system_ota_upload_handler(httpd_req_t *req)'),
+    extract(ops, 'static void apply_probe_locked(const job_t *local, int result, uint32_t latency)'),
     extract(ops, 'static void schedule_monitor(uint64_t now, const ops_settings_t *settings)'),
     ntfy[ntfy.index('#define NTFY_OPERATIONAL_CAPACITY'):ntfy.index('/* TLS certificate verification')],
     extract(ntfy, 'static NTFY_NOINLINE void operational_tick(const ntfy_integration_config_t *c,\n'
@@ -228,6 +234,22 @@ int main(void)
     schedule_monitor(182000, &store.settings);
     assert(job.id == 4 && job.index == 11);
 
+    clock_ms = 3000;
+    job = (job_t){.id=1,.deadline=3000,.state=J_PRECHECK};
+    job_t local = job;
+    apply_probe_locked(&local, 1, 1);
+    assert(job.state == J_REACHABLE && job.host_seen);
+    job = (job_t){.id=1,.deadline=3000,.state=J_SERVICE,.host_seen=true};
+    local = job;
+    apply_probe_locked(&local, 0, 1);
+    assert(job.state == J_TIMEOUT && job.host_seen && !job.service_seen);
+    job = local;
+    apply_probe_locked(&local, -1, 1);
+    assert(job.state == J_UNKNOWN);
+    job = local;
+    job.cancel = true;
+    apply_probe_locked(&local, 1, 1);
+    assert(job.state == J_CANCELLED);
     assert(ntfy_integration_queue_event("one"));
     assert(ntfy_integration_queue_event("two"));
     send_result = ESP_FAIL;

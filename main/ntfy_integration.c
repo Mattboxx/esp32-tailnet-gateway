@@ -78,6 +78,7 @@ static unsigned s_operational_head;
 static unsigned s_operational_count;
 static unsigned s_operational_attempts;
 static uint64_t s_operational_retry_ms;
+static uint64_t s_operational_generation;
 
 static void operational_pop(bool dropped)
 {
@@ -809,6 +810,13 @@ static NTFY_NOINLINE esp_err_t send_system_event(const ntfy_integration_config_t
     return publish_message(c, title, "mattboxx-response", message);
 }
 
+static bool operational_destination_equal(const ntfy_integration_config_t *a,
+                                          const ntfy_integration_config_t *b)
+{
+    return a->enabled == b->enabled && !strcmp(a->server, b->server) &&
+           !strcmp(a->topic, b->topic) && !strcmp(a->token, b->token);
+}
+
 static NTFY_NOINLINE void operational_tick(const ntfy_integration_config_t *c,
                                             uint64_t generation, bool online)
 {
@@ -816,6 +824,7 @@ static NTFY_NOINLINE void operational_tick(const ntfy_integration_config_t *c,
     xSemaphoreTake(s_lock, portMAX_DELAY);
     uint64_t now = (uint64_t)esp_timer_get_time() / 1000;
     operational_expire(now);
+    uint64_t queue_generation = s_operational_generation;
     bool due = online && generation == s_config_generation && s_operational_count &&
                now >= s_operational_retry_ms;
     if (due) memcpy(message, s_operational[s_operational_head].message, sizeof message);
@@ -825,7 +834,7 @@ static NTFY_NOINLINE void operational_tick(const ntfy_integration_config_t *c,
     esp_err_t err = publish_message(c, "ESP32 operational result", "mattboxx-response", message);
     now = (uint64_t)esp_timer_get_time() / 1000;
     xSemaphoreTake(s_lock, portMAX_DELAY);
-    if (generation == s_config_generation) {
+    if (queue_generation == s_operational_generation) {
         if (err == ESP_OK) operational_pop(false);
         else if (err == ESP_ERR_INVALID_RESPONSE || ++s_operational_attempts >= NTFY_OPERATIONAL_ATTEMPTS)
             operational_pop(true);
@@ -961,10 +970,13 @@ esp_err_t ntfy_integration_set_config_recovery(const ntfy_integration_config_t *
     esp_err_t end=nvs_param_txn_end(e==ESP_OK);
     if(e==ESP_OK)e=end;
     if (e == ESP_OK) {
+        if (!operational_destination_equal(&s_config, c)) {
+            s_operational_generation++;
+            while (s_operational_count) operational_pop(true);
+        }
         memcpy(&s_config, c, sizeof *c);
         homelab_ops_publish_recovery(staged);
         s_config_generation++;
-        while (s_operational_count) operational_pop(true);
         if (endpoint_changed) s_last_event_id[0] = '\0';
     }
     xSemaphoreGive(s_lock);
