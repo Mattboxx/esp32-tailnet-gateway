@@ -13,7 +13,7 @@ order: 6
   <li>An <strong>ESP32-S3 N8R8 or N16R8</strong>: 8 MB octal PSRAM and at least 8 MB flash. Check <a href="{{root}}hardware/">supported hardware</a>.</li>
   <li>A USB <strong>data</strong> cable and a computer. The browser installer needs desktop Chrome or Edge; <a href="{{root}}easy-install/">Easy Install</a> supports Windows, macOS and Linux.</li>
   <li>A 2.4 GHz Wi-Fi network for the usual Wi-Fi setup. Ethernet and cellular need external hardware and remain experimental.</li>
-  <li>Tailscale or Headscale for Tailnet roles. Local administration and local Wake-on-LAN do not require either.</li>
+  <li>Tailscale or Headscale for Tailnet roles. Local administration and <a href="{{root}}remote-recovery/#without-tailnet">Wake-on-LAN over Telegram or ntfy</a> can be used without a Tailnet.</li>
 </ul>
 
 <h2 id="install">1. Install, or update an existing gateway</h2>
@@ -37,7 +37,7 @@ order: 6
 </ol>
 <p>Choose your language in the setup page. The <a href="{{root}}first-boot/">First boot guide</a> explains pairing, uplinks and finding the gateway after restart. An update preserving an existing configuration does not reopen this initial setup network.</p>
 
-<h2 id="tailnet">3. Join your Tailnet</h2>
+<h2 id="tailnet">3. Join a Tailnet if your role needs it</h2>
 <p>If you skipped registration, open the <strong>Tailscale</strong> page. Set the gateway's name and registration credentials; Headscale also needs your control-server URL. Keep auth keys private and scoped to the intended role.</p>
 <p>Review node expiry and approve only the routes or exit-node role you intend to use in your Tailnet administration. See <a href="{{repo}}/blob/Main/docs/HEADSCALE.md">Headscale</a>, <a href="{{repo}}/blob/Main/docs/SUBNET-ROUTER.md">Subnet routing</a> and <a href="{{repo}}/blob/Main/docs/EXIT-NODE.md">Exit-node roles</a>.</p>
 

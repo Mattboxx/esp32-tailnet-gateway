@@ -6,8 +6,10 @@
 
 **Mattboxx Edition · One ESP32. Multiple Tailnet roles. Enable only what you need.**
 
-All-in-one ESP32-S3 Tailscale/Headscale gateway with selective LAN-to-Tailnet
-access, subnet routing, remote recovery and optional automation.
+**Tailscale / Headscale gateway · Standalone Wake-on-LAN via Telegram or ntfy**
+
+Connect local devices to selected Tailnet services, advertise subnets, or
+wake a NAS or PC and verify that it responds. Each role is optional.
 
 **ESP32-S3 N8R8 / N16R8 · 8 MB octal PSRAM**
 
