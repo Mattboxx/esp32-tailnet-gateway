@@ -26,7 +26,14 @@ Only when **commands** are enabled, optionally only while Tailscale is down:
 |---|---|
 | `info` | status reply (private details only if *include private details* is on) |
 | `wol <saved device name or MAC>` | WoL to a saved device (direct MAC only if allowed) |
-| `recover <name>` / `check <name>` | Smart Recovery / check, if *Allow MQTT/ntfy recovery commands* is on |
+| `recover <name>` / `check <name>` | Smart Recovery / check, when Remote commands is set to *Info, Wake-on-LAN and verified recovery* |
+
+**Devices & Recovery → Notify manual results and new outages** enables
+the completion message for a saved device. Set a local target, answering TCP
+port and timeout (5–600 seconds) in its profile. Use `recover NAME` for a
+verified wake and `check NAME` for a reachability check without waking the
+device. The acknowledgement means the job was accepted. ntfy works with
+Tailscale disabled if the gateway can reach the ntfy server and the device.
 
 Anyone who can publish to the topic can send commands: use a private topic
 and a token with write access restricted to you. Replayed message IDs are

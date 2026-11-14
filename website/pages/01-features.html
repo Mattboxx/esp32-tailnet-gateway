@@ -11,7 +11,7 @@ order: 1
 <div class="grid">
   <article class="card"><h2>Connect a device to one Tailnet service</h2><p>Point a LAN device at the ESP32's address and port. A TCP or UDP rule forwards it to a selected service, such as MQTT or a NAS dashboard.</p><a href="{{root}}service-gateway/">Set up the Service Gateway</a></article>
   <article class="card"><h2>Reach your LAN or connect IoT devices</h2><p>Advertise a subnet to reach it from the tailnet, or put devices on the gateway's Wi-Fi to give them access without a VPN client. Exit node and local firewall controls are available.</p><a href="{{root}}network-modes/">Compare network modes</a></article>
-  <article class="card"><h2>Wake a NAS or PC</h2><p>Save up to 12 devices, send Wake-on-LAN and verify whether a host or service responds. The gateway can run while your NAS or automation server is off.</p><a href="{{root}}remote-recovery/">Configure remote recovery</a></article>
+  <article class="card"><h2>Wake a NAS or PC</h2><p>Save up to 12 devices, send Wake-on-LAN and verify whether a host or service responds. Use Telegram or ntfy with Tailscale disabled. The gateway can run while your NAS or automation server is off.</p><a href="{{root}}remote-recovery/">Configure remote recovery</a></article>
   <article class="card"><h2>Get alerts and automate</h2><p>Use Home Assistant via MQTT, receive alerts through Telegram, email or ntfy, or query read-only SNMP. Power-return alerts can trigger Home Assistant automations.</p><a href="{{root}}automation/">Choose an integration</a></article>
   <article class="card"><h2>See what happened</h2><p>Check live traffic, record events and chart resource trends. Test service reachability or export diagnostics for troubleshooting.</p><a href="{{root}}screenshots/#operations">See the monitoring interface</a></article>
   <article class="card"><h2>Set up, back up and update</h2><p>Pair and configure the board through the first-boot wizard. Use settings backups and the Web UI updater to manage an existing gateway.</p><a href="{{root}}getting-started/">Start with a new board</a> · <a href="{{root}}updating/">Update a gateway</a></article>
@@ -47,7 +47,7 @@ order: 1
 
 <h2>Recovery and device management</h2>
 <ul>
-  <li>Wake-on-LAN address book (up to 12 devices) from the Web UI, MQTT, Home Assistant or replay-protected ntfy commands.</li>
+  <li>Wake-on-LAN address book (up to 12 devices) from the Web UI, MQTT, Home Assistant, Telegram or ntfy.</li>
   <li>Bounded Smart Recovery jobs: precheck a known port, one WoL burst, wait, check again.</li>
   <li>The recovery access point can make the Web UI reachable if the saved Wi-Fi is unavailable.</li>
 </ul>

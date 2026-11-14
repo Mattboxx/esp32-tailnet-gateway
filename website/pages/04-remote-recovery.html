@@ -1,21 +1,44 @@
 <!--
 slug: remote-recovery/
 title: Remote recovery
-search_title: Wake a NAS or PC Over Tailscale — ESP32 Wake-on-LAN
-description: Wake a NAS or PC over Tailscale with an independently powered ESP32: Wake-on-LAN, bounded Smart Recovery checks and a recovery access point.
+search_title: ESP32 Wake-on-LAN via Telegram, ntfy or Tailscale
+description: Wake a NAS or PC with ESP32, check if a saved device is reachable and receive the result on Telegram or ntfy. Tailscale is optional.
 nav: Recovery
 group: Guides
 order: 4
 -->
 <h1>Remote recovery</h1>
-<p><strong>Who it is for:</strong> homelab owners whose NAS or PC is sometimes off or asleep when they are away, and whose own Tailscale client is then unreachable.</p>
+<p class="lead">Wake a NAS or PC from Telegram or ntfy and get a message when its configured port answers or the check ends. The ESP32 only needs a working Internet uplink to the notification service and local network access to the device. You can skip Tailscale during setup.</p>
+
+<h2 id="without-tailnet">Set up Telegram or ntfy without a Tailnet</h2>
+<ol>
+  <li>Skip Tailnet registration during <a href="{{root}}first-boot/">first boot</a>, or leave it disabled. Keep the ESP32 powered and connected to your LAN.</li>
+  <li>Save the NAS or PC by name and MAC address in <strong>Automation → Wake-on-LAN</strong>.</li>
+  <li>In <strong>Devices &amp; Recovery</strong>, select the saved device. Choose <strong>Local uplink subnet only</strong>, enter its LAN address or hostname and a TCP port that answers when it is up. Set <strong>Recovery timeout</strong> (5–600 seconds) and <strong>Maximum checks</strong> (at least 2 for <code>recover</code>). You can also verify a separate service port. Enable <strong>Notify manual results and new outages</strong>, then save the device profile.</li>
+  <li>In <strong>Automation → Notifications</strong>, configure Telegram or ntfy and set <strong>Remote commands</strong> to <strong>Info, Wake-on-LAN and verified recovery</strong>. Leave <strong>Poll commands only while Tailscale is down</strong> off for this setup. Save and run <strong>Send test</strong>.</li>
+</ol>
+<p>For Telegram, send the commands below to your bot after sending it <code>/start</code>. For ntfy, publish the command as a message to the configured private topic. See the <a href="{{root}}automation/">integration settings</a>.</p>
+
+<h2 id="commands">Command reference</h2>
+<table>
+  <thead><tr><th scope="col">Command</th><th scope="col">What the ESP32 does</th><th scope="col">What you receive</th></tr></thead>
+  <tbody>
+    <tr><th scope="row"><code>wol NAS</code></th><td>Sends the Wake-on-LAN packet.</td><td>Confirmation that the packet was sent, or a send error.</td></tr>
+    <tr><th scope="row"><code>recover NAS</code></th><td>Checks first, sends Wake-on-LAN if needed and waits for the configured check to pass.</td><td>An acknowledgement, then the result if notifications are enabled for NAS.</td></tr>
+    <tr><th scope="row"><code>check NAS</code></th><td>Checks the saved address and configured port.</td><td>An acknowledgement, then the reachability result if notifications are enabled for NAS.</td></tr>
+    <tr><th scope="row"><code>info</code></th><td>Reads the gateway's operational status. Enable the channel's <strong>Allow info command</strong> option.</td><td>Gateway status and device counts.</td></tr>
+  </tbody>
+</table>
+<p>Replace <code>NAS</code> with the saved name. Use <code>check</code> for one device at a time. A new manual job for the same device has a one-minute cooldown. <strong>Reachable</strong> means the configured port answered. <strong>Not reachable</strong> means it did not answer within the time or attempt limit. <strong>Inconclusive</strong> means the gateway could not establish reachability. A port check cannot prove that the device is powered off.</p>
+
+<h2 id="over-tailnet">Use the Web UI over Tailscale</h2>
 
 <figure class="diagram">
   <img src="{{root}}assets/diagrams/recovery.svg" alt="From the tailnet, the separately powered ESP32 prechecks a NAS port, sends a bounded Wake-on-LAN burst if needed and checks again." width="960" height="380">
   <figcaption>The ESP32 is its own tailnet node, so it stays reachable while the NAS is off.</figcaption>
 </figure>
 
-<h2>Requirements</h2>
+<h3>Requirements</h3>
 <p>If Tailscale runs only on your NAS, shutting the NAS down also removes that access point. The ESP32 runs as a separate Tailnet node: open its Web UI remotely and send Wake-on-LAN without keeping another Linux server or Home Assistant running. <a href="{{root}}screenshots/">See the actual firmware interface</a>.</p>
 <ul>
   <li>A target that supports Wake-on-LAN, with WoL enabled in its firmware/OS and standby power.</li>
@@ -23,14 +46,14 @@ order: 4
   <li>A known TCP port on the target to check (SSH may be disabled on some NAS systems; pick a port that is really listening).</li>
 </ul>
 
-<h2>Procedure</h2>
+<h3>Procedure</h3>
 <ol>
   <li>Add the device in <strong>Automation → Wake-on-LAN</strong> (name and MAC address).</li>
   <li>Open <strong>Devices &amp; Recovery</strong>, choose the target, check port, optional service port and timeout.</li>
   <li>Use <strong>Check now</strong> to observe, or <strong>Recover with WoL</strong> to precheck, wake if needed, wait and check again.</li>
 </ol>
 
-<h2>Verify</h2>
+<h3>Verify</h3>
 <p>The result lists each step's evidence: precheck, whether a magic packet was sent, and the post-wake check. A sent packet is not proof of power-on; an open TCP port is not application health.</p>
 <p>Enable result notifications on a saved device to receive one result for each manual check or recovery through the enabled ntfy, Telegram and email integrations. Scheduled monitoring alerts when the device becomes unreachable after a successful check.</p>
 
@@ -40,9 +63,9 @@ order: 4
 <h2>Limits</h2>
 <ul>
   <li>Cannot hard-reset a frozen machine, cut power, or provide KVM/BIOS access. Not out-of-band management.</li>
-  <li>Needs the router, Internet and tailnet infrastructure to be up for remote use.</li>
+  <li>Telegram and ntfy require Internet access and a reachable notification service. Remote Web UI access through Tailscale requires a working Tailnet connection.</li>
   <li>One job at a time, MAC cooldown, cancellable; jobs never replay after a reboot.</li>
 </ul>
 
 <h2>Security</h2>
-<p>Remote recovery commands over MQTT or ntfy are off by default and need an extra permission. Use private topics, TLS and broker ACLs. Guides: <a href="{{repo}}/blob/Main/docs/SMART-RECOVERY.md">Smart Recovery</a>, <a href="{{repo}}/blob/Main/docs/NAS-RECOVERY.md">NAS recovery checklist</a>.</p>
+<p>Remote commands are off by default. Restrict Telegram commands to your configured chat and ntfy publishing to a private authenticated topic. Use TLS and restrict command topics when using MQTT. Guides: <a href="{{repo}}/blob/Main/docs/SMART-RECOVERY.md">Smart Recovery</a>, <a href="{{repo}}/blob/Main/docs/NAS-RECOVERY.md">NAS recovery checklist</a>.</p>
