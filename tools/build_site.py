@@ -441,11 +441,7 @@ def build(out: Path) -> list[Page]:
     for name in ('favicon-32.png', 'apple-touch-icon.png', 'icon-192.png', 'avatar-512.png', 'social-preview.png'):
         shutil.copy2(brand / 'png' / name, out / 'assets' / name)
     shutil.copytree(ROOT / 'assets/diagrams', out / 'assets/diagrams')
-    shutil.copy2(ROOT / 'docs/images/login-1.14-dev6.png', out / 'assets/login-1.14-dev6.png')
-    shutil.copy2(ROOT / 'docs/images/status_v3.png', out / 'assets/status-stable.png')
-    (out / 'assets/firmware-ui').mkdir()
-    for name in ('v3-status.png', 'v3-trends.png', 'v3-network-services.png', 'v3-history.png', 'v3-firewall.png', 'v2-first-boot-finish.png'):
-        shutil.copy2(ROOT / 'docs/images' / name, out / 'assets/firmware-ui' / name)
+    shutil.copytree(ROOT / 'docs/images/firmware-ui', out / 'assets/firmware-ui', dirs_exist_ok=True)
     for page in pages:
         target = out / page.slug / 'index.html'
         target.parent.mkdir(parents=True, exist_ok=True)

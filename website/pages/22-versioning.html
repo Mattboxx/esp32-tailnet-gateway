@@ -1,16 +1,15 @@
 <!--
 slug: versioning/
 title: Versioning
-description: Why ESP32 Tailnet Gateway moves to its own version numbers from v2.0.0, how they compare with earlier Mattboxx builds, and where upstream credit is shown.
+description: How stable and beta firmware channels work and where to find build provenance and upstream credit.
 group: Project
 order: 16
 -->
 <h1>Versioning</h1>
-<p>Earlier builds carried the upstream release they were aligned with plus an edition number, for example <code>0.1.38-Mattboxx-1.13</code>. Since <strong>Firmware v2.0.0</strong> the product has its own <a href="https://semver.org/">semantic version</a>: <code>2.0.0</code>, then <code>2.0.1</code>, <code>2.1.0</code> and so on. Each version is tested as numbered betas first, <code>2.0.4-beta.1</code>, <code>2.0.4-beta.2</code> and so on, published as GitHub pre-releases; the stable <code>2.0.4</code> then ranks above all of them. Gateways on the default stable channel receive stable releases only; on the beta channel they receive the highest version, beta or stable.</p>
-<p>The product name does not change with the version: it is always <strong>ESP32 Tailnet Gateway — Mattboxx Edition</strong>. The number appears only as the firmware version.</p>
+<p>ESP32 Tailnet Gateway uses <a href="https://semver.org/">semantic versioning</a>. Stable is the default update channel. Enable beta if you want GitHub prereleases to be eligible for installation.</p>
 
 <h2 id="order">How versions compare</h2>
-<p>Every <code>2.x</code> release is newer than every earlier <code>0.1.x-Mattboxx</code> build. Updaters from 1.10–1.13 cannot read the new numbers, which is why a bridge release exists (see <a href="{{root}}updating/#from-older">Updating</a>).</p>
+<p>A stable release ranks above the beta builds with the same version number. For installation or an older flash layout, see <a href="{{root}}updating/">Updating</a>.</p>
 
 <h2 id="credit">Upstream credit</h2>
 <p><strong>System &rarr; About</strong> shows the firmware version and build commit. Release provenance identifies the exact <a href="https://github.com/Mattboxx/microlink">Mattboxx/microlink</a> revision. See <a href="{{repo}}/blob/Main/NOTICE.md">NOTICE.md</a> for original authors, component licences and legal-material supplements. Older archives have matching notices described in the <a href="{{repo}}/blob/Main/docs/LICENSE-AUDIT.md">licence audit</a>.</p>

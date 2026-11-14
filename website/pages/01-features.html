@@ -7,15 +7,17 @@ nav: Features
 order: 1
 -->
 <h1>Features</h1>
-<p>Every capability below is a switch. A user who only needs LAN → Tailnet access never has to configure recovery, MQTT, ntfy or SNMP. Disabling a feature stops its runtime work; it does not remove its code from flash.</p>
+<p>Choose what you want the ESP32-S3 to do. Each card leads to the relevant guide.</p>
+<div class="grid">
+  <article class="card"><h2>Connect a device to one Tailnet service</h2><p>Point a LAN device at the ESP32's address and port. A TCP or UDP rule forwards it to a selected service, such as MQTT or a NAS dashboard.</p><a href="{{root}}service-gateway/">Set up the Service Gateway</a></article>
+  <article class="card"><h2>Reach your LAN or connect IoT devices</h2><p>Advertise a subnet to reach it from the tailnet, or put devices on the gateway's Wi-Fi to give them access without a VPN client. Exit node and local firewall controls are available.</p><a href="{{root}}network-modes/">Compare network modes</a></article>
+  <article class="card"><h2>Wake a NAS or PC</h2><p>Save up to 12 devices, send Wake-on-LAN and verify whether a host or service responds. The gateway can run while your NAS or automation server is off.</p><a href="{{root}}remote-recovery/">Configure remote recovery</a></article>
+  <article class="card"><h2>Get alerts and automate</h2><p>Use Home Assistant via MQTT, receive alerts through Telegram, email or ntfy, or query read-only SNMP. Power-return alerts can trigger Home Assistant automations.</p><a href="{{root}}automation/">Choose an integration</a></article>
+  <article class="card"><h2>See what happened</h2><p>Check live traffic, record events and chart resource trends. Test service reachability or export diagnostics for troubleshooting.</p><a href="{{root}}screenshots/#operations">See the monitoring interface</a></article>
+  <article class="card"><h2>Set up, back up and update</h2><p>Pair and configure the board through the first-boot wizard. Use settings backups and the Web UI updater to manage an existing gateway.</p><a href="{{root}}getting-started/">Start with a new board</a> · <a href="{{root}}updating/">Update a gateway</a></article>
+</div>
 
-<figure class="diagram">
-  <img src="{{root}}assets/diagrams/architecture.svg" alt="Six ownership areas: Network Gateway, Recovery and Device Management, Monitoring and Diagnostics, Automation and Integrations, Configuration and Management, and the Connectivity Core on ESP-IDF." width="960" height="460">
-  <figcaption>Firmware architecture: six ownership areas on one ESP32-S3.</figcaption>
-</figure>
-
-<h2 id="new-3">New in Firmware 3.0</h2>
-<p>Firmware 3.0.4 makes ntfy reset causes explicit and labels opted-in power-on notifications as <code>(possible blackout)</code>. Firmware 3.0.3 added separate <strong>power-return and other-restart notifications</strong>, a configurable Telegram/email connectivity margin and more reliable notification delivery and settings editing. <a href="{{root}}automation/">Notification controls</a>. Firmware 3.0.2 added atomic ordinary settings saves; 3.0.1 added optional Dynamic DNS, French/German and guided uplink setup.</p>
+<h2 id="new-3">Capabilities and defaults</h2>
 <table>
   <thead><tr><th>Capability</th><th>Useful when</th><th>Default</th></tr></thead>
   <tbody>
@@ -47,7 +49,7 @@ order: 1
 <ul>
   <li>Wake-on-LAN address book (up to 12 devices) from the Web UI, MQTT, Home Assistant or replay-protected ntfy commands.</li>
   <li>Bounded Smart Recovery jobs: precheck a known port, one WoL burst, wait, check again.</li>
-  <li>Recovery access point that returns 60 seconds after the saved WiFi disappears and stays until it is back.</li>
+  <li>The recovery access point can make the Web UI reachable if the saved Wi-Fi is unavailable.</li>
 </ul>
 
 <h2>Monitoring and diagnostics</h2>

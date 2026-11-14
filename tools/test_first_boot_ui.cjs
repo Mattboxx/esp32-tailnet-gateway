@@ -176,6 +176,7 @@ async function flow(browser, [width, height, locale], failures, full) {
   const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch, locale, timezoneId: 'Europe/Rome' });
   const page = await context.newPage();
   const errors = []; page.on('pageerror', e => errors.push(e.message));
+  if (shots) await context.route('**/*', route => route.abort('blockedbyclient'));
   const g = mockGateway(); await page.route('http://esp32.test/**', g.handle);
   const where = `${width}x${height} ${locale}`;
   const check = async (step) => {
@@ -184,7 +185,11 @@ async function flow(browser, [width, height, locale], failures, full) {
     if (r.clipped.length) failures.push(`${where} step ${step}: clipped ${r.clipped.slice(0, 5).join(', ')}`);
     if (r.small.length) failures.push(`${where} step ${step}: touch targets <36px ${r.small.slice(0, 5).join(', ')}`);
     if (r.tiny.length) failures.push(`${where} step ${step}: text <11px ${r.tiny.slice(0, 4).join(', ')}`);
-    if (shots) await page.screenshot({ path: path.join(shots, `first-boot-${locale}-${width}x${height}-step${step}.png`), fullPage: true });
+    if (shots) {
+      const filename = path.join(shots, `first-boot-${locale}-${width}x${height}-step${step}.png`);
+      if (step === 5) await page.locator('#fbForm').screenshot({ path: filename, animations: 'disabled' });
+      else await page.screenshot({ path: filename, fullPage: true });
+    }
   };
   try {
     await page.goto('http://esp32.test/');

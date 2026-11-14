@@ -68,15 +68,20 @@ def main():
             assert image.text.startswith(build_site.SITE_URL), image.text
             assert (out / image.text.removeprefix(build_site.SITE_URL)).is_file(), image.text
         for image in parsed.images:
-            if 'screenshots/' not in image['src']:
+            if 'assets/firmware-ui/' not in image['src']:
                 continue
             screenshot_count += 1
             assert image.get('alt') and int(image['width']) > 0 and int(image['height']) > 0
-            # Chrome's screenshot API returns JPEG bytes: never serve them as PNG.
             target = (out / page.slug / image['src']).resolve()
-            assert target.suffix == '.jpg' and target.read_bytes().startswith(b'\xff\xd8\xff')
-            assert b'Exif\x00\x00' not in target.read_bytes(), 'Do not publish location/device EXIF'
-    assert screenshot_count >= 4
+            content = target.read_bytes()
+            assert target.suffix == '.png' and content.startswith(bytes.fromhex('89504e470d0a1a0a'))
+            offset = 8
+            while offset < len(content):
+                length = int.from_bytes(content[offset:offset + 4], 'big')
+                chunk = content[offset + 4:offset + 8]
+                assert chunk not in {b'eXIf', b'tEXt', b'zTXt', b'iTXt'}, 'Screenshot contains metadata'
+                offset += length + 12
+    assert screenshot_count >= 12
     for file in (root / 'website/root').glob('google*.html'):
         expected = 'google-site-verification: ' + file.name
         assert (out / file.name).read_text(encoding='utf-8').strip() == expected

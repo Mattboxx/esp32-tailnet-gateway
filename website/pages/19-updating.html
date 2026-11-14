@@ -1,7 +1,7 @@
 <!--
 slug: updating/
 title: Updating
-description: Update ESP32 Tailnet Gateway to Firmware 3.0 over the air or by USB, keeping settings: move a 2.x gateway with the 2.1.0 bridge or one USB install.
+description: Update ESP32 Tailnet Gateway over the air or by USB, keep your settings and learn what to do if a transfer pauses.
 group: Start
 order: 3
 -->
@@ -14,32 +14,17 @@ order: 3
   <li>Upload <code>firmware.bin</code> in <strong>System → Firmware</strong>, or enable the opt-in GitHub update check there.</li>
   <li>The gateway writes the free slot, restarts into it and keeps the previous image. If the new image does not start correctly, it returns to the previous one.</li>
 </ol>
-<p>This works between 3.x versions. A 2.x gateway first moves to the 3.0 flash layout: see below.</p>
-
-<h2 id="from-v2">From 2.x to 3.0</h2>
-<p>Firmware 3.0 uses a new 8 MB flash layout, so the 2.x updater does not offer it. Settings, the tailnet identity and saved Wi-Fi are kept on every path:</p>
-<ol>
-  <li><strong>Over the network:</strong> in <strong>System → Firmware update</strong> install <strong>2.1.0</strong>, the migration bridge (a normal 2.x update). Turn on the <strong>web UI lock</strong> (System → Access → <em>Require the admin password</em>) and sign in — the migration needs it. Then <strong>System → Maintenance → Move to the 3.0 flash layout</strong>: tick the confirmation and press <strong>Migrate to 3.0</strong>. Keep the power on; it takes a few minutes and returns to 2.1.0 if 3.0 does not start.</li>
-  <li><strong>Over USB:</strong> the <a href="{{root}}install-firmware/">browser installer</a> with <strong>Erase device</strong> unticked, or <code>UPDATE-KEEP-SETTINGS</code> / <code>install.sh update</code> from the <a href="{{root}}easy-install/">Easy Install package</a>.</li>
-</ol>
-<p>Boards with 4 MB of flash cannot run 3.0 and stay on 2.x. Full guide: <a href="{{repo}}/blob/Main/docs/MIGRATION-3.0.md">Moving a 2.x gateway to 3.0</a>.</p>
-
-<h2 id="from-v2-0">From v2.0.0 or v2.0.1</h2>
-<p>The GitHub updater in these two releases restarts the gateway without installing the update. For the network migration, upload <code>firmware.bin</code> from the <a href="{{repo}}/releases/tag/v2.1.0">2.1.0 bridge</a> once in <strong>System → Firmware</strong>, then follow the bridge steps above. Do not upload the current 3.x application directly into a 2.x slot. Alternatively, use the current Easy Install package over USB keeping settings.</p>
+<p>Use this method if your gateway is already on the current flash layout.</p>
 
 <h2 id="usb">By USB, keeping settings</h2>
 <p>Use the <a href="{{root}}install-firmware/">browser installer</a> with <strong>Erase device</strong> unticked, or <code>UPDATE-KEEP-SETTINGS</code> / <code>install.sh update</code> from the <a href="{{root}}easy-install/">Easy Install package</a>.</p>
 
-<h2 id="from-older">From 1.13 and earlier to v{{next_version}}</h2>
-<p>These installations use the old 4 MB layout and cannot install the current 3.x application as an ordinary OTA update. Their older updater can also fail after the repository rename.</p>
-<ol>
-  <li>Back up your configuration and check the <a href="{{root}}hardware/">3.x hardware requirements</a>.</li>
-  <li>For USB, use the current <a href="{{root}}easy-install/">Easy Install keep-settings option</a>.</li>
-  <li>For a staged network upgrade, first upload <code>firmware.bin</code> from the <a href="{{repo}}/releases/tag/v0.1.38-Mattboxx-1.100">legacy 1.100 bridge release</a>. Then install the <a href="{{repo}}/releases/tag/v2.1.0">2.1.0 bridge</a> and follow <a href="#from-v2">Move to the 3.0 flash layout</a>.</li>
-</ol>
-<p>Use the image belonging to each bridge stage, not <code>firmware.bin</code> from the latest 3.x release. See the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">legacy migration guide</a>. Keeping configuration does not reopen the initial setup wizard.</p>
-
 <h2>When a transfer pauses</h2>
-<p>Firmware 3.0.6 tolerates temporary read pauses within a 30-second inactivity budget. GitHub downloads keep their total time limit; browser reception is bounded to ten minutes. Closed connections, bad images and checksum mismatches still stop the update safely.</p>
-<p>The browser bar measures <strong>bytes sent</strong>, then waits for the device to verify the image. Flash preparation can briefly pause the bar. Keep power connected and check the running version after a lost response before retrying.</p>
-<p>The first upgrade from 3.0.2–3.0.5 still uses the previous receiver. If a Tailnet upload stalls, prefer a direct LAN upload or the official GitHub updater. Choose prereleases only deliberately, keep unattended installs off for that operation and restore your intended channel afterward. Never erase a configured gateway just to retry an update.</p>
+<p>The bar shows the bytes sent by the browser. Verification happens on the gateway afterwards. Keep power connected and check the running version if the browser loses its connection. If uploads over the Tailnet repeatedly stall, try from the local LAN or use the official GitHub updater.</p>
+
+<h2 id="from-older">Earlier flash layouts</h2>
+<p>Older gateways may need a different partition layout before the current image will fit. Back up first and choose the guide for the version shown in System.</p>
+<ul>
+  <li id="from-v2"><span id="from-v2-0" aria-hidden="true"></span><a href="{{repo}}/blob/Main/docs/MIGRATION-3.0.md">Update from a 2.x release</a>, including special instructions for the first two 2.x releases.</li>
+  <li><a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">Update from a 1.x release</a> if your original updater can no longer find the repository.</li>
+</ul>
