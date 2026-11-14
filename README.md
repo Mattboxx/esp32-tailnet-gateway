@@ -32,7 +32,7 @@ access, subnet routing, remote recovery and optional automation.
 | --- | --- |
 | **Connect devices that cannot run Tailscale** | Forward one TCP or UDP service from the local LAN to a Tailnet peer. Restrict the source by IP/CIDR. |
 | **Reach a remote LAN** | Advertise approved subnets to Tailnet clients. Configure the gateway's own Wi-Fi for IoT devices. |
-| **Wake and check a NAS or PC** | Send Wake-on-LAN, then check host or service reachability. The ESP32 runs independently of the devices it manages. |
+| **Wake and check a NAS or PC** | Send Wake-on-LAN and verify reachability from Telegram or ntfy, even without Tailscale. [Setup and command reference](https://mattboxx.github.io/esp32-tailnet-gateway/remote-recovery/#commands). |
 | **Monitor and automate** | Track events and resource trends locally. Optionally use MQTT and Home Assistant, ntfy, Telegram, email or SNMP. |
 
 ## Quick start
