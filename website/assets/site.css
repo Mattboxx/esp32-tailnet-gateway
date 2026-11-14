@@ -150,10 +150,11 @@ main:focus { outline: none; }
 figure { margin: 24px 0; }
 figure img { border-radius: var(--radius); border: 1px solid var(--line); display: block; }
 figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; }
-.home-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); }
-.home-ui { margin: 0; min-width: 0; }
-.home-ui img, .firmware-gallery img, .guide-shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius); }
-.home-ui figcaption, .firmware-gallery figcaption, .guide-shot figcaption { margin-top: 10px; }
+.roles { width: 100%; }
+.roles .hole, .roles .nodes circle { fill: var(--bg); } .roles { color: var(--input); } .roles .muted-line { stroke: var(--off); } .roles .nodes .lit { fill: var(--accent); } .roles .lit { stroke: var(--accent); fill: var(--accent); }
+.roles text { fill: var(--muted); font: 15px var(--font); } .roles text.on { fill: var(--text); font-weight: 650; }
+.firmware-gallery img, .guide-shot img { display: block; width: 100%; height: auto; border: 1px solid var(--line); border-radius: var(--radius); }
+.firmware-gallery figcaption, .guide-shot figcaption { margin-top: 10px; }
 .guide-shot { max-width: 720px; margin: 24px 0; }
 .guide-shot img { width: auto; max-width: 100%; }
 .setup-steps li + li { margin-top: .6em; }

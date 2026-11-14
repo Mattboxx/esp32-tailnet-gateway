@@ -5,7 +5,7 @@ search_title: ESP32 Tailnet Gateway and Wake-on-LAN via Telegram or ntfy
 description: ESP32-S3 firmware for Tailscale and Headscale routing, plus standalone Wake-on-LAN with reachability checks over Telegram or ntfy.
 schema: home
 -->
-<section class="hero home-hero">
+<section class="hero">
   <div>
     <p class="eyebrow">Mattboxx Edition</p>
     <h1>ESP32 Tailnet Gateway</h1>
@@ -17,10 +17,28 @@ schema: home
     </div>
     <p class="boards">Firmware v{{next_version}} · <a href="{{root}}hardware/">ESP32-S3 N8R8 / N16R8</a> · <a href="{{root}}changelog/">What's new</a></p>
   </div>
-  <figure class="home-ui">
-    <a href="{{root}}screenshots/"><img src="{{root}}assets/firmware-ui/status.png" alt="ESP32 Tailnet Gateway dashboard with uplink, Tailnet and resource overview" width="1440" height="900" fetchpriority="high" decoding="async"></a>
-    <figcaption><a href="{{root}}screenshots/">Explore the firmware interface</a> · Example data</figcaption>
-  </figure>
+  <svg class="roles" viewBox="0 0 480 300" role="img" aria-labelledby="roles-t">
+    <title id="roles-t">A LAN device passes through the ESP32; the Service Gateway role is enabled, the other roles stay off until you enable them.</title>
+    <rect x="16" y="128" width="56" height="40" rx="8" fill="none" stroke="currentColor" stroke-width="2.5"/>
+    <path d="M72 148h66" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <g fill="none" stroke-width="3" stroke-linecap="round">
+      <path class="muted-line" d="M155 148c60 0 70 -108 131 -108" fill="none"/>
+      <path class="muted-line" d="M155 148c60 0 70 -54 131 -54" fill="none"/>
+      <path class="lit" d="M155 148h131" fill="none"/>
+      <path class="muted-line" d="M155 148c60 0 70 54 131 54" fill="none"/>
+      <path class="muted-line" d="M155 148c60 0 70 108 131 108" fill="none"/>
+    </g>
+    <circle class="lit" cx="155" cy="148" r="17"/><circle class="hole" cx="155" cy="148" r="6.5"/>
+    <g class="nodes" stroke-width="2.5">
+      <circle class="muted-line" cx="296" cy="40" r="7"/><circle class="muted-line" cx="296" cy="94" r="7"/>
+      <circle class="lit" cx="296" cy="148" r="8"/>
+      <circle class="muted-line" cx="296" cy="202" r="7"/><circle class="muted-line" cx="296" cy="256" r="7"/>
+    </g>
+    <text x="314" y="45">Subnet router</text><text x="314" y="99">AP gateway</text>
+    <text class="on" x="314" y="153">Service Gateway</text>
+    <text x="314" y="207">Exit node</text><text x="314" y="261">Remote recovery</text>
+    <text x="44" y="196" text-anchor="middle">LAN device</text>
+  </svg>
 </section>
 
 <section aria-labelledby="use-cases">
@@ -49,7 +67,7 @@ schema: home
     <li><strong>Connect.</strong> Follow the <a href="{{root}}first-boot/">first-boot wizard</a> to pair with the board, test the uplink and find its LAN address.</li>
     <li><strong>Choose a role.</strong> Join Tailscale or Headscale and turn on the capabilities you need.</li>
   </ol>
-  <p>Already running the firmware? See <a href="{{root}}updating/">updates and rollback</a>. Choosing a role? <a href="{{root}}features/">Explore all firmware features</a>.</p>
+  <p>Already running the firmware? See <a href="{{root}}updating/">updates and rollback</a>. Choosing a role? <a href="{{root}}features/">Explore all firmware features</a> · <a href="{{root}}screenshots/">View the firmware interface</a>.</p>
 </section>
 
 <section aria-labelledby="limits">
