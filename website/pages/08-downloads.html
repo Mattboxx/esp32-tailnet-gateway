@@ -1,14 +1,13 @@
 <!--
 slug: downloads/
 title: Downloads
-description: Download ESP32 Tailnet Gateway 3.0 for ESP32-S3 N8R8 and N16R8: browser installer, Easy Install package, factory and update images with SHA-256 checksums.
+description: Download ESP32 Tailnet Gateway for ESP32-S3 N8R8 and N16R8: browser installer, Easy Install package, factory and update images with SHA-256 checksums.
 nav: Downloads
 group: Start
 order: 8
 -->
 <h1>Downloads</h1>
-<!-- if:v2 -->
-<p class="lead">Three ways to install Firmware v{{next_version}} on an ESP32-S3 <strong>N8R8</strong> or <strong>N16R8</strong>. Beginners: start with A. Coming from 2.x? Read <a href="{{root}}updating/#from-v2">Updating</a> first: settings are kept.</p>
+<p class="lead">Three ways to install Firmware v{{next_version}} on an ESP32-S3 <strong>N8R8</strong> or <strong>N16R8</strong>. Already have a configured gateway? Follow the <a href="{{root}}updating/">update guide</a>.</p>
 <h2 id="availability">Choose an installation method</h2>
 <div class="grid">
   <div class="card"><h3>A. Install from browser <span class="badge on">recommended</span></h3>
@@ -27,59 +26,22 @@ order: 8
   <thead><tr><th>File</th><th>Use</th></tr></thead>
   <tbody>
     <tr><td><code>ESP32-Tailnet-Gateway-v{{next_version}}-factory.bin</code></td><td>New device: esptool at <code>0x0</code>. Erases all settings.</td></tr>
-    <tr><td><code>firmware.bin</code></td><td>Application image with every Web UI language (English, Italiano, Español, 简体中文, Français, Deutsch) and the W5500 driver: Web UI upload and GitHub updater on 3.x.</td></tr>
-    <tr><td><code>bootloader.bin</code>, <code>partitions.bin</code></td><td>3.x bootloader and partition-table components. Use the complete browser/Easy Install procedure for a layout migration: it also initializes OTA selection. These files alone are not a complete update procedure.</td></tr>
-    <tr><td>Release <a href="{{repo}}/releases/tag/v2.1.0">2.1.0</a> <code>firmware.bin</code></td><td>Migration bridge for 2.x gateways: moves them to 3.0 over the network.</td></tr>
+    <tr><td><code>firmware.bin</code></td><td>Application image with every Web UI language (English, Italiano, Español, 简体中文, Français, Deutsch) and the W5500 driver: Web UI upload and GitHub updater on the current flash layout.</td></tr>
+    <tr><td><code>bootloader.bin</code>, <code>partitions.bin</code></td><td>Bootloader and partition-table components. Use the complete browser/Easy Install procedure for a layout migration: it also initializes OTA selection. These files alone are not a complete update procedure.</td></tr>
     <tr><td><code>SHA256SUMS.txt</code>, <code>release-manifest.json</code></td><td>Original image/archive checksums and build metadata. For the current Easy Install ZIP, use the <a href="{{easy_install_checksums}}">ZIP and source checksums</a>.</td></tr>
     <tr><td><a href="{{root}}firmware/{{next_version}}/FIRMWARE-LICENSES.txt">FIRMWARE-LICENSES.txt</a></td><td>Firmware and bundled dependency copyright and license notices.</td></tr>
     <tr><td>Source code and <a href="{{repo}}/releases/tag/v{{next_version}}">release notes</a></td><td>Exact sources of this release.</td></tr>
   </tbody>
 </table>
 <p>Advanced flashing (new device): <code>esptool --chip esp32s3 write-flash 0x0 ESP32-Tailnet-Gateway-v{{next_version}}-factory.bin</code>.</p>
-<!-- endif -->
-<!-- if:stable -->
-<p class="note">Firmware v{{next_version}} — with the <a href="{{root}}install-firmware/">browser installer</a>, the <a href="{{root}}easy-install/">Easy Install package</a> and the <a href="{{root}}first-boot/">guided first start</a> — is in preparation. Until it is released, the download below is the stable 1.13.</p>
-<h2 id="availability">Available now: stable Mattboxx 1.13</h2>
-<p>The new identity is live; Firmware v{{next_version}} is still in preparation. The download below is <strong>0.1.38-Mattboxx-1.13</strong>, not the preview firmware. Existing users can keep their stable installation.</p>
-<table>
-  <thead><tr><th>In public stable 1.13</th><th>Firmware v{{next_version}} — not yet released</th></tr></thead>
-  <tbody>
-    <tr><td>LAN → Tailnet TCP/UDP rules, source restrictions and MagicDNS</td><td>Destination tests, timed rules, Service Watch and rule guides</td></tr>
-    <tr><td>Subnet router, AP gateway, exit-node roles and 4via6</td><td>Refreshed UI, Simple/Advanced modes and configuration profiles</td></tr>
-    <tr><td>Saved WoL devices, MQTT/HA, ntfy, read-only SNMP</td><td>Smart Recovery, layered Health Monitor and diagnostic export</td></tr>
-    <tr><td>ESP32-S3 N16R8 WiFi build</td><td>Experimental W5500 variant; no hardware-qualification claim</td></tr>
-  </tbody>
-</table>
-<p>Firmware is published only on the GitHub releases page. Always check the SHA-256 checksum before flashing.</p>
-<p><a class="btn primary" href="{{repo}}/releases/latest">Latest stable release</a> <a class="btn" href="{{repo}}/releases">All releases</a></p>
-
-<h2>Current 1.13 release assets</h2>
-<table>
-  <thead><tr><th>File</th><th>When to use it</th></tr></thead>
-  <tbody>
-    <tr><td><code>firmware-factory.bin</code></td><td>First install with esptool at offset <code>0x0</code>. Erases all settings.</td></tr>
-    <tr><td><code>firmware.bin</code></td><td>Updates: Web UI upload, the opt-in GitHub updater, or keep-settings flashing.</td></tr>
-    <tr><td><code>ESP32-S3-router-0.1.38-Mattboxx-1.13-windows.zip</code></td><td>Guided Windows package with esptool and batch files.</td></tr>
-    <tr><td><code>RELEASE-SHA256SUMS.txt</code>, <code>FIRMWARE-LICENSES.txt</code></td><td>Published checksums and third-party notices.</td></tr>
-  </tbody>
-</table>
-
-<!-- endif -->
 <h2>Verify a download</h2>
-<!-- if:v2 -->
 <pre><code>sha256sum -c SHA256SUMS.txt        # Linux
 shasum -a 256 -c SHA256SUMS.txt    # macOS
 Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
-<p><a href="{{repo}}/releases/tag/v0.1.38-Mattboxx-1.13">Previous stable 1.13 and its original installation assets</a> remain available in the release archive.</p>
-<!-- endif -->
-<!-- if:stable -->
-<pre><code>sha256sum -c RELEASE-SHA256SUMS.txt        # Linux
-shasum -a 256 -c RELEASE-SHA256SUMS.txt    # macOS
-Get-FileHash firmware.bin -Algorithm SHA256   # Windows PowerShell</code></pre>
-<!-- endif -->
+<p><a href="{{repo}}/releases">All releases and their original installation assets</a> are available on GitHub.</p>
 
 <h2>One image</h2>
-<p>Firmware 3.x ships a single image for N8R8 and N16R8 boards with every language and the W5500 Ethernet driver (experimental, off until configured). There are no separate language or Ethernet downloads.</p>
+<p>The current firmware ships a single image for N8R8 and N16R8 boards with every language and the W5500 Ethernet driver (experimental, off until configured). There are no separate language or Ethernet downloads.</p>
 
 <h2>Updating an existing device</h2>
-<p>On an existing 3.x gateway, back up first (System → Backup). Upload <code>firmware.bin</code> in System → Firmware or use the opt-in updater; settings are kept and a failed boot returns to the previous image. 2.x gateways move to 3.0 as described in <a href="{{root}}updating/#from-v2">Updating</a>. Devices on 1.13 or older that cannot find updates after the repository rename: see the <a href="{{repo}}/blob/Main/docs/MIGRATION-RENAME.md">migration note</a>.</p>
+<p>Back up under <strong>System → Backup</strong>, then use <strong>System → Firmware</strong> for a Web UI upload or the opt-in GitHub updater. If your device uses an earlier partition layout, use the <a href="{{root}}updating/#from-older">migration guides</a> before uploading the current image.</p>

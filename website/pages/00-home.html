@@ -10,7 +10,7 @@ schema: home
     <p class="eyebrow">Mattboxx Edition</p>
     <h1>ESP32 Tailnet Gateway</h1>
     <p class="tagline">One ESP32. Multiple Tailnet roles. <span>Enable only what you need.</span></p>
-    <p class="lead">Connect local devices to selected Tailscale or Headscale services, reach your home network, and wake a NAS or PC remotely.</p>
+    <p class="lead">Give devices without a VPN client access to selected Tailscale or Headscale services. Reach your home LAN or wake a NAS or PC from anywhere you can reach your Tailnet.</p>
     <div class="cta">
       <a class="btn primary" href="{{root}}install-firmware/">Install Firmware</a>
       <a class="btn" href="{{root}}getting-started/">Get started</a>
@@ -29,7 +29,7 @@ schema: home
     <article class="card"><h3>Reach a specific service</h3><p>Give a device on your LAN access to a selected TCP or UDP service on a Tailnet peer. Restrict access by source IP or subnet.</p><a href="{{root}}service-gateway/">Service Gateway</a></article>
     <article class="card"><h3>Reach a home or IoT network</h3><p>Advertise approved subnets to Tailnet clients, or give local devices a dedicated Wi-Fi network through the ESP32.</p><a href="{{root}}network-modes/">Network modes</a></article>
     <article class="card"><h3>Recover a NAS or PC</h3><p>Wake a device over the network and check whether its host or service responds. Keep the ESP32 powered separately.</p><a href="{{root}}remote-recovery/">Remote recovery</a></article>
-    <article class="card"><h3>Monitor and automate</h3><p>Review local event history and resource trends. Connect Home Assistant via MQTT or configure optional alerts and SNMP.</p><a href="{{root}}automation/">Automation</a> · <a href="{{root}}screenshots/#history">Event history</a></article>
+    <article class="card"><h3>Monitor and automate</h3><p>Review local event history and resource trends. Connect Home Assistant via MQTT, send alerts via Telegram, email or ntfy, or monitor over SNMP.</p><a href="{{root}}automation/">Automation</a> · <a href="{{root}}screenshots/#history">Event history</a></article>
   </div>
 </section>
 
@@ -49,7 +49,7 @@ schema: home
     <li><strong>Connect.</strong> Follow the <a href="{{root}}first-boot/">first-boot wizard</a> to pair with the board, test the uplink and find its LAN address.</li>
     <li><strong>Choose a role.</strong> Join Tailscale or Headscale and turn on the capabilities you need.</li>
   </ol>
-  <p>Already running the firmware? See <a href="{{root}}updating/">updates and rollback</a>.</p>
+  <p>Already running the firmware? See <a href="{{root}}updating/">updates and rollback</a>. Choosing a role? <a href="{{root}}features/">Explore all firmware features</a>.</p>
 </section>
 
 <section aria-labelledby="limits">
