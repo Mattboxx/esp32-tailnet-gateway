@@ -15,7 +15,7 @@ gateways can still find one update: the **transition release 3.0.28**, the same
 image published in RecoveryGateway. From 3.0.28 the updater looks in
 `Mattboxx/RecoveryGateway`, so every later update comes from there.
 
-- Update from the web interface as usual: **System → Firmware → Check for
+- Update from the web interface as usual: **System → Updates → Check for
   updates**, then install 3.0.28. Settings are kept.
 - This repository only receives a new release when a newer transition image is
   needed. It has no source code: the source of every release, including 3.0.28,
