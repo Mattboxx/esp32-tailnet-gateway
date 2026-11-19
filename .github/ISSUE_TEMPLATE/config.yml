@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Open an issue in RecoveryGateway
+    url: https://github.com/Mattboxx/RecoveryGateway/issues
+    about: This project moved to Mattboxx/RecoveryGateway. Issues are handled there.
+  - name: Report a security problem
+    url: https://github.com/Mattboxx/RecoveryGateway/security/advisories/new
+    about: Private vulnerability reporting for RecoveryGateway.
